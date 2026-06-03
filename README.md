@@ -6,9 +6,12 @@ Nx monorepo for the outreach platform: Next.js web app, Node API, Python agent s
 
 | Tool | Version | Used for |
 |------|---------|----------|
-| [Node.js](https://nodejs.org/) | 20+ recommended | Web, API, Nx, npm workspaces |
-| [npm](https://www.npmjs.org/) | 10+ (comes with Node) | Install and link packages |
-| [Python](https://www.python.org/) | 3.12 (see `.python-version`) | Python agent apps |
+| [Node.js](https://nodejs.org/) | 24.16.0 LTS or newer | JavaScript compatibility baseline for web/API tooling |
+| [Bun](https://bun.sh/) | 1.3.14 or newer | JavaScript runtime, package install, workspace scripts |
+| [npm](https://www.npmjs.org/) | 11.16.0 or newer | Fallback package runner for Nx commands |
+| [Python](https://www.python.org/) | 3.14.5 latest stable; `.python-version` currently pins 3.12 | Python agent apps |
+
+Version check last updated: June 3, 2026.
 
 Optional: [Nx Console](https://nx.dev/getting-started/editor-integration) in your editor.
 
@@ -20,7 +23,7 @@ Optional: [Nx Console](https://nx.dev/getting-started/editor-integration) in you
 outreach-autometer/
 ├── apps/
 │   ├── web/                 # Next.js + Tailwind + TypeScript
-│   ├── api/                 # Node + Express + TypeScript
+│   ├── api/                 # Bun + Express + TypeScript
 │   ├── ai-orchestrator/     # Python + FastAPI
 │   ├── job-agent/           # Python + FastAPI
 │   ├── apply-agent/         # Python + FastAPI
@@ -35,7 +38,8 @@ outreach-autometer/
 ├── infra/                   # Infrastructure (placeholder)
 ├── docs/                    # Documentation (placeholder)
 ├── .venv/                   # Single shared Python venv (local, not committed)
-└── package.json             # Root workspace + npm scripts
+├── bun.lock                 # Bun lockfile for JavaScript dependencies
+└── package.json             # Root workspace + scripts
 ```
 
 ---
@@ -49,26 +53,26 @@ git clone <repository-url>
 cd outreach-autometer
 ```
 
-### 2. Install Node dependencies
+### 2. Install JavaScript dependencies with Bun
 
 From the **repository root**:
 
 ```bash
-npm install
+bun install
 ```
 
-This installs root dev tools (Nx, ESLint, TypeScript, etc.) and links npm workspaces under `apps/*` and `packages/*`.
+This installs root dev tools (Nx, ESLint, TypeScript, etc.) and links workspaces under `apps/*` and `packages/*`.
 
 ### 3. Nx
 
-Nx is already configured via `nx.json` and per-project `project.json` / `package.json` files. You do not install Nx globally; use `npx nx` or the npm scripts below.
+Nx is already configured via `nx.json` and per-project `project.json` / `package.json` files. You do not install Nx globally; use `bun nx` or the package scripts below.
 
 Useful commands:
 
 ```bash
-npx nx show projects          # list all projects
-npx nx graph                  # dependency graph (opens in browser)
-npx nx run-many -t lint       # lint everything that defines lint
+bun nx show projects          # list all projects
+bun nx graph                  # dependency graph (opens in browser)
+bun nx run-many -t lint       # lint everything that defines lint
 ```
 
 The `.nx/` folder is created locally when you run Nx (cache, workspace metadata). It is **gitignored** — do not commit it.
@@ -126,32 +130,32 @@ All commands below are run from the **repository root**.
 
 | Command | App | Default URL |
 |---------|-----|-------------|
-| `npm run dev:web` | Next.js frontend | http://localhost:3000 |
-| `npm run dev:api` | Express API | http://localhost:3333 |
-| `npm run dev:ai-orchestrator` | FastAPI | http://127.0.0.1:8001 |
-| `npm run dev:job-agent` | FastAPI | http://127.0.0.1:8002 |
-| `npm run dev:apply-agent` | FastAPI | http://127.0.0.1:8003 |
-| `npm run dev:outreach-agent` | FastAPI | http://127.0.0.1:8004 |
+| `bun run dev:web` | Next.js frontend | http://localhost:3000 |
+| `bun run dev:api` | Express API | http://localhost:3333 |
+| `bun run dev:ai-orchestrator` | FastAPI | http://127.0.0.1:8001 |
+| `bun run dev:job-agent` | FastAPI | http://127.0.0.1:8002 |
+| `bun run dev:apply-agent` | FastAPI | http://127.0.0.1:8003 |
+| `bun run dev:outreach-agent` | FastAPI | http://127.0.0.1:8004 |
 
-Python apps use the root `.venv` automatically (`npm run dev:*` does not require you to activate the venv first).
+Python apps use the root `.venv` automatically (`bun run dev:*` does not require you to activate the venv first).
 
 FastAPI interactive docs: `http://127.0.0.1:<port>/docs`
 
 Equivalent Nx commands:
 
 ```bash
-npx nx dev @org/web
-npx nx serve @org/api
-npx nx serve job-agent
+bun nx dev @org/web
+bun nx serve @org/api
+bun nx serve job-agent
 ```
 
 ### Production build (TypeScript apps)
 
 | Command | Description |
 |---------|-------------|
-| `npm run build:web` | Next.js production build |
-| `npm run build:api` | Bundle API with esbuild |
-| `npm run build:apps` | Build web + API together |
+| `bun run build:web` | Next.js production build |
+| `bun run build:api` | Bundle API with esbuild |
+| `bun run build:apps` | Build web + API together |
 
 Python agents do not have a `build` target yet; deploy them with their folder `requirements.txt` and runtime of your choice.
 
@@ -163,21 +167,21 @@ You can set up **only** what you need.
 
 ### TypeScript apps (`web`, `api`)
 
-1. Clone repo and run `npm install` at the root (required for Nx and workspace linking).
+1. Clone repo and run `bun install` at the root (required for Nx and workspace linking).
 2. Create that app’s env file (see table above).
 3. Run dev:
 
    ```bash
-   npm run dev:web
+   bun run dev:web
    # or
-   npm run dev:api
+   bun run dev:api
    ```
 
 You do not need Python or `.venv` if you are not touching Python apps.
 
 ### One Python agent (e.g. `job-agent`)
 
-1. Clone repo and run `npm install` at the root (for `npm run dev:job-agent`).
+1. Clone repo and run `bun install` at the root (for `bun run dev:job-agent`).
 2. Create root venv and activate:
 
    ```bash
@@ -197,14 +201,14 @@ You do not need Python or `.venv` if you are not touching Python apps.
 5. Run:
 
    ```bash
-   npm run dev:job-agent
+   bun run dev:job-agent
    ```
 
 Other agents’ `requirements.txt` files can stay uninstalled until you need them.
 
 ### Shared packages only
 
-1. `npm install` at root.
+1. `bun install` at root.
 2. Implement code under `packages/<name>/`.
 3. Link into an app when ready (see below).
 
@@ -229,11 +233,7 @@ Packages are empty scaffolds today; once they export code, consume them from Typ
 
 From the **repository root**, add the package to an app (example: web needs types):
 
-```bash
-npm install @org/types --workspace apps/web
-```
-
-Or edit `apps/web/package.json` manually:
+Edit `apps/web/package.json` manually:
 
 ```json
 {
@@ -243,7 +243,7 @@ Or edit `apps/web/package.json` manually:
 }
 ```
 
-Then run `npm install` again at the root.
+Then run `bun install` again at the root.
 
 ### 2. Import in code
 
@@ -278,15 +278,15 @@ Python agents do **not** import `@org/*` npm packages directly. Share logic via:
 
 ### `apps/web` — `@org/web`
 
-- **Stack:** Next.js 16, React, Tailwind, TypeScript
+- **Stack:** Next.js 16, React, Tailwind, TypeScript, Bun scripts
 - **Env:** `apps/web/.env.local`
-- **Dev / build:** `npm run dev:web`, `npm run build:web`
+- **Dev / build:** `bun run dev:web`, `bun run build:web`
 
 ### `apps/api` — `@org/api`
 
-- **Stack:** Node, Express, TypeScript, esbuild
+- **Stack:** Bun runtime target, Express, TypeScript, esbuild
 - **Env:** `apps/api/.env` (`HOST`, `PORT` default to `localhost` / `3333`)
-- **Dev / build:** `npm run dev:api`, `npm run build:api`
+- **Dev / build:** `bun run dev:api`, `bun run build:api`
 
 ### Python agents
 
@@ -299,7 +299,7 @@ Python agents do **not** import `@org/*` npm packages directly. Share logic via:
 
 - **Entry:** `main.py` (FastAPI `app`)
 - **Env:** `apps/<agent>/.env`
-- **Dev:** `npm run dev:<agent-name>`
+- **Dev:** `bun run dev:<agent-name>`
 
 ---
 
@@ -307,10 +307,10 @@ Python agents do **not** import `@org/*` npm packages directly. Share logic via:
 
 | Task | Command |
 |------|---------|
-| Install Node deps | `npm install` |
-| List Nx projects | `npx nx show projects` |
-| Lint | `npx nx run-many -t lint` |
-| Format | `npx nx format:write` |
+| Install JavaScript deps | `bun install` |
+| List Nx projects | `bun nx show projects` |
+| Lint | `bun nx run-many -t lint` |
+| Format | `bun nx format:write` |
 | Create Python venv | `python3 -m venv .venv` |
 | Activate venv | `source .venv/bin/activate` |
 | Install app Python deps | `cd apps/<app> && pip install -r requirements.txt` |
@@ -319,7 +319,7 @@ Python agents do **not** import `@org/*` npm packages directly. Share logic via:
 
 ## Troubleshooting
 
-**`npm run dev:*` fails for Python — `.venv` missing**
+**`bun run dev:*` fails for Python — `.venv` missing**
 
 ```bash
 python3 -m venv .venv
@@ -332,12 +332,12 @@ Change `PORT` in that app’s `.env`, or stop the other process using the port.
 
 **Cannot resolve `@org/types`**
 
-Run `npm install` from the repo root after adding the dependency to the app’s `package.json`.
+Run `bun install` from the repo root after adding the dependency to the app’s `package.json`.
 
 **Nx cache issues**
 
 ```bash
-npx nx reset
+bun nx reset
 ```
 
 ---
