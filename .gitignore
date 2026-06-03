@@ -1,5 +1,6 @@
 # See https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files for more about ignoring files.
 
+.nx/
 # compiled output
 dist
 tmp
@@ -7,6 +8,21 @@ out-tsc
 
 # dependencies
 node_modules
+.venv
+
+# environment (per-app; commit .env.example only)
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
 
 # IDEs and editors
 /.idea
@@ -47,3 +63,7 @@ Thumbs.db
 .claude/settings.local.json
 .nx/polygraph
 .nx/self-healing
+
+# Next.js
+.next
+out

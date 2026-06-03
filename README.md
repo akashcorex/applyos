@@ -1,105 +1,347 @@
-# New Nx Repository
+# Outreach Autometer
 
-<a alt="Nx logo" href="https://nx.dev" target="_blank" rel="noreferrer"><img src="https://raw.githubusercontent.com/nrwl/nx/master/images/nx-logo.png" width="45"></a>
+Nx monorepo for the outreach platform: Next.js web app, Node API, Python agent services, and shared TypeScript packages.
 
-✨ Your new, shiny [Nx workspace](https://nx.dev) is ready ✨.
+## Prerequisites
 
-[Learn more about this workspace setup and its capabilities](https://nx.dev/nx-api/js?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) or run `npx nx graph` to visually explore what was created. Now, let's get you up to speed!
-## Try the full Nx platform
-🚀 If you haven't connected to Nx Cloud yet, [complete your setup here](https://cloud.nx.app/setup/connect-workspace/guide). Get faster builds with remote caching, distributed task execution, and self-healing CI. [See how your workspace can benefit](#nx-cloud).
-## Generate a library
+| Tool | Version | Used for |
+|------|---------|----------|
+| [Node.js](https://nodejs.org/) | 20+ recommended | Web, API, Nx, npm workspaces |
+| [npm](https://www.npmjs.org/) | 10+ (comes with Node) | Install and link packages |
+| [Python](https://www.python.org/) | 3.12 (see `.python-version`) | Python agent apps |
 
-```sh
-npx nx g @nx/js:lib packages/pkg1 --publishable --importPath=@my-org/pkg1
-```
+Optional: [Nx Console](https://nx.dev/getting-started/editor-integration) in your editor.
 
-## Run tasks
+---
 
-To build the library use:
-
-```sh
-npx nx build pkg1
-```
-
-To run any task with Nx use:
-
-```sh
-npx nx <target> <project-name>
-```
-
-These targets are either [inferred automatically](https://nx.dev/concepts/inferred-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) or defined in the `project.json` or `package.json` files.
-
-[More about running tasks in the docs &raquo;](https://nx.dev/features/run-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-## Versioning and releasing
-
-To version and release the library use
+## Repository layout
 
 ```
-npx nx release
+outreach-autometer/
+├── apps/
+│   ├── web/                 # Next.js + Tailwind + TypeScript
+│   ├── api/                 # Node + Express + TypeScript
+│   ├── ai-orchestrator/     # Python + FastAPI
+│   ├── job-agent/           # Python + FastAPI
+│   ├── apply-agent/         # Python + FastAPI
+│   └── outreach-agent/      # Python + FastAPI
+├── packages/                # Shared libraries (scaffolded)
+│   ├── database/
+│   ├── logger/
+│   ├── queue/
+│   ├── sdk/
+│   ├── types/
+│   └── ui/
+├── infra/                   # Infrastructure (placeholder)
+├── docs/                    # Documentation (placeholder)
+├── .venv/                   # Single shared Python venv (local, not committed)
+└── package.json             # Root workspace + npm scripts
 ```
 
-Pass `--dry-run` to see what would happen without actually releasing the library.
+---
 
-[Learn more about Nx release &raquo;](https://nx.dev/features/manage-releases?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+## First-time setup (full monorepo)
 
-## Keep TypeScript project references up to date
+### 1. Clone the repository
 
-Nx automatically updates TypeScript [project references](https://www.typescriptlang.org/docs/handbook/project-references.html) in `tsconfig.json` files to ensure they remain accurate based on your project dependencies (`import` or `require` statements). This sync is automatically done when running tasks such as `build` or `typecheck`, which require updated references to function correctly.
-
-To manually trigger the process to sync the project graph dependencies information to the TypeScript project references, run the following command:
-
-```sh
-npx nx sync
+```bash
+git clone <repository-url>
+cd outreach-autometer
 ```
 
-You can enforce that the TypeScript project references are always in the correct state when running in CI by adding a step to your CI job configuration that runs the following command:
+### 2. Install Node dependencies
 
-```sh
-npx nx sync:check
+From the **repository root**:
+
+```bash
+npm install
 ```
 
-[Learn more about nx sync](https://nx.dev/reference/nx-commands#sync)
+This installs root dev tools (Nx, ESLint, TypeScript, etc.) and links npm workspaces under `apps/*` and `packages/*`.
 
-## Nx Cloud
+### 3. Nx
 
-Nx Cloud ensures a [fast and scalable CI](https://nx.dev/ci/intro/why-nx-cloud?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) pipeline. It includes features such as:
+Nx is already configured via `nx.json` and per-project `project.json` / `package.json` files. You do not install Nx globally; use `npx nx` or the npm scripts below.
 
-- [Remote caching](https://nx.dev/ci/features/remote-cache?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Task distribution across multiple machines](https://nx.dev/ci/features/distribute-task-execution?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Automated e2e test splitting](https://nx.dev/ci/features/split-e2e-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Task flakiness detection and rerunning](https://nx.dev/ci/features/flaky-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+Useful commands:
 
-### Set up CI (non-Github Actions CI)
-
-**Note:** This is only required if your CI provider is not GitHub Actions.
-
-Use the following command to configure a CI workflow for your workspace:
-
-```sh
-npx nx g ci-workflow
+```bash
+npx nx show projects          # list all projects
+npx nx graph                  # dependency graph (opens in browser)
+npx nx run-many -t lint       # lint everything that defines lint
 ```
 
-[Learn more about Nx on CI](https://nx.dev/ci/intro/ci-with-nx#ready-get-started-with-your-provider?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+The `.nx/` folder is created locally when you run Nx (cache, workspace metadata). It is **gitignored** — do not commit it.
 
-## Install Nx Console
+### 4. Python (shared virtual environment)
 
-Nx Console is an editor extension that enriches your developer experience. It lets you run tasks, generate code, and improves code autocompletion in your IDE. It is available for VSCode and IntelliJ.
+All Python apps share **one** venv at the repo root. Each app still has its own `requirements.txt` so you can see (and deploy) only what that service needs.
 
-[Install Nx Console &raquo;](https://nx.dev/getting-started/editor-setup?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+From the **repository root**:
 
-## Useful links
+```bash
+python3 -m venv .venv
+source .venv/bin/activate    # Windows: .venv\Scripts\activate
+```
 
-Learn more:
+Install dependencies:
 
-- [Learn more about this workspace setup](https://nx.dev/nx-api/js?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Learn about Nx on CI](https://nx.dev/ci/intro/ci-with-nx?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Releasing Packages with Nx release](https://nx.dev/features/manage-releases?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [What are Nx plugins?](https://nx.dev/concepts/nx-plugins?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+```bash
+# One-off packages while developing
+pip install <package-name>
 
-And join the Nx community:
+# Everything a single app needs (run from that app folder)
+cd apps/job-agent
+pip install -r requirements.txt
+cd ../..
+```
 
-- [Discord](https://go.nx.dev/community)
-- [Follow us on X](https://twitter.com/nxdevtools) or [LinkedIn](https://www.linkedin.com/company/nrwl)
-- [Our Youtube channel](https://www.youtube.com/@nxdevtools)
-- [Our blog](https://nx.dev/blog?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+Repeat `pip install -r requirements.txt` for each Python app you work on. You only need to install what you use; there is no custom install script in this repo.
+
+### 5. Environment variables (per app)
+
+Each application has **its own** `.env` file. Do not use one root `.env` for everything.
+
+| App | Env file location | Notes |
+|-----|-------------------|--------|
+| Web | `apps/web/.env.local` | [Next.js env convention](https://nextjs.org/docs/app/building-your-application/configuring/environment-variables) |
+| API | `apps/api/.env` | e.g. `PORT`, `HOST` |
+| Python agents | `apps/<agent>/.env` | e.g. `PORT`, API keys |
+
+Copy from an example when you add one:
+
+```bash
+cp apps/api/.env.example apps/api/.env
+```
+
+`.env` files are gitignored. Commit `.env.example` templates only (no secrets).
+
+---
+
+## Running applications
+
+All commands below are run from the **repository root**.
+
+### Development
+
+| Command | App | Default URL |
+|---------|-----|-------------|
+| `npm run dev:web` | Next.js frontend | http://localhost:3000 |
+| `npm run dev:api` | Express API | http://localhost:3333 |
+| `npm run dev:ai-orchestrator` | FastAPI | http://127.0.0.1:8001 |
+| `npm run dev:job-agent` | FastAPI | http://127.0.0.1:8002 |
+| `npm run dev:apply-agent` | FastAPI | http://127.0.0.1:8003 |
+| `npm run dev:outreach-agent` | FastAPI | http://127.0.0.1:8004 |
+
+Python apps use the root `.venv` automatically (`npm run dev:*` does not require you to activate the venv first).
+
+FastAPI interactive docs: `http://127.0.0.1:<port>/docs`
+
+Equivalent Nx commands:
+
+```bash
+npx nx dev @org/web
+npx nx serve @org/api
+npx nx serve job-agent
+```
+
+### Production build (TypeScript apps)
+
+| Command | Description |
+|---------|-------------|
+| `npm run build:web` | Next.js production build |
+| `npm run build:api` | Bundle API with esbuild |
+| `npm run build:apps` | Build web + API together |
+
+Python agents do not have a `build` target yet; deploy them with their folder `requirements.txt` and runtime of your choice.
+
+---
+
+## Working on a single app only
+
+You can set up **only** what you need.
+
+### TypeScript apps (`web`, `api`)
+
+1. Clone repo and run `npm install` at the root (required for Nx and workspace linking).
+2. Create that app’s env file (see table above).
+3. Run dev:
+
+   ```bash
+   npm run dev:web
+   # or
+   npm run dev:api
+   ```
+
+You do not need Python or `.venv` if you are not touching Python apps.
+
+### One Python agent (e.g. `job-agent`)
+
+1. Clone repo and run `npm install` at the root (for `npm run dev:job-agent`).
+2. Create root venv and activate:
+
+   ```bash
+   python3 -m venv .venv
+   source .venv/bin/activate
+   ```
+
+3. Install **only** that app’s dependencies:
+
+   ```bash
+   cd apps/job-agent
+   pip install -r requirements.txt
+   cd ../..
+   ```
+
+4. Create `apps/job-agent/.env` if needed.
+5. Run:
+
+   ```bash
+   npm run dev:job-agent
+   ```
+
+Other agents’ `requirements.txt` files can stay uninstalled until you need them.
+
+### Shared packages only
+
+1. `npm install` at root.
+2. Implement code under `packages/<name>/`.
+3. Link into an app when ready (see below).
+
+---
+
+## Using shared packages (`packages/`)
+
+Shared libraries live under `packages/` and are published in the workspace as `@org/<name>`:
+
+| Package | Import name |
+|---------|-------------|
+| database | `@org/database` |
+| logger | `@org/logger` |
+| queue | `@org/queue` |
+| sdk | `@org/sdk` |
+| types | `@org/types` |
+| ui | `@org/ui` |
+
+Packages are empty scaffolds today; once they export code, consume them from TypeScript apps like this.
+
+### 1. Add a workspace dependency
+
+From the **repository root**, add the package to an app (example: web needs types):
+
+```bash
+npm install @org/types --workspace apps/web
+```
+
+Or edit `apps/web/package.json` manually:
+
+```json
+{
+  "dependencies": {
+    "@org/types": "*"
+  }
+}
+```
+
+Then run `npm install` again at the root.
+
+### 2. Import in code
+
+**Next.js (`apps/web`):**
+
+```ts
+import { something } from '@org/types';
+```
+
+**Express API (`apps/api`):**
+
+```ts
+import { something } from '@org/types';
+```
+
+Ensure the shared package exposes entry points (e.g. `src/index.ts` and `package.json` `"exports"`) when you add implementation.
+
+### 3. Nx boundaries
+
+TypeScript apps are checked by `@nx/enforce-module-boundaries` in `eslint.config.mjs`. Prefer depending on `packages/*` through `@org/*` workspace names, not deep relative paths into `packages/`.
+
+### Python apps and `packages/`
+
+Python agents do **not** import `@org/*` npm packages directly. Share logic via:
+
+- HTTP calls to `api` or other agents, or
+- Future Python packages / copy-shared-modules patterns you add later.
+
+---
+
+## Per-app reference
+
+### `apps/web` — `@org/web`
+
+- **Stack:** Next.js 16, React, Tailwind, TypeScript
+- **Env:** `apps/web/.env.local`
+- **Dev / build:** `npm run dev:web`, `npm run build:web`
+
+### `apps/api` — `@org/api`
+
+- **Stack:** Node, Express, TypeScript, esbuild
+- **Env:** `apps/api/.env` (`HOST`, `PORT` default to `localhost` / `3333`)
+- **Dev / build:** `npm run dev:api`, `npm run build:api`
+
+### Python agents
+
+| Project | Port | `requirements.txt` |
+|---------|------|------------------|
+| `ai-orchestrator` | 8001 | `apps/ai-orchestrator/requirements.txt` |
+| `job-agent` | 8002 | `apps/job-agent/requirements.txt` |
+| `apply-agent` | 8003 | `apps/apply-agent/requirements.txt` |
+| `outreach-agent` | 8004 | `apps/outreach-agent/requirements.txt` |
+
+- **Entry:** `main.py` (FastAPI `app`)
+- **Env:** `apps/<agent>/.env`
+- **Dev:** `npm run dev:<agent-name>`
+
+---
+
+## Common tasks
+
+| Task | Command |
+|------|---------|
+| Install Node deps | `npm install` |
+| List Nx projects | `npx nx show projects` |
+| Lint | `npx nx run-many -t lint` |
+| Format | `npx nx format:write` |
+| Create Python venv | `python3 -m venv .venv` |
+| Activate venv | `source .venv/bin/activate` |
+| Install app Python deps | `cd apps/<app> && pip install -r requirements.txt` |
+
+---
+
+## Troubleshooting
+
+**`npm run dev:*` fails for Python — `.venv` missing**
+
+```bash
+python3 -m venv .venv
+cd apps/<your-app> && pip install -r requirements.txt
+```
+
+**Port already in use**
+
+Change `PORT` in that app’s `.env`, or stop the other process using the port.
+
+**Cannot resolve `@org/types`**
+
+Run `npm install` from the repo root after adding the dependency to the app’s `package.json`.
+
+**Nx cache issues**
+
+```bash
+npx nx reset
+```
+
+---
+
+## License
+
+MIT

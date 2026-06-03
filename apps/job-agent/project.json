@@ -1,0 +1,17 @@
+{
+  "name": "job-agent",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/job-agent",
+  "projectType": "application",
+  "tags": ["type:app", "lang:python"],
+  "targets": {
+    "serve": {
+      "continuous": true,
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/job-agent",
+        "command": "../../.venv/bin/python -m uvicorn main:app --reload --host 127.0.0.1 --port 8002"
+      }
+    }
+  }
+}

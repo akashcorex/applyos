@@ -1,0 +1,17 @@
+{
+  "name": "ai-orchestrator",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/ai-orchestrator",
+  "projectType": "application",
+  "tags": ["type:app", "lang:python"],
+  "targets": {
+    "serve": {
+      "continuous": true,
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/ai-orchestrator",
+        "command": "../../.venv/bin/python -m uvicorn main:app --reload --host 127.0.0.1 --port 8001"
+      }
+    }
+  }
+}
