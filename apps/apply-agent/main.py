@@ -1,13 +1,5 @@
-from fastapi import FastAPI
+"""Backward-compatible re-export — Nx serves via app.main:app."""
 
-app = FastAPI(title="apply-agent")
+from app.main import app
 
-
-@app.get("/")
-def root() -> dict[str, str]:
-    return {"service": "apply-agent", "status": "ok"}
-
-
-@app.get("/health")
-def health() -> dict[str, str]:
-    return {"status": "healthy"}
+__all__ = ["app"]
