@@ -8,12 +8,14 @@ from __future__ import annotations
 
 import logging
 import re
+from pathlib import Path
 
 from playwright.async_api import Page
 from playwright.async_api import TimeoutError as PlaywrightTimeoutError
 
 from app.ats.base import ATSHandler, FillResult, FormField, resolve_mapped_value
 from app.browser.human_delay import human_click, human_type, random_pause
+from app.browser.resume_upload import prepare_resume_file
 from app.models.job_payload import CVData
 
 logger = logging.getLogger(__name__)
@@ -116,6 +118,20 @@ class GreenhouseHandler(ATSHandler):
         await option.click()
         await random_pause(0.2, 0.5)
         return True
+
+    async def _upload_resume(self, page: Page, resume_path: Path) -> bool:
+        file_inputs = await page.query_selector_all("input[type='file']")
+        for file_input in file_inputs:
+            try:
+                await file_input.set_input_files(str(resume_path))
+                uploaded = await file_input.evaluate(
+                    "el => Boolean(el.files && el.files.length > 0)"
+                )
+                if uploaded:
+                    return True
+            except Exception as exc:
+                logger.warning("Greenhouse resume upload attempt failed: %s", exc)
+        return False
 
     async def _get_validation_errors(self, page: Page) -> list[str]:
         errors = await page.evaluate(
@@ -289,44 +305,66 @@ class GreenhouseHandler(ATSHandler):
         filled = 0
         initial_url = page.url
         try:
-            for selector, cv_key in field_mapping.items():
-                value = resolve_mapped_value(cv_data, cv_key)
-                if value is None:
-                    continue
+            async with prepare_resume_file(cv_data) as resume_path:
+                for selector, cv_key in field_mapping.items():
+                    value = resolve_mapped_value(cv_data, cv_key)
+                    if value is None:
+                        continue
 
-                field_el = await page.query_selector(selector)
-                if field_el is None:
-                    logger.info(
-                        "Greenhouse: selector not found during fill: %s", selector
-                    )
-                    continue
-
-                tag = await field_el.evaluate("el => el.tagName.toLowerCase()")
-                role = await field_el.get_attribute("role") or ""
-
-                if tag == "select":
-                    await page.select_option(selector, label=str(value))
-                    filled += 1
-                elif tag == "input":
-                    input_type = await field_el.get_attribute("type") or "text"
-                    if input_type == "file":
+                    field_el = await page.query_selector(selector)
+                    if field_el is None:
                         logger.info(
-                            "Greenhouse file upload skipped (not yet implemented)"
+                            "Greenhouse: selector not found during fill: %s", selector
                         )
                         continue
-                    if role == "combobox":
-                        selected = await self._fill_combobox(page, selector, str(value))
-                        if not selected:
-                            continue
+
+                    tag = await field_el.evaluate("el => el.tagName.toLowerCase()")
+                    role = await field_el.get_attribute("role") or ""
+
+                    if tag == "select":
+                        await page.select_option(selector, label=str(value))
                         filled += 1
-                    else:
+                    elif tag == "input":
+                        input_type = await field_el.get_attribute("type") or "text"
+                        if input_type == "file":
+                            continue
+                        if role == "combobox":
+                            selected = await self._fill_combobox(
+                                page, selector, str(value)
+                            )
+                            if not selected:
+                                continue
+                            filled += 1
+                        else:
+                            await human_type(page, selector, str(value))
+                            filled += 1
+                    elif tag == "textarea":
                         await human_type(page, selector, str(value))
                         filled += 1
-                elif tag == "textarea":
-                    await human_type(page, selector, str(value))
+
+                has_file_input = (
+                    await page.query_selector("input[type='file']")
+                ) is not None
+                if has_file_input:
+                    if resume_path is None:
+                        return FillResult(
+                            success=False,
+                            ats_type=self.ats_name,
+                            fields_filled=filled,
+                            error="Resume file not available for upload",
+                        )
+
+                    uploaded = await self._upload_resume(page, resume_path)
+                    if not uploaded:
+                        return FillResult(
+                            success=False,
+                            ats_type=self.ats_name,
+                            fields_filled=filled,
+                            error="Resume upload failed",
+                        )
                     filled += 1
 
-            await random_pause(1.0, 2.0)
+                await random_pause(1.0, 2.0)
 
             submit_selector = (
                 "button[type='submit'], input[type='submit'], "
