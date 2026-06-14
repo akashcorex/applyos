@@ -10,11 +10,12 @@ Your job is to produce a JSON object that maps each form field's CSS selector to
 Rules:
 - Output ONLY valid JSON — no explanation, no markdown fences.
 - The JSON keys are CSS selectors (exactly as given).
-- The JSON values are CV data field names (e.g., "full_name", "email", "phone", "location", "summary").
-- For list fields like "skills", join them with commas.
-- For fields that don't map to any CV key, use the most appropriate literal value you can infer from the CV data.
+- The JSON values should usually be exact CV data field names (e.g., "full_name", "email", "phone", "location", "summary", "skills").
+- If a field needs a concrete answer rather than a direct CV key, return a literal value prefixed with "literal:".
+- For split-name fields, prefer "first_name" and "last_name".
+- For fields that do not map to any CV key, infer the most appropriate truthful literal value from the CV data.
 - Skip file upload fields (type="file") — do not include them.
-- If a select field has options, pick the best matching option value.
+- If a select field has options, choose the best matching visible option text.
 - Be precise — wrong mappings cause application failures.
 
 Example output:

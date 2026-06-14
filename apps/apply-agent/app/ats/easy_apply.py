@@ -10,7 +10,7 @@ import logging
 
 from playwright.async_api import Page
 
-from app.ats.base import ATSHandler, FillResult, FormField
+from app.ats.base import ATSHandler, FillResult, FormField, resolve_mapped_value
 from app.browser.human_delay import human_click, human_type, random_pause
 from app.models.job_payload import CVData
 
@@ -44,8 +44,7 @@ class EasyApplyHandler(ATSHandler):
         )
         if easy_btn:
             await human_click(
-                page,
-                "button:has-text('Easy Apply'), button.jobs-apply-button"
+                page, "button:has-text('Easy Apply'), button.jobs-apply-button"
             )
             await random_pause(1.5, 3.0)
 
@@ -67,11 +66,13 @@ class EasyApplyHandler(ATSHandler):
                 label_el = await page.query_selector(f"label[for='{inp_id}']")
                 if label_el:
                     label_text = (await label_el.inner_text()).strip()
-            fields.append(FormField(
-                selector=f"#{inp_id}" if inp_id else "input",
-                label=label_text or inp_id,
-                field_type="text",
-            ))
+            fields.append(
+                FormField(
+                    selector=f"#{inp_id}" if inp_id else "input",
+                    label=label_text or inp_id,
+                    field_type="text",
+                )
+            )
 
         # Select dropdowns inside modal
         selects = await modal.query_selector_all("select")
@@ -79,22 +80,26 @@ class EasyApplyHandler(ATSHandler):
             sel_id = await sel.get_attribute("id") or ""
             options = await sel.query_selector_all("option")
             opt_texts = [(await o.inner_text()).strip() for o in options]
-            fields.append(FormField(
-                selector=f"#{sel_id}" if sel_id else "select",
-                label=sel_id,
-                field_type="select",
-                options=opt_texts,
-            ))
+            fields.append(
+                FormField(
+                    selector=f"#{sel_id}" if sel_id else "select",
+                    label=sel_id,
+                    field_type="select",
+                    options=opt_texts,
+                )
+            )
 
         # File upload
         file_inputs = await modal.query_selector_all("input[type='file']")
         for fi in file_inputs:
             fi_id = await fi.get_attribute("id") or ""
-            fields.append(FormField(
-                selector=f"#{fi_id}" if fi_id else "input[type='file']",
-                label="resume",
-                field_type="file",
-            ))
+            fields.append(
+                FormField(
+                    selector=f"#{fi_id}" if fi_id else "input[type='file']",
+                    label="resume",
+                    field_type="file",
+                )
+            )
 
         logger.info("Easy Apply: extracted %d fields", len(fields))
         return fields
@@ -117,7 +122,7 @@ class EasyApplyHandler(ATSHandler):
             for _page_num in range(max_pages):
                 # Fill current page fields
                 for selector, cv_key in field_mapping.items():
-                    value = getattr(cv_data, cv_key, None)
+                    value = resolve_mapped_value(cv_data, cv_key)
                     if value is None:
                         continue
                     field_el = await page.query_selector(selector)
@@ -126,7 +131,9 @@ class EasyApplyHandler(ATSHandler):
 
                     input_type = await field_el.get_attribute("type") or ""
                     if input_type == "file":
-                        logger.info("Easy Apply file upload skipped (not yet implemented)")
+                        logger.info(
+                            "Easy Apply file upload skipped (not yet implemented)"
+                        )
                         continue
 
                     await human_type(page, selector, str(value))
@@ -143,11 +150,13 @@ class EasyApplyHandler(ATSHandler):
                     await human_click(
                         page,
                         "button:has-text('Submit application'), "
-                        "button[aria-label='Submit application']"
+                        "button[aria-label='Submit application']",
                     )
                     await random_pause(2.0, 3.0)
                     logger.info("Easy Apply: submitted after filling %d fields", filled)
-                    return FillResult(success=True, ats_type=self.ats_name, fields_filled=filled)
+                    return FillResult(
+                        success=True, ats_type=self.ats_name, fields_filled=filled
+                    )
 
                 # Try Next button
                 next_btn = await page.query_selector(
@@ -158,15 +167,27 @@ class EasyApplyHandler(ATSHandler):
                     await human_click(
                         page,
                         "button:has-text('Next'), button:has-text('Continue'), "
-                        "button[aria-label='Continue to next step']"
+                        "button[aria-label='Continue to next step']",
                     )
                     await random_pause(1.0, 2.0)
                 else:
                     break  # no more pages
 
-            logger.info("Easy Apply: filled %d fields (submit button not found)", filled)
-            return FillResult(success=False, ats_type=self.ats_name, fields_filled=filled, error="Submit button not found")
+            logger.info(
+                "Easy Apply: filled %d fields (submit button not found)", filled
+            )
+            return FillResult(
+                success=False,
+                ats_type=self.ats_name,
+                fields_filled=filled,
+                error="Submit button not found",
+            )
 
         except Exception as e:
             logger.error("Easy Apply fill failed: %s", e)
-            return FillResult(success=False, ats_type=self.ats_name, fields_filled=filled, error=str(e))
+            return FillResult(
+                success=False,
+                ats_type=self.ats_name,
+                fields_filled=filled,
+                error=str(e),
+            )

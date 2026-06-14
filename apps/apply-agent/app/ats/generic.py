@@ -11,7 +11,7 @@ import logging
 
 from playwright.async_api import Page
 
-from app.ats.base import ATSHandler, FillResult, FormField
+from app.ats.base import ATSHandler, FillResult, FormField, resolve_mapped_value
 from app.browser.human_delay import human_click, human_type, random_pause
 from app.llm.field_mapper import map_fields_with_llm
 from app.models.job_payload import CVData
@@ -42,8 +42,10 @@ class GenericHandler(ATSHandler):
             elem_type = await elem.get_attribute("type") or "text"
 
             selector = (
-                f"#{elem_id}" if elem_id
-                else f"[name='{elem_name}']" if elem_name
+                f"#{elem_id}"
+                if elem_id
+                else f"[name='{elem_name}']"
+                if elem_name
                 else ""
             )
             if not selector:
@@ -52,36 +54,46 @@ class GenericHandler(ATSHandler):
             if tag == "select":
                 options = await elem.query_selector_all("option")
                 opt_texts = [(await o.inner_text()).strip() for o in options]
-                fields.append(FormField(
-                    selector=selector,
-                    label=placeholder or elem_name or elem_id,
-                    field_type="select",
-                    options=opt_texts,
-                ))
+                fields.append(
+                    FormField(
+                        selector=selector,
+                        label=placeholder or elem_name or elem_id,
+                        field_type="select",
+                        options=opt_texts,
+                    )
+                )
             elif tag == "textarea":
-                fields.append(FormField(
-                    selector=selector,
-                    label=placeholder or elem_name or elem_id,
-                    field_type="textarea",
-                ))
+                fields.append(
+                    FormField(
+                        selector=selector,
+                        label=placeholder or elem_name or elem_id,
+                        field_type="textarea",
+                    )
+                )
             elif elem_type == "file":
-                fields.append(FormField(
-                    selector=selector,
-                    label=elem_name or "file_upload",
-                    field_type="file",
-                ))
+                fields.append(
+                    FormField(
+                        selector=selector,
+                        label=elem_name or "file_upload",
+                        field_type="file",
+                    )
+                )
             elif elem_type == "checkbox":
-                fields.append(FormField(
-                    selector=selector,
-                    label=elem_name or elem_id,
-                    field_type="checkbox",
-                ))
+                fields.append(
+                    FormField(
+                        selector=selector,
+                        label=elem_name or elem_id,
+                        field_type="checkbox",
+                    )
+                )
             else:
-                fields.append(FormField(
-                    selector=selector,
-                    label=placeholder or elem_name or elem_id,
-                    field_type="text",
-                ))
+                fields.append(
+                    FormField(
+                        selector=selector,
+                        label=placeholder or elem_name or elem_id,
+                        field_type="text",
+                    )
+                )
 
         logger.info("Generic: extracted %d fields", len(fields))
         return fields
@@ -110,12 +122,9 @@ class GenericHandler(ATSHandler):
                 field_mapping = await map_fields_with_llm(fields, cv_data, form_html)
 
             for selector, cv_key in field_mapping.items():
-                value = getattr(cv_data, cv_key, None)
+                value = resolve_mapped_value(cv_data, cv_key)
                 if value is None:
-                    # cv_key might be a literal value from the LLM
-                    value = cv_key
-                    if not value:
-                        continue
+                    continue
 
                 field_el = await page.query_selector(selector)
                 if field_el is None:
@@ -149,13 +158,20 @@ class GenericHandler(ATSHandler):
                     page,
                     "button[type='submit'], input[type='submit'], "
                     "button:has-text('Submit'), button:has-text('Apply'), "
-                    "button:has-text('Send')"
+                    "button:has-text('Send')",
                 )
                 await page.wait_for_load_state("networkidle", timeout=15_000)
 
             logger.info("Generic: filled %d fields and submitted", filled)
-            return FillResult(success=True, ats_type=self.ats_name, fields_filled=filled)
+            return FillResult(
+                success=True, ats_type=self.ats_name, fields_filled=filled
+            )
 
         except Exception as e:
             logger.error("Generic fill failed: %s", e)
-            return FillResult(success=False, ats_type=self.ats_name, fields_filled=filled, error=str(e))
+            return FillResult(
+                success=False,
+                ats_type=self.ats_name,
+                fields_filled=filled,
+                error=str(e),
+            )

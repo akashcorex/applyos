@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from typing import Any
 
 from playwright.async_api import Page
 
@@ -33,6 +34,57 @@ class FillResult:
     ats_type: str
     fields_filled: int = 0
     error: str | None = None
+
+
+def resolve_mapped_value(cv_data: CVData, mapped_value: str) -> Any | None:
+    """Resolve an LLM mapping value into a concrete form value.
+
+    The mapper may return either:
+    - an exact ``CVData`` field name (for example ``email``), or
+    - a literal value to type into the form (for example ``Yes``), or
+    - a derived key like ``first_name`` / ``last_name``.
+    """
+    if not mapped_value:
+        return None
+
+    raw = mapped_value.strip()
+    if not raw:
+        return None
+
+    data = cv_data.model_dump()
+    aliases = {
+        "email_address": "email",
+        "phone_number": "phone",
+        "mobile": "phone",
+        "mobile_number": "phone",
+        "years_experience": "experience_years",
+        "name": "full_name",
+    }
+    derived = {
+        "first_name": cv_data.full_name.split()[0] if cv_data.full_name else None,
+        "given_name": cv_data.full_name.split()[0] if cv_data.full_name else None,
+        "last_name": " ".join(cv_data.full_name.split()[1:]) or None,
+        "family_name": " ".join(cv_data.full_name.split()[1:]) or None,
+        "surname": " ".join(cv_data.full_name.split()[1:]) or None,
+    }
+
+    key = aliases.get(raw, raw)
+    if key in data:
+        value = data[key]
+    elif raw in derived:
+        value = derived[raw]
+    elif raw.lower().startswith("literal:"):
+        value = raw.split(":", 1)[1].strip()
+    else:
+        value = raw
+
+    if value in (None, "", "null", "None"):
+        return None
+
+    if isinstance(value, list):
+        return ", ".join(str(item) for item in value if item is not None)
+
+    return value
 
 
 class ATSHandler(ABC):

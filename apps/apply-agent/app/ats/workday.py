@@ -11,7 +11,7 @@ import logging
 
 from playwright.async_api import Page
 
-from app.ats.base import ATSHandler, FillResult, FormField
+from app.ats.base import ATSHandler, FillResult, FormField, resolve_mapped_value
 from app.browser.human_delay import human_click, human_type, random_pause
 from app.models.job_payload import CVData
 
@@ -46,28 +46,40 @@ class WorkdayHandler(ATSHandler):
             inp_id = await inp.get_attribute("id") or ""
             placeholder = await inp.get_attribute("placeholder") or ""
             selector = (
-                f"[data-automation-id='{auto_id}']" if auto_id
-                else f"#{inp_id}" if inp_id
+                f"[data-automation-id='{auto_id}']"
+                if auto_id
+                else f"#{inp_id}"
+                if inp_id
                 else ""
             )
             if not selector:
                 continue
 
-            fields.append(FormField(
-                selector=selector,
-                label=auto_id or placeholder or inp_id,
-                field_type="text",
-            ))
+            fields.append(
+                FormField(
+                    selector=selector,
+                    label=auto_id or placeholder or inp_id,
+                    field_type="text",
+                )
+            )
 
         # File upload
         file_inputs = await page.query_selector_all("input[type='file']")
         for fi in file_inputs:
-            fi_id = await fi.get_attribute("data-automation-id") or await fi.get_attribute("id") or ""
-            fields.append(FormField(
-                selector=f"[data-automation-id='{fi_id}']" if fi_id else "input[type='file']",
-                label="resume_upload",
-                field_type="file",
-            ))
+            fi_id = (
+                await fi.get_attribute("data-automation-id")
+                or await fi.get_attribute("id")
+                or ""
+            )
+            fields.append(
+                FormField(
+                    selector=f"[data-automation-id='{fi_id}']"
+                    if fi_id
+                    else "input[type='file']",
+                    label="resume_upload",
+                    field_type="file",
+                )
+            )
 
         # Dropdowns (Workday custom selects)
         dropdowns = await page.query_selector_all(
@@ -75,11 +87,13 @@ class WorkdayHandler(ATSHandler):
         )
         for dd in dropdowns:
             dd_id = await dd.get_attribute("data-automation-id") or ""
-            fields.append(FormField(
-                selector=f"[data-automation-id='{dd_id}']",
-                label=dd_id,
-                field_type="select",
-            ))
+            fields.append(
+                FormField(
+                    selector=f"[data-automation-id='{dd_id}']",
+                    label=dd_id,
+                    field_type="select",
+                )
+            )
 
         logger.info("Workday: extracted %d fields", len(fields))
         return fields
@@ -94,7 +108,7 @@ class WorkdayHandler(ATSHandler):
         filled = 0
         try:
             for selector, cv_key in field_mapping.items():
-                value = getattr(cv_data, cv_key, None)
+                value = resolve_mapped_value(cv_data, cv_key)
                 if value is None:
                     continue
 
@@ -116,7 +130,9 @@ class WorkdayHandler(ATSHandler):
                     await human_click(page, selector)
                     await random_pause(0.5, 1.0)
                     # Try to find and click the matching option
-                    option = await page.query_selector(f"div[data-automation-id*='option']:has-text('{value}')")
+                    option = await page.query_selector(
+                        f"div[data-automation-id*='option']:has-text('{value}')"
+                    )
                     if option:
                         await option.click()
 
@@ -133,13 +149,20 @@ class WorkdayHandler(ATSHandler):
                 await human_click(
                     page,
                     "button[data-automation-id='bottom-navigation-next-button'], "
-                    "button:has-text('Submit'), button:has-text('Next')"
+                    "button:has-text('Submit'), button:has-text('Next')",
                 )
                 await page.wait_for_load_state("networkidle", timeout=15_000)
 
             logger.info("Workday: filled %d fields", filled)
-            return FillResult(success=True, ats_type=self.ats_name, fields_filled=filled)
+            return FillResult(
+                success=True, ats_type=self.ats_name, fields_filled=filled
+            )
 
         except Exception as e:
             logger.error("Workday fill failed: %s", e)
-            return FillResult(success=False, ats_type=self.ats_name, fields_filled=filled, error=str(e))
+            return FillResult(
+                success=False,
+                ats_type=self.ats_name,
+                fields_filled=filled,
+                error=str(e),
+            )

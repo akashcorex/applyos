@@ -70,11 +70,11 @@ async def map_fields_with_llm(
         # Truncate to avoid blowing up context
         user_content += f"\n## Raw Form HTML (truncated)\n{form_html[:8000]}\n"
 
-    client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
+    client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key, timeout=120.0)
 
     try:
         response = await client.messages.create(
-            model="claude-sonnet-4-20250514",
+            model="claude-sonnet-4-6",
             max_tokens=2048,
             system=system_prompt,
             messages=[{"role": "user", "content": user_content}],

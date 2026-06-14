@@ -10,7 +10,7 @@ import logging
 
 from playwright.async_api import Page
 
-from app.ats.base import ATSHandler, FillResult, FormField
+from app.ats.base import ATSHandler, FillResult, FormField, resolve_mapped_value
 from app.browser.human_delay import human_click, human_type, random_pause
 from app.models.job_payload import CVData
 
@@ -34,7 +34,9 @@ class GreenhouseHandler(ATSHandler):
         fields: list[FormField] = []
 
         # Text inputs
-        inputs = await page.query_selector_all("input[type='text'], input[type='email'], input[type='tel'], input[type='url']")
+        inputs = await page.query_selector_all(
+            "input[type='text'], input[type='email'], input[type='tel'], input[type='url']"
+        )
         for inp in inputs:
             label_text = ""
             field_id = await inp.get_attribute("id") or ""
@@ -45,23 +47,27 @@ class GreenhouseHandler(ATSHandler):
                     label_text = (await label_el.inner_text()).strip()
             name = await inp.get_attribute("name") or field_id
             required = await inp.get_attribute("required") is not None
-            fields.append(FormField(
-                selector=f"#{field_id}" if field_id else f"input[name='{name}']",
-                label=label_text or name,
-                field_type="text",
-                required=required,
-            ))
+            fields.append(
+                FormField(
+                    selector=f"#{field_id}" if field_id else f"input[name='{name}']",
+                    label=label_text or name,
+                    field_type="text",
+                    required=required,
+                )
+            )
 
         # Textareas
         textareas = await page.query_selector_all("textarea")
         for ta in textareas:
             ta_id = await ta.get_attribute("id") or ""
             ta_name = await ta.get_attribute("name") or ta_id
-            fields.append(FormField(
-                selector=f"#{ta_id}" if ta_id else f"textarea[name='{ta_name}']",
-                label=ta_name,
-                field_type="textarea",
-            ))
+            fields.append(
+                FormField(
+                    selector=f"#{ta_id}" if ta_id else f"textarea[name='{ta_name}']",
+                    label=ta_name,
+                    field_type="textarea",
+                )
+            )
 
         # Select dropdowns
         selects = await page.query_selector_all("select")
@@ -74,23 +80,27 @@ class GreenhouseHandler(ATSHandler):
                 text = (await opt.inner_text()).strip()
                 if text:
                     option_texts.append(text)
-            fields.append(FormField(
-                selector=f"#{sel_id}" if sel_id else f"select[name='{sel_name}']",
-                label=sel_name,
-                field_type="select",
-                options=option_texts,
-            ))
+            fields.append(
+                FormField(
+                    selector=f"#{sel_id}" if sel_id else f"select[name='{sel_name}']",
+                    label=sel_name,
+                    field_type="select",
+                    options=option_texts,
+                )
+            )
 
         # File upload (resume)
         file_inputs = await page.query_selector_all("input[type='file']")
         for fi in file_inputs:
             fi_id = await fi.get_attribute("id") or ""
             fi_name = await fi.get_attribute("name") or fi_id
-            fields.append(FormField(
-                selector=f"#{fi_id}" if fi_id else f"input[name='{fi_name}']",
-                label=fi_name,
-                field_type="file",
-            ))
+            fields.append(
+                FormField(
+                    selector=f"#{fi_id}" if fi_id else f"input[name='{fi_name}']",
+                    label=fi_name,
+                    field_type="file",
+                )
+            )
 
         logger.info("Greenhouse: extracted %d fields", len(fields))
         return fields
@@ -105,7 +115,7 @@ class GreenhouseHandler(ATSHandler):
         filled = 0
         try:
             for selector, cv_key in field_mapping.items():
-                value = getattr(cv_data, cv_key, None)
+                value = resolve_mapped_value(cv_data, cv_key)
                 if value is None:
                     continue
 
@@ -138,12 +148,22 @@ class GreenhouseHandler(ATSHandler):
                 "button:has-text('Submit'), button:has-text('Apply')"
             )
             if submit_btn:
-                await human_click(page, "button[type='submit'], input[type='submit'], button:has-text('Submit'), button:has-text('Apply')")
+                await human_click(
+                    page,
+                    "button[type='submit'], input[type='submit'], button:has-text('Submit'), button:has-text('Apply')",
+                )
                 await page.wait_for_load_state("networkidle", timeout=15_000)
 
             logger.info("Greenhouse: filled %d fields and submitted", filled)
-            return FillResult(success=True, ats_type=self.ats_name, fields_filled=filled)
+            return FillResult(
+                success=True, ats_type=self.ats_name, fields_filled=filled
+            )
 
         except Exception as e:
             logger.error("Greenhouse fill failed: %s", e)
-            return FillResult(success=False, ats_type=self.ats_name, fields_filled=filled, error=str(e))
+            return FillResult(
+                success=False,
+                ats_type=self.ats_name,
+                fields_filled=filled,
+                error=str(e),
+            )
