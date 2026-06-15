@@ -10,7 +10,15 @@
       "executor": "nx:run-commands",
       "options": {
         "cwd": "apps/apply-agent",
-        "command": "../../.venv/bin/python -m uvicorn main:app --reload --host 127.0.0.1 --port 8003"
+        "command": "../../.venv/bin/python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8003"
+      }
+    },
+    "worker": {
+      "continuous": true,
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/apply-agent",
+        "command": "../../.venv/bin/python -m celery -A app.workers.celery_app worker --loglevel=info --concurrency=2"
       }
     }
   }

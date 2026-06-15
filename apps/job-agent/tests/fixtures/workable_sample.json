@@ -1,0 +1,14 @@
+{
+  "results": [
+    {
+      "shortcode": "ABC123",
+      "title": "Backend Engineer",
+      "department": { "name": "Engineering" },
+      "location": { "location_str": "Remote" },
+      "workplace": "remote"
+    }
+  ],
+  "paging": {
+    "next": "https://apply.workable.com/api/v3/accounts/acme/jobs?page=2"
+  }
+}

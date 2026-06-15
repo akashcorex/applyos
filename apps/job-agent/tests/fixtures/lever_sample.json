@@ -1,0 +1,24 @@
+[
+  {
+    "id": "abc-123",
+    "text": "Senior Backend Engineer",
+    "categories": {
+      "team": "Engineering",
+      "location": "Remote"
+    },
+    "descriptionPlain": "Build APIs. Equity included.",
+    "description": "<p>Build APIs. Equity included.</p>",
+    "workplaceType": "remote"
+  },
+  {
+    "id": "abc-124",
+    "text": "Junior Data Analyst",
+    "categories": {
+      "team": "Data",
+      "location": "New York, NY, USA"
+    },
+    "descriptionPlain": "Hybrid role in NYC.",
+    "description": "<p>Hybrid role in NYC.</p>",
+    "workplaceType": "hybrid"
+  }
+]

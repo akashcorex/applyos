@@ -1,0 +1,22 @@
+{
+  "offers": [
+    {
+      "id": 101,
+      "title": "Frontend Engineer",
+      "department": "Engineering",
+      "city": "Berlin",
+      "country": "Germany",
+      "remote": true,
+      "description": "React and TypeScript."
+    },
+    {
+      "id": 102,
+      "title": "Office Manager",
+      "department": "Operations",
+      "city": "London",
+      "country": "UK",
+      "on_site": true,
+      "description": "On-site role."
+    }
+  ]
+}

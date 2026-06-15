@@ -5,12 +5,36 @@
   "projectType": "application",
   "tags": ["type:app", "lang:python"],
   "targets": {
-    "serve": {
-      "continuous": true,
+    "sync": {
       "executor": "nx:run-commands",
       "options": {
         "cwd": "apps/job-agent",
-        "command": "../../.venv/bin/python -m uvicorn main:app --reload --host 127.0.0.1 --port 8002"
+        "command": "uv sync --extra dev"
+      }
+    },
+    "serve": {
+      "continuous": true,
+      "executor": "nx:run-commands",
+      "dependsOn": ["sync"],
+      "options": {
+        "cwd": "apps/job-agent",
+        "command": "uv run uvicorn main:app --reload --host 127.0.0.1 --port 8002"
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["sync"],
+      "options": {
+        "cwd": "apps/job-agent",
+        "command": "uv run python tests/run.py all"
+      }
+    },
+    "seed-yc": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["sync"],
+      "options": {
+        "cwd": "apps/job-agent",
+        "command": "uv run python scripts/seed_yc.py"
       }
     }
   }

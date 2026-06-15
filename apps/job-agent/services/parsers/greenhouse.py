@@ -1,0 +1,51 @@
+from models import RawJob
+from services.parsers.base import fetch_json_with_retries
+
+GREENHOUSE_JOBS_URL = "https://api.greenhouse.io/v1/boards/{slug}/jobs"
+
+
+class GreenhouseParser:
+    ats_type = "greenhouse"
+
+    async def fetch_jobs(self, slug: str) -> list[RawJob]:
+        url = GREENHOUSE_JOBS_URL.format(slug=slug)
+        payload = await fetch_json_with_retries(url)
+
+        if not isinstance(payload, dict):
+            raise RuntimeError("Unexpected Greenhouse response shape")
+
+        jobs_payload = payload.get("jobs", [])
+        if not isinstance(jobs_payload, list):
+            raise RuntimeError("Greenhouse jobs field is not a list")
+
+        jobs: list[RawJob] = []
+        for item in jobs_payload:
+            if not isinstance(item, dict):
+                continue
+
+            departments = item.get("departments", [])
+            department = None
+            if isinstance(departments, list) and departments:
+                first = departments[0]
+                if isinstance(first, dict):
+                    department = first.get("name")
+
+            location = None
+            location_obj = item.get("location")
+            if isinstance(location_obj, dict):
+                location = location_obj.get("name")
+
+            jobs.append(
+                RawJob(
+                    external_id=str(item.get("id", "")),
+                    title=str(item.get("title", "")).strip(),
+                    department=department,
+                    location=location,
+                    description_raw=None,
+                    description_html=None,
+                    workplace_type=None,
+                    raw_payload=item,
+                )
+            )
+
+        return [job for job in jobs if job.external_id and job.title]

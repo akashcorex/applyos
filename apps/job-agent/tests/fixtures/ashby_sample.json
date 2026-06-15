@@ -1,0 +1,20 @@
+{
+  "jobPostings": [
+    {
+      "id": "ashby-1",
+      "title": "Senior Platform Engineer",
+      "isListed": true,
+      "locationName": "Remote",
+      "departmentName": "Engineering",
+      "descriptionHtml": "<p>Build platform systems.</p>"
+    },
+    {
+      "id": "ashby-2",
+      "title": "Hidden Role",
+      "isListed": false,
+      "locationName": "New York",
+      "departmentName": "Ops",
+      "descriptionHtml": "<p>Hidden</p>"
+    }
+  ]
+}
