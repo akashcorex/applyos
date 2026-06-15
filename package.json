@@ -2,9 +2,10 @@
   "name": "@org/source",
   "version": "0.0.0",
   "license": "MIT",
+  "packageManager": "bun@1.3.12",
   "scripts": {
     "dev:web": "nx dev @org/web",
-    "dev:api": "nx serve @org/api",
+    "dev:api": "NODE_V8_COVERAGE=$PWD/.fallow/v8-coverage nx serve @org/api",
     "dev:ai-orchestrator": "nx serve ai-orchestrator",
     "job-agent:sync": "nx run job-agent:sync",
     "job-agent:serve": "nx serve job-agent",
@@ -15,7 +16,12 @@
     "dev:outreach-agent": "nx serve outreach-agent",
     "build:web": "nx build @org/web",
     "build:api": "nx build @org/api",
-    "build:apps": "nx run-many -t build -p @org/web,@org/api"
+    "build:apps": "nx run-many -t build -p @org/web,@org/api",
+    "fallow": "fallow",
+    "fallow:audit": "fallow audit",
+    "fallow:health": "fallow health --score --hotspots --targets",
+    "fallow:dead-code": "fallow dead-code",
+    "fallow:dupes": "fallow dupes"
   },
   "private": true,
   "devDependencies": {
@@ -45,6 +51,7 @@
     "eslint-plugin-jsx-a11y": "6.10.1",
     "eslint-plugin-react": "7.35.0",
     "eslint-plugin-react-hooks": "5.0.0",
+    "fallow": "^2.96.0",
     "nx": "22.7.5",
     "postcss": "8.4.38",
     "prettier": "^3.8.1",

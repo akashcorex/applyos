@@ -1,0 +1,24 @@
+{
+  "$schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json",
+  "entry": [
+    "src/index.{ts,tsx,js,jsx}",
+    "src/main.{ts,tsx,js,jsx}"
+  ],
+  "workspaces": {
+    "packages": [
+      "packages/*",
+      "apps/api",
+      "apps/web"
+    ]
+  },
+  "ignorePatterns": [
+    "apps/ai-orchestrator/**",
+    "apps/apply-agent/**",
+    "apps/job-agent/**",
+    "apps/outreach-agent/**"
+  ],
+  "duplicates": {
+    "minOccurrences": 3
+  },
+  "rules": {}
+}

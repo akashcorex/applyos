@@ -98,6 +98,8 @@
     }
   },
   "dependencies": {
+    "@fallow-cli/beacon": "^0.5.1",
+    "dotenv": "^16.4.7",
     "express": "^4.21.2"
   }
 }
