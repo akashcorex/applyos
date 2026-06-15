@@ -1,7 +1,7 @@
 from urllib.parse import urlparse
 
 from models import AtsType, ConfidenceLevel
-from services.parsers.base import fetch_text_with_retries
+from services.parsers.base import fetch_text_with_retries_strict
 
 ATS_SIGNATURES: dict[AtsType, list[str]] = {
     "greenhouse": ["greenhouse.io", "boards.greenhouse.io"],
@@ -47,7 +47,7 @@ def infer_slug_from_url(career_page_url: str, ats_type: AtsType | None) -> str |
 async def detect_ats(
     career_page_url: str,
 ) -> tuple[AtsType | None, str | None, ConfidenceLevel]:
-    html = await fetch_text_with_retries(career_page_url)
+    html = await fetch_text_with_retries_strict(career_page_url)
     ats_type = detect_ats_from_html(html)
     slug = infer_slug_from_url(career_page_url, ats_type)
 

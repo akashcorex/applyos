@@ -4,23 +4,27 @@ from models import AtsType, CanonicalJob, RawJob
 from services.dedup import build_dedup_key, normalize_location, normalize_title
 
 
+def _match_location_type(text: str) -> str | None:
+    lowered = text.lower()
+    if "remote" in lowered:
+        return "remote"
+    if "hybrid" in lowered:
+        return "hybrid"
+    if any(token in lowered for token in ("onsite", "on-site", "in-office", "in office")):
+        return "onsite"
+    return None
+
+
 def detect_location_type(
     location: str | None,
     workplace_type: str | None = None,
     description: str | None = None,
 ) -> str | None:
-    haystack = " ".join(
-        part
-        for part in [location, workplace_type, description]
-        if part
-    ).lower()
-
-    if "remote" in haystack:
-        return "remote"
-    if "hybrid" in haystack:
-        return "hybrid"
-    if any(token in haystack for token in ("onsite", "on-site", "in-office", "in office")):
-        return "onsite"
+    for field in (workplace_type, location, description):
+        if field:
+            match = _match_location_type(field)
+            if match:
+                return match
     return None
 
 

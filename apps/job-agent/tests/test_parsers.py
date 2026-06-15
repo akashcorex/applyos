@@ -3,6 +3,7 @@ from pathlib import Path
 
 import pytest
 
+from config import settings
 from services.parsers.ashby import AshbyParser
 from services.parsers.greenhouse import GreenhouseParser
 from services.parsers.lever import LeverParser
@@ -94,6 +95,52 @@ async def test_workable_parser_paginates(monkeypatch: pytest.MonkeyPatch) -> Non
     assert jobs[0].external_id == "ABC123"
     assert jobs[1].title == "Product Manager"
     assert jobs[1].workplace_type == "hybrid"
+
+
+@pytest.mark.asyncio
+async def test_workable_parser_stops_at_max_pages(monkeypatch: pytest.MonkeyPatch) -> None:
+    page = json.loads((FIXTURES / "workable_sample.json").read_text())
+    fetch_count = 0
+
+    async def fake_fetch(_url: str) -> object:
+        nonlocal fetch_count
+        fetch_count += 1
+        return page
+
+    monkeypatch.setattr(settings, "workable_max_pages", 3)
+    monkeypatch.setattr(
+        "services.parsers.workable.fetch_json_with_retries",
+        fake_fetch,
+    )
+
+    jobs = await WorkableParser().fetch_jobs("acme")
+
+    assert fetch_count == 3
+    assert len(jobs) == 3
+
+
+@pytest.mark.asyncio
+async def test_workable_parser_rejects_invalid_next_host(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    page = json.loads((FIXTURES / "workable_sample.json").read_text())
+    page["paging"]["next"] = "https://evil.example.com/jobs?page=2"
+    fetch_count = 0
+
+    async def fake_fetch(_url: str) -> object:
+        nonlocal fetch_count
+        fetch_count += 1
+        return page
+
+    monkeypatch.setattr(
+        "services.parsers.workable.fetch_json_with_retries",
+        fake_fetch,
+    )
+
+    jobs = await WorkableParser().fetch_jobs("acme")
+
+    assert fetch_count == 1
+    assert len(jobs) == 1
 
 
 @pytest.mark.asyncio

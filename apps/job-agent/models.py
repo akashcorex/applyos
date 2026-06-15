@@ -1,6 +1,9 @@
+import re
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
+ATS_SLUG_PATTERN = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9._-]{0,63}$")
 
 
 AtsType = Literal[
@@ -16,11 +19,36 @@ ConfidenceLevel = Literal["high", "low", "none"]
 
 
 class ScrapeRequest(BaseModel):
-    ats_slug: str = Field(min_length=1, description="Company slug in the ATS public API URL")
+    ats_slug: str = Field(
+        min_length=1,
+        max_length=64,
+        description="Company slug in the ATS public API URL",
+    )
     company_id: str | None = Field(
         default=None,
+        max_length=64,
         description="Optional namespace for dedup keys; defaults to ats_slug",
     )
+
+    @field_validator("ats_slug")
+    @classmethod
+    def validate_ats_slug(cls, value: str) -> str:
+        if not ATS_SLUG_PATTERN.fullmatch(value):
+            raise ValueError(
+                "ats_slug must start with an alphanumeric character and contain only "
+                "letters, numbers, dots, underscores, or hyphens"
+            )
+        return value
+
+    @field_validator("company_id")
+    @classmethod
+    def validate_company_id(cls, value: str | None) -> str | None:
+        if value is not None and not ATS_SLUG_PATTERN.fullmatch(value):
+            raise ValueError(
+                "company_id must start with an alphanumeric character and contain only "
+                "letters, numbers, dots, underscores, or hyphens"
+            )
+        return value
 
 
 class DetectRequest(BaseModel):

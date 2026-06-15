@@ -6,6 +6,7 @@ class Settings(BaseSettings):
     port: int = 8002
     http_timeout_seconds: float = 10.0
     http_max_retries: int = 3
+    workable_max_pages: int = 50
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

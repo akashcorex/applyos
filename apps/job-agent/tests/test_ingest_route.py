@@ -33,3 +33,36 @@ async def test_ingest_greenhouse_endpoint(monkeypatch: pytest.MonkeyPatch) -> No
     assert body["ats_type"] == "greenhouse"
     assert body["jobs_found"] == 2
     assert body["jobs"][0]["title_normalized"] == "senior software engineer - platform"
+
+
+@pytest.mark.asyncio
+async def test_ingest_greenhouse_returns_sanitized_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def failing_scrape(*_args: object, **_kwargs: object) -> object:
+        raise RuntimeError("secret internal path /foo/bar")
+
+    monkeypatch.setattr("routes.ingest.scrape_jobs", failing_scrape)
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.post(
+            "/ingest/greenhouse",
+            json={"ats_slug": "stripe"},
+        )
+
+    assert response.status_code == 502
+    assert response.json()["detail"] == "Failed to ingest jobs from Greenhouse"
+    assert "secret internal path" not in response.text
+
+
+@pytest.mark.asyncio
+async def test_ingest_greenhouse_rejects_invalid_slug() -> None:
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.post(
+            "/ingest/greenhouse",
+            json={"ats_slug": "../evil"},
+        )
+
+    assert response.status_code == 422

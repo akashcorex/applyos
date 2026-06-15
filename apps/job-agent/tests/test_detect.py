@@ -47,7 +47,7 @@ async def test_detect_endpoint(monkeypatch: pytest.MonkeyPatch) -> None:
         return '<iframe src="https://jobs.lever.co/netflix"></iframe>'
 
     monkeypatch.setattr(
-        "services.ats_detect.fetch_text_with_retries",
+        "services.ats_detect.fetch_text_with_retries_strict",
         fake_fetch,
     )
 
@@ -63,3 +63,38 @@ async def test_detect_endpoint(monkeypatch: pytest.MonkeyPatch) -> None:
     assert body["ats_type"] == "lever"
     assert body["suggested_slug"] == "netflix"
     assert body["confidence"] == "high"
+
+
+@pytest.mark.asyncio
+async def test_detect_endpoint_returns_sanitized_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def failing_detect(_url: str) -> tuple[str, str, str]:
+        raise RuntimeError("secret internal path /foo/bar")
+
+    monkeypatch.setattr("routes.detect.detect_ats", failing_detect)
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.post(
+            "/detect",
+            json={"career_page_url": "https://jobs.lever.co/netflix"},
+        )
+
+    assert response.status_code == 502
+    assert response.json()["detail"] == "Failed to detect ATS from the provided URL"
+    assert "secret internal path" not in response.text
+
+
+@pytest.mark.asyncio
+async def test_detect_endpoint_rejects_internal_url() -> None:
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.post(
+            "/detect",
+            json={"career_page_url": "http://127.0.0.1/careers"},
+        )
+
+    assert response.status_code == 502
+    assert response.json()["detail"] == "Failed to detect ATS from the provided URL"
+    assert "127.0.0.1" not in response.text

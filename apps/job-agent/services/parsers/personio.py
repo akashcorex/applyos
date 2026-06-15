@@ -1,4 +1,4 @@
-import xml.etree.ElementTree as ET
+import defusedxml.ElementTree as ET
 
 from models import RawJob
 from services.parsers.base import fetch_text_with_retries

@@ -1,9 +1,33 @@
+import logging
+from urllib.parse import urlparse
+
+from config import settings
 from models import RawJob
 from services.parsers.base import fetch_json_with_retries
+
+logger = logging.getLogger(__name__)
 
 WORKABLE_JOBS_URL = (
     "https://apply.workable.com/api/v3/accounts/{slug}/jobs"
 )
+WORKABLE_ALLOWED_HOST = "apply.workable.com"
+
+
+def _validate_workable_next_url(next_url: str | None) -> str | None:
+    if not next_url:
+        return None
+
+    parsed = urlparse(next_url)
+    if parsed.scheme not in ("http", "https"):
+        logger.warning("Rejecting Workable next URL with invalid scheme: %s", parsed.scheme)
+        return None
+
+    host = (parsed.netloc or "").lower().removeprefix("www.")
+    if host != WORKABLE_ALLOWED_HOST:
+        logger.warning("Rejecting Workable next URL with invalid host: %s", host)
+        return None
+
+    return next_url
 
 
 class WorkableParser:
@@ -12,8 +36,10 @@ class WorkableParser:
     async def fetch_jobs(self, slug: str) -> list[RawJob]:
         url = WORKABLE_JOBS_URL.format(slug=slug)
         jobs: list[RawJob] = []
+        pages_fetched = 0
 
-        while url:
+        while url and pages_fetched < settings.workable_max_pages:
+            pages_fetched += 1
             payload = await fetch_json_with_retries(url)
 
             if not isinstance(payload, dict):
@@ -54,6 +80,13 @@ class WorkableParser:
             next_url = None
             if isinstance(paging, dict):
                 next_url = paging.get("next")
-            url = str(next_url) if next_url else None
+            url = _validate_workable_next_url(str(next_url) if next_url else None)
+
+        if url and pages_fetched >= settings.workable_max_pages:
+            logger.warning(
+                "Workable pagination limit reached for slug=%s after %s pages",
+                slug,
+                pages_fetched,
+            )
 
         return [job for job in jobs if job.external_id and job.title]

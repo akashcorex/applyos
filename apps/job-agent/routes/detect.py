@@ -1,7 +1,8 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 
 from models import DetectRequest, DetectResponse
 from services.ats_detect import detect_ats
+from services.http_errors import raise_bad_gateway
 
 router = APIRouter()
 
@@ -17,4 +18,7 @@ async def detect(payload: DetectRequest) -> DetectResponse:
             career_page_url=payload.career_page_url,
         )
     except Exception as error:
-        raise HTTPException(status_code=502, detail=str(error)) from error
+        raise_bad_gateway(
+            error,
+            public_message="Failed to detect ATS from the provided URL",
+        )
