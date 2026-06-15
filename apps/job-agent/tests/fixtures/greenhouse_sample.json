@@ -1,0 +1,18 @@
+{
+  "jobs": [
+    {
+      "id": 12345,
+      "title": "Sr. Software Engineer - Platform (US)",
+      "location": { "name": "Remote - US" },
+      "departments": [{ "name": "Engineering" }],
+      "metadata": null
+    },
+    {
+      "id": 12346,
+      "title": "Product Manager",
+      "location": { "name": "San Francisco, CA" },
+      "departments": [{ "name": "Product" }],
+      "metadata": null
+    }
+  ]
+}

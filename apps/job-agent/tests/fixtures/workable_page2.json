@@ -1,0 +1,12 @@
+{
+  "results": [
+    {
+      "shortcode": "DEF456",
+      "title": "Product Manager",
+      "department": { "name": "Product" },
+      "location": { "location_str": "San Francisco, CA" },
+      "workplace": "hybrid"
+    }
+  ],
+  "paging": {}
+}

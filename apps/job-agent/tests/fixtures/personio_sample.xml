@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<workzag-jobs>
+  <position>
+    <id>9001</id>
+    <name>Data Engineer</name>
+    <department>Data</department>
+    <office>Munich</office>
+    <description>Build data pipelines.</description>
+  </position>
+  <position>
+    <id>9002</id>
+    <name>HR Generalist</name>
+    <department>People</department>
+    <office>Berlin</office>
+    <description>Support hiring.</description>
+  </position>
+</workzag-jobs>
