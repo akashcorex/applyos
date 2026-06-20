@@ -3,6 +3,7 @@
     {
       "id": 12345,
       "title": "Sr. Software Engineer - Platform (US)",
+      "absolute_url": "https://boards.greenhouse.io/stripe/jobs/12345",
       "location": { "name": "Remote - US" },
       "departments": [{ "name": "Engineering" }],
       "metadata": null

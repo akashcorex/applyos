@@ -63,15 +63,26 @@ class WorkableParser:
                 if isinstance(location_obj, dict):
                     location = location_obj.get("location_str")
 
+                shortcode = str(item.get("shortcode", ""))
+                shortlink = item.get("shortlink") or item.get("url")
+                application_url = (
+                    str(shortlink).strip()
+                    if shortlink
+                    else f"https://apply.workable.com/{slug}/{shortcode}"
+                    if shortcode
+                    else None
+                )
+
                 jobs.append(
                     RawJob(
-                        external_id=str(item.get("shortcode", "")),
+                        external_id=shortcode,
                         title=str(item.get("title", "")).strip(),
                         department=department,
                         location=location,
                         description_raw=None,
                         description_html=None,
                         workplace_type=item.get("workplace"),
+                        application_url=application_url,
                         raw_payload=item,
                     )
                 )

@@ -5,12 +5,28 @@
   "projectType": "application",
   "tags": ["type:app", "lang:python"],
   "targets": {
-    "serve": {
-      "continuous": true,
+    "sync": {
       "executor": "nx:run-commands",
       "options": {
         "cwd": "apps/ai-orchestrator",
-        "command": "../../.venv/bin/python -m uvicorn main:app --reload --host 127.0.0.1 --port 8001"
+        "command": "uv sync --extra dev"
+      }
+    },
+    "serve": {
+      "continuous": true,
+      "executor": "nx:run-commands",
+      "dependsOn": ["sync"],
+      "options": {
+        "cwd": "apps/ai-orchestrator",
+        "command": "uv run uvicorn main:app --reload --host 127.0.0.1 --port 8001"
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["sync"],
+      "options": {
+        "cwd": "apps/ai-orchestrator",
+        "command": "uv run python tests/run.py all"
       }
     }
   }

@@ -1,0 +1,29 @@
+{
+  "user_profile": {
+    "user_id": "user-demo-001",
+    "preferred_role": "Software Engineer",
+    "years_experience": 5,
+    "preferred_locations": ["Remote", "US"]
+  },
+  "cv_data": {
+    "full_name": "Jane Developer",
+    "email": "jane@example.com",
+    "phone": "+1-555-0100",
+    "location": "San Francisco, CA",
+    "summary": "Backend engineer with 5 years of experience.",
+    "experience_years": 5,
+    "skills": ["Python", "FastAPI", "PostgreSQL", "Redis"],
+    "education": [],
+    "work_history": []
+  },
+  "targets": [
+    {
+      "company_name": "Stripe",
+      "ats_type": "greenhouse",
+      "ats_slug": "stripe"
+    }
+  ],
+  "max_jobs_per_company": 5,
+  "max_total_applies": 2,
+  "auto_apply": false
+}

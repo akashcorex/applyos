@@ -35,15 +35,26 @@ class GreenhouseParser:
             if isinstance(location_obj, dict):
                 location = location_obj.get("name")
 
+            external_id = str(item.get("id", ""))
+            absolute_url = item.get("absolute_url")
+            application_url = (
+                str(absolute_url).strip()
+                if absolute_url
+                else f"https://boards.greenhouse.io/{slug}/jobs/{external_id}"
+                if external_id
+                else None
+            )
+
             jobs.append(
                 RawJob(
-                    external_id=str(item.get("id", "")),
+                    external_id=external_id,
                     title=str(item.get("title", "")).strip(),
                     department=department,
                     location=location,
                     description_raw=None,
                     description_html=None,
                     workplace_type=None,
+                    application_url=application_url,
                     raw_payload=item,
                 )
             )

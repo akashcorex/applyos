@@ -28,12 +28,20 @@ class PersonioParser:
             if not external_id or not title:
                 continue
 
+            link = _text(position.find("jobUrl")) or _text(position.find("url"))
+            application_url = (
+                link
+                if link
+                else f"https://{slug}.jobs.personio.de/job/{external_id}?language=en"
+            )
+
             raw_payload = {
                 "id": external_id,
                 "name": title,
                 "department": _text(position.find("department")),
                 "office": _text(position.find("office")),
                 "description": _text(position.find("description")),
+                "application_url": application_url,
             }
 
             jobs.append(
@@ -45,6 +53,7 @@ class PersonioParser:
                     description_raw=raw_payload["description"],
                     description_html=None,
                     workplace_type=None,
+                    application_url=application_url,
                     raw_payload=raw_payload,
                 )
             )

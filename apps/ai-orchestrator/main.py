@@ -1,13 +1,33 @@
+"""FastAPI entrypoint for ai-orchestrator."""
+
+from __future__ import annotations
+
+import logging
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 
-app = FastAPI(title="ai-orchestrator")
+from dependencies import app_state
+from routes import health, workflows
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
+)
+logger = logging.getLogger(__name__)
 
 
-@app.get("/")
-def root() -> dict[str, str]:
-    return {"service": "ai-orchestrator", "status": "ok"}
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await app_state.startup()
+    app.state.app_state = app_state
+    logger.info("ai-orchestrator started")
+    yield
+    await app_state.shutdown()
+    logger.info("ai-orchestrator stopped")
 
 
-@app.get("/health")
-def health() -> dict[str, str]:
-    return {"status": "healthy"}
+app = FastAPI(title="ai-orchestrator", lifespan=lifespan)
+
+app.include_router(health.router)
+app.include_router(workflows.router)

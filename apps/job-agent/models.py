@@ -70,6 +70,7 @@ class RawJob(BaseModel):
     description_raw: str | None = None
     description_html: str | None = None
     workplace_type: str | None = None
+    application_url: str | None = None
     raw_payload: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -91,6 +92,7 @@ class CanonicalJob(BaseModel):
     seniority: (
         Literal["intern", "junior", "mid", "senior", "staff", "lead", "exec"] | None
     ) = None
+    application_url: str | None = None
     dedup_key: str
     raw_payload: dict[str, Any] | None = None
 

@@ -29,6 +29,7 @@ def test_to_canonical_job_sets_location_type_and_equity() -> None:
         location="Remote",
         description_raw="Equity and competitive salary.",
         workplace_type="remote",
+        application_url="https://jobs.lever.co/netflix/abc-123",
         raw_payload={"id": "1"},
     )
 
@@ -37,4 +38,5 @@ def test_to_canonical_job_sets_location_type_and_equity() -> None:
     assert canonical.location_type == "remote"
     assert canonical.seniority == "senior"
     assert canonical.equity_mentioned is True
+    assert canonical.application_url == "https://jobs.lever.co/netflix/abc-123"
     assert canonical.dedup_key.startswith("netflix::")

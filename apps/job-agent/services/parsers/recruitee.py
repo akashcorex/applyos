@@ -36,9 +36,21 @@ class RecruiteeParser:
             elif item.get("on_site") is True:
                 workplace_type = "onsite"
 
+            external_id = str(item.get("id", ""))
+            offer_slug = item.get("slug")
+            careers_url = item.get("careers_url") or item.get("url")
+            if careers_url:
+                application_url = str(careers_url).strip()
+            elif offer_slug:
+                application_url = f"https://{slug}.recruitee.com/o/{offer_slug}"
+            elif external_id:
+                application_url = f"https://{slug}.recruitee.com/o/{external_id}"
+            else:
+                application_url = None
+
             jobs.append(
                 RawJob(
-                    external_id=str(item.get("id", "")),
+                    external_id=external_id,
                     title=str(item.get("title", "")).strip(),
                     department=item.get("department"),
                     location=_compose_location(
@@ -48,6 +60,7 @@ class RecruiteeParser:
                     description_raw=item.get("description"),
                     description_html=None,
                     workplace_type=workplace_type,
+                    application_url=application_url,
                     raw_payload=item,
                 )
             )

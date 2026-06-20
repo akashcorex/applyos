@@ -32,6 +32,7 @@ async def test_greenhouse_parser_maps_fixture(monkeypatch: pytest.MonkeyPatch) -
     assert jobs[0].title == "Sr. Software Engineer - Platform (US)"
     assert jobs[0].department == "Engineering"
     assert jobs[0].location == "Remote - US"
+    assert jobs[0].application_url == "https://boards.greenhouse.io/stripe/jobs/12345"
 
 
 @pytest.mark.asyncio
@@ -51,6 +52,7 @@ async def test_lever_parser_maps_fixture(monkeypatch: pytest.MonkeyPatch) -> Non
     assert len(jobs) == 2
     assert jobs[0].title == "Senior Backend Engineer"
     assert jobs[0].workplace_type == "remote"
+    assert jobs[0].application_url == "https://jobs.lever.co/netflix/abc-123"
     assert "Equity" in (jobs[0].description_raw or "")
 
 

@@ -2,6 +2,7 @@
   {
     "id": "abc-123",
     "text": "Senior Backend Engineer",
+    "hostedUrl": "https://jobs.lever.co/netflix/abc-123",
     "categories": {
       "team": "Engineering",
       "location": "Remote"

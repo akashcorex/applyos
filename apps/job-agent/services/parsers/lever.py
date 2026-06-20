@@ -26,15 +26,26 @@ class LeverParser:
                 department = categories.get("team") or categories.get("department")
                 location = categories.get("location")
 
+            external_id = str(item.get("id", ""))
+            hosted_url = item.get("hostedUrl") or item.get("applyUrl")
+            application_url = (
+                str(hosted_url).strip()
+                if hosted_url
+                else f"https://jobs.lever.co/{slug}/{external_id}"
+                if external_id
+                else None
+            )
+
             jobs.append(
                 RawJob(
-                    external_id=str(item.get("id", "")),
+                    external_id=external_id,
                     title=str(item.get("text", "")).strip(),
                     department=department,
                     location=location,
                     description_raw=item.get("descriptionPlain"),
                     description_html=item.get("description"),
                     workplace_type=item.get("workplaceType"),
+                    application_url=application_url,
                     raw_payload=item,
                 )
             )
