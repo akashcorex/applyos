@@ -2,19 +2,29 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 import { authClient } from '@/lib/auth-client';
 
 export default function DashboardPage() {
   const router = useRouter();
   const { data: session, isPending } = authClient.useSession();
+  const [linking, setLinking] = useState(false);
 
   useEffect(() => {
     if (!isPending && !session) {
       router.replace('/login');
     }
   }, [isPending, session, router]);
+
+  async function handleLinkLinkedIn() {
+    setLinking(true);
+    await authClient.signIn.social({
+      provider: 'linkedin',
+      callbackURL: '/dashboard',
+    });
+    setLinking(false);
+  }
 
   async function handleSignOut() {
     await authClient.signOut({
@@ -51,20 +61,31 @@ export default function DashboardPage() {
           </p>
         </div>
 
-        <div className="mt-8 flex gap-3">
+        <div className="mt-8 space-y-3">
           <button
             type="button"
-            onClick={handleSignOut}
-            className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-800 hover:bg-gray-50"
+            onClick={handleLinkLinkedIn}
+            disabled={linking}
+            className="w-full rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-800 hover:bg-gray-50 disabled:opacity-50"
           >
-            Sign out
+            {linking ? 'Connecting...' : 'Connect LinkedIn'}
           </button>
-          <Link
-            href="/login"
-            className="rounded-md px-4 py-2 text-sm font-medium text-blue-600 hover:underline"
-          >
-            Back to login
-          </Link>
+
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={handleSignOut}
+              className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-800 hover:bg-gray-50"
+            >
+              Sign out
+            </button>
+            <Link
+              href="/login"
+              className="rounded-md px-4 py-2 text-sm font-medium text-blue-600 hover:underline"
+            >
+              Back to login
+            </Link>
+          </div>
         </div>
       </div>
     </main>
