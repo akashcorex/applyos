@@ -38,14 +38,14 @@ AI-powered outreach automation platform — an Nx monorepo with a Next.js fronte
 
 ## Apps
 
-| App | Purpose |
-|-----|---------|
-| **Web** (`apps/web`) | Next.js frontend — dashboard, workflows, settings |
-| **API** (`apps/api`) | Express backend — business logic, data layer, agent coordination |
-| **Orchestrator** (`apps/ai-orchestrator`) | Coordinates multi-agent workflows, routing, state management |
-| **Job Agent** (`apps/job-agent`) | Job discovery — scraping, search, listing aggregation |
-| **Apply Agent** (`apps/apply-agent`) | Automated job application submission and tracking |
-| **Outreach Agent** (`apps/outreach-agent`) | Outreach communications — emails, follow-ups, messaging |
+| App | Purpose | README |
+|-----|---------|--------|
+| **Web** (`apps/web`) | Next.js frontend — dashboard, workflows, settings | [README](apps/web/README.md) |
+| **API** (`apps/api`) | Express backend — business logic, data layer, agent coordination | [README](apps/api/README.md) |
+| **Orchestrator** (`apps/ai-orchestrator`) | Coordinates multi-agent workflows — state machine, job ingestion, apply dispatch | [README](apps/ai-orchestrator/README.md) |
+| **Job Agent** (`apps/job-agent`) | Job discovery — ATS detection, job scraping, funding data | [README](apps/job-agent/README.md) |
+| **Apply Agent** (`apps/apply-agent`) | Automated job application — browser automation, LLM field mapping, LinkedIn actions | [README](apps/apply-agent/README.md) |
+| **Outreach Agent** (`apps/outreach-agent`) | Outreach communications — emails, follow-ups, messaging (scaffold) | [README](apps/outreach-agent/README.md) |
 
 ## Quick start
 

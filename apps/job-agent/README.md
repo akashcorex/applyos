@@ -123,6 +123,24 @@ uv run uvicorn main:app --reload --host 127.0.0.1 --port 8002
 
 The service will be available at `http://127.0.0.1:8002`.
 
+### Funding
+
+- `POST /funding/scrape` — scrape recently funded companies from configurable sources
+- `GET /funding/sources` — list available funding sources (`startups_gallery`, `techcrunch`, `yc_recent`)
+
+Example `POST /funding/scrape` body:
+
+```json
+{
+  "sources": ["startups_gallery", "techcrunch"],
+  "limit": 20,
+  "min_round": "seed",
+  "enrich_domains": true
+}
+```
+
+Returns `FundingScrapeResponse` with a list of `FundedCompany` objects (name, website, round type, amount, date, etc.).
+
 ## Test locally
 
 From the repository root:
