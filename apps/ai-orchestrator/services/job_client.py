@@ -56,6 +56,64 @@ class JobAgentClient:
 
         return jobs
 
+    async def detect_ats(
+        self,
+        career_page_url: str,
+    ) -> tuple[str | None, str | None, str]:
+        url = f"{self._base_url}/detect"
+        payload = {"career_page_url": career_page_url}
+
+        async with httpx.AsyncClient(timeout=settings.http_timeout_seconds) as client:
+            response = await client.post(url, json=payload)
+            response.raise_for_status()
+            data = response.json()
+
+        return (
+            data.get("ats_type"),
+            data.get("suggested_slug"),
+            data.get("confidence", "none"),
+        )
+
+    async def detect_target_from_funded_company(
+        self,
+        company: dict,
+    ) -> CompanyTarget | None:
+        name = str(company.get("name", "")).strip()
+        domain = company.get("domain")
+        if not name:
+            return None
+
+        career_urls: list[str] = []
+        if isinstance(domain, str) and domain:
+            career_urls.extend(
+                [
+                    f"https://{domain}/careers",
+                    f"https://www.{domain}/careers",
+                    f"https://{domain}/jobs",
+                    f"https://www.{domain}/jobs",
+                ]
+            )
+
+        press_url = company.get("press_url")
+        if isinstance(press_url, str) and press_url.startswith("http"):
+            career_urls.append(press_url)
+
+        for career_page_url in career_urls:
+            try:
+                ats_type, slug, confidence = await self.detect_ats(career_page_url)
+            except httpx.HTTPError as exc:
+                logger.warning("ATS detect failed for %s: %s", career_page_url, exc)
+                continue
+
+            if ats_type and slug and confidence in {"high", "low"}:
+                return CompanyTarget(
+                    company_name=name,
+                    ats_type=ats_type,
+                    ats_slug=slug,
+                )
+
+        return None
+
     async def health(self) -> bool:
         try:
             async with httpx.AsyncClient(timeout=5.0) as client:

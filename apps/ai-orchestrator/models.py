@@ -57,7 +57,14 @@ class CompanyTarget(BaseModel):
 class StartWorkflowRequest(BaseModel):
     user_profile: UserProfile
     cv_data: CVData
-    targets: list[CompanyTarget]
+    targets: list[CompanyTarget] = Field(default_factory=list)
+    funding_sources: list[str] | None = Field(
+        default=None,
+        description="Funding sources when targets is empty",
+    )
+    funding_limit: int = Field(default=20, ge=1, le=100)
+    funding_min_round: str | None = None
+    funding_since_date: str | None = None
     max_jobs_per_company: int = Field(default=10, ge=1, le=100)
     max_total_applies: int = Field(default=5, ge=0, le=50)
     auto_apply: bool = True
@@ -65,6 +72,7 @@ class StartWorkflowRequest(BaseModel):
 
 class WorkflowStatus(str, Enum):
     pending = "pending"
+    discovering_funding = "discovering_funding"
     discovering = "discovering"
     filtering = "filtering"
     applying = "applying"

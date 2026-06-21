@@ -18,6 +18,7 @@ from models import (
 )
 from services.apply_client import ApplyAgentClient
 from services.filter import filter_jobs
+from services.funding_client import FundingClient
 from services.job_client import JobAgentClient
 from services.workflow_store import WorkflowStore
 
@@ -34,15 +35,43 @@ async def run_workflow(
     store: WorkflowStore,
     job_client: JobAgentClient | None = None,
     apply_client: ApplyAgentClient | None = None,
+    funding_client: FundingClient | None = None,
 ) -> None:
     job_client = job_client or JobAgentClient()
     apply_client = apply_client or ApplyAgentClient()
+    funding_client = funding_client or FundingClient()
 
     try:
+        targets = list(request.targets)
+
+        if not targets:
+            await store.update_status(workflow_id, WorkflowStatus.discovering_funding)
+            try:
+                targets = await funding_client.resolve_targets(
+                    job_client,
+                    sources=request.funding_sources,
+                    limit=request.funding_limit,
+                    min_round=request.funding_min_round,
+                    since_date=request.funding_since_date,
+                )
+            except httpx.HTTPError as exc:
+                message = f"Funding discovery failed: {exc}"
+                logger.error(message)
+                await store.append_error(workflow_id, message)
+                await store.update_status(workflow_id, WorkflowStatus.failed)
+                return
+
+            if not targets:
+                message = "Funding discovery returned no companies with detectable ATS"
+                logger.warning(message)
+                await store.append_error(workflow_id, message)
+                await store.update_status(workflow_id, WorkflowStatus.completed)
+                return
+
         await store.update_status(workflow_id, WorkflowStatus.discovering)
         discovered: list = []
 
-        for target in request.targets:
+        for target in targets:
             try:
                 jobs = await job_client.ingest_company(target)
                 discovered.extend(jobs)

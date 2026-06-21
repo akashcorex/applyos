@@ -103,3 +103,56 @@ class ScrapeResponse(BaseModel):
     company_id: str
     jobs_found: int
     jobs: list[CanonicalJob]
+
+
+FundingSource = Literal["startups_gallery", "techcrunch", "yc_recent"]
+
+FundingRound = Literal[
+    "pre-seed",
+    "seed",
+    "series-a",
+    "series-b",
+    "series-c",
+    "series-d",
+    "series-e",
+    "venture",
+    "unknown",
+]
+
+
+class FundedCompany(BaseModel):
+    name: str
+    domain: str | None = None
+    round: str
+    amount: str | None = None
+    announced_date: str | None = None
+    lead_investor: str | None = None
+    press_url: str | None = None
+    source: FundingSource
+    company_slug: str | None = None
+
+
+class FundingScrapeRequest(BaseModel):
+    sources: list[FundingSource] | None = Field(
+        default=None,
+        description="Funding sources to scrape; defaults to all sources",
+    )
+    limit: int = Field(default=50, ge=1, le=200)
+    min_round: FundingRound | None = Field(
+        default=None,
+        description="Minimum funding round to include (inclusive)",
+    )
+    since_date: str | None = Field(
+        default=None,
+        description="ISO date (YYYY-MM-DD); only include announcements on or after this date",
+    )
+    enrich_domains: bool = Field(
+        default=False,
+        description="Fetch company pages to resolve website domains (startups.gallery only)",
+    )
+
+
+class FundingScrapeResponse(BaseModel):
+    sources: list[FundingSource]
+    companies_found: int
+    companies: list[FundedCompany]
