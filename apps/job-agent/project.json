@@ -23,10 +23,9 @@
     },
     "test": {
       "executor": "nx:run-commands",
-      "dependsOn": ["sync"],
       "options": {
-        "cwd": "apps/job-agent",
-        "command": "uv run python tests/run.py all"
+        "command": "python3 tests/run.py job-agent",
+        "cwd": "{workspaceRoot}"
       }
     },
     "seed-yc": {

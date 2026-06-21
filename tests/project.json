@@ -1,0 +1,16 @@
+{
+  "name": "tests",
+  "$schema": "../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "tests",
+  "projectType": "application",
+  "tags": ["type:test"],
+  "targets": {
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "python3 tests/run.py all",
+        "cwd": "{workspaceRoot}"
+      }
+    }
+  }
+}

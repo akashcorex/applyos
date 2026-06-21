@@ -6,7 +6,7 @@ from httpx import ASGITransport, AsyncClient
 
 from main import app
 
-FIXTURES = Path(__file__).parent / "fixtures"
+FIXTURES = Path(__file__).resolve().parent / "fixtures" / "job-agent"
 
 
 @pytest.mark.asyncio

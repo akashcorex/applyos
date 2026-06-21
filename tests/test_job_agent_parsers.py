@@ -11,7 +11,7 @@ from services.parsers.personio import PersonioParser
 from services.parsers.recruitee import RecruiteeParser
 from services.parsers.workable import WorkableParser
 
-FIXTURES = Path(__file__).parent / "fixtures"
+FIXTURES = Path(__file__).resolve().parent / "fixtures" / "job-agent"
 
 
 @pytest.mark.asyncio
