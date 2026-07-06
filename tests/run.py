@@ -20,6 +20,14 @@ APP_CONFIG = {
         "cwd": ROOT / "apps" / "ai-orchestrator",
         "glob": "test_ai_orchestrator_*.py",
     },
+    "resume-agent": {
+        "cwd": ROOT / "apps" / "resume-agent",
+        "glob": "test_resume_agent_*.py",
+    },
+    "outreach-agent": {
+        "cwd": ROOT / "apps" / "outreach-agent",
+        "glob": "test_outreach_agent_*.py",
+    },
 }
 
 NAMED_SUITES: dict[str, tuple[str, str]] = {
@@ -39,6 +47,13 @@ NAMED_SUITES: dict[str, tuple[str, str]] = {
     ),
     "ai-orchestrator-routes": ("ai-orchestrator", "test_ai_orchestrator_routes.py"),
     "ai-orchestrator-workflow": ("ai-orchestrator", "test_ai_orchestrator_workflow.py"),
+    "resume-agent-parser": ("resume-agent", "test_resume_agent_parser.py"),
+    "resume-agent-extractor": ("resume-agent", "test_resume_agent_extractor.py"),
+    "resume-agent-matcher": ("resume-agent", "test_resume_agent_matcher.py"),
+    "resume-agent-chunker": ("resume-agent", "test_resume_agent_chunker.py"),
+    "ai-orchestrator-graph": ("ai-orchestrator", "test_ai_orchestrator_graph.py"),
+    "job-agent-semantic": ("job-agent", "test_job_agent_semantic.py"),
+    "outreach-agent-message": ("outreach-agent", "test_outreach_agent_message.py"),
 }
 
 
@@ -90,6 +105,10 @@ def run_suite(selection: str) -> int:
             return run_app("job-agent", [candidate.name])
         if candidate.name.startswith("test_ai_orchestrator_"):
             return run_app("ai-orchestrator", [candidate.name])
+        if candidate.name.startswith("test_resume_agent_"):
+            return run_app("resume-agent", [candidate.name])
+        if candidate.name.startswith("test_outreach_agent_"):
+            return run_app("outreach-agent", [candidate.name])
 
     available = sorted([*APP_CONFIG, *NAMED_SUITES, "all"])
     raise SystemExit(

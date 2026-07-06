@@ -130,6 +130,19 @@ class WorkflowRun(BaseModel):
     updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
+class WorkflowSummary(BaseModel):
+    """Lightweight representation for the list endpoint."""
+    id: str
+    status: WorkflowStatus
+    job_count: int = 0
+    apply_total: int = 0
+    apply_completed: int = 0
+    apply_successful: int = 0
+    error_count: int = 0
+    created_at: datetime
+    updated_at: datetime
+
+
 class StartWorkflowResponse(BaseModel):
     workflow_id: str
     status: WorkflowStatus

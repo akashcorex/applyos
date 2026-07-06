@@ -1,18 +1,21 @@
-"""Generate answers to screening questions using Claude Sonnet 4.6.
+"""Generate answers to screening questions using Claude via LangChain.
 
 Job applications often include custom screening questions like
 "Why do you want to work here?" or "Are you authorised to work
 in the US?". This module generates contextual answers using the
 user's profile and the job description.
+
+Uses LangChain's ``ChatAnthropic.with_structured_output()`` for reliable
+structured responses — no manual JSON parsing or fence-stripping.
 """
 
 from __future__ import annotations
 
-import json
 import logging
 from pathlib import Path
 
-import anthropic
+from langchain_core.prompts import ChatPromptTemplate
+from pydantic import BaseModel, Field
 
 from app.config import settings
 from app.models.job_payload import CVData, UserProfile
@@ -24,6 +27,15 @@ _PROMPT_PATH = Path(__file__).parent / "prompts" / "screening_qa.txt"
 
 def _load_prompt() -> str:
     return _PROMPT_PATH.read_text(encoding="utf-8")
+
+
+class ScreeningAnswers(BaseModel):
+    """Structured output schema for screening question answers."""
+
+    answers: dict[str, str] = Field(
+        default_factory=dict,
+        description="Mapping of question text to generated answer",
+    )
 
 
 async def generate_answers(
@@ -45,7 +57,7 @@ async def generate_answers(
         job_description: Full job description text.
 
     Returns:
-        Dict mapping question text → generated answer.
+        Dict mapping question text -> generated answer.
     """
     if not settings.anthropic_api_key:
         logger.error("ANTHROPIC_API_KEY not set — cannot generate answers")
@@ -54,51 +66,59 @@ async def generate_answers(
     if not questions:
         return {}
 
-    system_prompt = _load_prompt()
-    user_content = (
-        f"## Job Info\n"
-        f"Title: {job_title}\n"
-        f"Company: {company_name}\n"
-        f"Description: {job_description[:3000]}\n\n"
-        f"## Candidate Profile\n"
-        f"Name: {cv_data.full_name}\n"
-        f"Years of Experience: {user_profile.years_experience}\n"
-        f"Preferred Role: {user_profile.preferred_role}\n"
-        f"Skills: {', '.join(cv_data.skills)}\n"
-        f"Summary: {cv_data.summary or 'N/A'}\n\n"
-        f"## Questions to Answer\n"
-    )
-    for i, q in enumerate(questions, 1):
-        user_content += f"{i}. {q}\n"
-
-    user_content += (
-        "\nRespond with a JSON object mapping each question to its answer. "
-        "Keep answers concise, professional, and truthful based on the candidate info."
-    )
-
-    client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key, timeout=120.0)
+    from app.llm.llm_client import get_llm
 
     try:
-        response = await client.messages.create(
-            model="claude-sonnet-4-6",
-            max_tokens=2048,
-            system=system_prompt,
-            messages=[{"role": "user", "content": user_content}],
-        )
-        raw = response.content[0].text.strip()
-
-        # Strip markdown fences
-        if raw.startswith("```"):
-            raw = raw.split("\n", 1)[1]
-            raw = raw.rsplit("```", 1)[0]
-
-        answers: dict[str, str] = json.loads(raw)
-        logger.info("Generated answers for %d screening questions", len(answers))
-        return answers
-
-    except json.JSONDecodeError as e:
-        logger.error("LLM returned non-JSON response for screening QA: %s", e)
+        llm = get_llm()
+        structured_llm = llm.with_structured_output(ScreeningAnswers)
+    except RuntimeError as exc:
+        logger.error("LLM not available: %s", exc)
         return {}
-    except Exception as e:
-        logger.error("Screening QA generation failed: %s", e)
+
+    system_prompt = _load_prompt()
+    prompt = ChatPromptTemplate.from_messages(
+        [
+            ("system", system_prompt),
+            (
+                "human",
+                "## Job Info\n"
+                "Title: {job_title}\n"
+                "Company: {company_name}\n"
+                "Description: {job_description}\n\n"
+                "## Candidate Profile\n"
+                "Name: {candidate_name}\n"
+                "Years of Experience: {years_experience}\n"
+                "Preferred Role: {preferred_role}\n"
+                "Skills: {skills}\n"
+                "Summary: {summary}\n\n"
+                "## Questions to Answer\n{questions}",
+            ),
+        ]
+    )
+
+    chain = prompt | structured_llm
+
+    questions_text = "\n".join(
+        f"{i}. {q}" for i, q in enumerate(questions, 1)
+    )
+
+    try:
+        result = await chain.ainvoke(
+            {
+                "job_title": job_title,
+                "company_name": company_name,
+                "job_description": job_description[:3000],
+                "candidate_name": cv_data.full_name,
+                "years_experience": user_profile.years_experience,
+                "preferred_role": user_profile.preferred_role,
+                "skills": ", ".join(cv_data.skills),
+                "summary": cv_data.summary or "N/A",
+                "questions": questions_text,
+            }
+        )
+        logger.info("Generated answers for %d screening questions", len(result.answers))
+        return result.answers
+
+    except Exception as exc:
+        logger.error("Screening QA generation failed: %s", exc)
         return {}

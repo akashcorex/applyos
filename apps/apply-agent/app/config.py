@@ -20,6 +20,7 @@ class Settings(BaseSettings):
 
     # --- Anthropic (Claude Sonnet 4.6) ---
     anthropic_api_key: str = ""
+    llm_model: str = "claude-sonnet-4-6"
 
     # --- API service (for persisting results) ---
     api_url: str = "http://localhost:3333"

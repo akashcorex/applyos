@@ -156,3 +156,52 @@ class FundingScrapeResponse(BaseModel):
     sources: list[FundingSource]
     companies_found: int
     companies: list[FundedCompany]
+
+
+class SearchRequest(BaseModel):
+    job_title: str = Field(min_length=1, max_length=128)
+    max_companies: int = Field(default=10, ge=1, le=20)
+    max_jobs_per_company: int = Field(default=50, ge=1, le=200)
+
+
+class SearchResult(BaseModel):
+    external_id: str
+    source: AtsType
+    title: str
+    company_name: str
+    department: str | None = None
+    location: str | None = None
+    location_type: str | None = None
+    seniority: str | None = None
+    application_url: str | None = None
+    dedup_key: str
+    ats_type: str
+    ats_slug: str
+
+
+class SearchResponse(BaseModel):
+    query: str
+    companies_scraped: int
+    total_matches: int
+    jobs: list[SearchResult]
+
+
+class SemanticSearchRequest(BaseModel):
+    job_title: str = Field(min_length=1, max_length=128)
+    skills: list[str] = Field(default_factory=list)
+    experience_years: int = Field(default=0, ge=0)
+    max_companies: int = Field(default=10, ge=1, le=20)
+    max_jobs_per_company: int = Field(default=50, ge=1, le=200)
+
+
+class SemanticMatchResult(SearchResult):
+    semantic_score: float = 0.0
+    match_reason: str = ""
+    matching_skills: list[str] = Field(default_factory=list)
+
+
+class SemanticSearchResponse(BaseModel):
+    query: str
+    companies_scraped: int
+    total_matches: int
+    jobs: list[SemanticMatchResult]

@@ -48,7 +48,7 @@ async def test_start_workflow_returns_202(mock_app_state: AppState) -> None:
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        with patch("routes.workflows.run_workflow", new=AsyncMock()):
+        with patch("routes.workflows.run_workflow_graph", new=AsyncMock()):
             response = await client.post(
                 "/workflows",
                 json={

@@ -1,8 +1,11 @@
-"""Map form fields to CV data using Claude Sonnet 4.6.
+"""Map form fields to CV data using Claude via LangChain.
 
 Given a list of form fields and the user's CV data, this module
-asks Claude to produce a mapping of ``selector → cv_key`` so the
+asks Claude to produce a mapping of ``selector -> cv_key`` so the
 ATS handler knows which value goes into which field.
+
+Uses LangChain's ``ChatAnthropic.with_structured_output()`` for reliable
+structured responses — no manual JSON parsing or fence-stripping.
 """
 
 from __future__ import annotations
@@ -11,7 +14,8 @@ import json
 import logging
 from pathlib import Path
 
-import anthropic
+from langchain_core.prompts import ChatPromptTemplate
+from pydantic import BaseModel, Field
 
 from app.ats.base import FormField
 from app.config import settings
@@ -25,6 +29,15 @@ _PROMPT_PATH = Path(__file__).parent / "prompts" / "field_map.txt"
 def _load_prompt() -> str:
     """Read the system prompt template from disk."""
     return _PROMPT_PATH.read_text(encoding="utf-8")
+
+
+class FieldMapping(BaseModel):
+    """Structured output schema for form field mappings."""
+
+    mapping: dict[str, str] = Field(
+        default_factory=dict,
+        description="Mapping of CSS selector to CV data key or literal value",
+    )
 
 
 def _format_fields(fields: list[FormField]) -> str:
@@ -59,41 +72,45 @@ async def map_fields_with_llm(
         logger.error("ANTHROPIC_API_KEY not set — cannot map fields")
         return {}
 
-    system_prompt = _load_prompt()
-    user_content = (
-        "## Form Fields\n"
-        f"{_format_fields(fields)}\n\n"
-        "## CV Data\n"
-        f"{_format_cv(cv_data)}\n"
-    )
-    if form_html:
-        # Truncate to avoid blowing up context
-        user_content += f"\n## Raw Form HTML (truncated)\n{form_html[:8000]}\n"
-
-    client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key, timeout=120.0)
+    from app.llm.llm_client import get_llm
 
     try:
-        response = await client.messages.create(
-            model="claude-sonnet-4-6",
-            max_tokens=2048,
-            system=system_prompt,
-            messages=[{"role": "user", "content": user_content}],
-        )
-        raw = response.content[0].text.strip()
-
-        # Claude should return JSON — parse it
-        # Strip markdown fences if present
-        if raw.startswith("```"):
-            raw = raw.split("\n", 1)[1]
-            raw = raw.rsplit("```", 1)[0]
-
-        mapping: dict[str, str] = json.loads(raw)
-        logger.info("LLM field mapping: %d fields mapped", len(mapping))
-        return mapping
-
-    except json.JSONDecodeError as e:
-        logger.error("LLM returned non-JSON response: %s", e)
+        llm = get_llm()
+        structured_llm = llm.with_structured_output(FieldMapping)
+    except RuntimeError as exc:
+        logger.error("LLM not available: %s", exc)
         return {}
-    except Exception as e:
-        logger.error("LLM field mapping failed: %s", e)
+
+    system_prompt = _load_prompt()
+    prompt = ChatPromptTemplate.from_messages(
+        [
+            ("system", system_prompt),
+            (
+                "human",
+                "## Form Fields\n{fields}\n\n"
+                "## CV Data\n{cv_data}\n"
+                "{form_html_section}",
+            ),
+        ]
+    )
+
+    form_html_section = (
+        f"\n## Raw Form HTML (truncated)\n{form_html[:8000]}\n" if form_html else ""
+    )
+
+    chain = prompt | structured_llm
+
+    try:
+        result = await chain.ainvoke(
+            {
+                "fields": _format_fields(fields),
+                "cv_data": _format_cv(cv_data),
+                "form_html_section": form_html_section,
+            }
+        )
+        logger.info("LLM field mapping: %d fields mapped", len(result.mapping))
+        return result.mapping
+
+    except Exception as exc:
+        logger.error("LLM field mapping failed: %s", exc)
         return {}

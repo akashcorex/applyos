@@ -1,30 +1,27 @@
 'use client';
 
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
+import { LogOut } from 'lucide-react';
 
 import { authClient } from '@/lib/auth-client';
+import { AgentStatusPanel } from '@/components/AgentStatusPanel';
+import { CompanyDiscoveryPanel } from '@/components/CompanyDiscoveryPanel';
+import { WorkflowPanel } from '@/components/WorkflowPanel';
+import { LinkedInConnectCard } from '@/components/LinkedInConnectCard';
+import { Avatar, AvatarFallback } from '@org/ui/avatar';
+import { Button } from '@org/ui/button';
+import { Separator } from '@org/ui/separator';
 
 export default function DashboardPage() {
   const router = useRouter();
   const { data: session, isPending } = authClient.useSession();
-  const [linking, setLinking] = useState(false);
 
   useEffect(() => {
     if (!isPending && !session) {
       router.replace('/login');
     }
   }, [isPending, session, router]);
-
-  async function handleLinkLinkedIn() {
-    setLinking(true);
-    await authClient.signIn.social({
-      provider: 'linkedin',
-      callbackURL: '/dashboard',
-    });
-    setLinking(false);
-  }
 
   async function handleSignOut() {
     await authClient.signOut({
@@ -37,57 +34,62 @@ export default function DashboardPage() {
   if (isPending || !session) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-gray-50">
-        <p className="text-sm text-gray-600">Loading...</p>
+        <p className="text-sm text-muted-foreground">Loading...</p>
       </main>
     );
   }
 
+  const initials = session.user.name
+    ?.split(' ')
+    .map((n: string) => n[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2);
+
   return (
-    <main className="min-h-screen bg-gray-50 px-4 py-10">
-      <div className="mx-auto max-w-2xl rounded-lg border border-gray-200 bg-white p-8 shadow-sm">
-        <h1 className="text-2xl font-semibold text-gray-900">Dashboard</h1>
-        <p className="mt-2 text-sm text-gray-600">
-          You are signed in as{' '}
-          <span className="font-medium text-gray-900">{session.user.email}</span>
-        </p>
-
-        <div className="mt-6 space-y-2 rounded-md bg-gray-50 p-4 text-sm text-gray-700">
-          <p>
-            <span className="font-medium">Name:</span> {session.user.name}
-          </p>
-          <p>
-            <span className="font-medium">Email verified:</span>{' '}
-            {session.user.emailVerified ? 'Yes' : 'No'}
-          </p>
-        </div>
-
-        <div className="mt-8 space-y-3">
-          <button
-            type="button"
-            onClick={handleLinkLinkedIn}
-            disabled={linking}
-            className="w-full rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-800 hover:bg-gray-50 disabled:opacity-50"
-          >
-            {linking ? 'Connecting...' : 'Connect LinkedIn'}
-          </button>
-
-          <div className="flex gap-3">
-            <button
-              type="button"
-              onClick={handleSignOut}
-              className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-800 hover:bg-gray-50"
-            >
-              Sign out
-            </button>
-            <Link
-              href="/login"
-              className="rounded-md px-4 py-2 text-sm font-medium text-blue-600 hover:underline"
-            >
-              Back to login
-            </Link>
+    <div className="min-h-screen bg-gray-50">
+      <header className="sticky top-0 z-10 border-b bg-white/95 backdrop-blur">
+        <div className="container flex h-14 items-center justify-between">
+          <span className="font-semibold text-lg">Outreach</span>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <Avatar className="h-8 w-8">
+                <AvatarFallback className="text-xs">{initials}</AvatarFallback>
+              </Avatar>
+              <div className="hidden sm:block">
+                <p className="text-sm font-medium leading-none">
+                  {session.user.name}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {session.user.email}
+                </p>
+              </div>
+            </div>
+            <Separator orientation="vertical" className="h-6" />
+            <Button variant="ghost" size="icon" onClick={handleSignOut}>
+              <LogOut className="h-4 w-4" />
+            </Button>
           </div>
         </div>
-      </div>
-    </main>
+      </header>
+
+      <main className="container py-6">
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
+          <p className="text-sm text-muted-foreground">
+            Discover jobs, manage workflows, and connect accounts.
+          </p>
+        </div>
+
+        <div className="grid gap-6 xl:grid-cols-2">
+          <CompanyDiscoveryPanel />
+          <div className="grid gap-6 content-start">
+            <WorkflowPanel />
+            <AgentStatusPanel />
+            <LinkedInConnectCard />
+          </div>
+        </div>
+      </main>
+    </div>
   );
 }
