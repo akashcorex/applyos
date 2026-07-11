@@ -23,6 +23,8 @@ async def human_type(page: Page, selector: str, text: str) -> None:
     element = await page.wait_for_selector(selector, timeout=10_000)
     if element:
         await element.click()
+        await page.keyboard.press("Meta+A")
+        await page.keyboard.press("Backspace")
         for char in text:
             await page.keyboard.type(char, delay=random.randint(50, 150))
     await asyncio.sleep(random.uniform(0.2, 0.5))

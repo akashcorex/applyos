@@ -16,6 +16,12 @@ class CVData(BaseModel):
     education: list[dict] = []
     work_history: list[dict] = []
     resume_url: str | None = None  # S3/GCS link to the actual PDF
+    linkedin_url: str | None = None
+    github_url: str | None = None
+    portfolio_url: str | None = None
+    twitter_url: str | None = None
+    website_url: str | None = None
+    current_company: str | None = None
 
 
 class UserProfile(BaseModel):

@@ -6,7 +6,6 @@ import asyncio
 import logging
 
 from app.ats.detector import get_handler
-from app.browser.captcha import detect_captcha
 from app.browser.engine import create_context, launch_browser, new_stealth_page
 from app.browser.resume_upload import prepare_resume_file
 from app.browser.session_manager import load_session, save_session
@@ -67,16 +66,17 @@ async def _run_apply(payload: JobPayload) -> ApplyResultEvent:
         try:
             await page.goto(job_url, wait_until="domcontentloaded", timeout=45_000)
 
-            if await detect_captcha(page):
+            handler = await get_handler(job_url, page)
+            fields = await handler.extract_fields(page)
+
+            if not fields:
                 return ApplyResultEvent(
                     job_id=payload.job_id,
                     user_id=user_id,
-                    status=ApplyStatus.captcha_blocked,
-                    error_detail="CAPTCHA detected on application page",
+                    status=ApplyStatus.failed,
+                    ats_type=getattr(handler, "ats_name", None),
+                    error_detail="No application form fields found after opening apply page",
                 )
-
-            handler = await get_handler(job_url, page)
-            fields = await handler.extract_fields(page)
 
             form_html = await page.evaluate(
                 "() => document.querySelector('form')?.outerHTML?.substring(0, 8000) || ''"
@@ -97,6 +97,15 @@ async def _run_apply(payload: JobPayload) -> ApplyResultEvent:
                     if field.label in answers:
                         field_mapping[field.selector] = answers[field.label]
 
+            # Ensure required selects get a mapped answer when LLM skipped them.
+            for field in fields:
+                if field.field_type != "select" or not field.required:
+                    continue
+                if field.selector in field_mapping:
+                    continue
+                if field.options:
+                    field_mapping[field.selector] = f"literal:{field.options[0]}"
+
             result = await handler.fill_and_submit(page, payload.cv_data, field_mapping)
 
             await save_session(user_id, context)
@@ -109,10 +118,14 @@ async def _run_apply(payload: JobPayload) -> ApplyResultEvent:
                     ats_type=result.ats_type,
                 )
 
+            status = ApplyStatus.failed
+            if result.error and "CAPTCHA" in result.error.upper():
+                status = ApplyStatus.captcha_blocked
+
             return ApplyResultEvent(
                 job_id=payload.job_id,
                 user_id=user_id,
-                status=ApplyStatus.failed,
+                status=status,
                 ats_type=result.ats_type,
                 error_detail=result.error,
             )

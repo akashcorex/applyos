@@ -47,8 +47,16 @@ export async function POST(request: Request) {
         cv_data: {
           full_name: body.full_name || 'User',
           email: body.email || 'user@example.com',
+          phone: body.phone || undefined,
+          location: body.location || location || undefined,
           skills: [],
           resume_url: resolvedResumeUrl,
+          linkedin_url: body.linkedin_url || undefined,
+          github_url: body.github_url || undefined,
+          portfolio_url: body.portfolio_url || undefined,
+          twitter_url: body.twitter_url || undefined,
+          website_url: body.website_url || undefined,
+          current_company: body.current_company || undefined,
         },
         targets:
           company_name && ats_type && ats_slug
