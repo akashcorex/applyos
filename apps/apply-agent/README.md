@@ -11,7 +11,23 @@
 - **Human-like interaction** — realistic typing delays, click patterns, and mouse movements to avoid bot detection
 - **Result publishing** — pushes apply results to a shared Redis queue for the orchestrator to consume
 - **LinkedIn connect/follow** — sends connection requests and follow actions with per-user daily rate limiting
+- **Post-apply employee connects** — after a successful apply, search company people on LinkedIn and send up to 3 blank connection requests
 - **Session persistence** — stores browser sessions (cookies, local storage) in Redis to maintain LinkedIn login across restarts
+
+## LinkedIn session bootstrap
+
+Playwright needs a real LinkedIn cookie session (Better Auth OAuth is **not** enough).
+
+```bash
+cd apps/apply-agent
+../../.venv/bin/python scripts/bootstrap_linkedin_session.py --user-id <USER_ID>
+```
+
+A headed browser opens — log in (and complete 2FA). When the feed loads, the script saves `session:<user_id>` to Redis (7-day TTL).
+
+Check status: `GET /admin/linkedin/session/{user_id}`
+
+If the session is missing or expired, connect/discover workers fail with `login_required` — re-run the bootstrap script.
 
 ## Supported ATS handlers
 
@@ -48,6 +64,8 @@
 
 - `POST /admin/trigger/apply` — enqueue an apply task (returns `task_id`, `job_id`)
 - `POST /admin/trigger/connect` — enqueue a LinkedIn connect/follow batch
+- `POST /admin/trigger/discover-connect` — search company employees + blank connects (post-apply)
+- `GET /admin/linkedin/session/{user_id}` — whether a Redis Playwright session exists
 - `GET /admin/status/workers` — Redis queue depths and Celery worker info
 - `POST /admin/enqueue/apply` — (testing) push raw job directly to Redis `jobs_queue`
 - `POST /admin/enqueue/connect` — (testing) push raw contacts directly to Redis `contacts_queue`
@@ -61,8 +79,10 @@ Key settings:
 - `ANTHROPIC_API_KEY` — Claude API key for LLM field mapping
 - `API_URL` — default `http://localhost:3333`
 - `DEFAULT_RESUME_PATH`
-- `LINKEDIN_CONNECTS_PER_DAY` — default `20`
-- `LINKEDIN_FOLLOWS_PER_DAY` — default `40`
+- `LINKEDIN_MAX_CONNECTS_PER_DAY` — default `20`
+- `LINKEDIN_MAX_FOLLOWS_PER_DAY` — default `40`
+- `POST_APPLY_LINKEDIN_CONNECT_ENABLED` — default `true`
+- `POST_APPLY_CONNECT_LIMIT` — default `3`
 
 See `.env.example` for the full list.
 
@@ -102,8 +122,8 @@ uv run pytest -q
 - `app/ats/detector.py` — URL-first, then page-content ATS detection
 - `app/browser/` — Playwright engine, session manager, human delay helpers, resume upload, CAPTCHA detection
 - `app/llm/` — Claude integration for field mapping and screening question answering
-- `app/linkedin/` — LinkedIn connect, follow, profile loading, and rate limiting
-- `app/workers/` — Celery workers for apply and connect tasks
+- `app/linkedin/` — LinkedIn connect, follow, company people discovery, profile loading, and rate limiting
+- `app/workers/` — Celery workers for apply, connect, and discover-and-connect tasks
 - `app/events/publisher.py` — publishes result events to Redis `results_queue`
 
 ## Dependencies

@@ -32,6 +32,10 @@ class Settings(BaseSettings):
     linkedin_max_connects_per_day: int = 20
     linkedin_max_follows_per_day: int = 40
 
+    # --- Post-apply LinkedIn employee connects ---
+    post_apply_linkedin_connect_enabled: bool = True
+    post_apply_connect_limit: int = 3
+
     # --- CAPTCHA solver (optional) ---
     captcha_api_key: str = ""
     captcha_provider: str = "2captcha"

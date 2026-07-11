@@ -8,10 +8,13 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
+from app.browser.session_manager import load_session
 from app.models.contact_payload import ContactPayload
+from app.models.discover_connect_payload import DiscoverConnectPayload
 from app.models.job_payload import JobPayload
 from app.workers.apply_worker import apply_job
 from app.workers.connect_worker import connect_contacts
+from app.workers.discover_connect_worker import discover_and_connect
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -29,6 +32,18 @@ class TriggerConnectResponse(BaseModel):
     task_id: str
     user_id: str
     contact_count: int
+
+
+class TriggerDiscoverConnectResponse(BaseModel):
+    task_id: str
+    user_id: str
+    company_name: str
+    job_id: str
+
+
+class LinkedInSessionStatus(BaseModel):
+    user_id: str
+    has_session: bool
 
 
 class QueueStatus(BaseModel):
@@ -61,6 +76,27 @@ async def trigger_connect(payload: ContactPayload) -> TriggerConnectResponse:
         user_id=payload.user_id,
         contact_count=len(payload.contacts),
     )
+
+
+@router.post("/trigger/discover-connect", response_model=TriggerDiscoverConnectResponse)
+async def trigger_discover_connect(
+    payload: DiscoverConnectPayload,
+) -> TriggerDiscoverConnectResponse:
+    """Enqueue post-apply company people search + blank LinkedIn connects."""
+    result = discover_and_connect.delay(payload.model_dump(mode="json"))
+    return TriggerDiscoverConnectResponse(
+        task_id=result.id,
+        user_id=payload.user_id,
+        company_name=payload.company_name,
+        job_id=payload.job_id,
+    )
+
+
+@router.get("/linkedin/session/{user_id}", response_model=LinkedInSessionStatus)
+async def linkedin_session_status(user_id: str) -> LinkedInSessionStatus:
+    """Check whether a Playwright LinkedIn session exists in Redis for *user_id*."""
+    state = await load_session(user_id)
+    return LinkedInSessionStatus(user_id=user_id, has_session=state is not None)
 
 
 @router.get("/status/workers", response_model=WorkerStatusResponse)

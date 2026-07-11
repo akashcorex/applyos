@@ -59,7 +59,7 @@ async def send_connection_request(
                 await human_click(page, "button:has-text('Connect')")
                 await random_pause(0.5, 1.0)
 
-        # If we want to add a note
+        # Optional personalised note (max 300 chars). Blank connects skip this.
         if note:
             add_note_btn = await page.query_selector(
                 "button:has-text('Add a note'), "
@@ -73,7 +73,6 @@ async def send_connection_request(
                 )
                 await random_pause(0.5, 1.0)
 
-                # Type the note
                 truncated_note = note[:_MAX_NOTE_LENGTH]
                 textarea = await page.query_selector(
                     "textarea[name='message'], textarea#custom-message"
@@ -85,24 +84,22 @@ async def send_connection_request(
                         truncated_note,
                     )
 
-        # Send the request
-        send_btn = await page.query_selector(
+        # Blank invite UI often exposes "Send without a note"
+        send_selectors = (
+            "button:has-text('Send without a note'), "
+            "button[aria-label*='Send without a note' i], "
             "button:has-text('Send'), "
             "button[aria-label='Send now'], "
             "button[aria-label='Send invitation']"
         )
+        send_btn = await page.query_selector(send_selectors)
         if send_btn:
-            await human_click(
-                page,
-                "button:has-text('Send'), "
-                "button[aria-label='Send now'], "
-                "button[aria-label='Send invitation']"
-            )
+            await human_click(page, send_selectors)
             await random_pause(1.0, 2.0)
-            logger.info("Connection request sent")
+            logger.info("Connection request sent (note=%s)", bool(note))
             return True
 
-        logger.warning("Send button not found after adding note")
+        logger.warning("Send button not found after Connect dialog")
         return False
 
     except Exception as e:

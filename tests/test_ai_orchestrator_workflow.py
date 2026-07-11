@@ -117,7 +117,8 @@ async def test_results_consumer_updates_apply_task() -> None:
     await store.save(run)
     await store.index_job("wf-2", "wf-2:acme::engineer")
 
-    consumer = ResultsConsumer(fake_redis, store)
+    apply_client = AsyncMock()
+    consumer = ResultsConsumer(fake_redis, store, apply_client=apply_client)
     payload = json.dumps(
         {
             "type": "apply_result",
@@ -134,3 +135,4 @@ async def test_results_consumer_updates_apply_task() -> None:
     assert updated is not None
     assert updated.apply_tasks[0].status == "submitted"
     assert updated.status == WorkflowStatus.completed
+    apply_client.trigger_discover_connect.assert_awaited_once()

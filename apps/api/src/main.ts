@@ -6,6 +6,7 @@ import express from 'express';
 
 import { auth } from './auth';
 import { startFallowBeacon } from './fallow-beacon';
+import { linkedinConnectsRouter } from './routes/linkedin-connects';
 
 const host = process.env.HOST ?? 'localhost';
 const port = process.env.PORT ? Number(process.env.PORT) : 3333;
@@ -22,9 +23,13 @@ app.use(
 
 app.all('/api/auth/*', toNodeHandler(auth));
 
+app.use(express.json());
+
 app.get('/', (_req, res) => {
   res.send({ message: 'Hello API' });
 });
+
+app.use('/v1/linkedin-connects', linkedinConnectsRouter);
 
 app.listen(port, host, () => {
   console.log(`[ ready ] http://${host}:${port}`);

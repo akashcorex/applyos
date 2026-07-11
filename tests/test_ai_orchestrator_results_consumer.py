@@ -1,4 +1,5 @@
 import json
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -37,7 +38,7 @@ class FakeRedis:
 async def test_results_consumer_ignores_non_apply_events() -> None:
     fake_redis = FakeRedis()
     store = WorkflowStore(fake_redis)
-    consumer = ResultsConsumer(fake_redis, store)
+    consumer = ResultsConsumer(fake_redis, store, apply_client=AsyncMock())
     await consumer.handle_message_for_test(json.dumps({"type": "other", "data": {}}))
 
 
@@ -79,7 +80,8 @@ async def test_results_consumer_finalizes_partial_workflow() -> None:
     await store.index_job("wf-3", "wf-3:a")
     await store.index_job("wf-3", "wf-3:b")
 
-    consumer = ResultsConsumer(fake_redis, store)
+    apply_client = AsyncMock()
+    consumer = ResultsConsumer(fake_redis, store, apply_client=apply_client)
     await consumer.handle_message_for_test(
         json.dumps(
             {
@@ -109,3 +111,7 @@ async def test_results_consumer_finalizes_partial_workflow() -> None:
     updated = await store.get("wf-3")
     assert updated is not None
     assert updated.status == WorkflowStatus.partial
+    apply_client.trigger_discover_connect.assert_awaited_once()
+    call_kwargs = apply_client.trigger_discover_connect.await_args.kwargs
+    assert call_kwargs["company_name"] == "Acme"
+    assert call_kwargs["job_id"] == "wf-3:a"

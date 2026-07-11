@@ -11,6 +11,7 @@ celery_app = Celery(
     include=[
         "app.workers.apply_worker",
         "app.workers.connect_worker",
+        "app.workers.discover_connect_worker",
     ],
 )
 
