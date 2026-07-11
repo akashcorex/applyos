@@ -8,12 +8,14 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from dependencies import app_state
+from logging_filters import install_health_access_filter
 from routes import health, workflows
 
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
 )
+install_health_access_filter()
 logger = logging.getLogger(__name__)
 
 

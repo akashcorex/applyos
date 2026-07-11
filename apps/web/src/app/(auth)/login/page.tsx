@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { FormEvent, useState } from 'react';
 import { Linkedin } from 'lucide-react';
 
-import { authClient } from '@/lib/auth-client';
+import { appCallbackURL, authClient } from '@/lib/auth-client';
 import { Button } from '@org/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@org/ui/card';
 import { Input } from '@org/ui/input';
@@ -46,7 +46,7 @@ export default function LoginPage() {
 
     await authClient.signIn.social({
       provider: 'linkedin',
-      callbackURL: '/dashboard',
+      callbackURL: appCallbackURL('/dashboard'),
     });
   }
 

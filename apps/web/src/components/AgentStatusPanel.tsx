@@ -41,7 +41,7 @@ export function AgentStatusPanel() {
       }
     }
     fetchHealth();
-    const interval = setInterval(fetchHealth, 10000);
+    const interval = setInterval(fetchHealth, 60000);
     return () => clearInterval(interval);
   }, []);
 

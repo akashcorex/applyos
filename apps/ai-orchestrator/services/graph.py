@@ -24,6 +24,7 @@ from langgraph.graph import END, START, StateGraph
 from config import settings
 from models import (
     ApplyTaskRecord,
+    DiscoveredJobRecord,
     JobPayload,
     StartWorkflowRequest,
     WorkflowStatus,
@@ -43,6 +44,46 @@ def build_job_id(workflow_id: str, dedup_key: str) -> str:
     return f"{workflow_id}:{dedup_key}"
 
 
+def _ats_from_url(url: str) -> str:
+    lowered = url.lower()
+    if "lever.co" in lowered:
+        return "lever"
+    if "greenhouse.io" in lowered or "boards.greenhouse" in lowered:
+        return "greenhouse"
+    if "ashbyhq.com" in lowered:
+        return "ashby"
+    if "workable.com" in lowered:
+        return "workable"
+    if "recruitee.com" in lowered:
+        return "recruitee"
+    if "personio" in lowered:
+        return "personio"
+    return "lever"
+
+
+def _direct_jobs_to_records(request: StartWorkflowRequest) -> list[DiscoveredJobRecord]:
+    records: list[DiscoveredJobRecord] = []
+    for job in request.jobs:
+        source = job.source or _ats_from_url(job.application_url)  # type: ignore[arg-type]
+        external_id = job.external_id or job.application_url.rstrip("/").split("/")[-1]
+        dedup_key = f"{source}:{job.company_name}:{external_id}"
+        records.append(
+            DiscoveredJobRecord(
+                external_id=external_id,
+                source=source,  # type: ignore[arg-type]
+                title=job.title,
+                company_name=job.company_name,
+                department=job.department,
+                location=job.location,
+                application_url=job.application_url,
+                description_raw=job.description_raw,
+                dedup_key=dedup_key,
+                filter_score=1.0,
+            )
+        )
+    return records
+
+
 # ── Graph nodes ──────────────────────────────────────────────────────────
 
 
@@ -53,6 +94,9 @@ async def discover_funding_node(state: WorkflowState, config) -> dict:
     job_client: JobAgentClient = config["configurable"]["job_client"]
     request: StartWorkflowRequest = state["request"]
     workflow_id = state["workflow_id"]
+
+    if request.jobs:
+        return {"targets": list(request.targets), "errors": []}
 
     targets = list(request.targets)
     if targets:
@@ -88,9 +132,19 @@ async def ingest_jobs_node(state: WorkflowState, config) -> dict:
     """Ingest jobs from each company target via job-agent."""
     store: WorkflowStore = config["configurable"]["store"]
     job_client: JobAgentClient = config["configurable"]["job_client"]
+    request: StartWorkflowRequest = state["request"]
     workflow_id = state["workflow_id"]
 
     await store.update_status(workflow_id, WorkflowStatus.discovering)
+
+    if request.jobs:
+        discovered = _direct_jobs_to_records(request)
+        logger.info(
+            "Using %d direct job(s) for workflow %s (skip company ingest)",
+            len(discovered),
+            workflow_id,
+        )
+        return {"discovered_jobs": discovered, "errors": []}
 
     discovered: list = []
     errors: list[str] = []
@@ -123,7 +177,15 @@ async def filter_jobs_node(state: WorkflowState, config) -> dict:
     workflow_id = state["workflow_id"]
 
     await store.update_status(workflow_id, WorkflowStatus.filtering)
-    shortlisted = filter_jobs(state["discovered_jobs"], request)
+
+    if request.jobs:
+        # Caller already chose the exact listing(s) — do not re-rank/drop them.
+        shortlisted = list(state["discovered_jobs"])
+        if request.auto_apply and request.max_total_applies > 0:
+            shortlisted = shortlisted[: request.max_total_applies]
+    else:
+        shortlisted = filter_jobs(state["discovered_jobs"], request)
+
     await store.set_discovered_jobs(workflow_id, shortlisted)
 
     if not request.auto_apply or request.max_total_applies == 0 or not shortlisted:
@@ -220,6 +282,9 @@ async def finalize_node(state: WorkflowState, config) -> dict:
 
 
 def route_after_funding(state: WorkflowState) -> str:
+    request = state["request"]
+    if request.jobs:
+        return "ingest_jobs"
     if not state.get("targets"):
         return END
     return "ingest_jobs"

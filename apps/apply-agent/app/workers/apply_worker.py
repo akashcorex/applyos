@@ -8,6 +8,7 @@ import logging
 from app.ats.detector import get_handler
 from app.browser.captcha import detect_captcha
 from app.browser.engine import create_context, launch_browser, new_stealth_page
+from app.browser.resume_upload import prepare_resume_file
 from app.browser.session_manager import load_session, save_session
 from app.events.publisher import publish_apply_result
 from app.llm.answer_generator import generate_answers
@@ -41,6 +42,22 @@ def _extract_screening_questions(fields, field_mapping: dict[str, str]) -> list[
 async def _run_apply(payload: JobPayload) -> ApplyResultEvent:
     user_id = payload.user_profile.user_id
     job_url = str(payload.job_url)
+
+    async with prepare_resume_file(payload.cv_data) as resume_path:
+        if resume_path is None:
+            logger.error(
+                "Apply blocked for job_id=%s: no resume_url and no DEFAULT_RESUME_PATH",
+                payload.job_id,
+            )
+            return ApplyResultEvent(
+                job_id=payload.job_id,
+                user_id=user_id,
+                status=ApplyStatus.failed,
+                error_detail=(
+                    "Resume required: set cv_data.resume_url or DEFAULT_RESUME_PATH "
+                    "before applying"
+                ),
+            )
 
     async with launch_browser(headless=True) as browser:
         storage_state = await load_session(user_id)

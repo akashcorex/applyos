@@ -2,12 +2,15 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from logging_filters import install_health_access_filter
 from routes.detect import router as detect_router
 from routes.funding import router as funding_router
 from routes.health import router as health_router
 from routes.ingest import router as ingest_router
 from routes.search import router as search_router
 from routes.semantic import router as semantic_router
+
+install_health_access_filter()
 
 
 @asynccontextmanager

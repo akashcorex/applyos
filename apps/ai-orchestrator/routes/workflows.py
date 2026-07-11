@@ -18,8 +18,16 @@ async def start_workflow(
     payload: StartWorkflowRequest,
     request: Request,
 ) -> StartWorkflowResponse:
-    if not payload.targets:
-        raise HTTPException(status_code=400, detail="targets must not be empty")
+    if not payload.targets and not payload.jobs:
+        raise HTTPException(
+            status_code=400,
+            detail="Provide targets (company ingest) or jobs (direct apply)",
+        )
+    if payload.auto_apply and not (payload.cv_data.resume_url or "").strip():
+        raise HTTPException(
+            status_code=400,
+            detail="cv_data.resume_url is required when auto_apply is true",
+        )
 
     state = getattr(request.app.state, "app_state", None)
     if state is None or state.store is None:

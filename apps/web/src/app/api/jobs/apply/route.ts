@@ -1,7 +1,38 @@
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { company_name, ats_type, ats_slug, job_title } = body;
+    const {
+      company_name,
+      ats_type,
+      ats_slug,
+      job_title,
+      application_url,
+      external_id,
+      department,
+      location,
+      description_raw,
+      resume_url,
+    } = body;
+
+    const resolvedResumeUrl =
+      resume_url || process.env.DEFAULT_RESUME_PATH || process.env.RESUME_URL || '';
+
+    if (!resolvedResumeUrl) {
+      return Response.json(
+        {
+          error:
+            'resume_url is required. Upload/select a resume or set DEFAULT_RESUME_PATH in apps/web/.env.local',
+        },
+        { status: 400 },
+      );
+    }
+
+    if (!application_url) {
+      return Response.json(
+        { error: 'application_url is required to apply to a specific job' },
+        { status: 400 },
+      );
+    }
 
     const res = await fetch('http://127.0.0.1:8001/workflows', {
       method: 'POST',
@@ -17,12 +48,22 @@ export async function POST(request: Request) {
           full_name: body.full_name || 'User',
           email: body.email || 'user@example.com',
           skills: [],
+          resume_url: resolvedResumeUrl,
         },
-        targets: [
+        targets:
+          company_name && ats_type && ats_slug
+            ? [{ company_name, ats_type, ats_slug }]
+            : [],
+        jobs: [
           {
-            company_name,
-            ats_type,
-            ats_slug,
+            title: job_title || 'Untitled role',
+            company_name: company_name || 'Unknown',
+            application_url,
+            external_id: external_id || undefined,
+            source: ats_type || undefined,
+            department: department || undefined,
+            location: location || undefined,
+            description_raw: description_raw || undefined,
           },
         ],
         max_jobs_per_company: 1,

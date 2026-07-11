@@ -2,7 +2,8 @@ version: '3.8'
 
 services:
   postgres:
-    image: postgres:17
+    # pgvector image required by resume-agent (CREATE EXTENSION vector)
+    image: pgvector/pgvector:pg17
     container_name: outreach-autometer-postgres
     restart: always
     environment:

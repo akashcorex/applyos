@@ -12,6 +12,7 @@ from playwright.async_api import Page
 
 from app.ats.base import ATSHandler, FillResult, FormField, resolve_mapped_value
 from app.browser.human_delay import human_click, human_type, random_pause
+from app.browser.resume_upload import require_resume_upload
 from app.models.job_payload import CVData
 
 logger = logging.getLogger(__name__)
@@ -119,6 +120,18 @@ class EasyApplyHandler(ATSHandler):
         max_pages = 5  # safety limit
 
         try:
+            ok, error, resume_filled = await require_resume_upload(
+                page, cv_data, self.ats_name
+            )
+            if not ok:
+                return FillResult(
+                    success=False,
+                    ats_type=self.ats_name,
+                    fields_filled=filled,
+                    error=error,
+                )
+            filled += resume_filled
+
             for _page_num in range(max_pages):
                 # Fill current page fields
                 for selector, cv_key in field_mapping.items():
@@ -131,9 +144,6 @@ class EasyApplyHandler(ATSHandler):
 
                     input_type = await field_el.get_attribute("type") or ""
                     if input_type == "file":
-                        logger.info(
-                            "Easy Apply file upload skipped (not yet implemented)"
-                        )
                         continue
 
                     await human_type(page, selector, str(value))

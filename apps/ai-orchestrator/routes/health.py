@@ -14,6 +14,26 @@ router = APIRouter(tags=["health"])
 
 @router.get("/health")
 async def health(request: Request) -> dict[str, Any]:
+    """Liveness — Redis only. Does not fan out to other agents (avoids log spam)."""
+    state = getattr(request.app.state, "app_state", None)
+    redis_status = "unavailable"
+
+    if state is not None and state.redis is not None:
+        try:
+            await state.redis.ping()
+            redis_status = "connected"
+        except Exception:
+            redis_status = "unavailable"
+
+    return {
+        "status": "healthy" if redis_status == "connected" else "degraded",
+        "checks": {"redis": redis_status},
+    }
+
+
+@router.get("/ready")
+async def ready(request: Request) -> dict[str, Any]:
+    """Readiness — Redis plus downstream agents and Celery workers."""
     state = getattr(request.app.state, "app_state", None)
     checks: dict[str, Any] = {
         "redis": "unavailable",

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Linkedin } from 'lucide-react';
 
-import { authClient } from '@/lib/auth-client';
+import { appCallbackURL, authClient } from '@/lib/auth-client';
 import { Button } from '@org/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@org/ui/card';
 import { Badge } from '@org/ui/badge';
@@ -15,7 +15,7 @@ export function LinkedInConnectCard() {
     setLinking(true);
     await authClient.signIn.social({
       provider: 'linkedin',
-      callbackURL: '/dashboard',
+      callbackURL: appCallbackURL('/dashboard'),
     });
     setLinking(false);
   }

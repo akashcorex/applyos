@@ -54,17 +54,34 @@ class CompanyTarget(BaseModel):
     ats_slug: str
 
 
+class DirectApplyJob(BaseModel):
+    """Apply to a specific listing without re-ingesting the company board."""
+
+    title: str
+    company_name: str
+    application_url: str
+    external_id: str | None = None
+    source: AtsType | None = None
+    department: str | None = None
+    location: str | None = None
+    description_raw: str | None = None
+
+
 class StartWorkflowRequest(BaseModel):
     user_profile: UserProfile
     cv_data: CVData
     targets: list[CompanyTarget] = Field(default_factory=list)
+    jobs: list[DirectApplyJob] = Field(
+        default_factory=list,
+        description="Optional specific jobs to apply to (skips company ingest)",
+    )
     funding_sources: list[str] | None = Field(
         default=None,
         description="Funding sources when targets is empty",
     )
-    funding_limit: int = Field(default=20, ge=1, le=100)
     funding_min_round: str | None = None
     funding_since_date: str | None = None
+    funding_limit: int = Field(default=20, ge=1, le=100)
     max_jobs_per_company: int = Field(default=10, ge=1, le=100)
     max_total_applies: int = Field(default=5, ge=0, le=50)
     auto_apply: bool = True

@@ -12,9 +12,17 @@ from playwright.async_api import Page
 
 from app.ats.base import ATSHandler, FillResult, FormField, resolve_mapped_value
 from app.browser.human_delay import human_click, human_type, random_pause
+from app.browser.resume_upload import prepare_resume_file, upload_resume_to_file_inputs
 from app.models.job_payload import CVData
 
 logger = logging.getLogger(__name__)
+
+_SUCCESS_PATTERNS = (
+    "thank you for applying",
+    "application submitted",
+    "thanks for applying",
+    "we received your application",
+)
 
 
 class LeverHandler(ATSHandler):
@@ -81,6 +89,17 @@ class LeverHandler(ATSHandler):
         logger.info("Lever: extracted %d fields", len(fields))
         return fields
 
+    async def _is_submission_successful(self, page: Page, initial_url: str) -> bool:
+        content = (await page.content()).lower()
+        if any(pattern in content for pattern in _SUCCESS_PATTERNS):
+            return True
+        if page.url != initial_url and "thanks" in page.url.lower():
+            return True
+        confirmation = await page.query_selector(
+            ".application-confirmation, .posting-thanks, [data-qa='application-confirmation']"
+        )
+        return confirmation is not None
+
     async def fill_and_submit(
         self,
         page: Page,
@@ -88,38 +107,80 @@ class LeverHandler(ATSHandler):
         field_mapping: dict[str, str],
     ) -> FillResult:
         filled = 0
+        initial_url = page.url
         try:
-            for selector, cv_key in field_mapping.items():
-                value = resolve_mapped_value(cv_data, cv_key)
-                if value is None:
-                    continue
-                field_el = await page.query_selector(selector)
-                if field_el is None:
-                    continue
+            async with prepare_resume_file(cv_data) as resume_path:
+                has_file_input = (
+                    await page.query_selector(
+                        ".application-form input[type='file'], input[type='file']"
+                    )
+                ) is not None
 
-                input_type = await field_el.get_attribute("type") or ""
-                if input_type == "file":
-                    logger.info("Lever file upload skipped (not yet implemented)")
-                    continue
+                if has_file_input:
+                    if resume_path is None:
+                        return FillResult(
+                            success=False,
+                            ats_type=self.ats_name,
+                            fields_filled=filled,
+                            error="Resume file not available for upload",
+                        )
+                    uploaded = await upload_resume_to_file_inputs(page, resume_path)
+                    if not uploaded:
+                        return FillResult(
+                            success=False,
+                            ats_type=self.ats_name,
+                            fields_filled=filled,
+                            error="Failed to attach resume to Lever file input",
+                        )
+                    filled += 1
+                    logger.info("Lever: resume uploaded from %s", resume_path)
 
-                await human_type(page, selector, str(value))
-                filled += 1
+                for selector, cv_key in field_mapping.items():
+                    value = resolve_mapped_value(cv_data, cv_key)
+                    if value is None:
+                        continue
+                    field_el = await page.query_selector(selector)
+                    if field_el is None:
+                        continue
 
-            await random_pause(1.0, 2.0)
+                    input_type = await field_el.get_attribute("type") or ""
+                    if input_type == "file":
+                        continue
 
-            submit_btn = await page.query_selector(
-                "button[type='submit'], button:has-text('Submit application')"
-            )
-            if submit_btn:
+                    await human_type(page, selector, str(value))
+                    filled += 1
+
+                await random_pause(1.0, 2.0)
+
+                submit_btn = await page.query_selector(
+                    "button[type='submit'], button:has-text('Submit application')"
+                )
+                if not submit_btn:
+                    return FillResult(
+                        success=False,
+                        ats_type=self.ats_name,
+                        fields_filled=filled,
+                        error="Lever submit button not found",
+                    )
+
                 await human_click(
-                    page, "button[type='submit'], button:has-text('Submit application')"
+                    page,
+                    "button[type='submit'], button:has-text('Submit application')",
                 )
                 await page.wait_for_load_state("networkidle", timeout=15_000)
 
-            logger.info("Lever: filled %d fields and submitted", filled)
-            return FillResult(
-                success=True, ats_type=self.ats_name, fields_filled=filled
-            )
+                if not await self._is_submission_successful(page, initial_url):
+                    return FillResult(
+                        success=False,
+                        ats_type=self.ats_name,
+                        fields_filled=filled,
+                        error="Lever submit did not show a confirmation",
+                    )
+
+                logger.info("Lever: filled %d fields and submitted", filled)
+                return FillResult(
+                    success=True, ats_type=self.ats_name, fields_filled=filled
+                )
 
         except Exception as e:
             logger.error("Lever fill failed: %s", e)
