@@ -15,6 +15,13 @@
       "when": 1783323327041,
       "tag": "0001_youthful_bishop",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1784369932780,
+      "tag": "0002_early_tenebrous",
+      "breakpoints": true
     }
   ]
 }

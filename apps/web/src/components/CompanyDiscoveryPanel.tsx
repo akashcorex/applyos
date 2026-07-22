@@ -12,6 +12,7 @@ import { Separator } from '@org/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@org/ui/tabs';
 
 import { authClient } from '@/lib/auth-client';
+import { GrainTexture } from './GrainTexture';
 
 interface DetectResult {
   ats_type: string | null;
@@ -276,16 +277,19 @@ export function CompanyDiscoveryPanel() {
         )}
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="w-full">
-            <TabsTrigger value="keyword" className="flex-1">
-              <Search className="h-3.5 w-3.5 mr-1.5" />
-              Search by Title
-            </TabsTrigger>
-            <TabsTrigger value="url" className="flex-1">
-              <Globe className="h-3.5 w-3.5 mr-1.5" />
-              Search by URL
-            </TabsTrigger>
-          </TabsList>
+          <div className="relative overflow-hidden rounded-lg">
+            <GrainTexture className="opacity-[0.05] mix-blend-multiply" />
+            <TabsList className="relative w-full">
+              <TabsTrigger value="keyword" className="flex-1">
+                <Search className="h-3.5 w-3.5 mr-1.5" />
+                Search by Title
+              </TabsTrigger>
+              <TabsTrigger value="url" className="flex-1">
+                <Globe className="h-3.5 w-3.5 mr-1.5" />
+                Search by URL
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
           {/* Keyword search tab */}
           <TabsContent value="keyword" className="space-y-4 mt-4">

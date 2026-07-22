@@ -1,8 +1,8 @@
 import './global.css';
 
 export const metadata = {
-  title: 'Outreach Autometer',
-  description: 'AI-powered job outreach automation',
+  title: 'Outreach Autometer — Early Access',
+  description: 'AI-powered job outreach automation. Get early access.',
 };
 
 export default function RootLayout({
