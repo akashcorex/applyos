@@ -36,9 +36,9 @@ class Settings(BaseSettings):
     post_apply_linkedin_connect_enabled: bool = True
     post_apply_connect_limit: int = 3
 
-    # --- CAPTCHA solver (optional) ---
+    # --- CAPTCHA solver (CapSolver) ---
     captcha_api_key: str = ""
-    captcha_provider: str = "2captcha"
+    captcha_provider: str = "capsolver"
 
     class Config:
         env_file = ".env"

@@ -1,6 +1,6 @@
-"""CAPTCHA detection and solver integration.
+"""CAPTCHA detection and CapSolver integration.
 
-Supports 2Captcha for reCAPTCHA v2 and hCaptcha.
+Solves reCAPTCHA v2 and hCaptcha via CapSolver's createTask / getTaskResult API.
 The solver is called only when a CAPTCHA is detected on the page.
 """
 
@@ -17,10 +17,8 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
-_SOLVER_ENDPOINTS = {
-    "2captcha": "https://2captcha.com/in.php",
-    "capmonster": "https://api.capmonster.cloud/createTask",
-}
+_CAPSOLVER_CREATE = "https://api.capsolver.com/createTask"
+_CAPSOLVER_RESULT = "https://api.capsolver.com/getTaskResult"
 
 _CAPTCHA_SELECTORS = [
     "iframe[src*='recaptcha']",
@@ -71,7 +69,6 @@ async def extract_hcaptcha_sitekey(page: Page) -> str | None:
     if sitekey:
         return sitekey
 
-    # Fallback: scan page HTML for sitekey= patterns.
     html = await page.content()
     match = re.search(
         r"['\"]sitekey['\"]\s*:\s*['\"]([0-9a-fA-F-]{36}|[a-zA-Z0-9_-]{20,})['\"]",
@@ -108,96 +105,98 @@ async def extract_recaptcha_sitekey(page: Page) -> str | None:
     return sitekey
 
 
-async def _poll_2captcha(client: httpx.AsyncClient, task_id: str) -> str | None:
-    for _ in range(36):  # up to ~180 seconds
-        await asyncio.sleep(5)
-        poll_resp = await client.get(
-            "https://2captcha.com/res.php",
-            params={
-                "key": settings.captcha_api_key,
-                "action": "get",
-                "id": task_id,
-                "json": "1",
-            },
+def _token_from_solution(solution: dict | None) -> str | None:
+    if not solution:
+        return None
+    return (
+        solution.get("gRecaptchaResponse")
+        or solution.get("token")
+        or solution.get("response")
+    )
+
+
+async def _create_and_poll_capsolver(task: dict) -> str | None:
+    """Create a CapSolver task and poll until ready. Returns the token or None."""
+    if not settings.captcha_api_key:
+        logger.error("CAPTCHA solving requested but no CAPTCHA_API_KEY configured")
+        return None
+
+    async with httpx.AsyncClient(timeout=120.0) as client:
+        create_resp = await client.post(
+            _CAPSOLVER_CREATE,
+            json={"clientKey": settings.captcha_api_key, "task": task},
         )
-        poll_result = poll_resp.json()
-        if poll_result.get("status") == 1:
-            token = poll_result.get("request")
-            logger.info("CAPTCHA solved successfully")
-            return token
-        if poll_result.get("request") != "CAPCHA_NOT_READY":
-            logger.error("CAPTCHA solve error: %s", poll_result)
+        create_result = create_resp.json()
+        if create_result.get("errorId", 0) != 0:
+            logger.error("CapSolver createTask failed: %s", create_result)
             return None
-    logger.error("CAPTCHA solve timed out")
+
+        # Some recognition tasks return the solution immediately.
+        if create_result.get("status") == "ready":
+            token = _token_from_solution(create_result.get("solution"))
+            if token:
+                logger.info("CAPTCHA solved successfully (inline)")
+                return token
+
+        task_id = create_result.get("taskId")
+        if not task_id:
+            logger.error("CapSolver createTask missing taskId: %s", create_result)
+            return None
+
+        logger.info("CapSolver task submitted: id=%s type=%s", task_id, task.get("type"))
+
+        for _ in range(60):  # up to ~180s at 3s intervals
+            await asyncio.sleep(3)
+            poll_resp = await client.post(
+                _CAPSOLVER_RESULT,
+                json={"clientKey": settings.captcha_api_key, "taskId": task_id},
+            )
+            poll_result = poll_resp.json()
+            if poll_result.get("errorId", 0) != 0:
+                logger.error("CapSolver getTaskResult failed: %s", poll_result)
+                return None
+            status = poll_result.get("status")
+            if status == "ready":
+                token = _token_from_solution(poll_result.get("solution"))
+                if token:
+                    logger.info("CAPTCHA solved successfully")
+                    return token
+                logger.error("CapSolver ready but no token in solution: %s", poll_result)
+                return None
+            if status not in (None, "idle", "processing"):
+                logger.error("CapSolver unexpected status: %s", poll_result)
+                return None
+
+    logger.error("CapSolver solve timed out")
     return None
 
 
 async def solve_recaptcha(page: Page, site_key: str) -> str | None:
-    """Request a reCAPTCHA v2 solution from the configured provider."""
-    if not settings.captcha_api_key:
-        logger.error("CAPTCHA solving requested but no CAPTCHA_API_KEY configured")
-        return None
-
-    provider = settings.captcha_provider
-    if provider != "2captcha":
-        logger.error("reCAPTCHA solving currently only implemented for 2captcha")
-        return None
-
+    """Request a reCAPTCHA v2 solution from CapSolver."""
     page_url = page.url
-    logger.info("Requesting reCAPTCHA solution from %s for %s", provider, page_url)
-
-    async with httpx.AsyncClient(timeout=120.0) as client:
-        resp = await client.post(
-            _SOLVER_ENDPOINTS["2captcha"],
-            data={
-                "key": settings.captcha_api_key,
-                "method": "userrecaptcha",
-                "googlekey": site_key,
-                "pageurl": page_url,
-                "json": "1",
-            },
-        )
-        result = resp.json()
-        if result.get("status") != 1:
-            logger.error("CAPTCHA submission failed: %s", result)
-            return None
-        task_id = result.get("request")
-        logger.info("CAPTCHA task submitted: id=%s", task_id)
-        return await _poll_2captcha(client, task_id)
+    logger.info("Requesting reCAPTCHA solution from CapSolver for %s", page_url)
+    return await _create_and_poll_capsolver(
+        {
+            "type": "ReCaptchaV2TaskProxyLess",
+            "websiteURL": page_url,
+            "websiteKey": site_key,
+        }
+    )
 
 
 async def solve_hcaptcha(page: Page, site_key: str) -> str | None:
-    """Request an hCaptcha solution from 2Captcha."""
-    if not settings.captcha_api_key:
-        logger.error("CAPTCHA solving requested but no CAPTCHA_API_KEY configured")
-        return None
-
-    provider = settings.captcha_provider
-    if provider != "2captcha":
-        logger.error("hCaptcha solving currently only implemented for 2captcha")
-        return None
-
+    """Request an hCaptcha solution from CapSolver (invisible-capable)."""
     page_url = page.url
-    logger.info("Requesting hCaptcha solution from %s for %s", provider, page_url)
-
-    async with httpx.AsyncClient(timeout=120.0) as client:
-        resp = await client.post(
-            _SOLVER_ENDPOINTS["2captcha"],
-            data={
-                "key": settings.captcha_api_key,
-                "method": "hcaptcha",
-                "sitekey": site_key,
-                "pageurl": page_url,
-                "json": "1",
-            },
-        )
-        result = resp.json()
-        if result.get("status") != 1:
-            logger.error("hCaptcha submission failed: %s", result)
-            return None
-        task_id = result.get("request")
-        logger.info("hCaptcha task submitted: id=%s", task_id)
-        return await _poll_2captcha(client, task_id)
+    logger.info("Requesting hCaptcha solution from CapSolver for %s", page_url)
+    # Lever uses invisible hCaptcha on location focus / submit.
+    return await _create_and_poll_capsolver(
+        {
+            "type": "HCaptchaTaskProxyLess",
+            "websiteURL": page_url,
+            "websiteKey": site_key,
+            "isInvisible": True,
+        }
+    )
 
 
 async def inject_hcaptcha_token(page: Page, token: str) -> None:
@@ -271,7 +270,7 @@ async def inject_recaptcha_token(page: Page, token: str) -> None:
 
 
 async def solve_captcha_if_present(page: Page) -> str | None:
-    """Detect and solve CAPTCHA on the page.
+    """Detect and solve CAPTCHA on the page via CapSolver.
 
     Returns:
         ``None`` on success (no captcha, or solved + injected).
@@ -283,7 +282,8 @@ async def solve_captcha_if_present(page: Page) -> str | None:
     if not settings.captcha_api_key:
         return (
             "CAPTCHA detected but CAPTCHA_API_KEY is not set "
-            "(set CAPTCHA_API_KEY and CAPTCHA_PROVIDER=2captcha in apps/apply-agent/.env)"
+            "(set CAPTCHA_API_KEY from https://dashboard.capsolver.com "
+            "and CAPTCHA_PROVIDER=capsolver in apps/apply-agent/.env)"
         )
 
     # Prefer hCaptcha (Lever and many ATS boards).
@@ -298,7 +298,7 @@ async def solve_captcha_if_present(page: Page) -> str | None:
             return "hCaptcha detected but sitekey could not be extracted"
         token = await solve_hcaptcha(page, h_sitekey)
         if not token:
-            return "Failed to solve hCaptcha via 2Captcha"
+            return "Failed to solve hCaptcha via CapSolver"
         await inject_hcaptcha_token(page, token)
         return None
 
@@ -306,7 +306,7 @@ async def solve_captcha_if_present(page: Page) -> str | None:
     if r_sitekey:
         token = await solve_recaptcha(page, r_sitekey)
         if not token:
-            return "Failed to solve reCAPTCHA via 2Captcha"
+            return "Failed to solve reCAPTCHA via CapSolver"
         await inject_recaptcha_token(page, token)
         return None
 
