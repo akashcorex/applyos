@@ -13,6 +13,7 @@ class ContactTarget(BaseModel):
     company: str | None = None
     action: str = "connect"  # "connect" | "follow"
     note_context: str | None = None  # extra context for personalised note
+    include_note: bool = True  # False → blank connection request
 
 
 class ContactPayload(BaseModel):

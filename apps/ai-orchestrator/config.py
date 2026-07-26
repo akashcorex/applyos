@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     workflow_ttl_seconds: int = 86400
     apply_result_timeout_seconds: int = 600
     http_timeout_seconds: float = 60.0
+    post_apply_linkedin_connect_enabled: bool = True
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

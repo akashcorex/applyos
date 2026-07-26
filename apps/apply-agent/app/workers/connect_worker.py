@@ -30,6 +30,9 @@ logger = logging.getLogger(__name__)
 
 
 def _build_note(contact: ContactTarget) -> str | None:
+    """Build a connection note, or ``None`` for a blank invite."""
+    if not contact.include_note:
+        return None
     if contact.note_context:
         return contact.note_context
     parts = [f"Hi {contact.name.split()[0]},"]

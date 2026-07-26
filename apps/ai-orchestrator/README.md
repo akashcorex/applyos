@@ -10,6 +10,7 @@
 - **Job ingestion** — fetches open positions from each target company via `job-agent`'s `POST /ingest/{ats}`
 - **Job filtering** — deduplicates, scores, and caps jobs by title relevance, location, and seniority match
 - **Apply orchestration** — dispatches shortlisted jobs to `apply-agent`'s `POST /admin/trigger/apply`
+- **Post-apply LinkedIn connects** — on `submitted` apply results, triggers `POST /admin/trigger/discover-connect` (company people search + blank invites)
 - **Result consumption** — listens on a shared Redis `results_queue` for apply results, updates workflow state, and finalizes on completion or timeout
 
 ## Architecture
@@ -51,6 +52,7 @@ Key settings:
 - `REDIS_URL` — default `redis://127.0.0.1:6379/0`
 - `WORKFLOW_TTL_SECONDS` — default `86400` (24h)
 - `APPLY_RESULT_TIMEOUT_SECONDS` — default `3600` (1h)
+- `POST_APPLY_LINKEDIN_CONNECT_ENABLED` — default `true`
 
 See `.env.example` for the full list.
 

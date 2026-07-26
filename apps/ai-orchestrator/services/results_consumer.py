@@ -11,6 +11,7 @@ import redis.asyncio as redis
 
 from config import settings
 from models import ApplyResultEvent, WorkflowStatus
+from services.apply_client import ApplyAgentClient
 from services.workflow_store import WorkflowStore
 
 logger = logging.getLogger(__name__)
@@ -19,9 +20,15 @@ RESULTS_QUEUE = "results_queue"
 
 
 class ResultsConsumer:
-    def __init__(self, client: redis.Redis, store: WorkflowStore) -> None:
+    def __init__(
+        self,
+        client: redis.Redis,
+        store: WorkflowStore,
+        apply_client: ApplyAgentClient | None = None,
+    ) -> None:
         self._redis = client
         self._store = store
+        self._apply_client = apply_client or ApplyAgentClient()
         self._task: asyncio.Task | None = None
         self._timeout_task: asyncio.Task | None = None
         self._stop_event = asyncio.Event()
@@ -64,6 +71,47 @@ class ResultsConsumer:
             payload_raw = raw.decode() if isinstance(raw, bytes) else raw
             await self._handle_message(payload_raw)
 
+    async def _maybe_trigger_post_apply_connect(
+        self,
+        event: ApplyResultEvent,
+        workflow_id: str,
+    ) -> None:
+        """Best-effort: enqueue LinkedIn employee connects after a successful apply."""
+        if event.status != "submitted":
+            return
+        if not settings.post_apply_linkedin_connect_enabled:
+            return
+
+        run = await self._store.get(workflow_id)
+        if run is None:
+            return
+
+        task = next((t for t in run.apply_tasks if t.job_id == event.job_id), None)
+        company_name = task.company_name if task else None
+        job_title = task.job_title if task else None
+        if not company_name:
+            logger.warning(
+                "Skip discover-connect: no company_name for job_id=%s",
+                event.job_id,
+            )
+            return
+
+        user_id = event.user_id or run.request.user_profile.user_id
+        try:
+            await self._apply_client.trigger_discover_connect(
+                user_id=user_id,
+                job_id=event.job_id,
+                company_name=company_name,
+                job_title=job_title,
+            )
+        except Exception as exc:
+            # Connect is a side effect — never fail the apply result path.
+            logger.error(
+                "Failed to trigger discover-connect for job_id=%s: %s",
+                event.job_id,
+                exc,
+            )
+
     async def _handle_message(self, payload_raw: str) -> None:
         try:
             envelope = json.loads(payload_raw)
@@ -98,6 +146,8 @@ class ResultsConsumer:
             event.job_id,
             event.status,
         )
+
+        await self._maybe_trigger_post_apply_connect(event, workflow_id)
 
     async def _timeout_loop(self) -> None:
         while not self._stop_event.is_set():
