@@ -58,7 +58,7 @@ async def _run_apply(payload: JobPayload) -> ApplyResultEvent:
                 ),
             )
 
-    async with launch_browser(headless=True) as browser:
+    async with launch_browser() as browser:
         storage_state = await load_session(user_id)
         context = await create_context(browser, storage_state=storage_state)
         page = await new_stealth_page(context)

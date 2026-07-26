@@ -36,9 +36,14 @@ class Settings(BaseSettings):
     post_apply_linkedin_connect_enabled: bool = True
     post_apply_connect_limit: int = 3
 
-    # --- CAPTCHA solver (CapSolver) ---
+    # --- CAPTCHA solver (CapSolver fallback; Lever prefers stealth silent-pass) ---
     captcha_api_key: str = ""
     captcha_provider: str = "capsolver"
+
+    # --- Browser stealth ---
+    # Headed Chrome greatly improves Lever invisible hCaptcha silent-pass.
+    apply_headed: bool = False
+    apply_use_chrome_channel: bool = True
 
     class Config:
         env_file = ".env"

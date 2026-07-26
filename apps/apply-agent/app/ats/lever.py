@@ -16,7 +16,12 @@ from urllib.parse import urlparse, urlunparse
 from playwright.async_api import Page
 
 from app.ats.base import ATSHandler, FillResult, FormField, resolve_mapped_value
-from app.browser.captcha import solve_captcha_if_present
+from app.browser.captcha import (
+    ensure_captcha_cleared,
+    get_hcaptcha_token,
+    is_hcaptcha_challenge_visible,
+    wait_for_hcaptcha_silent_pass,
+)
 from app.browser.human_delay import human_click, human_type, random_pause
 from app.browser.resume_upload import prepare_resume_file, upload_resume_to_file_inputs
 from app.models.job_payload import CVData
@@ -312,9 +317,9 @@ class LeverHandler(ATSHandler):
     async def _fill_location(self, page: Page, selector: str, value: str) -> bool:
         """Type into Lever's location autocomplete and pick a suggestion.
 
-        Lever runs invisible hCaptcha on location focus; captcha must be solved
-        first or the challenge iframe intercepts clicks. Resume auto-parse may
-        already set ``#selected-location``.
+        Location focus triggers ``hcaptcha.execute``. Prefer stealth silent-pass;
+        CapSolver only if a visible challenge blocks and no token appears.
+        Resume auto-parse may already set ``#selected-location``.
         """
         existing = await self._location_already_selected(page)
         if existing:
@@ -331,19 +336,29 @@ class LeverHandler(ATSHandler):
         if field is None:
             return False
 
-        # Location focus triggers hCaptcha.execute — require a token first.
-        captcha_error = await solve_captcha_if_present(page)
-        if captcha_error:
-            raise RuntimeError(captcha_error)
+        # Focus triggers invisible hCaptcha — wait for silent-pass before typing.
+        try:
+            await field.click(timeout=5_000)
+        except Exception:
+            await field.click(force=True)
 
-        # Dismiss challenge overlay if still covering the page after token inject.
-        await page.evaluate(
-            """() => {
-                const challenge = document.querySelector('iframe[src*="hcaptcha"]');
-                const root = document.getElementById('h-captcha');
-                if (root) root.style.pointerEvents = 'none';
-            }"""
-        )
+        await wait_for_hcaptcha_silent_pass(page, timeout_ms=12_000)
+
+        if await is_hcaptcha_challenge_visible(page) and not await get_hcaptcha_token(
+            page
+        ):
+            logger.info("Lever: location focus showed challenge; CapSolver fallback")
+            captcha_error = await ensure_captcha_cleared(
+                page, silent_timeout_ms=3_000, allow_solver=True
+            )
+            if captcha_error:
+                logger.warning("Lever: captcha after location focus: %s", captcha_error)
+            await page.evaluate(
+                """() => {
+                    const root = document.getElementById('h-captcha');
+                    if (root) root.style.pointerEvents = 'none';
+                }"""
+            )
 
         await field.click(force=True)
         await random_pause(0.3, 0.6)
@@ -569,27 +584,8 @@ class LeverHandler(ATSHandler):
                     # Resume parse may auto-fill name/email/location; give Lever a beat.
                     await random_pause(2.0, 3.5)
 
-                # Solve hCaptcha before field fills — location focus opens the challenge.
-                needs_location = not await self._location_already_selected(page)
-                if needs_location or await page.query_selector(
-                    "#hcaptchaResponseInput, #h-captcha, iframe[src*='hcaptcha']"
-                ):
-                    captcha_error = await solve_captcha_if_present(page)
-                    if captcha_error:
-                        await self._dump_debug(
-                            page,
-                            error=captcha_error,
-                            fields_filled=filled,
-                            mapping_size=len(field_mapping),
-                        )
-                        return FillResult(
-                            success=False,
-                            ats_type=self.ats_name,
-                            fields_filled=filled,
-                            error=captcha_error,
-                        )
-
                 # Prefer location from mapping or cv_data.location.
+                # Captcha: stealth silent-pass during location/submit; CapSolver only if challenged.
                 for selector, cv_key in list(field_mapping.items()):
                     value = resolve_mapped_value(cv_data, cv_key)
                     if value is None:
@@ -686,8 +682,11 @@ class LeverHandler(ATSHandler):
 
                 await random_pause(1.0, 2.0)
 
-                captcha_error = await solve_captcha_if_present(page)
-                if captcha_error:
+                # Stealth-first: wait for any prior silent-pass token; CapSolver only if needed.
+                captcha_error = await ensure_captcha_cleared(
+                    page, silent_timeout_ms=8_000, allow_solver=True
+                )
+                if captcha_error and await is_hcaptcha_challenge_visible(page):
                     await self._dump_debug(
                         page,
                         error=captcha_error,
@@ -699,6 +698,11 @@ class LeverHandler(ATSHandler):
                         ats_type=self.ats_name,
                         fields_filled=filled,
                         error=captcha_error,
+                    )
+                if captcha_error:
+                    logger.warning(
+                        "Lever: proceeding to submit despite captcha warning: %s",
+                        captcha_error,
                     )
 
                 submit_btn = await page.query_selector(_SUBMIT_SELECTOR)
@@ -725,37 +729,44 @@ class LeverHandler(ATSHandler):
                 )
                 await random_pause(0.2, 0.5)
                 await page.click(_SUBMIT_SELECTOR, force=True)
+
+                # Lever submit may trigger hcaptcha.execute → wait for silent-pass + navigation.
+                await wait_for_hcaptcha_silent_pass(page, timeout_ms=15_000)
                 try:
                     await page.wait_for_load_state("networkidle", timeout=20_000)
                 except Exception:
                     await random_pause(2.0, 3.0)
 
-                # Some Lever forms challenge after click; retry solve once.
                 if not await self._is_submission_successful(page, initial_url):
-                    post_captcha = await solve_captcha_if_present(page)
-                    if post_captcha is None and await page.query_selector(
-                        _SUBMIT_SELECTOR
+                    # CapSolver fallback only if still challenged / no token.
+                    if not await get_hcaptcha_token(page) or await is_hcaptcha_challenge_visible(
+                        page
                     ):
+                        post_captcha = await ensure_captcha_cleared(
+                            page, silent_timeout_ms=5_000, allow_solver=True
+                        )
+                        if post_captcha:
+                            await self._dump_debug(
+                                page,
+                                error=post_captcha,
+                                fields_filled=filled,
+                                mapping_size=len(field_mapping),
+                            )
+                            return FillResult(
+                                success=False,
+                                ats_type=self.ats_name,
+                                fields_filled=filled,
+                                error=post_captcha,
+                            )
+                    if await page.query_selector(_SUBMIT_SELECTOR):
                         await page.click(_SUBMIT_SELECTOR, force=True)
+                        await wait_for_hcaptcha_silent_pass(page, timeout_ms=15_000)
                         try:
                             await page.wait_for_load_state(
                                 "networkidle", timeout=20_000
                             )
                         except Exception:
                             await random_pause(2.0, 3.0)
-                    elif post_captcha:
-                        await self._dump_debug(
-                            page,
-                            error=post_captcha,
-                            fields_filled=filled,
-                            mapping_size=len(field_mapping),
-                        )
-                        return FillResult(
-                            success=False,
-                            ats_type=self.ats_name,
-                            fields_filled=filled,
-                            error=post_captcha,
-                        )
 
                 if not await self._is_submission_successful(page, initial_url):
                     err = "Lever submit did not show a confirmation"
