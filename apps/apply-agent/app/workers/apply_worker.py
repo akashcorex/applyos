@@ -126,7 +126,8 @@ async def _run_apply(payload: JobPayload) -> ApplyResultEvent:
                 )
 
             status = ApplyStatus.failed
-            if result.error and "CAPTCHA" in result.error.upper():
+            err = (result.error or "").upper()
+            if any(token in err for token in ("CAPTCHA", "TURNSTILE", "CLOUDFLARE")):
                 status = ApplyStatus.captcha_blocked
 
             return ApplyResultEvent(

@@ -12,7 +12,7 @@ import logging
 import re
 
 import httpx
-from playwright.async_api import Page
+from playwright.async_api import Frame, Page
 
 from app.config import settings
 
@@ -27,8 +27,12 @@ _last_capsolver_error: str | None = None
 _CAPTCHA_SELECTORS = [
     "iframe[src*='recaptcha']",
     "iframe[src*='hcaptcha']",
+    "iframe[src*='challenges.cloudflare.com']",
+    "iframe[src*='turnstile']",
     "div.g-recaptcha",
     "div.h-captcha",
+    ".cf-turnstile",
+    "[name='cf-turnstile-response']",
     "#h-captcha",
     "#hcaptchaResponseInput",
     "[data-sitekey]",
@@ -126,6 +130,325 @@ async def get_hcaptcha_token(page: Page) -> str:
             return (el && el.value) ? el.value.trim() : '';
         }"""
     )
+
+
+_TURNSTILE_MARKER_SELECTOR = (
+    "iframe[src*='challenges.cloudflare.com'], "
+    "iframe[src*='turnstile'], "
+    ".cf-turnstile, "
+    "[name='cf-turnstile-response'], "
+    "[id*='cf-chl-widget']"
+)
+
+
+def cf_challenge_frames(page: Page) -> list[Frame]:
+    """Cloudflare challenge iframes currently attached to the page.
+
+    Turnstile renders in a cross-origin child frame, so main-frame DOM queries
+    miss it entirely — the frame list is the reliable signal.
+    """
+    return [
+        frame
+        for frame in page.frames
+        if "challenges.cloudflare.com" in (frame.url or "").lower()
+    ]
+
+
+async def find_turnstile_host_frame(page: Page) -> Frame | None:
+    """Frame whose DOM holds the Turnstile widget/response input, if any."""
+    for frame in cf_challenge_frames(page):
+        try:
+            parent = frame.parent_frame
+        except Exception:
+            parent = None
+        return parent or page.main_frame
+
+    for frame in page.frames:
+        try:
+            if await frame.query_selector(_TURNSTILE_MARKER_SELECTOR):
+                return frame
+        except Exception:
+            continue
+    return None
+
+
+async def detect_turnstile(page: Page) -> bool:
+    """Return True if Cloudflare Turnstile is present in any frame."""
+    if await find_turnstile_host_frame(page) is not None:
+        return True
+
+    try:
+        return await page.evaluate(
+            """() => {
+                const body = (document.body && document.body.innerText || '')
+                  .toLowerCase();
+                return body.includes('verify you are human')
+                  || body.includes('are you human')
+                  || body.includes('confirm you are human');
+            }"""
+        )
+    except Exception:
+        return False
+
+
+async def extract_turnstile_sitekey(page: Page) -> str | None:
+    """Find the Cloudflare Turnstile sitekey (searches every frame)."""
+    for frame in cf_challenge_frames(page):
+        match = re.search(r"/(0x[0-9A-Za-z_-]{15,})/", frame.url or "")
+        if match:
+            return match.group(1)
+
+    host = await find_turnstile_host_frame(page)
+    for frame in filter(None, (host, page.main_frame)):
+        sitekey = await _sitekey_from_frame(frame)
+        if sitekey:
+            return sitekey
+    return None
+
+
+async def _sitekey_from_frame(frame: Frame) -> str | None:
+    try:
+        sitekey = await frame.evaluate(
+            """() => {
+            const el = document.querySelector(
+              '.cf-turnstile[data-sitekey], [data-sitekey]'
+            );
+            const fromEl = el && el.getAttribute('data-sitekey');
+            if (fromEl && fromEl.startsWith('0x')) return fromEl;
+
+            const iframe = document.querySelector(
+              "iframe[src*='challenges.cloudflare.com'], iframe[src*='turnstile']"
+            );
+            if (iframe && iframe.src) {
+              try {
+                const u = new URL(iframe.src);
+                const q = u.searchParams.get('sitekey');
+                if (q) return q;
+                const m = u.pathname.match(/(0x[0-9A-Za-z_-]{15,})/);
+                if (m) return m[1];
+              } catch (e) {}
+            }
+
+            const careersKey = window.careers
+              && window.careers.config
+              && window.careers.config.turnstileWidgetSiteKey;
+            if (careersKey) return careersKey;
+
+            for (const script of document.querySelectorAll('script')) {
+              const text = script.textContent || '';
+              const m = text.match(
+                /turnstileWidgetSiteKey["'\\s:]+["'](0x[0-9A-Za-z_-]+)["']/
+              );
+              if (m) return m[1];
+              const m2 = text.match(/sitekey["'\\s:]+["'](0x[0-9A-Za-z_-]+)["']/i);
+              if (m2) return m2[1];
+            }
+            return null;
+        }"""
+        )
+        if sitekey:
+            return sitekey
+
+        html = await frame.content()
+    except Exception:
+        return None
+
+    match = re.search(
+        r"turnstileWidgetSiteKey['\"\s:]+['\"](0x[0-9A-Za-z_-]+)['\"]", html
+    )
+    if match:
+        return match.group(1)
+    match = re.search(r"sitekey['\"=\s:]+['\"]?(0x[0-9A-Za-z_-]+)", html, re.I)
+    if match:
+        return match.group(1)
+    return None
+
+
+async def get_turnstile_token(page: Page) -> str:
+    """Return Turnstile response token from any frame that holds one."""
+    for frame in page.frames:
+        try:
+            token = await frame.evaluate(
+                """() => {
+                const els = document.querySelectorAll(
+                  "[name='cf-turnstile-response'], textarea[name='cf-turnstile-response'], input[name='cf-turnstile-response']"
+                );
+                for (const el of els) {
+                  const v = (el.value || '').trim();
+                  if (v) return v;
+                }
+                try {
+                  if (window.turnstile && window.turnstile.getResponse) {
+                    const v = (window.turnstile.getResponse() || '').trim();
+                    if (v) return v;
+                  }
+                } catch (e) {}
+                return '';
+            }"""
+            )
+        except Exception:
+            continue
+        if token:
+            return token
+    return ""
+
+
+async def wait_for_turnstile_pass(page: Page, timeout_ms: int = 12_000) -> bool:
+    """Wait for Turnstile to produce a token (checkbox click or invisible pass)."""
+    if await get_turnstile_token(page):
+        logger.info("Turnstile token already present")
+        return True
+
+    deadline = asyncio.get_event_loop().time() + (timeout_ms / 1000)
+    while asyncio.get_event_loop().time() < deadline:
+        if await get_turnstile_token(page):
+            logger.info("Turnstile: token acquired (checkbox/silent pass)")
+            return True
+        await asyncio.sleep(0.5)
+    return False
+
+
+async def try_click_turnstile_checkbox(page: Page) -> bool:
+    """Click the "Verify you are human" checkbox with real mouse input.
+
+    The checkbox lives inside a cross-origin Cloudflare frame and Turnstile
+    ignores synthetic clicks, so the widget is located via its frame element
+    and clicked through the page mouse (trusted input events).
+    """
+    frames = cf_challenge_frames(page)
+    if not frames:
+        logger.info("Turnstile: no Cloudflare challenge frame to click")
+        return False
+
+    for frame in frames:
+        try:
+            handle = await frame.frame_element()
+        except Exception:
+            continue
+
+        try:
+            await handle.scroll_into_view_if_needed(timeout=3_000)
+            box = await handle.bounding_box()
+            if not box or box.get("width", 0) < 20 or box.get("height", 0) < 20:
+                continue
+
+            # Checkbox sits at the left edge of the widget, vertically centred.
+            x = box["x"] + min(30.0, box["width"] / 2)
+            y = box["y"] + box["height"] / 2
+
+            await page.mouse.move(x - 60, y + 40)
+            await asyncio.sleep(0.2)
+            await page.mouse.move(x, y, steps=15)
+            await asyncio.sleep(0.25)
+            await page.mouse.click(x, y, delay=90)
+            logger.info("Turnstile: clicked checkbox at (%.0f, %.0f)", x, y)
+            return True
+        except Exception:
+            logger.debug("Turnstile: mouse click failed", exc_info=True)
+
+    # Fallback: click the widget container in its host frame.
+    host = await find_turnstile_host_frame(page)
+    if host is not None:
+        for sel in (".cf-turnstile", "[id*='cf-chl-widget']"):
+            try:
+                loc = host.locator(sel).first
+                if await loc.count() == 0:
+                    continue
+                await loc.click(timeout=2_000, force=True)
+                logger.info("Turnstile: clicked widget container (%s)", sel)
+                return True
+            except Exception:
+                continue
+    return False
+
+
+async def solve_turnstile(page: Page, site_key: str) -> str | None:
+    """Request a Cloudflare Turnstile token from CapSolver."""
+    page_url = page.url
+    logger.info("Requesting Turnstile solution from CapSolver for %s", page_url)
+    return await _create_and_poll_capsolver(
+        {
+            "type": "AntiTurnstileTaskProxyLess",
+            "websiteURL": page_url,
+            "websiteKey": site_key,
+        }
+    )
+
+
+async def inject_turnstile_token(page: Page, token: str) -> None:
+    """Inject a solved Turnstile token and fire Workable/CF callbacks."""
+    host = await find_turnstile_host_frame(page) or page.main_frame
+    await host.evaluate(
+        """(token) => {
+            const setValue = (el, value) => {
+              if (!el) return;
+              const proto = window.HTMLInputElement
+                && window.HTMLInputElement.prototype;
+              const desc = proto && Object.getOwnPropertyDescriptor(proto, 'value');
+              if (desc && desc.set) {
+                desc.set.call(el, value);
+              } else {
+                el.value = value;
+              }
+              el.dispatchEvent(new Event('input', { bubbles: true }));
+              el.dispatchEvent(new Event('change', { bubbles: true }));
+            };
+
+            let found = false;
+            document.querySelectorAll(
+              "[name='cf-turnstile-response'], textarea[name='cf-turnstile-response'], input[name='cf-turnstile-response']"
+            ).forEach((el) => {
+              setValue(el, token);
+              found = true;
+            });
+
+            if (!found) {
+              const form = document.querySelector(
+                "[data-ui='application-form'], form"
+              ) || document.body;
+              const input = document.createElement('input');
+              input.type = 'hidden';
+              input.name = 'cf-turnstile-response';
+              input.value = token;
+              form.appendChild(input);
+            }
+
+            // Fire data-callback on the widget, if present.
+            document.querySelectorAll(
+              '.cf-turnstile[data-callback], [data-sitekey][data-callback]'
+            ).forEach((widget) => {
+              const cb = widget.getAttribute('data-callback');
+              if (cb && typeof window[cb] === 'function') {
+                try { window[cb](token); } catch (e) {}
+              }
+            });
+
+            // Workable / generic: any window function that looks like a TS callback.
+            for (const key of Object.keys(window)) {
+              if (!/turnstile|cfCallback|onSuccess|captchaCallback/i.test(key)) {
+                continue;
+              }
+              try {
+                if (typeof window[key] === 'function') window[key](token);
+              } catch (e) {}
+            }
+
+            try {
+              window.dispatchEvent(new CustomEvent('turnstile-solved', {
+                detail: { token },
+              }));
+            } catch (e) {}
+        }""",
+        token,
+    )
+    logger.info("Turnstile token injected (frame=%s)", (host.url or "")[:80])
+
+
+async def turnstile_challenge_still_visible(page: Page) -> bool:
+    """True when Cloudflare still shows an unresolved challenge widget."""
+    if await get_turnstile_token(page):
+        return False
+    return await detect_turnstile(page)
 
 
 async def is_hcaptcha_challenge_visible(page: Page) -> bool:
@@ -362,9 +685,64 @@ async def ensure_captcha_cleared(
     # Already have a usable hCaptcha token (Lever silent-pass or prior inject).
     if await get_hcaptcha_token(page):
         return None
+    if await get_turnstile_token(page):
+        return None
 
-    # No captcha markers at all.
-    if not await detect_captcha(page):
+    has_turnstile = await detect_turnstile(page)
+    has_any = await detect_captcha(page) or has_turnstile
+    if not has_any:
+        return None
+
+    # Cloudflare Turnstile (Workable "Verify you are human" checkbox).
+    #
+    # Important: clicking the checkbox often "works" visually then reappears.
+    # That means CF rejected the *session* (automation signals), not the click.
+    # CapSolver AntiTurnstile is the reliable path when CAPTCHA_API_KEY is set.
+    if has_turnstile:
+        logger.info(
+            "Cloudflare Turnstile detected (challenge_frames=%d)",
+            len(cf_challenge_frames(page)),
+        )
+
+        # Optional short headed click — only useful if CF already trusts the session.
+        if settings.apply_headed:
+            clicked = await try_click_turnstile_checkbox(page)
+            if await wait_for_turnstile_pass(page, timeout_ms=5_000):
+                return None
+            if await turnstile_challenge_still_visible(page):
+                logger.info(
+                    "Turnstile: challenge still present after click "
+                    "(clicked=%s) — CF session check failed; not a missed click",
+                    clicked,
+                )
+
+        if not allow_solver:
+            return (
+                "Cloudflare Turnstile did not pass and solver fallback is disabled"
+            )
+        if not settings.captcha_api_key:
+            return (
+                "Cloudflare Turnstile blocked submit and CAPTCHA_API_KEY is not set. "
+                "Checkbox clicks alone usually fail on Playwright sessions — set "
+                "CAPTCHA_API_KEY (CapSolver AntiTurnstile)."
+            )
+
+        sitekey = await extract_turnstile_sitekey(page)
+        if not sitekey:
+            return (
+                "Cloudflare Turnstile present but sitekey could not be extracted"
+            )
+
+        logger.info("Turnstile: solving via CapSolver (sitekey=%s…)", sitekey[:12])
+        token = await solve_turnstile(page, sitekey)
+        if not token:
+            detail = _last_capsolver_error or "unknown CapSolver error"
+            return f"Failed to solve Cloudflare Turnstile via CapSolver: {detail}"
+        await inject_turnstile_token(page, token)
+        if await get_turnstile_token(page):
+            return None
+        # Token may live only in callback state — still allow submit to proceed.
+        logger.info("Turnstile: CapSolver token injected (DOM token may be empty)")
         return None
 
     # Prefer silent-pass when widget is present (Lever invisible hCaptcha).

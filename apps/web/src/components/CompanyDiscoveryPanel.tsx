@@ -426,8 +426,8 @@ export function CompanyDiscoveryPanel() {
             {!detectResult && (
               <p className="text-sm text-muted-foreground">
                 Paste a company careers page URL to detect their ATS and scrape
-                open positions. Supports Greenhouse, Lever, Ashby, Workable,
-                Recruitee, and Personio.
+                open positions. Supports Greenhouse, Lever, Ashby, Workable
+                (e.g. jobs.workable.com/company/…), Recruitee, and Personio.
               </p>
             )}
           </TabsContent>

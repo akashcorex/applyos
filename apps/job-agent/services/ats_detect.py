@@ -34,8 +34,19 @@ def infer_slug_from_url(career_page_url: str, ats_type: AtsType | None) -> str |
         return path_parts[0]
     if ats_type == "ashby" and "ashbyhq.com" in host and path_parts:
         return path_parts[0]
-    if ats_type == "workable" and "workable.com" in host and path_parts:
-        return path_parts[0]
+    if ats_type == "workable":
+        # https://jobs.workable.com/company/{companyId}/jobs-at-{slug}
+        if host in {"jobs.workable.com", "www.jobs.workable.com"}:
+            if len(path_parts) >= 2 and path_parts[0] == "company":
+                return path_parts[1]
+            return None
+        # https://apply.workable.com/{accountSlug}/...
+        if host in {"apply.workable.com", "www.apply.workable.com"} and path_parts:
+            if path_parts[0] == "j":
+                return None
+            return path_parts[0]
+        if "workable.com" in host and path_parts:
+            return path_parts[0]
     if ats_type == "recruitee" and host.endswith(".recruitee.com"):
         return host.removesuffix(".recruitee.com")
     if ats_type == "personio" and host.endswith(".jobs.personio.de"):

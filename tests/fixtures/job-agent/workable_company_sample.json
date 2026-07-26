@@ -1,0 +1,36 @@
+{
+  "id": "5f9a516b-4ed6-469b-bb5a-ec448a673aa9",
+  "title": "SHIELD",
+  "website": "https://shield.com/",
+  "url": "https://jobs.workable.com/company/cNHvogKrRb2V2GEm1Lr1iF/jobs-at-shield",
+  "workableUid": "5f9a516b-4ed6-469b-bb5a-ec448a673aa9",
+  "totalSize": 2,
+  "jobs": [
+    {
+      "id": "2463f31c-fde3-49b9-83ee-a9aea0c769e8",
+      "title": "Senior Customer Success Manager",
+      "state": "published",
+      "department": "Business",
+      "workplace": "on_site",
+      "location": {
+        "city": "Bengaluru",
+        "subregion": "Karnataka",
+        "countryName": "India"
+      },
+      "description": "<p>SHIELD CSM role</p>",
+      "url": "https://jobs.workable.com/view/5uCC7k3dYwKH44pQDJpnZS/senior-customer-success-manager-in-bengaluru-at-shield"
+    },
+    {
+      "id": "64a041e1-235d-4d57-8f9d-784412876ef1",
+      "title": "Senior Account Executive",
+      "state": "published",
+      "department": "Sales",
+      "workplace": "remote",
+      "location": {
+        "city": "Bangkok",
+        "countryName": "Thailand"
+      },
+      "url": "https://jobs.workable.com/view/dqG9Ey6FfL5t3iDHRVviS2/remote-senior-account-executive-in-bangkok-at-shield"
+    }
+  ]
+}

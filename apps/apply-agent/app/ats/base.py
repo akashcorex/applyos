@@ -97,6 +97,21 @@ def resolve_mapped_value(cv_data: CVData, mapped_value: str) -> Any | None:
     if isinstance(value, list):
         return ", ".join(str(item) for item in value if item is not None)
 
+    text = str(value).strip()
+    # LLM sometimes emits placeholders when data is missing — never type these.
+    if text.lower() in {
+        "unknown",
+        "<unknown>",
+        "n/a",
+        "na",
+        "none",
+        "null",
+        "undefined",
+        "tbd",
+        "-",
+    }:
+        return None
+
     return value
 
 

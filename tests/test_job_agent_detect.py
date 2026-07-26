@@ -41,6 +41,30 @@ def test_infer_slug_from_url_personio() -> None:
     assert slug == "acme"
 
 
+def test_infer_slug_from_url_workable_company_board() -> None:
+    slug = infer_slug_from_url(
+        "https://jobs.workable.com/company/cNHvogKrRb2V2GEm1Lr1iF/jobs-at-shield",
+        "workable",
+    )
+    assert slug == "cNHvogKrRb2V2GEm1Lr1iF"
+
+
+def test_infer_slug_from_url_workable_apply_account() -> None:
+    slug = infer_slug_from_url(
+        "https://apply.workable.com/lawnstarter/",
+        "workable",
+    )
+    assert slug == "lawnstarter"
+
+
+def test_infer_slug_from_url_workable_search_has_no_slug() -> None:
+    slug = infer_slug_from_url(
+        "https://jobs.workable.com/search/global/software-developer-jobs",
+        "workable",
+    )
+    assert slug is None
+
+
 @pytest.mark.asyncio
 async def test_detect_endpoint(monkeypatch: pytest.MonkeyPatch) -> None:
     async def fake_fetch(_url: str) -> str:

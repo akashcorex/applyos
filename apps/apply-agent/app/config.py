@@ -28,6 +28,9 @@ class Settings(BaseSettings):
     # --- Local development resume fallback ---
     default_resume_path: str = ""
 
+    # --- Test/dev fallbacks when CV fields are missing ---
+    default_phone: str = "+919876543210"
+
     # --- LinkedIn profile URL fallback for ATS forms ---
     default_linkedin_url: str = ""
 
@@ -47,6 +50,10 @@ class Settings(BaseSettings):
     # Headed Chrome greatly improves Lever invisible hCaptcha silent-pass.
     apply_headed: bool = False
     apply_use_chrome_channel: bool = True
+    # Match locale/timezone to the machine/IP region when possible — CF compares
+    # these against geo signals. Defaults suit IN; override via env for US/EU.
+    apply_locale: str = "en-IN"
+    apply_timezone: str = "Asia/Kolkata"
 
     class Config:
         env_file = ".env"

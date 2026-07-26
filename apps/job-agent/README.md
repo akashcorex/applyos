@@ -25,7 +25,7 @@ This service does not use browser automation. It calls the ATS's public job APIs
 - Greenhouse -> JSON API at `https://api.greenhouse.io/v1/boards/{slug}/jobs`
 - Lever -> JSON API at `https://api.lever.co/v0/postings/{slug}?mode=json`
 - Ashby -> JSON API at `https://api.ashbyhq.com/posting-api/job-board/{slug}`
-- Workable -> JSON API at `https://apply.workable.com/api/v3/accounts/{slug}/jobs`
+- Workable -> Jobs By Workable company API at `https://jobs.workable.com/api/v1/companies/{companyId}` (preferred for `jobs.workable.com/company/...` URLs), with fallback to `https://apply.workable.com/api/v3/accounts/{slug}/jobs`
 - Recruitee -> JSON API at `https://{slug}.recruitee.com/api/offers`
 - Personio -> XML feed at `https://{slug}.jobs.personio.de/xml`
 

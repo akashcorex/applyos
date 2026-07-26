@@ -18,6 +18,7 @@ from app.ats.easy_apply import EasyApplyHandler
 from app.ats.generic import GenericHandler
 from app.ats.greenhouse import GreenhouseHandler
 from app.ats.lever import LeverHandler
+from app.ats.workable import WorkableHandler
 from app.ats.workday import WorkdayHandler
 
 logger = logging.getLogger(__name__)
@@ -28,6 +29,7 @@ _URL_PATTERNS: list[tuple[re.Pattern, type[ATSHandler]]] = [
     (re.compile(r"myworkdayjobs\.com|workday\.com", re.I), WorkdayHandler),
     (re.compile(r"lever\.co|jobs\.lever", re.I), LeverHandler),
     (re.compile(r"ashbyhq\.com|jobs\.ashby", re.I), AshbyHandler),
+    (re.compile(r"workable\.com|apply\.workable", re.I), WorkableHandler),
     (re.compile(r"linkedin\.com/jobs", re.I), EasyApplyHandler),
 ]
 
@@ -56,6 +58,7 @@ async def detect_from_page(page: Page) -> ATSHandler:
         WorkdayHandler(),
         LeverHandler(),
         AshbyHandler(),
+        WorkableHandler(),
         EasyApplyHandler(),
     ]
     for handler in handlers:

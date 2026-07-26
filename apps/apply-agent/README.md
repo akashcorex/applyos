@@ -5,7 +5,7 @@
 ## What it does
 
 - **Browser automation** — uses Playwright with stealth anti-detection to fill and submit job applications
-- **ATS detection** — identifies the ATS provider (Greenhouse, Lever, Ashby, Workday, LinkedIn Easy Apply, or generic) by URL pattern and page content
+- **ATS detection** — identifies the ATS provider (Greenhouse, Lever, Ashby, Workable, Workday, LinkedIn Easy Apply, or generic) by URL pattern and page content
 - **Field mapping** — uses Claude Sonnet 4.6 to map job form fields to CV data fields
 - **Screening questions** — generates answers to screening/knockout questions via LLM
 - **Human-like interaction** — realistic typing delays, click patterns, and mouse movements to avoid bot detection
@@ -36,6 +36,7 @@ If the session is missing or expired, connect/discover workers fail with `login_
 | Greenhouse | `GreenhouseHandler` | Full support: React Select comboboxes, resume upload, phone normalization, validation error detection |
 | Lever | `LeverHandler` | Standard form filling |
 | Ashby | `AshbyHandler` | Standard form filling |
+| Workable | `WorkableHandler` | `/apply` + jobs.workable.com Apply now, resume upload, YES/NO radios, identity autofill, Cloudflare Turnstile (CapSolver / headed checkbox), thank-you confirmation |
 | Workday | `WorkdayHandler` | Multi-step wizard forms with `data-automation-id` selectors |
 | LinkedIn Easy Apply | `EasyApplyHandler` | Multi-page modal flow with screening questions |
 | Generic (fallback) | `GenericHandler` | LLM-driven field mapping when no specialized handler matches |

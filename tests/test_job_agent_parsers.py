@@ -100,6 +100,29 @@ async def test_workable_parser_paginates(monkeypatch: pytest.MonkeyPatch) -> Non
 
 
 @pytest.mark.asyncio
+async def test_workable_parser_company_board(monkeypatch: pytest.MonkeyPatch) -> None:
+    fixture = json.loads((FIXTURES / "workable_company_sample.json").read_text())
+
+    async def fake_fetch(url: str) -> object:
+        assert "jobs.workable.com/api/v1/companies/cNHvogKrRb2V2GEm1Lr1iF" in url
+        return fixture
+
+    monkeypatch.setattr(
+        "services.parsers.workable.fetch_json_with_retries",
+        fake_fetch,
+    )
+
+    jobs = await WorkableParser().fetch_jobs("cNHvogKrRb2V2GEm1Lr1iF")
+
+    assert len(jobs) == 2
+    assert jobs[0].external_id == "2463f31c-fde3-49b9-83ee-a9aea0c769e8"
+    assert jobs[0].title == "Senior Customer Success Manager"
+    assert jobs[0].location == "Bengaluru, Karnataka, India"
+    assert jobs[0].application_url and "jobs.workable.com/view/" in jobs[0].application_url
+    assert jobs[1].workplace_type == "remote"
+
+
+@pytest.mark.asyncio
 async def test_workable_parser_stops_at_max_pages(monkeypatch: pytest.MonkeyPatch) -> None:
     page = json.loads((FIXTURES / "workable_sample.json").read_text())
     fetch_count = 0
