@@ -28,6 +28,9 @@ class Settings(BaseSettings):
     # --- Local development resume fallback ---
     default_resume_path: str = ""
 
+    # --- LinkedIn profile URL fallback for ATS forms ---
+    default_linkedin_url: str = ""
+
     # --- LinkedIn rate limits ---
     linkedin_max_connects_per_day: int = 20
     linkedin_max_follows_per_day: int = 40

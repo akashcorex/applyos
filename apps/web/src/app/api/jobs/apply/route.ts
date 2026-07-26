@@ -51,7 +51,10 @@ export async function POST(request: Request) {
           location: body.location || location || undefined,
           skills: [],
           resume_url: resolvedResumeUrl,
-          linkedin_url: body.linkedin_url || undefined,
+          linkedin_url:
+            body.linkedin_url ||
+            process.env.DEFAULT_LINKEDIN_URL ||
+            undefined,
           github_url: body.github_url || undefined,
           portfolio_url: body.portfolio_url || undefined,
           twitter_url: body.twitter_url || undefined,

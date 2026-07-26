@@ -97,13 +97,20 @@ async def _run_apply(payload: JobPayload) -> ApplyResultEvent:
                     if field.label in answers:
                         field_mapping[field.selector] = answers[field.label]
 
-            # Ensure required selects get a mapped answer when LLM skipped them.
+            # Ensure required selects/radios get a mapped answer when LLM skipped them.
             for field in fields:
-                if field.field_type != "select" or not field.required:
+                if field.field_type not in ("select", "radio") or not field.required:
                     continue
                 if field.selector in field_mapping:
                     continue
-                if field.options:
+                if not field.options:
+                    continue
+                # Prefer safe Yes/No defaults when the LLM omitted compliance questions.
+                if field.options == ["Yes", "No"]:
+                    label = field.label.lower()
+                    default = "No" if "sponsor" in label else "Yes"
+                    field_mapping[field.selector] = f"literal:{default}"
+                else:
                     field_mapping[field.selector] = f"literal:{field.options[0]}"
 
             result = await handler.fill_and_submit(page, payload.cv_data, field_mapping)

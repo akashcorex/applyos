@@ -14,9 +14,9 @@ class AshbyParser:
         if not isinstance(payload, dict):
             raise RuntimeError("Unexpected Ashby response shape")
 
-        jobs_payload = payload.get("jobPostings", [])
+        jobs_payload = payload.get("jobs", [])
         if not isinstance(jobs_payload, list):
-            raise RuntimeError("Ashby jobPostings field is not a list")
+            raise RuntimeError("Ashby jobs field is not a list")
 
         jobs: list[RawJob] = []
         for item in jobs_payload:
@@ -40,11 +40,11 @@ class AshbyParser:
                 RawJob(
                     external_id=external_id,
                     title=str(item.get("title", "")).strip(),
-                    department=item.get("departmentName"),
-                    location=item.get("locationName"),
+                    department=item.get("department") or item.get("departmentName"),
+                    location=item.get("location") or item.get("locationName"),
                     description_raw=None,
                     description_html=item.get("descriptionHtml"),
-                    workplace_type=None,
+                    workplace_type=item.get("workplaceType"),
                     application_url=application_url,
                     raw_payload=item,
                 )
