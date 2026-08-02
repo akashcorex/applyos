@@ -8,8 +8,6 @@ const { composePlugins, withNx } = require('@nx/next');
  **/
 const nextConfig = {
   nx: {},
-  // Vercel needs standalone output for monorepo + custom build command
-  output: 'standalone',
 };
 
 const plugins = [

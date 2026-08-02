@@ -55,6 +55,15 @@
     }
   },
   "targetDefaults": {
+    "build": {
+      "dependsOn": ["^build"],
+      "inputs": [
+        "default",
+        "^production",
+        { "env": "EARLY_ACCESS_MODE" },
+        { "env": "DATABASE_URL" }
+      ]
+    },
     "@nx/esbuild:esbuild": {
       "cache": true,
       "dependsOn": ["^build"],
