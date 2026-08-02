@@ -1,7 +1,7 @@
 import './global.css';
 
 export const metadata = {
-  title: 'Outreach Autometer',
+  title: 'ApplySo',
   description: 'AI-powered job outreach automation',
 };
 

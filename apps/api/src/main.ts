@@ -6,6 +6,7 @@ import express from 'express';
 
 import { auth } from './auth';
 import { startFallowBeacon } from './fallow-beacon';
+import { earlyAccessRouter } from './routes/early-access';
 import { linkedinConnectsRouter } from './routes/linkedin-connects';
 
 const host = process.env.HOST ?? 'localhost';
@@ -29,6 +30,7 @@ app.get('/', (_req, res) => {
   res.send({ message: 'Hello API' });
 });
 
+app.use('/v1/early-access', earlyAccessRouter);
 app.use('/v1/linkedin-connects', linkedinConnectsRouter);
 
 app.listen(port, host, () => {
