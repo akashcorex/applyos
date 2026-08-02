@@ -1,4 +1,4 @@
-# Outreach Autometer
+# Outreach Autometer.
 
 AI-powered outreach automation platform — an Nx monorepo with a Next.js frontend, Express API, and four Python agent microservices.
 
