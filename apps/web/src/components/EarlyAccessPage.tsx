@@ -176,12 +176,8 @@ export default function EarlyAccessPage() {
         </main>
 
         {/* Footer */}
-        <footer className="relative z-10 flex w-full items-center justify-between px-6 sm:px-10 py-5 text-xs font-semibold text-white/80">
+        <footer className="relative z-10 flex w-full items-center px-6 sm:px-10 py-5 text-xs font-semibold text-white/80">
           <div>© {new Date().getFullYear()} ApplyOS Inc. All rights reserved.</div>
-          <div className="flex items-center gap-4">
-            <span className="hover:text-white transition-colors cursor-pointer">Privacy</span>
-            <span className="hover:text-white transition-colors cursor-pointer">Terms</span>
-          </div>
         </footer>
       </div>
     </div>
