@@ -132,7 +132,7 @@ export default function EarlyAccessPage() {
         {/* Navbar */}
         <nav className="relative z-10 flex w-full items-center justify-between px-6 sm:px-10 py-5">
           <div className="flex items-center gap-3">
-            <img src="/logo-white.png" alt="Apply.So Logo" className="h-8 w-22 object-contain" />
+            <img src="/logo-white.png" alt="APPLYOS.in" className="h-5 w-auto object-contain" />
           </div>
 
           <Badge variant="outline" className="flex items-center gap-2 border-slate-900/15 bg-white/50 px-3.5 py-1.5 text-xs font-semibold text-slate-800 shadow-sm backdrop-blur-md rounded-xl">
@@ -159,7 +159,7 @@ export default function EarlyAccessPage() {
             </h1>
 
             <p className="mt-3 max-w-[34rem] text-base leading-relaxed text-white/70 antialiased">
-              Be first to every opportunity that matters. ApplySo finds high-growth roles, tailors your applications, and reaches out automatically.
+              Be first to every opportunity that matters. ApplyOS finds high-growth roles, tailors your applications, and reaches out automatically.
             </p>
 
             <div className="mt-5 w-full max-w-[30rem]">
@@ -177,7 +177,7 @@ export default function EarlyAccessPage() {
 
         {/* Footer */}
         <footer className="relative z-10 flex w-full items-center justify-between px-6 sm:px-10 py-5 text-xs font-semibold text-white/80">
-          <div>© {new Date().getFullYear()} ApplySo Inc. All rights reserved.</div>
+          <div>© {new Date().getFullYear()} ApplyOS Inc. All rights reserved.</div>
           <div className="flex items-center gap-4">
             <span className="hover:text-white transition-colors cursor-pointer">Privacy</span>
             <span className="hover:text-white transition-colors cursor-pointer">Terms</span>

@@ -4,7 +4,7 @@ import { Analytics } from '@vercel/analytics/next';
 import { Toaster } from '@org/ui';
 
 export const metadata = {
-  title: 'ApplySo',
+  title: 'ApplyOS',
   description: 'AI-powered job outreach automation',
 };
 
