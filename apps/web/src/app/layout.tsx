@@ -1,5 +1,7 @@
 import './global.css';
 
+import { Toaster } from '@org/ui';
+
 export const metadata = {
   title: 'ApplySo',
   description: 'AI-powered job outreach automation',
@@ -12,7 +14,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body suppressHydrationWarning>
+        {children}
+        <Toaster />
+      </body>
     </html>
   );
 }

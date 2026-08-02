@@ -3,6 +3,7 @@
   "version": "0.0.1",
   "private": true,
   "dependencies": {
+    "@org/database": "workspace:*",
     "@org/ui": "workspace:*",
     "better-auth": "^1.2.9",
     "lucide-react": "^0.468.0",

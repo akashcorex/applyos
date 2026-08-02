@@ -2,22 +2,20 @@
 
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 
-import { Badge, Button, Card, CardDescription, CardHeader, CardTitle, Input } from '@org/ui';
-import { ArrowRight, Loader2, Mail, Zap } from 'lucide-react';
+import { Badge, Button, Input, toast } from '@org/ui';
+import { ArrowRight, Loader2, Mail } from 'lucide-react';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3333';
+import {
+  getEarlyAccessCount,
+  registerEarlyAccessEmail,
+} from '@/app/actions/early-access';
 
 function useSignupCount() {
   const [count, setCount] = useState<number | null>(null);
 
   useEffect(() => {
-    fetch(`${API_URL}/v1/early-access/count`)
-      .then(async (res) => {
-        if (res.ok) {
-          const data = (await res.json()) as { count: number };
-          setCount(data.count);
-        }
-      })
+    getEarlyAccessCount()
+      .then(setCount)
       .catch(() => {
         // silently ignore count fetch errors
       });
@@ -26,119 +24,90 @@ function useSignupCount() {
   return { count, setCount };
 }
 
-async function submitEmail(email: string): Promise<
-  | { ok: true; message: string }
-  | { ok: false; error: string }
-> {
-  try {
-    const res = await fetch(`${API_URL}/v1/early-access`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email }),
-    });
-
-    const data = (await res.json()) as { message?: string; error?: string };
-
-    if (!res.ok) {
-      return { ok: false, error: data.error ?? 'Something went wrong. Please try again.' };
-    }
-
-    const msg =
-      data.message === 'already registered'
-        ? "You're already on the list!"
-        : "You're in! We'll be in touch soon.";
-
-    return { ok: true, message: msg };
-  } catch {
-    return { ok: false, error: 'Network error. Please try again.' };
-  }
-}
-
 function EmailForm({
-  onSuccess,
   onBumpCount,
 }: {
-  onSuccess: (msg: string) => void;
   onBumpCount: () => void;
 }) {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
 
   const handleSubmit = useCallback(
     async (e: FormEvent<HTMLFormElement>) => {
       e.preventDefault();
       setLoading(true);
-      setError('');
 
-      const result = await submitEmail(email.trim());
+      try {
+        const result = await registerEarlyAccessEmail(email.trim());
 
-      if (result.ok) {
-        onSuccess(result.message);
+        if (!result.ok) {
+          toast({
+            title: 'Something went wrong',
+            description: result.error ?? 'Please try again.',
+            variant: 'destructive',
+          });
+          return;
+        }
+
+        const isNew = !result.alreadyRegistered;
+
+        toast({
+          title: isNew ? "One less thing to worry about." : 'Already on the list',
+          description: isNew
+            ? "Your future AI job agent is warming up. We'll email you when it's ready."
+            : 'This email is already on the priority list.',
+          variant: 'default',
+        });
+
         onBumpCount();
-      } else {
-        setError(result.error);
+        setEmail('');
+      } catch {
+        toast({
+          title: 'Network error',
+          description: 'Please check your connection and try again.',
+          variant: 'destructive',
+        });
+      } finally {
+        setLoading(false);
       }
-
-      setLoading(false);
     },
-    [email, onSuccess, onBumpCount],
+    [email, onBumpCount],
   );
 
   return (
-    <div className="w-full">
-      <form
-        onSubmit={handleSubmit}
-        className="group relative flex w-full items-center rounded-full border border-white/20 bg-slate-950/40 p-1 shadow-lg backdrop-blur-xl transition-all focus-within:border-white/40 focus-within:bg-slate-950/60 focus-within:ring-2 focus-within:ring-white/10"
-      >
-        <div className="relative flex flex-1 items-center pl-3">
-          <Mail className="h-3.5 w-3.5 text-white/50 transition-colors group-focus-within:text-white/90" />
-          <Input
-            type="email"
-            placeholder="Enter your work email..."
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            disabled={loading}
-            className="h-9 border-0 bg-transparent pl-2.5 pr-2 text-sm font-medium text-white placeholder:text-white/45 shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
-          />
-        </div>
-        <Button
-          type="submit"
+    <form
+      onSubmit={handleSubmit}
+      className="group relative flex w-full items-center rounded-full border border-white/20 bg-slate-950/40 p-1 shadow-lg backdrop-blur-xl transition-all focus-within:border-white/40 focus-within:bg-slate-950/60 focus-within:ring-2 focus-within:ring-white/10"
+    >
+      <div className="relative flex flex-1 items-center pl-3">
+        <Mail className="h-3.5 w-3.5 text-white/50 transition-colors group-focus-within:text-white/90" />
+        <Input
+          type="email"
+          placeholder="Enter your work email..."
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
           disabled={loading}
-          className="h-8 rounded-full bg-white hover:bg-white/90 text-slate-950 px-3 text-xs font-semibold shadow-sm transition-all hover:scale-[1.02] active:scale-[0.98] shrink-0"
-        >
-          {loading ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin text-slate-950" />
-          ) : (
-            <ArrowRight className="h-3.5 w-3.5 text-slate-950" />
-          )}
-          <span>Get access</span>
-        </Button>
-      </form>
-      {error && <p className="mt-1.5 text-xs font-semibold text-red-400 text-left pl-3">{error}</p>}
-    </div>
-  );
-}
-
-function SuccessCard({ message }: { message: string }) {
-  return (
-    <Card className="w-full border-white/20 bg-slate-950/60 shadow-xl backdrop-blur-xl rounded-2xl text-white">
-      <CardHeader className="p-5">
-        <div className="flex items-center gap-2">
-          <Zap className="h-5 w-5 text-amber-400 animate-pulse" />
-          <CardTitle className="text-base font-bold text-white">{message}</CardTitle>
-        </div>
-        <CardDescription className="text-xs font-medium text-white/80 text-left pt-1.5">
-          We&apos;ve reserved your place. Keep an eye on your inbox for exclusive early updates.
-        </CardDescription>
-      </CardHeader>
-    </Card>
+          className="h-9 border-0 bg-transparent pl-2.5 pr-2 text-sm font-medium text-white placeholder:text-white/45 shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
+        />
+      </div>
+      <Button
+        type="submit"
+        disabled={loading}
+        className="h-8 rounded-full bg-white hover:bg-white/90 text-slate-950 px-3 text-xs font-semibold shadow-sm transition-all hover:scale-[1.02] active:scale-[0.98] shrink-0"
+      >
+        {loading ? (
+          <Loader2 className="h-3.5 w-3.5 animate-spin text-slate-950" />
+        ) : (
+          <ArrowRight className="h-3.5 w-3.5 text-slate-950" />
+        )}
+        <span>Get access</span>
+      </Button>
+    </form>
   );
 }
 
 export default function EarlyAccessPage() {
-  const [successMessage, setSuccessMessage] = useState('');
   const { count, setCount } = useSignupCount();
 
   const bumpCount = useCallback(() => {
@@ -186,7 +155,7 @@ export default function EarlyAccessPage() {
 
             <h1 className="text-balance text-[clamp(3.4rem,5.8vw,5.2rem)] font-medium leading-[0.88] tracking-[-0.05em] text-white antialiased [text-shadow:_0_1px_1px_rgba(0,0,0,0.35),_0_0_1px_rgba(255,255,255,0.1)]">
               Your AI applies
-              <span className="block">while you sleep.</span>
+              <span className="block">while you study.</span>
             </h1>
 
             <p className="mt-3 max-w-[34rem] text-base leading-relaxed text-white/70 antialiased">
@@ -194,17 +163,13 @@ export default function EarlyAccessPage() {
             </p>
 
             <div className="mt-5 w-full max-w-[30rem]">
-              {successMessage ? (
-                <SuccessCard message={successMessage} />
-              ) : (
-                <EmailForm onSuccess={setSuccessMessage} onBumpCount={bumpCount} />
-              )}
+              <EmailForm onBumpCount={bumpCount} />
             </div>
 
             {count != null && count > 0 && (
-              <div className="mt-5 flex items-center gap-2 text-xs text-white/40">
+              <div className="mt-2 px-1 flex items-center gap-2 text-xs text-white/40">
                 <span className="h-1.5 w-1.5 rounded-full bg-white/50" />
-                Join <span className="text-white/60">{count}</span> builders on the priority list
+                Join <span className="text-white/60">{count}+</span> builders on the priority list
               </div>
             )}
           </div>

@@ -42,6 +42,9 @@
       }
     }
   ],
+  "sync": {
+    "applyChanges": true
+  },
   "analytics": false,
   "generators": {
     "@nx/next": {

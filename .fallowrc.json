@@ -20,5 +20,6 @@
   "duplicates": {
     "minOccurrences": 3
   },
+  "ignoreDependencies": ["pg"],
   "rules": {}
 }

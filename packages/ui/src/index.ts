@@ -14,3 +14,14 @@ export { Avatar, AvatarImage, AvatarFallback } from './avatar';
 export { Tabs, TabsList, TabsTrigger, TabsContent } from './tabs';
 export { Label } from './label';
 export { cn } from './utils';
+export {
+  Toast,
+  ToastAction,
+  ToastClose,
+  ToastDescription,
+  ToastProvider,
+  ToastTitle,
+  ToastViewport,
+} from './toast';
+export { Toaster } from './toaster';
+export { toast, useToast } from './use-toast';
