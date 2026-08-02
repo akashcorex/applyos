@@ -1,0 +1,22 @@
+# Ignore other apps to speed up Vercel clone & avoid auto-detection confusion
+apps/ai-orchestrator
+apps/api
+apps/apply-agent
+apps/job-agent
+apps/outreach-agent
+apps/resume-agent
+
+# Ignore Python/Agent stuff
+*.py
+__pycache__
+.pytest_cache
+*.egg-info
+requirements.txt
+pyproject.toml
+uv.lock
+
+# Ignore dev tooling
+.fallow
+.vercel
+.next
+node_modules
