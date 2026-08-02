@@ -1,5 +1,6 @@
 import './global.css';
 
+import { Analytics } from '@vercel/analytics/next';
 import { Toaster } from '@org/ui';
 
 export const metadata = {
@@ -17,6 +18,7 @@ export default function RootLayout({
       <body suppressHydrationWarning>
         {children}
         <Toaster />
+        <Analytics />
       </body>
     </html>
   );
