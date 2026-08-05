@@ -135,6 +135,29 @@ class WorkflowStore:
         await self.save(run)
         return run
 
+    async def update_linkedin_connect_status(
+        self,
+        workflow_id: str,
+        job_id: str,
+        status: str,
+    ) -> WorkflowRun | None:
+        run = await self.get(workflow_id)
+        if run is None:
+            return None
+
+        updated = False
+        for task in run.apply_tasks:
+            if task.job_id == job_id:
+                task.linkedin_connect_status = status
+                updated = True
+                break
+
+        if not updated:
+            return run
+
+        await self.save(run)
+        return run
+
     async def finalize_if_complete(self, workflow_id: str) -> WorkflowRun | None:
         run = await self.get(workflow_id)
         if run is None or not run.apply_tasks:

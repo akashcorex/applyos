@@ -25,7 +25,7 @@ cd apps/apply-agent
 
 A headed browser opens — log in (and complete 2FA). When the feed loads, the script saves `session:<user_id>` to Redis (7-day TTL).
 
-Check status: `GET /admin/linkedin/session/{user_id}`
+Check status: `GET /admin/linkedin/session/{user_id}` returns `has_session`, `linkedin_authenticated`, and `expires_in_seconds`.
 
 If the session is missing or expired, connect/discover workers fail with `login_required` — re-run the bootstrap script.
 
@@ -84,6 +84,7 @@ Key settings:
 - `LINKEDIN_MAX_FOLLOWS_PER_DAY` — default `40`
 - `POST_APPLY_LINKEDIN_CONNECT_ENABLED` — default `true`
 - `POST_APPLY_CONNECT_LIMIT` — default `3`
+- `POST_APPLY_CONNECT_DELAY_SECONDS` — default `900` (15 min before post-apply connects)
 
 See `.env.example` for the full list.
 

@@ -6,7 +6,12 @@ import asyncio
 import logging
 
 from app.browser.engine import create_context, launch_browser, new_stealth_page
-from app.browser.session_manager import load_session, save_session
+from app.browser.session_manager import (
+    has_linkedin_cookies,
+    load_session,
+    save_session,
+    warm_up_linkedin_feed,
+)
 from app.events.publisher import publish_connect_result
 from app.linkedin.connect import send_connection_request
 from app.linkedin.follow import follow_profile
@@ -139,12 +144,25 @@ async def _run_connect(payload: ContactPayload) -> list[ConnectResultEvent]:
     user_id = payload.user_id
     events: list[ConnectResultEvent] = []
 
+    storage_state = await load_session(user_id)
+    if storage_state is None or not has_linkedin_cookies(storage_state):
+        logger.error("No LinkedIn session for user_id=%s — login_required", user_id)
+        return [
+            ConnectResultEvent(
+                contact_id="session",
+                user_id=user_id,
+                action="connect",
+                status=ConnectStatus.login_required,
+                error_detail="LinkedIn browser session missing — run bootstrap_linkedin_session.py",
+            )
+        ]
+
     async with launch_browser(headless=True) as browser:
-        storage_state = await load_session(user_id)
         context = await create_context(browser, storage_state=storage_state)
         page = await new_stealth_page(context)
 
         try:
+            await warm_up_linkedin_feed(page)
             for contact in payload.contacts:
                 event = await _process_contact(user_id, contact, page)
                 events.append(event)

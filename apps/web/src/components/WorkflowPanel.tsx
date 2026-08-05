@@ -49,6 +49,7 @@ interface ApplyTask {
   task_id: string | null;
   status: string;
   error_detail: string | null;
+  linkedin_connect_status: string | null;
 }
 
 interface WorkflowDetail {
@@ -330,6 +331,13 @@ export function WorkflowPanel() {
                                     <p className="text-muted-foreground truncate">
                                       {task.company_name}
                                     </p>
+                                    {task.linkedin_connect_status && (
+                                      <div className="mt-1">
+                                        <LinkedInConnectBadge
+                                          status={task.linkedin_connect_status}
+                                        />
+                                      </div>
+                                    )}
                                     {task.error_detail && (
                                       <p className="text-red-600 truncate">
                                         {task.error_detail}
@@ -418,6 +426,46 @@ function ApplyStatusBadge({ status }: { status: string }) {
   };
   const c = config[status] ?? {
     label: status,
+    className: 'bg-gray-100 text-gray-700 border-gray-300',
+  };
+  return (
+    <Badge
+      variant="outline"
+      className={`text-xs px-1.5 py-0 ${c.className}`}
+    >
+      {c.label}
+    </Badge>
+  );
+}
+
+function LinkedInConnectBadge({ status }: { status: string }) {
+  const config: Record<
+    string,
+    { label: string; className: string }
+  > = {
+    pending: {
+      label: 'LinkedIn connects queued',
+      className: 'bg-blue-100 text-blue-800 border-blue-300',
+    },
+    sent: {
+      label: 'LinkedIn connects sent',
+      className: 'bg-green-100 text-green-800 border-green-300',
+    },
+    login_required: {
+      label: 'LinkedIn session required',
+      className: 'bg-orange-100 text-orange-800 border-orange-300',
+    },
+    failed: {
+      label: 'LinkedIn connects failed',
+      className: 'bg-red-100 text-red-800 border-red-300',
+    },
+    skipped: {
+      label: 'LinkedIn connects skipped',
+      className: 'bg-gray-100 text-gray-600 border-gray-300',
+    },
+  };
+  const c = config[status] ?? {
+    label: `LinkedIn: ${status}`,
     className: 'bg-gray-100 text-gray-700 border-gray-300',
   };
   return (

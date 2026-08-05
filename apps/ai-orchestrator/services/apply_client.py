@@ -29,6 +29,13 @@ class ApplyAgentClient:
 
         return TriggerApplyResponse.model_validate(data)
 
+    async def linkedin_session_status(self, user_id: str) -> dict[str, Any]:
+        url = f"{self._base_url}/admin/linkedin/session/{user_id}"
+        async with httpx.AsyncClient(timeout=settings.http_timeout_seconds) as client:
+            response = await client.get(url)
+            response.raise_for_status()
+            return response.json()
+
     async def trigger_discover_connect(
         self,
         *,
@@ -36,15 +43,18 @@ class ApplyAgentClient:
         job_id: str,
         company_name: str,
         job_title: str | None = None,
+        delay_seconds: int | None = None,
     ) -> dict[str, Any]:
         """Fire-and-forget enqueue of post-apply LinkedIn employee connects."""
         url = f"{self._base_url}/admin/trigger/discover-connect"
-        body = {
+        body: dict[str, Any] = {
             "user_id": user_id,
             "job_id": job_id,
             "company_name": company_name,
             "job_title": job_title,
         }
+        if delay_seconds is not None:
+            body["delay_seconds"] = delay_seconds
         async with httpx.AsyncClient(timeout=settings.http_timeout_seconds) as client:
             response = await client.post(url, json=body)
             response.raise_for_status()

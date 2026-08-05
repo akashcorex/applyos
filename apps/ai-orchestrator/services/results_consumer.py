@@ -1,4 +1,4 @@
-"""Consume apply results from Redis and update workflow state."""
+"""Consume apply and connect results from Redis and update workflow state."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from datetime import UTC, datetime
 import redis.asyncio as redis
 
 from config import settings
-from models import ApplyResultEvent, WorkflowStatus
+from models import ApplyResultEvent, ConnectResultEvent, WorkflowStatus
 from services.apply_client import ApplyAgentClient
 from services.workflow_store import WorkflowStore
 
@@ -97,12 +97,32 @@ class ResultsConsumer:
             return
 
         user_id = event.user_id or run.request.user_profile.user_id
+        session = await self._apply_client.linkedin_session_status(user_id)
+        if not session.get("linkedin_authenticated"):
+            logger.warning(
+                "Skip discover-connect: LinkedIn session not authenticated user_id=%s job_id=%s",
+                user_id,
+                event.job_id,
+            )
+            await self._store.update_linkedin_connect_status(
+                workflow_id,
+                event.job_id,
+                "login_required",
+            )
+            return
+
         try:
+            await self._store.update_linkedin_connect_status(
+                workflow_id,
+                event.job_id,
+                "pending",
+            )
             await self._apply_client.trigger_discover_connect(
                 user_id=user_id,
                 job_id=event.job_id,
                 company_name=company_name,
                 job_title=job_title,
+                delay_seconds=settings.post_apply_connect_delay_seconds,
             )
         except Exception as exc:
             # Connect is a side effect — never fail the apply result path.
@@ -112,22 +132,44 @@ class ResultsConsumer:
                 exc,
             )
 
-    async def _handle_message(self, payload_raw: str) -> None:
-        try:
-            envelope = json.loads(payload_raw)
-        except json.JSONDecodeError:
-            logger.error("Invalid JSON on results queue")
+    async def _handle_connect_result(self, event: ConnectResultEvent) -> None:
+        if not event.job_id:
             return
 
-        if envelope.get("type") != "apply_result":
+        workflow_id = await self._store.resolve_workflow_id(event.job_id)
+        if workflow_id is None:
+            logger.warning("No workflow found for connect job_id=%s", event.job_id)
             return
 
-        try:
-            event = ApplyResultEvent.model_validate(envelope.get("data", {}))
-        except Exception as exc:
-            logger.error("Invalid apply_result payload: %s", exc)
+        if event.status == "login_required":
+            await self._store.update_linkedin_connect_status(
+                workflow_id,
+                event.job_id,
+                "login_required",
+            )
             return
 
+        if event.status == "sent":
+            await self._store.update_linkedin_connect_status(
+                workflow_id,
+                event.job_id,
+                "sent",
+            )
+            return
+
+        if event.status in {"failed", "profile_not_found"}:
+            run = await self._store.get(workflow_id)
+            if run is None:
+                return
+            task = next((t for t in run.apply_tasks if t.job_id == event.job_id), None)
+            if task and task.linkedin_connect_status not in {"sent", "login_required"}:
+                await self._store.update_linkedin_connect_status(
+                    workflow_id,
+                    event.job_id,
+                    "failed",
+                )
+
+    async def _handle_apply_result(self, event: ApplyResultEvent) -> None:
         workflow_id = await self._store.resolve_workflow_id(event.job_id)
         if workflow_id is None:
             logger.warning("No workflow found for job_id=%s", event.job_id)
@@ -148,6 +190,34 @@ class ResultsConsumer:
         )
 
         await self._maybe_trigger_post_apply_connect(event, workflow_id)
+
+    async def _handle_message(self, payload_raw: str) -> None:
+        try:
+            envelope = json.loads(payload_raw)
+        except json.JSONDecodeError:
+            logger.error("Invalid JSON on results queue")
+            return
+
+        event_type = envelope.get("type")
+        data = envelope.get("data", {})
+
+        if event_type == "apply_result":
+            try:
+                event = ApplyResultEvent.model_validate(data)
+            except Exception as exc:
+                logger.error("Invalid apply_result payload: %s", exc)
+                return
+            await self._handle_apply_result(event)
+            return
+
+        if event_type == "connect_result":
+            try:
+                event = ConnectResultEvent.model_validate(data)
+            except Exception as exc:
+                logger.error("Invalid connect_result payload: %s", exc)
+                return
+            await self._handle_connect_result(event)
+            return
 
     async def _timeout_loop(self) -> None:
         while not self._stop_event.is_set():

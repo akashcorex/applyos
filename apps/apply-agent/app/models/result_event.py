@@ -23,6 +23,7 @@ class ConnectStatus(str, Enum):
     already_connected = "already_connected"
     rate_limited = "rate_limited"
     profile_not_found = "profile_not_found"
+    login_required = "login_required"
     failed = "failed"
 
 
@@ -44,5 +45,6 @@ class ConnectResultEvent(BaseModel):
     user_id: str
     action: str  # "connect" | "follow"
     status: ConnectStatus
+    job_id: str | None = None
     error_detail: str | None = None
     timestamp: datetime = datetime.utcnow()

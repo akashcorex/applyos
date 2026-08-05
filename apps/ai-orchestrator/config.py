@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     apply_result_timeout_seconds: int = 600
     http_timeout_seconds: float = 60.0
     post_apply_linkedin_connect_enabled: bool = True
+    post_apply_connect_delay_seconds: int = 900
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

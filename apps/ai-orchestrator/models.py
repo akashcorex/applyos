@@ -140,6 +140,7 @@ class ApplyTaskRecord(BaseModel):
     task_id: str | None = None
     status: str = "pending"
     error_detail: str | None = None
+    linkedin_connect_status: str | None = None
 
 
 class WorkflowRun(BaseModel):
@@ -193,5 +194,15 @@ class ApplyResultEvent(BaseModel):
     user_id: str
     status: str
     ats_type: str | None = None
+    error_detail: str | None = None
+    timestamp: datetime | None = None
+
+
+class ConnectResultEvent(BaseModel):
+    contact_id: str
+    user_id: str
+    action: str
+    status: str
+    job_id: str | None = None
     error_detail: str | None = None
     timestamp: datetime | None = None

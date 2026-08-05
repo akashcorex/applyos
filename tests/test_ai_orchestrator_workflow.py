@@ -118,6 +118,14 @@ async def test_results_consumer_updates_apply_task() -> None:
     await store.index_job("wf-2", "wf-2:acme::engineer")
 
     apply_client = AsyncMock()
+    apply_client.linkedin_session_status = AsyncMock(
+        return_value={
+            "user_id": "user-1",
+            "has_session": True,
+            "linkedin_authenticated": True,
+            "expires_in_seconds": 604800,
+        }
+    )
     consumer = ResultsConsumer(fake_redis, store, apply_client=apply_client)
     payload = json.dumps(
         {

@@ -4,12 +4,19 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 import uuid
 from datetime import UTC, datetime
 from typing import Any
 
 from app.browser.engine import create_context, launch_browser, new_stealth_page
-from app.browser.session_manager import load_session, save_session
+from app.browser.human_delay import random_pause
+from app.browser.session_manager import (
+    has_linkedin_cookies,
+    load_session,
+    save_session,
+    warm_up_linkedin_feed,
+)
 from app.client import report_linkedin_connects
 from app.config import settings
 from app.events.publisher import publish_connect_result
@@ -28,6 +35,47 @@ from app.workers.retry_policy import (
 
 logger = logging.getLogger(__name__)
 
+_STOP_WORDS = frozenset(
+    {
+        "and",
+        "the",
+        "for",
+        "with",
+        "senior",
+        "junior",
+        "lead",
+        "staff",
+        "intern",
+        "associate",
+        "principal",
+        "head",
+        "of",
+        "at",
+        "in",
+        "a",
+        "an",
+    }
+)
+_RELEVANCE_HINTS = frozenset(
+    {
+        "engineer",
+        "engineering",
+        "developer",
+        "recruit",
+        "recruiting",
+        "recruiter",
+        "talent",
+        "people",
+        "hr",
+        "hiring",
+        "manager",
+        "director",
+        "founder",
+        "ceo",
+        "cto",
+    }
+)
+
 
 def _api_status(status: ConnectStatus) -> str:
     if status == ConnectStatus.sent:
@@ -39,11 +87,58 @@ def _api_status(status: ConnectStatus) -> str:
     return "failed"
 
 
+def _title_keywords(job_title: str | None) -> set[str]:
+    if not job_title:
+        return set()
+    words = re.findall(r"[a-zA-Z]+", job_title.lower())
+    keywords = {w for w in words if len(w) > 3 and w not in _STOP_WORDS}
+    keywords.update(w for w in words if w in _RELEVANCE_HINTS)
+    return keywords
+
+
+def _filter_relevant_employees(
+    employees: list,
+    job_title: str | None,
+    limit: int,
+) -> list:
+    """Prefer employees whose headline matches the applied role."""
+    keywords = _title_keywords(job_title)
+    if not keywords:
+        return employees[:limit]
+
+    relevant = [
+        employee
+        for employee in employees
+        if employee.title
+        and any(keyword in employee.title.lower() for keyword in keywords)
+    ]
+    chosen = relevant if relevant else employees
+    return chosen[:limit]
+
+
+async def _publish_session_error(
+    user_id: str,
+    job_id: str,
+    detail: str,
+) -> None:
+    event = ConnectResultEvent(
+        contact_id="session",
+        user_id=user_id,
+        job_id=job_id,
+        action="connect",
+        status=ConnectStatus.login_required,
+        error_detail=detail,
+    )
+    await publish_connect_result(event)
+
+
 async def _connect_blank(
     user_id: str,
     contact_id: str,
     profile_url: str,
     page,
+    *,
+    job_id: str,
 ) -> ConnectResultEvent:
     actions = await load_profile(page, profile_url)
 
@@ -51,6 +146,7 @@ async def _connect_blank(
         return ConnectResultEvent(
             contact_id=contact_id,
             user_id=user_id,
+            job_id=job_id,
             action="connect",
             status=ConnectStatus.already_connected,
         )
@@ -59,6 +155,7 @@ async def _connect_blank(
         return ConnectResultEvent(
             contact_id=contact_id,
             user_id=user_id,
+            job_id=job_id,
             action="connect",
             status=ConnectStatus.rate_limited,
         )
@@ -67,6 +164,7 @@ async def _connect_blank(
         return ConnectResultEvent(
             contact_id=contact_id,
             user_id=user_id,
+            job_id=job_id,
             action="connect",
             status=ConnectStatus.profile_not_found,
             error_detail="Connect button not available",
@@ -78,6 +176,7 @@ async def _connect_blank(
         return ConnectResultEvent(
             contact_id=contact_id,
             user_id=user_id,
+            job_id=job_id,
             action="connect",
             status=ConnectStatus.sent,
         )
@@ -85,6 +184,7 @@ async def _connect_blank(
     return ConnectResultEvent(
         contact_id=contact_id,
         user_id=user_id,
+        job_id=job_id,
         action="connect",
         status=ConnectStatus.failed,
         error_detail="Connection request failed",
@@ -99,8 +199,10 @@ async def _run_discover_and_connect(payload: DiscoverConnectPayload) -> list[dic
         return []
 
     storage_state = await load_session(user_id)
-    if storage_state is None:
+    if storage_state is None or not has_linkedin_cookies(storage_state):
+        detail = "LinkedIn browser session missing — run bootstrap_linkedin_session.py"
         logger.error("No LinkedIn session for user_id=%s — login_required", user_id)
+        await _publish_session_error(user_id, payload.job_id, detail)
         return []
 
     api_rows: list[dict[str, Any]] = []
@@ -111,11 +213,13 @@ async def _run_discover_and_connect(payload: DiscoverConnectPayload) -> list[dic
         page = await new_stealth_page(context)
 
         try:
+            await warm_up_linkedin_feed(page)
+
             try:
                 employees = await discover_company_employees(
                     page,
                     payload.company_name,
-                    limit=limit,
+                    limit=limit * 2,
                 )
             except CompanyPeopleError as exc:
                 logger.error(
@@ -123,15 +227,31 @@ async def _run_discover_and_connect(payload: DiscoverConnectPayload) -> list[dic
                     exc.code,
                     exc,
                 )
+                if exc.code == "login_required":
+                    await _publish_session_error(
+                        user_id,
+                        payload.job_id,
+                        str(exc),
+                    )
                 return []
 
-            for employee in employees:
+            employees = _filter_relevant_employees(employees, payload.job_title, limit)
+            if not employees:
+                logger.warning(
+                    "No employees discovered for company=%s job_id=%s",
+                    payload.company_name,
+                    payload.job_id,
+                )
+                return []
+
+            for index, employee in enumerate(employees):
                 contact_id = str(uuid.uuid4())
                 event = await _connect_blank(
                     user_id,
                     contact_id,
                     employee.profile_url,
                     page,
+                    job_id=payload.job_id,
                 )
                 events.append(event)
                 await publish_connect_result(event)
@@ -158,6 +278,9 @@ async def _run_discover_and_connect(payload: DiscoverConnectPayload) -> list[dic
                 if event.status == ConnectStatus.rate_limited:
                     logger.warning("Hit daily connect limit; stopping early")
                     break
+
+                if index < len(employees) - 1:
+                    await random_pause(60, 120)
         finally:
             await save_session(user_id, context)
             await context.close()

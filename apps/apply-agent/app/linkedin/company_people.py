@@ -10,6 +10,7 @@ from urllib.parse import quote_plus
 from playwright.async_api import Page
 
 from app.browser.human_delay import human_click, human_scroll, random_pause
+from app.browser.session_manager import is_linkedin_login_url
 
 logger = logging.getLogger(__name__)
 
@@ -44,8 +45,7 @@ def _normalize_profile_url(href: str) -> str | None:
 
 
 async def _ensure_logged_in(page: Page) -> None:
-    url = page.url.lower()
-    if "login" in url or "checkpoint" in url or "authwall" in url:
+    if is_linkedin_login_url(page.url):
         raise CompanyPeopleError("login_required", "LinkedIn session is not authenticated")
 
 

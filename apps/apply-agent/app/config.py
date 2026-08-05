@@ -41,6 +41,7 @@ class Settings(BaseSettings):
     # --- Post-apply LinkedIn employee connects ---
     post_apply_linkedin_connect_enabled: bool = True
     post_apply_connect_limit: int = 3
+    post_apply_connect_delay_seconds: int = 900
 
     # --- CAPTCHA solver (CapSolver fallback; Lever prefers stealth silent-pass) ---
     captcha_api_key: str = ""

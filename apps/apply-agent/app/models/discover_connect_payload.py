@@ -14,3 +14,7 @@ class DiscoverConnectPayload(BaseModel):
         default=None,
         description="Override POST_APPLY_CONNECT_LIMIT when set",
     )
+    delay_seconds: int | None = Field(
+        default=None,
+        description="Override POST_APPLY_CONNECT_DELAY_SECONDS when set",
+    )

@@ -8,7 +8,12 @@ import logging
 from app.ats.detector import get_handler
 from app.browser.engine import create_context, launch_browser, new_stealth_page
 from app.browser.resume_upload import prepare_resume_file
-from app.browser.session_manager import load_session, save_session
+from app.browser.session_manager import (
+    has_linkedin_cookies,
+    load_session,
+    save_session,
+    should_save_session,
+)
 from app.events.publisher import publish_apply_result
 from app.llm.answer_generator import generate_answers
 from app.llm.field_mapper import map_fields_with_llm
@@ -60,6 +65,7 @@ async def _run_apply(payload: JobPayload) -> ApplyResultEvent:
 
     async with launch_browser() as browser:
         storage_state = await load_session(user_id)
+        had_linkedin_at_start = has_linkedin_cookies(storage_state)
         context = await create_context(browser, storage_state=storage_state)
         page = await new_stealth_page(context)
 
@@ -115,7 +121,9 @@ async def _run_apply(payload: JobPayload) -> ApplyResultEvent:
 
             result = await handler.fill_and_submit(page, payload.cv_data, field_mapping)
 
-            await save_session(user_id, context)
+            current_state = await context.storage_state()
+            if should_save_session(current_state, had_linkedin_at_start=had_linkedin_at_start):
+                await save_session(user_id, context)
 
             if result.success:
                 return ApplyResultEvent(
