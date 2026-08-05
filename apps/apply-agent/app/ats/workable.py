@@ -14,6 +14,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
+from datetime import datetime
 from urllib.parse import urlparse, urlunparse
 
 from playwright.async_api import Page
@@ -68,6 +69,35 @@ _SUCCESS_SECONDARY = (
     "yes, update",
 )
 
+
+def _is_workable_submit_response(response) -> bool:
+    """True for Workable application submit APIs — not resume S3 uploads."""
+    try:
+        method = response.request.method.upper()
+        if method not in {"POST", "PUT", "PATCH"}:
+            return False
+        url = response.url.lower()
+        if not (200 <= response.status < 300):
+            return False
+        # Resume uploads go to S3 on submit — not a successful application.
+        if "amazonaws.com" in url or "application-form.s3" in url:
+            return False
+        if "workable.com" not in url:
+            return False
+        if any(
+            token in url
+            for token in (
+                "/api/v1/jobs",
+                "/api/v3/",
+                "candidates",
+                "applications",
+                "/apply",
+            )
+        ):
+            return True
+        return False
+    except Exception:
+        return False
 
 class WorkableHandler(ATSHandler):
     ats_name = "workable"
@@ -607,11 +637,13 @@ class WorkableHandler(ATSHandler):
                 or (await inp.get_attribute("aria-required")) == "true"
                 or "*" in (label or "")
             )
+            placeholder = (await inp.get_attribute("placeholder") or "").lower()
+            is_date = await self._looks_like_date_field(page, inp, label or "", placeholder)
             fields.append(
                 FormField(
                     selector=selector,
                     label=label or inp_name or data_ui,
-                    field_type="text",
+                    field_type="date" if is_date else "text",
                     required=required,
                 )
             )
@@ -673,7 +705,61 @@ class WorkableHandler(ATSHandler):
                 seen.add(field.selector)
                 fields.append(field)
 
+        for field in await self._extract_checkbox_fields(page):
+            if field.selector not in seen:
+                seen.add(field.selector)
+                fields.append(field)
+
         logger.info("Workable: extracted %d fields", len(fields))
+        return fields
+
+    async def _extract_checkbox_fields(self, page: Page) -> list[FormField]:
+        """Consent / legal checkboxes (not YES/NO radio groups)."""
+        metas = await page.evaluate(
+            """() => {
+              const out = [];
+              for (const cb of document.querySelectorAll(
+                '[data-ui="application-form"] input[type="checkbox"]'
+              )) {
+                const id = cb.id || '';
+                const name = cb.name || '';
+                const dataUi = cb.getAttribute('data-ui') || '';
+                let label = '';
+                if (id) {
+                  label = document.querySelector(`label[for="${CSS.escape(id)}"]`)?.innerText || '';
+                }
+                if (!label) {
+                  label = cb.closest('label')?.innerText
+                    || cb.getAttribute('aria-label')
+                    || '';
+                }
+                label = (label || name || id || dataUi).replace(/\\s+/g, ' ').trim();
+                const required = Boolean(
+                  cb.required
+                  || cb.getAttribute('aria-required') === 'true'
+                  || /proceed|agree|consent|accept|confirm/i.test(label)
+                );
+                let selector = '';
+                if (id) selector = `input[type="checkbox"]#${CSS.escape(id)}`;
+                else if (dataUi) selector = `input[type="checkbox"][data-ui="${dataUi}"]`;
+                else if (name) selector = `input[type="checkbox"][name="${name}"]`;
+                if (!selector) continue;
+                out.push({ selector, label, required });
+              }
+              return out;
+            }"""
+        )
+        fields: list[FormField] = []
+        for meta in metas:
+            fields.append(
+                FormField(
+                    selector=meta["selector"],
+                    label=self._clean_label(meta.get("label") or "checkbox"),
+                    field_type="checkbox",
+                    required=bool(meta.get("required")),
+                    options=["YES", "NO"],
+                )
+            )
         return fields
 
     async def _dismiss_overlays(self, page: Page) -> None:
@@ -887,7 +973,191 @@ class WorkableHandler(ATSHandler):
         actual = (await page.input_value(phone_sel)).strip()
         return bool(actual)
 
-    async def _fill_text(self, page: Page, selector: str, value: str) -> None:
+    async def _looks_like_date_field(
+        self,
+        page: Page,
+        element,
+        label: str,
+        placeholder: str = "",
+    ) -> bool:
+        """Detect Workable date pickers (DD/MM/YYYY)."""
+        if (await element.get_attribute("type") or "").lower() == "date":
+            return True
+        if "dd/mm/yyyy" in placeholder or "dd/mm/yy" in placeholder:
+            return True
+        in_date_wrap = await element.evaluate(
+            """el => Boolean(
+              el.closest('[data-input-type="date"]')
+              || el.closest('[class*="date"]')
+            )"""
+        )
+        if in_date_wrap:
+            return True
+        return self._is_date_label(label)
+
+    def _is_date_label(self, label: str) -> bool:
+        text = (label or "").lower()
+        return any(
+            token in text
+            for token in (
+                "date",
+                "graduat",
+                "birth",
+                "dob",
+                "when are you",
+                "start date",
+                "end date",
+                "available from",
+            )
+        )
+
+    def _default_date_value(self, label: str, cv_data: CVData) -> str:
+        """Pick a sensible DD/MM/YYYY default for Workable date fields."""
+        label_l = (label or "").lower()
+        for edu in cv_data.education or []:
+            for key in ("end_date", "graduation", "graduation_date", "year", "end"):
+                raw = edu.get(key)
+                if not raw:
+                    continue
+                parsed = self._parse_date_to_ddmmyyyy(str(raw))
+                if parsed:
+                    return parsed
+
+        now = datetime.now()
+        if "graduat" in label_l:
+            year = now.year + (1 if now.month >= 6 else 0)
+            return f"01/06/{year}"
+        if "birth" in label_l or "dob" in label_l:
+            return "01/01/1998"
+        if "start" in label_l:
+            return now.strftime("%d/%m/%Y")
+        return now.strftime("%d/%m/%Y")
+
+    def _parse_date_to_ddmmyyyy(self, raw: str) -> str | None:
+        text = raw.strip()
+        if not text:
+            return None
+        # Already DD/MM/YYYY
+        if re.fullmatch(r"\d{2}/\d{2}/\d{4}", text):
+            return text
+        # YYYY-MM-DD
+        m = re.fullmatch(r"(\d{4})-(\d{2})-(\d{2})", text)
+        if m:
+            return f"{m.group(3)}/{m.group(2)}/{m.group(1)}"
+        # Year only
+        m = re.fullmatch(r"(\d{4})", text)
+        if m:
+            return f"01/06/{m.group(1)}"
+        # Month YYYY e.g. June 2026
+        m = re.search(r"(\d{4})", text)
+        if m:
+            return f"01/06/{m.group(1)}"
+        return None
+
+    async def _fill_date_field(
+        self,
+        page: Page,
+        selector: str,
+        value: str,
+        *,
+        label: str = "",
+        cv_data: CVData | None = None,
+    ) -> bool:
+        """Fill Workable DD/MM/YYYY date picker (React + calendar widget)."""
+        date_val = self._parse_date_to_ddmmyyyy(value)
+        if not date_val:
+            date_val = self._default_date_value(label, cv_data or CVData(
+                full_name="Candidate", email="candidate@example.com"
+            ))
+        if not re.fullmatch(r"\d{2}/\d{2}/\d{4}", date_val):
+            return False
+        loc = page.locator(selector).first
+        if await loc.count() == 0:
+            return False
+        await loc.wait_for(state="attached", timeout=10_000)
+
+        async def _read_value() -> str:
+            try:
+                return (await loc.input_value()).strip()
+            except Exception:
+                return ""
+
+        try:
+            await loc.click(timeout=3_000)
+        except Exception:
+            await loc.click(force=True)
+        await random_pause(0.25, 0.5)
+
+        # Strategy 1: keyboard type DD/MM/YYYY (masked inputs).
+        try:
+            await loc.press("Meta+A")
+            await loc.press("Backspace")
+        except Exception:
+            try:
+                await loc.fill("")
+            except Exception:
+                pass
+        await page.keyboard.type(date_val, delay=90)
+        await random_pause(0.2, 0.4)
+        await page.keyboard.press("Tab")
+        await random_pause(0.15, 0.3)
+        if await _read_value():
+            logger.info("Workable: filled date %s -> %s", selector[:40], date_val)
+            return True
+
+        # Strategy 2: native value setter + React events.
+        await loc.evaluate(
+            """(el, val) => {
+              const setter = Object.getOwnPropertyDescriptor(
+                HTMLInputElement.prototype, 'value'
+              )?.set;
+              if (setter) setter.call(el, val);
+              else el.value = val;
+              el.dispatchEvent(new Event('input', { bubbles: true }));
+              el.dispatchEvent(new Event('change', { bubbles: true }));
+              el.dispatchEvent(new Event('blur', { bubbles: true }));
+            }""",
+            date_val,
+        )
+        await random_pause(0.15, 0.3)
+        if await _read_value():
+            logger.info("Workable: filled date (setter) %s -> %s", selector[:40], date_val)
+            return True
+
+        # Strategy 3: click day in open calendar popup.
+        day_num = str(int(date_val.split("/")[0]))
+        for day_sel in (
+            f'[role="gridcell"] button:has-text("{day_num}")',
+            f'[role="gridcell"]:has-text("{day_num}")',
+            f'.react-datepicker__day--0{day_num.zfill(2)}',
+            f'button:has-text("{day_num}")',
+        ):
+            day_loc = page.locator(day_sel).first
+            try:
+                if await day_loc.count() == 0:
+                    continue
+                await day_loc.click(timeout=2_000)
+                await random_pause(0.25, 0.5)
+                if await _read_value():
+                    logger.info(
+                        "Workable: filled date (picker) %s -> %s",
+                        selector[:40],
+                        date_val,
+                    )
+                    return True
+            except Exception:
+                continue
+
+        logger.warning(
+            "Workable: date field remained empty %s (wanted %s)",
+            selector[:40],
+            date_val,
+        )
+        return False
+
+    async def _fill_text(
+        self, page: Page, selector: str, value: str, *, cv_data: CVData | None = None
+    ) -> None:
         text = str(value)
         target = selector
         if (
@@ -897,6 +1167,22 @@ class WorkableHandler(ATSHandler):
         ):
             await self._fill_phone(page, text)
             return
+
+        field_el = await page.query_selector(selector)
+        if field_el is not None:
+            label = await self._get_label_text(page, field_el)
+            placeholder = (await field_el.get_attribute("placeholder") or "").lower()
+            if await self._looks_like_date_field(
+                page, field_el, label or "", placeholder
+            ):
+                await self._fill_date_field(
+                    page,
+                    selector,
+                    text,
+                    label=label or "",
+                    cv_data=cv_data,
+                )
+                return
 
         await self._safe_fill(page, target, text)
 
@@ -1038,7 +1324,112 @@ class WorkableHandler(ATSHandler):
 
         logger.info("Workable: resume attached")
         await random_pause(0.8, 1.5)
+        if not await self._resume_ready(page):
+            logger.warning("Workable: resume input set but UI not ready")
         return True, None
+
+    async def _resume_ready(self, page: Page) -> bool:
+        """True when Workable shows a resume attached (input or filename chip)."""
+        return await page.evaluate(
+            """() => {
+              const input = document.querySelector(
+                "input[data-ui='resume'], [data-ui='application-form'] input[type='file']"
+              );
+              if (input?.files?.length) return true;
+              const wrap = document.querySelector('[data-ui="resume"]');
+              const text = (wrap?.innerText || '').toLowerCase();
+              if (/\\.(pdf|doc|docx)\\b/.test(text)) return true;
+              if (text.includes('remove') || text.includes('uploaded')) return true;
+              return false;
+            }"""
+        )
+
+    async def _ensure_resume_attached(
+        self, page: Page, cv_data: CVData
+    ) -> tuple[bool, str | None]:
+        """Re-attach resume if React cleared the file input before submit."""
+        if await self._resume_ready(page):
+            return True, None
+        logger.info("Workable: resume missing before submit — re-attaching")
+        return await self._upload_resume(page, cv_data)
+
+    async def _fill_checkbox(self, page: Page, selector: str, value: str) -> bool:
+        truthy = {"1", "true", "yes", "y", "on", "checked"}
+        if str(value).strip().lower() not in truthy:
+            return False
+        cb = page.locator(selector).first
+        if await cb.count() == 0:
+            return False
+        if await cb.is_checked():
+            return True
+        cb_id = await cb.get_attribute("id")
+        if cb_id:
+            label = page.locator(f'label[for="{cb_id}"]').first
+            if await label.count():
+                try:
+                    await label.click(timeout=3_000)
+                except Exception:
+                    await label.click(force=True)
+                await random_pause(0.15, 0.35)
+                return await cb.is_checked()
+        try:
+            await cb.check(force=True)
+        except Exception:
+            await cb.click(force=True)
+        await random_pause(0.15, 0.35)
+        return await cb.is_checked()
+
+    async def _fill_required_checkboxes(self, page: Page) -> int:
+        """Check consent / required checkboxes Workable validates on submit."""
+        filled = 0
+        boxes = await page.query_selector_all(
+            '[data-ui="application-form"] input[type="checkbox"]'
+        )
+        for cb in boxes:
+            try:
+                if await cb.is_checked():
+                    continue
+                required = await cb.get_attribute("required") is not None
+                aria_req = (await cb.get_attribute("aria-required")) == "true"
+                cb_id = await cb.get_attribute("id") or ""
+                label_text = ""
+                if cb_id:
+                    label_el = await page.query_selector(f'label[for="{cb_id}"]')
+                    if label_el:
+                        label_text = (await label_el.inner_text()).lower()
+                if not (
+                    required
+                    or aria_req
+                    or any(
+                        token in label_text
+                        for token in (
+                            "proceed",
+                            "agree",
+                            "consent",
+                            "accept",
+                            "confirm",
+                            "privacy",
+                            "terms",
+                        )
+                    )
+                ):
+                    continue
+                selector = (
+                    f'input[type="checkbox"][id="{cb_id}"]'
+                    if cb_id
+                    else f'input[type="checkbox"][name="{await cb.get_attribute("name") or ""}"]'
+                )
+                if await self._fill_checkbox(page, selector, "YES"):
+                    filled += 1
+                    logger.info(
+                        "Workable: checked consent checkbox %s",
+                        cb_id or label_text[:40],
+                    )
+            except Exception:
+                logger.debug(
+                    "Workable: checkbox fill failed", exc_info=True
+                )
+        return filled
 
     async def _fill_identity_fields(self, page: Page, cv_data: CVData) -> int:
         first = cv_data.full_name.split()[0] if cv_data.full_name else ""
@@ -1142,6 +1533,8 @@ class WorkableHandler(ATSHandler):
                 filled += 1
                 logger.info("Workable: gap-filled radio %s -> %s", name, default)
 
+        filled += await self._fill_required_checkboxes(page)
+
         # Empty required text / textarea (skip file/hidden/identity already done)
         empties = await page.evaluate(
             """() => {
@@ -1172,14 +1565,40 @@ class WorkableHandler(ATSHandler):
                   || dataUi
                   || ''
                 ).replace(/\\s+/g, ' ').trim();
-                out.push({ selector, name, dataUi, tag, label });
+                const placeholder = (el.placeholder || '').toLowerCase();
+                const isDate = el.type === 'date'
+                  || /dd\\/mm\\/yyyy/i.test(placeholder)
+                  || Boolean(el.closest('[data-input-type="date"]'));
+                out.push({ selector, name, dataUi, tag, label, placeholder, isDate });
               }
               return out;
             }"""
         )
         for item in empties:
             label = (item.get("label") or item.get("name") or "").lower()
-            if "salary" in label or "expect" in label or "compensat" in label:
+            if item.get("isDate") or self._is_date_label(label):
+                date_val = self._default_date_value(label, cv_data)
+                if await self._fill_date_field(
+                    page,
+                    item["selector"],
+                    date_val,
+                    label=label,
+                    cv_data=cv_data,
+                ):
+                    filled += 1
+                    logger.info(
+                        "Workable: gap-filled date %s -> %s",
+                        item["selector"][:40],
+                        date_val,
+                    )
+                else:
+                    logger.warning(
+                        "Workable: gap-fill left empty %s", item["selector"]
+                    )
+                continue
+            if "salary" in label or "compensat" in label:
+                value = "1500000"
+            elif ("expect" in label and "graduat" not in label) or "ctc" in label:
                 value = "1500000"
             elif "notice" in label or "days" in label:
                 value = "30"
@@ -1270,14 +1689,29 @@ class WorkableHandler(ATSHandler):
             )
             if not selector:
                 continue
+            label = ""
+            if data_ui:
+                label = (
+                    await page.evaluate(
+                        """(id) => (document.getElementById(id + '_label')
+                          ?.innerText || '').toLowerCase()""",
+                        data_ui,
+                    )
+                    or ""
+                )
+            if item.get("type") == "date" or self._is_date_label(label):
+                date_val = self._default_date_value(label, cv_data)
+                if await self._fill_date_field(
+                    page, selector, date_val, label=label, cv_data=cv_data
+                ):
+                    filled += 1
+                continue
             value = "30" if "13322" in (name + data_ui) else "Test"
             try:
                 await self._safe_fill(page, selector, value)
                 filled += 1
             except Exception:
                 logger.debug("Workable: invalid sweep failed for %s", selector)
-
-        return filled
 
         # Empty required selects — pick first option or location country.
         for data_ui in await page.evaluate(
@@ -1317,7 +1751,6 @@ class WorkableHandler(ATSHandler):
             if await self._fill_select(page, data_ui, guess):
                 filled += 1
             else:
-                # Force first option.
                 if await self._fill_select(page, data_ui, ""):
                     filled += 1
 
@@ -1478,6 +1911,7 @@ class WorkableHandler(ATSHandler):
                             page,
                             "textarea[name='summary'], textarea[data-ui='summary']",
                             cv_data.summary,
+                            cv_data=cv_data,
                         )
                         filled += 1
 
@@ -1518,6 +1952,11 @@ class WorkableHandler(ATSHandler):
                 input_type = (await field_el.get_attribute("type") or "").lower()
                 if input_type == "file":
                     continue
+                if input_type == "checkbox":
+                    if await self._fill_checkbox(page, selector, str(value)):
+                        filled += 1
+                        logger.info("Workable: checkbox %s", selector[:50])
+                    continue
                 if input_type == "radio":
                     name = await field_el.get_attribute("name") or ""
                     if name and await self._click_radio_option(
@@ -1545,7 +1984,7 @@ class WorkableHandler(ATSHandler):
                         filled += 1
                     continue
 
-                await self._fill_text(page, selector, str(value))
+                await self._fill_text(page, selector, str(value), cv_data=cv_data)
                 filled += 1
 
             # Ensure required Country select gets a value from CV location.
@@ -1586,6 +2025,23 @@ class WorkableHandler(ATSHandler):
             if gap_filled:
                 logger.info("Workable: gap-filled %d required fields", gap_filled)
 
+            ok, error = await self._ensure_resume_attached(page, cv_data)
+            if not ok:
+                return FillResult(
+                    success=False,
+                    ats_type=self.ats_name,
+                    fields_filled=filled,
+                    error=error or "Resume not attached before submit",
+                )
+
+            consent_checked = await self._fill_required_checkboxes(page)
+            if consent_checked:
+                filled += consent_checked
+                logger.info(
+                    "Workable: checked %d consent checkbox(es) before submit",
+                    consent_checked,
+                )
+
             await random_pause(0.5, 1.0)
 
             submit_btn = await page.query_selector(_SUBMIT_SELECTOR)
@@ -1617,30 +2073,10 @@ class WorkableHandler(ATSHandler):
 
             logger.info("Workable: clicking submit (%d fields filled)", filled)
 
-            def _is_submit_response(response) -> bool:
-                try:
-                    if response.request.method.upper() != "POST":
-                        return False
-                    url = response.url.lower()
-                    if not any(
-                        token in url
-                        for token in (
-                            "application",
-                            "workable",
-                            "candidate",
-                            "apply",
-                            "submit",
-                        )
-                    ):
-                        return False
-                    return 200 <= response.status < 300
-                except Exception:
-                    return False
-
-            async def _click_submit_and_wait(api_timeout_ms: int = 12_000) -> bool:
+            async def _click_submit_and_wait(api_timeout_ms: int = 20_000) -> bool:
                 try:
                     async with page.expect_response(
-                        _is_submit_response, timeout=api_timeout_ms
+                        _is_workable_submit_response, timeout=api_timeout_ms
                     ) as pending:
                         submit_loc = page.locator(_SUBMIT_SELECTOR).first
                         try:
@@ -1649,14 +2085,14 @@ class WorkableHandler(ATSHandler):
                             await submit_loc.click(force=True)
                         response = await pending.value
                     logger.info(
-                        "Workable: submit API succeeded (%s %s)",
+                        "Workable: application submit API succeeded (%s %s)",
                         response.status,
                         response.url[:120],
                     )
                     return True
                 except Exception:
                     logger.info(
-                        "Workable: no matching submit API response; using page heuristics"
+                        "Workable: no application submit API response; using page heuristics"
                     )
                     return False
 
