@@ -96,15 +96,35 @@ def _title_keywords(job_title: str | None) -> set[str]:
     return keywords
 
 
+def _relevance_score(employee, keywords: set[str]) -> int:
+    title = (employee.title or "").lower()
+    if not title or not keywords:
+        return 0
+    return sum(1 for keyword in keywords if keyword in title)
+
+
 def _filter_relevant_employees(
     employees: list,
     job_title: str | None,
     limit: int,
 ) -> list:
-    """Prefer employees whose headline matches the applied role."""
+    """Rank employees by role relevance; avoid dropping candidates when few are found."""
+    if not employees:
+        return []
+
     keywords = _title_keywords(job_title)
     if not keywords:
         return employees[:limit]
+
+    # When discovery returns few people, rank by relevance but keep up to `limit`
+    # instead of hard-filtering to a single keyword match.
+    if len(employees) <= limit:
+        ranked = sorted(
+            employees,
+            key=lambda employee: _relevance_score(employee, keywords),
+            reverse=True,
+        )
+        return ranked[:limit]
 
     relevant = [
         employee
@@ -113,7 +133,12 @@ def _filter_relevant_employees(
         and any(keyword in employee.title.lower() for keyword in keywords)
     ]
     chosen = relevant if relevant else employees
-    return chosen[:limit]
+    ranked = sorted(
+        chosen,
+        key=lambda employee: _relevance_score(employee, keywords),
+        reverse=True,
+    )
+    return ranked[:limit]
 
 
 async def _publish_session_error(
@@ -235,7 +260,14 @@ async def _run_discover_and_connect(payload: DiscoverConnectPayload) -> list[dic
                     )
                 return []
 
+            discovered_count = len(employees)
             employees = _filter_relevant_employees(employees, payload.job_title, limit)
+            logger.info(
+                "Selected %d/%d employees for connect (limit=%d)",
+                len(employees),
+                discovered_count,
+                limit,
+            )
             if not employees:
                 logger.warning(
                     "No employees discovered for company=%s job_id=%s",

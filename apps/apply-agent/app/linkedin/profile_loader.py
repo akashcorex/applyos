@@ -42,40 +42,63 @@ async def load_profile(page: Page, profile_url: str) -> ProfileActions:
 
     actions = ProfileActions()
 
-    # Extract name
-    name_el = await page.query_selector("h1.text-heading-xlarge, h1.inline")
-    if name_el:
-        actions.name = (await name_el.inner_text()).strip()
+    # Extract name — LinkedIn markup varies by locale and A/B tests
+    name_selectors = (
+        "h1.text-heading-xlarge",
+        "h1.inline",
+        "h1[data-anonymize='person-name']",
+        ".pv-text-details-left-panel h1",
+    )
+    for selector in name_selectors:
+        name_el = await page.query_selector(selector)
+        if name_el:
+            text = (await name_el.inner_text()).strip()
+            if text:
+                actions.name = text
+                break
 
     # Extract headline
-    headline_el = await page.query_selector("div.text-body-medium, div.pv-text-details__left-panel div")
+    headline_el = await page.query_selector(
+        "div.text-body-medium.break-words, "
+        "div.text-body-medium, "
+        "div.pv-text-details__left-panel div.text-body-medium"
+    )
     if headline_el:
         actions.headline = (await headline_el.inner_text()).strip()
 
-    # Check for Connect button
-    connect_btn = await page.query_selector(
-        "button:has-text('Connect'), "
-        "button[aria-label*='connect' i], "
-        "div.pvs-profile-actions button:has-text('Connect')"
-    )
-    if connect_btn:
-        actions.can_connect = True
+    profile_actions = page.locator(
+        ".pvs-profile-actions, .pv-top-card-v2-ctas"
+    ).first
 
-    # Check if already connected
-    msg_btn = await page.query_selector(
-        "button:has-text('Message'), "
-        "a:has-text('Message')"
-    )
-    if msg_btn and not connect_btn:
+    # Connect in primary profile action bar (exclude Follow-only buttons)
+    connect_btn = profile_actions.locator(
+        "button:has-text('Connect'), "
+        "button[aria-label*='Invite'][aria-label*='connect' i]"
+    ).first
+    try:
+        actions.can_connect = await connect_btn.is_visible(timeout=2_000)
+    except Exception:
+        actions.can_connect = False
+
+    # Already connected → Message visible, no Connect
+    msg_btn = profile_actions.locator(
+        "button:has-text('Message'), a:has-text('Message')"
+    ).first
+    try:
+        has_message = await msg_btn.is_visible(timeout=1_500)
+    except Exception:
+        has_message = False
+    if has_message and not actions.can_connect:
         actions.is_already_connected = True
 
-    # Check for Follow button
-    follow_btn = await page.query_selector(
-        "button:has-text('Follow'), "
-        "button[aria-label*='follow' i]"
-    )
-    if follow_btn:
-        actions.can_follow = True
+    # Follow as fallback when Connect unavailable
+    follow_btn = profile_actions.locator(
+        "button:has-text('Follow'), button[aria-label*='follow' i]"
+    ).first
+    try:
+        actions.can_follow = await follow_btn.is_visible(timeout=1_500)
+    except Exception:
+        actions.can_follow = False
 
     logger.info(
         "Profile loaded: name=%s connect=%s follow=%s already_connected=%s",
