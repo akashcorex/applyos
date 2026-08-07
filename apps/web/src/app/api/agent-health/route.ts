@@ -3,6 +3,7 @@ const AGENTS = [
   { name: 'Job Agent', url: 'http://127.0.0.1:8002/health', port: 8002 },
   { name: 'Apply Agent', url: 'http://127.0.0.1:8003/health', port: 8003 },
   { name: 'Outreach Agent', url: 'http://127.0.0.1:8004/health', port: 8004 },
+  { name: 'Resume Agent', url: 'http://127.0.0.1:8005/health', port: 8005 },
 ] as const;
 
 interface AgentHealth {

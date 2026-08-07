@@ -33,9 +33,9 @@ class ResumeRepository:
                     user_id, full_name, email, phone, location, summary,
                     experience_years, skills, education, work_history,
                     preferred_role, preferred_locations, raw_text,
-                    file_name, file_type
+                    file_name, file_type, file_path
                 )
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
                 RETURNING id, created_at
                 """,
                 record.user_id,
@@ -53,10 +53,25 @@ class ResumeRepository:
                 record.raw_text,
                 record.file_name,
                 record.file_type,
+                record.file_path,
             )
         resume_id = str(row["id"])
         logger.info("Stored resume id=%s user=%s", resume_id, record.user_id)
         return resume_id
+
+    async def update_file_path(self, resume_id: str, file_path: str) -> None:
+        async with self._pool.acquire() as conn:
+            result = await conn.execute(
+                """
+                UPDATE resumes
+                SET file_path = $2, updated_at = NOW()
+                WHERE id = $1
+                """,
+                _to_uuid(resume_id),
+                file_path,
+            )
+        if result == "UPDATE 0":
+            raise ResumeNotFoundError(f"Resume {resume_id} not found")
 
     async def get(self, resume_id: str) -> ResumeRecord:
         async with self._pool.acquire() as conn:
@@ -86,6 +101,7 @@ class ResumeRepository:
             raw_text=row["raw_text"],
             file_name=row["file_name"],
             file_type=row["file_type"],
+            file_path=row.get("file_path"),
         )
 
 

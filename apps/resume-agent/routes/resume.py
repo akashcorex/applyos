@@ -20,6 +20,7 @@ from services.db import ResumeNotFoundError
 from services.extractor import LLMExtractor
 from services.matcher import JobMatcher
 from services.parser import ResumeParser, UnsupportedFileTypeError
+from services.storage import save_resume_file
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +52,7 @@ def _to_response(record: ResumeRecord, resume_id: str) -> ParseResponse:
         raw_text=record.raw_text,
         file_name=record.file_name,
         file_type=record.file_type,
+        file_path=record.file_path,
     )
 
 
@@ -96,6 +98,20 @@ async def parse_resume(
     except Exception as exc:
         logger.error("Failed to persist resume: %s", exc)
         raise HTTPException(status_code=500, detail="Failed to store resume") from exc
+
+    try:
+        file_path = save_resume_file(
+            user_id=user_id,
+            resume_id=resume_id,
+            raw_bytes=raw_bytes,
+            file_name=file.filename,
+            file_type=file_type,
+        )
+        await state.repository.update_file_path(resume_id, file_path)
+        record.file_path = file_path
+    except Exception as exc:
+        logger.error("Failed to store resume file: %s", exc)
+        raise HTTPException(status_code=500, detail="Failed to store resume file") from exc
 
     if state.rag_pipeline is not None and record.raw_text:
         try:

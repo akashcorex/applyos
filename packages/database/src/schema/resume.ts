@@ -38,6 +38,7 @@ export const resumes = pgTable(
     rawText: text('raw_text'),
     fileName: text('file_name'),
     fileType: text('file_type'),
+    filePath: text('file_path'),
     createdAt: timestamp('created_at', { withTimezone: true })
       .defaultNow()
       .notNull(),

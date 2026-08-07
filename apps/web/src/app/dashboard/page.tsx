@@ -1,12 +1,12 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { LogOut } from 'lucide-react';
 
 import { authClient } from '@/lib/auth-client';
 import { AgentStatusPanel } from '@/components/AgentStatusPanel';
-import { CompanyDiscoveryPanel } from '@/components/CompanyDiscoveryPanel';
+import { ResumeAutoApplyCard } from '@/components/ResumeAutoApplyCard';
 import { WorkflowPanel } from '@/components/WorkflowPanel';
 import { LinkedInConnectCard } from '@/components/LinkedInConnectCard';
 import { Avatar, AvatarFallback } from '@org/ui/avatar';
@@ -16,6 +16,8 @@ import { Separator } from '@org/ui/separator';
 export default function DashboardPage() {
   const router = useRouter();
   const { data: session, isPending } = authClient.useSession();
+  const [focusWorkflowId, setFocusWorkflowId] = useState<string | null>(null);
+  const [workflowRefreshKey, setWorkflowRefreshKey] = useState(0);
 
   useEffect(() => {
     if (!isPending && !session) {
@@ -77,14 +79,22 @@ export default function DashboardPage() {
         <div className="mb-6">
           <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
           <p className="text-sm text-muted-foreground">
-            Discover jobs, manage workflows, and connect accounts.
+            Upload your resume and let ApplyOS find and apply to matching jobs.
           </p>
         </div>
 
         <div className="grid gap-6 xl:grid-cols-2">
-          <CompanyDiscoveryPanel />
+          <ResumeAutoApplyCard
+            onWorkflowStarted={(workflowId) => {
+              setFocusWorkflowId(workflowId);
+              setWorkflowRefreshKey((key) => key + 1);
+            }}
+          />
           <div className="grid gap-6 content-start">
-            <WorkflowPanel />
+            <WorkflowPanel
+              focusWorkflowId={focusWorkflowId}
+              refreshKey={workflowRefreshKey}
+            />
             <AgentStatusPanel />
             <LinkedInConnectCard />
           </div>

@@ -119,36 +119,32 @@ function shortId(id: string): string {
   return id.length > 8 ? `${id.slice(0, 8)}…` : id;
 }
 
-export function WorkflowPanel() {
+export function WorkflowPanel({
+  focusWorkflowId,
+  refreshKey = 0,
+}: {
+  focusWorkflowId?: string | null;
+  refreshKey?: number;
+}) {
   const [workflows, setWorkflows] = useState<WorkflowSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<WorkflowDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
 
-  useEffect(() => {
-    async function fetchWorkflows() {
-      try {
-        const res = await fetch('/api/workflows');
-        const data = await res.json();
-        setWorkflows(data.workflows ?? []);
-      } catch {
-        // orchestrator not running
-      } finally {
-        setLoading(false);
-      }
+  async function fetchWorkflows() {
+    try {
+      const res = await fetch('/api/workflows');
+      const data = await res.json();
+      setWorkflows(data.workflows ?? []);
+    } catch {
+      // orchestrator not running
+    } finally {
+      setLoading(false);
     }
-    fetchWorkflows();
-    const interval = setInterval(fetchWorkflows, 15000);
-    return () => clearInterval(interval);
-  }, []);
+  }
 
-  async function handleToggle(id: string) {
-    if (expandedId === id) {
-      setExpandedId(null);
-      setDetail(null);
-      return;
-    }
+  async function loadWorkflowDetail(id: string) {
     setExpandedId(id);
     setDetailLoading(true);
     setDetail(null);
@@ -167,6 +163,28 @@ export function WorkflowPanel() {
     }
   }
 
+  useEffect(() => {
+    fetchWorkflows();
+    const interval = setInterval(fetchWorkflows, 15000);
+    return () => clearInterval(interval);
+  }, [refreshKey]);
+
+  useEffect(() => {
+    if (!focusWorkflowId) {
+      return;
+    }
+    void loadWorkflowDetail(focusWorkflowId);
+  }, [focusWorkflowId]);
+
+  async function handleToggle(id: string) {
+    if (expandedId === id) {
+      setExpandedId(null);
+      setDetail(null);
+      return;
+    }
+    await loadWorkflowDetail(id);
+  }
+
   const count =
     workflows.length > 0 ? `${workflows.length} recent` : 'None';
 
@@ -181,8 +199,7 @@ export function WorkflowPanel() {
             variant="ghost"
             onClick={() => {
               setLoading(true);
-              setExpandedId(null);
-              setDetail(null);
+              void fetchWorkflows();
             }}
           >
             <RefreshCw className="h-4 w-4" />

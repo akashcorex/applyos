@@ -39,6 +39,7 @@ class ResumeRecord(BaseModel):
     raw_text: str | None = None
     file_name: str | None = None
     file_type: str | None = None
+    file_path: str | None = None
 
 
 class ParseResponse(BaseModel):
@@ -58,6 +59,7 @@ class ParseResponse(BaseModel):
     raw_text: str | None = None
     file_name: str | None = None
     file_type: str | None = None
+    file_path: str | None = None
 
 
 class MatchedJob(BaseModel):
