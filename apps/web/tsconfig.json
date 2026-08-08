@@ -28,6 +28,7 @@
   "include": [
     "src/**/*.ts",
     "src/**/*.tsx",
+    "src/**/*.d.ts",
     "src/**/*.js",
     "src/**/*.jsx",
     ".next/types/**/*.ts",

@@ -1,13 +1,14 @@
 import './global.css';
 
 import type { Metadata } from 'next';
+import Script from 'next/script';
 import { Analytics } from '@vercel/analytics/next';
 import { Toaster } from '@org/ui';
 
-/**
- * Public marketing origin for Open Graph / Twitter cards.
- * Must never point at the API host — WhatsApp/FB fetch og:image from this base.
- */
+const GA_MEASUREMENT_ID =
+  process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID ?? '';
+
+
 function resolveSiteUrl(): string {
   const fallback = 'https://www.applyos.in';
   const raw =
@@ -95,6 +96,25 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
+      <head>
+        {GA_MEASUREMENT_ID ? (
+          <>
+            <Script
+              async
+              src={`https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`}
+              strategy="afterInteractive"
+            />
+            <Script id="google-analytics" strategy="afterInteractive">
+              {`
+                window.dataLayer = window.dataLayer || [];
+                function gtag(){dataLayer.push(arguments);}
+                gtag('js', new Date());
+                gtag('config', '${GA_MEASUREMENT_ID}');
+              `}
+            </Script>
+          </>
+        ) : null}
+      </head>
       <body suppressHydrationWarning>
         {children}
         <Toaster />
