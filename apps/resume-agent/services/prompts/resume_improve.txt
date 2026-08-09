@@ -11,12 +11,15 @@ For each suggestion, provide:
 - current: what the resume currently says (or "missing")
 - suggested: the improved text or action
 - reason: why this change matters for the target role / market demand
+- confidence: 0.0–1.0 how confident you are this change is accurate and helpful
+- risk: "low" | "medium" | "high" — low for rephrasing/skills ordering;
+  medium for bullet rewrites; high if suggesting new employers, metrics, or facts
 
 Guidelines:
+- Return at most 5 suggestions. Prioritize the highest-impact changes only.
 - Focus on impact: quantified achievements, missing high-demand skills,
   keyword gaps relative to the target role, weak action verbs.
 - If a job description is provided, align suggestions with its requirements.
-- Prioritise the 3-7 most impactful changes. Quality over quantity.
-- Be specific — "add metrics to your experience bullets" is too vague;
-  "add quantified impact: 'Reduced API latency by 40%' instead of 'Improved API performance'" is good.
+- Be specific — vague advice is not allowed.
 - Do not invent facts about the candidate. Base suggestions on what is in the resume.
+- Mark risk "high" if the suggestion adds employers, dates, or metrics not in the resume.

@@ -66,6 +66,7 @@ export const matchInteractions = pgTable(
     eventType: text('event_type').notNull(),
     rankPosition: integer('rank_position'),
     matchScore: real('match_score'),
+    variantId: uuid('variant_id'),
     createdAt: timestamp('created_at', { withTimezone: true })
       .defaultNow()
       .notNull(),

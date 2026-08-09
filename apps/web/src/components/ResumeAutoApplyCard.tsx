@@ -1,10 +1,15 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import { FileUp, Loader2, RefreshCw, Sparkles, X } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Check, FileUp, Loader2, Pencil, RefreshCw, Sparkles, X } from 'lucide-react';
 
 import { trackMatchInteraction } from '@/lib/match-analytics';
 import { authClient } from '@/lib/auth-client';
+import {
+  ResumeVariantEditor,
+  type ResumeVariant,
+  type TailorJobContext,
+} from '@/components/ResumeVariantEditor';
 import { Button } from '@applyso/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@applyso/ui/card';
 import { Badge } from '@applyso/ui/badge';
@@ -28,6 +33,7 @@ interface MatchedJob {
   behavior_boost?: number | null;
   application_url?: string | null;
   dedup_key?: string | null;
+  description?: string | null;
   matched_skills?: string[];
   matching_skills?: string[];
   missing_skills?: string[];
@@ -64,6 +70,28 @@ export function ResumeAutoApplyCard({
   const [maxApplies, setMaxApplies] = useState(5);
   const [lastWorkflowId, setLastWorkflowId] = useState<string | null>(null);
   const [skippedKeys, setSkippedKeys] = useState<Set<string>>(new Set());
+  const [variantsByDedup, setVariantsByDedup] = useState<
+    Record<string, ResumeVariant>
+  >({});
+  const [tailorJob, setTailorJob] = useState<TailorJobContext | null>(null);
+  const [tailorVariant, setTailorVariant] = useState<ResumeVariant | null>(
+    null,
+  );
+
+  const loadVariants = useCallback(async (resumeId: string) => {
+    try {
+      const res = await fetch(`/api/resume/${resumeId}/variants`);
+      if (!res.ok) return;
+      const data = await res.json();
+      const map: Record<string, ResumeVariant> = {};
+      for (const v of data.variants ?? []) {
+        map[v.dedup_key] = v;
+      }
+      setVariantsByDedup(map);
+    } catch {
+      // non-fatal
+    }
+  }, []);
 
   async function loadMatches(resumeId: string, intentOverride?: string) {
     setMatching(true);
@@ -96,6 +124,7 @@ export function ResumeAutoApplyCard({
       if (data.intent_override && !trimmedIntent) {
         setIntent(data.intent_override);
       }
+      await loadVariants(resumeId);
     } catch {
       setError('Job matching failed — ensure job-agent is running');
     } finally {
@@ -212,6 +241,24 @@ export function ResumeAutoApplyCard({
       return;
     }
 
+    const jobsToApply = topMatches.filter((j) => j.dedup_key);
+    const notReady = jobsToApply.filter(
+      (j) => variantsByDedup[j.dedup_key!]?.status !== 'ready',
+    );
+    if (notReady.length > 0) {
+      setError(
+        `Tailor and mark ready for: ${notReady.map((j) => j.company_name).join(', ')}`,
+      );
+      return;
+    }
+
+    const variantIds: Record<string, string> = {};
+    for (const job of jobsToApply) {
+      if (job.dedup_key && variantsByDedup[job.dedup_key]) {
+        variantIds[job.dedup_key] = variantsByDedup[job.dedup_key].id;
+      }
+    }
+
     setApplying(true);
     setError(null);
 
@@ -224,6 +271,8 @@ export function ResumeAutoApplyCard({
           user_id: userId,
           max_applies: maxApplies,
           session_id: matchSessionId,
+          jobs: jobsToApply,
+          variant_ids: variantIds,
         }),
       });
       const data = await res.json();
@@ -235,6 +284,7 @@ export function ResumeAutoApplyCard({
       if (matchSessionId && data.jobs) {
         for (const job of data.jobs as MatchedJob[]) {
           if (!job.dedup_key) continue;
+          const variantId = variantsByDedup[job.dedup_key]?.id;
           trackMatchInteraction({
             sessionId: matchSessionId,
             userId,
@@ -244,6 +294,7 @@ export function ResumeAutoApplyCard({
             companyName: job.company_name,
             eventType: 'apply',
             matchScore: job.match_score,
+            variantId,
           });
         }
       }
@@ -269,6 +320,34 @@ export function ResumeAutoApplyCard({
       return score >= 20;
     })
     .slice(0, maxApplies);
+
+  const allTopReady =
+    topMatches.length > 0 &&
+    topMatches.every(
+      (j) => j.dedup_key && variantsByDedup[j.dedup_key]?.status === 'ready',
+    );
+
+  function openTailor(job: MatchedJob) {
+    if (!job.dedup_key) return;
+    const existing = variantsByDedup[job.dedup_key];
+    setTailorVariant(existing ?? null);
+    setTailorJob({
+      dedup_key: job.dedup_key,
+      title: job.title,
+      company_name: job.company_name,
+      description: job.description,
+      missing_skills: job.missing_skills,
+      matched_skills: job.matched_skills ?? job.matching_skills,
+    });
+  }
+
+  function handleVariantSaved(variant: ResumeVariant) {
+    setVariantsByDedup((prev) => ({
+      ...prev,
+      [variant.dedup_key]: variant,
+    }));
+    setTailorVariant(variant);
+  }
 
   return (
     <Card>
@@ -446,7 +525,42 @@ export function ResumeAutoApplyCard({
                         </div>
                       )}
                       {inApplyList && (
-                        <p className="text-[10px] text-green-700">Queued for auto-apply</p>
+                        <p className="text-[10px] text-green-700">
+                          {job.dedup_key &&
+                          variantsByDedup[job.dedup_key]?.status === 'ready'
+                            ? 'Ready for auto-apply'
+                            : 'Queued — tailor resume required'}
+                        </p>
+                      )}
+                      {job.dedup_key && (
+                        <div className="flex items-center gap-2 pt-1">
+                          {variantsByDedup[job.dedup_key]?.status === 'ready' ? (
+                            <Badge
+                              variant="secondary"
+                              className="text-[10px] text-green-800"
+                            >
+                              <Check className="h-3 w-3 mr-1" />
+                              Tailored
+                            </Badge>
+                          ) : variantsByDedup[job.dedup_key]?.status ===
+                            'draft' ? (
+                            <Badge variant="outline" className="text-[10px]">
+                              Draft
+                            </Badge>
+                          ) : null}
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="h-7 text-xs"
+                            onClick={() => openTailor(job)}
+                          >
+                            <Pencil className="h-3 w-3 mr-1" />
+                            {variantsByDedup[job.dedup_key]
+                              ? 'Edit tailored resume'
+                              : 'Tailor resume'}
+                          </Button>
+                        </div>
                       )}
                     </li>
                   );
@@ -482,7 +596,8 @@ export function ResumeAutoApplyCard({
             applying ||
             !parsed?.resume_id ||
             matching ||
-            topMatches.length === 0
+            topMatches.length === 0 ||
+            !allTopReady
           }
           onClick={() => void handleStartApplying()}
         >
@@ -491,8 +606,25 @@ export function ResumeAutoApplyCard({
           ) : (
             <Sparkles className="h-4 w-4" />
           )}
-          {applying ? 'Starting applications...' : 'Start applying'}
+          {applying
+            ? 'Starting applications...'
+            : allTopReady
+              ? 'Start applying'
+              : 'Tailor resumes to apply'}
         </Button>
+
+        {tailorJob && parsed?.resume_id && (
+          <ResumeVariantEditor
+            resumeId={parsed.resume_id}
+            job={tailorJob}
+            variant={tailorVariant}
+            onClose={() => {
+              setTailorJob(null);
+              setTailorVariant(null);
+            }}
+            onSaved={handleVariantSaved}
+          />
+        )}
 
         {lastWorkflowId && (
           <p className="text-sm text-green-700">

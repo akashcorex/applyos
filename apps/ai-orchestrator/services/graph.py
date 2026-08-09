@@ -66,7 +66,7 @@ def _direct_jobs_to_records(request: StartWorkflowRequest) -> list[DiscoveredJob
     for job in request.jobs:
         source = job.source or _ats_from_url(job.application_url)  # type: ignore[arg-type]
         external_id = job.external_id or job.application_url.rstrip("/").split("/")[-1]
-        dedup_key = f"{source}:{job.company_name}:{external_id}"
+        dedup_key = job.dedup_key or f"{source}:{job.company_name}:{external_id}"
         records.append(
             DiscoveredJobRecord(
                 external_id=external_id,
@@ -79,6 +79,7 @@ def _direct_jobs_to_records(request: StartWorkflowRequest) -> list[DiscoveredJob
                 description_raw=job.description_raw,
                 dedup_key=dedup_key,
                 filter_score=1.0,
+                cv_data=job.cv_data,
             )
         )
     return records
@@ -214,7 +215,7 @@ async def apply_jobs_node(state: WorkflowState, config) -> dict:
             company_name=job.company_name,
             job_title=job.title,
             job_description=job.description_raw,
-            cv_data=request.cv_data,
+            cv_data=job.cv_data or request.cv_data,
             user_profile=request.user_profile,
         )
 

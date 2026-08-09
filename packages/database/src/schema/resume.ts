@@ -42,6 +42,8 @@ export const resumes = pgTable(
     profileEmbedding: jsonb('profile_embedding'),
     profileTextHash: text('profile_text_hash'),
     lastMatchIntent: text('last_match_intent'),
+    /** Persistent editable profile — improvements compound across job variants. */
+    baseProfile: jsonb('base_profile'),
     createdAt: timestamp('created_at', { withTimezone: true })
       .defaultNow()
       .notNull(),
@@ -53,4 +55,55 @@ export const resumes = pgTable(
     index('idx_resumes_user_id').on(table.userId),
     index('idx_resumes_skills').using('gin', table.skills),
   ],
+);
+
+export const resumeVariants = pgTable(
+  'resume_variants',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    resumeId: uuid('resume_id')
+      .notNull()
+      .references(() => resumes.id, { onDelete: 'cascade' }),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    dedupKey: text('dedup_key').notNull(),
+    jobTitle: text('job_title'),
+    companyName: text('company_name'),
+    jobDescription: text('job_description'),
+    status: text('status').notNull().default('draft'),
+    content: jsonb('content').notNull(),
+    suggestions: jsonb('suggestions').default([]).notNull(),
+    filePath: text('file_path'),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    index('idx_resume_variants_resume_id').on(table.resumeId),
+    index('idx_resume_variants_user_id').on(table.userId),
+    index('idx_resume_variants_dedup').on(table.resumeId, table.dedupKey),
+  ],
+);
+
+export const variantVersions = pgTable(
+  'variant_versions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    variantId: uuid('variant_id')
+      .notNull()
+      .references(() => resumeVariants.id, { onDelete: 'cascade' }),
+    resumeId: uuid('resume_id')
+      .notNull()
+      .references(() => resumes.id, { onDelete: 'cascade' }),
+    contentSnapshot: jsonb('content_snapshot').notNull(),
+    changeReason: text('change_reason').notNull().default('save'),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [index('idx_variant_versions_variant_id').on(table.variantId)],
 );

@@ -37,3 +37,16 @@ def save_resume_file(
     path = user_dir / f"{resume_id}{ext}"
     path.write_bytes(raw_bytes)
     return str(path.resolve())
+
+
+def save_variant_pdf(
+    *,
+    user_id: str,
+    variant_id: str,
+    pdf_bytes: bytes,
+) -> str:
+    user_dir = _UPLOADS_ROOT / _safe_segment(user_id) / "variants"
+    user_dir.mkdir(parents=True, exist_ok=True)
+    path = user_dir / f"{variant_id}.pdf"
+    path.write_bytes(pdf_bytes)
+    return str(path.resolve())

@@ -73,8 +73,10 @@ class MatchedJob(BaseModel):
     seniority: str | None = None
     application_url: HttpUrl | str | None = None
     dedup_key: str | None = None
+    external_id: str | None = None
     ats_type: str | None = None
     ats_slug: str | None = None
+    description: str | None = None
     # Final score 0–100 (70% embedding + 30% skill, then behavior adjustment).
     match_score: float = 0.0
     base_score: float | None = None
@@ -108,6 +110,7 @@ class MatchInteractionRequest(BaseModel):
     event_type: Literal["impression", "click", "apply", "skip"]
     rank_position: int | None = Field(default=None, ge=0)
     match_score: float | None = Field(default=None, ge=0.0, le=100.0)
+    variant_id: str | None = None
 
 
 class MatchInteractionResponse(BaseModel):
@@ -173,6 +176,8 @@ class ImprovementSuggestion(BaseModel):
     current: str
     suggested: str
     reason: str
+    confidence: float = Field(default=0.7, ge=0.0, le=1.0)
+    risk: Literal["low", "medium", "high"] = "medium"
 
 
 class ImprovementSuggestions(BaseModel):
@@ -184,3 +189,100 @@ class ImproveResponse(BaseModel):
     resume_id: str
     suggestions: list[ImprovementSuggestion] = Field(default_factory=list)
     overall_assessment: str = ""
+
+
+class VariantContent(BaseModel):
+    """Editable structured resume fields for a job-specific variant."""
+
+    full_name: str
+    email: str
+    phone: str | None = None
+    location: str | None = None
+    summary: str | None = None
+    experience_years: int = 0
+    skills: list[str] = Field(default_factory=list)
+    education: list[Education] = Field(default_factory=list)
+    work_history: list[WorkHistory] = Field(default_factory=list)
+    preferred_role: str | None = None
+
+
+class SuggestionWithId(ImprovementSuggestion):
+    id: str
+
+
+class VariantSuggestions(BaseModel):
+    suggestions: list[SuggestionWithId] = Field(default_factory=list)
+    overall_assessment: str = ""
+
+
+VariantStatus = Literal["draft", "ready", "applied"]
+
+
+class CreateVariantRequest(BaseModel):
+    dedup_key: str = Field(min_length=1, max_length=200)
+    job_title: str = Field(min_length=1, max_length=300)
+    company_name: str = Field(min_length=1, max_length=200)
+    job_description: str | None = Field(default=None, max_length=8000)
+    missing_skills: list[str] = Field(default_factory=list)
+    matched_skills: list[str] = Field(default_factory=list)
+
+
+class UpdateVariantRequest(BaseModel):
+    content: VariantContent | None = None
+    accepted_suggestion_ids: list[str] = Field(default_factory=list)
+
+
+class FinalizeVariantRequest(BaseModel):
+    content: VariantContent | None = None
+    accepted_suggestion_ids: list[str] = Field(default_factory=list)
+
+
+class ResumeVariantResponse(BaseModel):
+    id: str
+    resume_id: str
+    user_id: str
+    dedup_key: str
+    job_title: str | None = None
+    company_name: str | None = None
+    job_description: str | None = None
+    status: VariantStatus
+    content: VariantContent
+    suggestions: VariantSuggestions = Field(default_factory=VariantSuggestions)
+    file_path: str | None = None
+    created_at: str | None = None
+    updated_at: str | None = None
+
+
+class VariantListResponse(BaseModel):
+    resume_id: str
+    variants: list[ResumeVariantResponse] = Field(default_factory=list)
+
+
+class VariantFinalizeResponse(BaseModel):
+    variant: ResumeVariantResponse
+    preview_url: str | None = None
+
+
+class BaseProfileResponse(BaseModel):
+    resume_id: str
+    content: VariantContent
+
+
+class UpdateBaseProfileRequest(BaseModel):
+    content: VariantContent
+
+
+class VariantVersionSummary(BaseModel):
+    id: str
+    variant_id: str
+    change_reason: str
+    created_at: str | None = None
+
+
+class VariantVersionDetail(VariantVersionSummary):
+    content_snapshot: VariantContent
+
+
+class VariantVersionListResponse(BaseModel):
+    variant_id: str
+    versions: list[VariantVersionSummary] = Field(default_factory=list)

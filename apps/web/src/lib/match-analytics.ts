@@ -10,6 +10,7 @@ interface TrackMatchInteractionInput {
   eventType: MatchEventType;
   rankPosition?: number;
   matchScore?: number;
+  variantId?: string;
 }
 
 /** Fire-and-forget match feedback — never blocks UI. */
@@ -27,6 +28,7 @@ export function trackMatchInteraction(input: TrackMatchInteractionInput): void {
       event_type: input.eventType,
       rank_position: input.rankPosition,
       match_score: input.matchScore,
+      variant_id: input.variantId,
     }),
   }).catch(() => {
     // Analytics must not break the product flow.

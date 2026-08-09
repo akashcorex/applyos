@@ -88,6 +88,7 @@ class ResumeRAGPipeline:
         resume_id: str,
         target_role: str | None = None,
         job_description: str | None = None,
+        profile_context: str | None = None,
         k: int | None = None,
     ) -> dict:
         """Retrieve resume chunks and suggest improvements for market demand."""
@@ -101,7 +102,15 @@ class ResumeRAGPipeline:
             }
         )
         docs: list[Document] = await retriever.ainvoke(query)
-        context = "\n\n".join(d.page_content for d in docs)
+        rag_context = "\n\n".join(d.page_content for d in docs)
+        if profile_context and profile_context.strip():
+            context = (
+                "Structured profile (authoritative current state):\n"
+                f"{profile_context.strip()}\n\n"
+                f"Additional resume excerpts:\n{rag_context}"
+            )
+        else:
+            context = rag_context
 
         system = _load_prompt("resume_improve.txt")
         prompt = ChatPromptTemplate.from_messages(

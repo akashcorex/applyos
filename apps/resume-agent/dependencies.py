@@ -25,6 +25,8 @@ from services.matching import (
     compute_profile_embedding,
 )
 from services.parser import ResumeParser
+from services.tailoring import TailorService, VariantRepository
+from services.tailoring.versions import VersionRepository
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +41,9 @@ class AppState:
     matching_repository: MatchingRepository | None = None
     match_sessions: MatchSessionService | None = None
     match_feedback: MatchFeedbackService | None = None
+    variant_repository: VariantRepository | None = None
+    version_repository: object | None = None
+    tailor_service: TailorService | None = None
     http_client: httpx.AsyncClient | None = None
     rag_pipeline: object | None = None
 
@@ -99,11 +104,50 @@ class AppState:
                     created_at timestamptz DEFAULT now() NOT NULL
                 )
             """)
+            await conn.execute("""
+                CREATE TABLE IF NOT EXISTS resume_variants (
+                    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+                    resume_id uuid NOT NULL REFERENCES resumes(id) ON DELETE CASCADE,
+                    user_id text NOT NULL,
+                    dedup_key text NOT NULL,
+                    job_title text,
+                    company_name text,
+                    job_description text,
+                    status text DEFAULT 'draft' NOT NULL,
+                    content jsonb NOT NULL,
+                    suggestions jsonb DEFAULT '[]'::jsonb NOT NULL,
+                    file_path text,
+                    created_at timestamptz DEFAULT now() NOT NULL,
+                    updated_at timestamptz DEFAULT now() NOT NULL,
+                    UNIQUE (resume_id, dedup_key)
+                )
+            """)
+            await conn.execute(
+                'ALTER TABLE resumes ADD COLUMN IF NOT EXISTS base_profile jsonb'
+            )
+            await conn.execute(
+                'ALTER TABLE match_interactions ADD COLUMN IF NOT EXISTS variant_id uuid'
+            )
+            await conn.execute("""
+                CREATE TABLE IF NOT EXISTS variant_versions (
+                    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+                    variant_id uuid NOT NULL REFERENCES resume_variants(id) ON DELETE CASCADE,
+                    resume_id uuid NOT NULL REFERENCES resumes(id) ON DELETE CASCADE,
+                    content_snapshot jsonb NOT NULL,
+                    change_reason text NOT NULL DEFAULT 'save',
+                    created_at timestamptz DEFAULT now() NOT NULL
+                )
+            """)
+            await conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_variant_versions_variant_id ON variant_versions (variant_id)"
+            )
 
         self.repository = ResumeRepository(self.pool)
         self.matching_repository = MatchingRepository(self.pool)
         self.match_sessions = MatchSessionService(self.matching_repository)
         self.match_feedback = MatchFeedbackService(self.matching_repository)
+        self.variant_repository = VariantRepository(self.pool)
+        self.version_repository = VersionRepository(self.pool)
         self.parser = ResumeParser()
 
         from services.llm import get_llm
@@ -131,6 +175,12 @@ class AppState:
         except Exception as exc:
             logger.warning("RAG pipeline not initialised: %s", exc)
             self.rag_pipeline = None
+
+        self.tailor_service = TailorService(
+            self.variant_repository,
+            self.version_repository,
+            self.rag_pipeline,
+        )
 
         logger.info("resume-agent started (db=%s)", settings.database_url)
 

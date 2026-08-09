@@ -14,7 +14,7 @@ from models import (
     MatchSessionSummary,
     MatchSessionsResponse,
 )
-from services.db import ResumeNotFoundError
+from services.authz import require_resume_owner
 
 logger = logging.getLogger(__name__)
 
@@ -44,10 +44,7 @@ async def record_match_interaction(
     if payload.resume_id != resume_id:
         raise HTTPException(status_code=400, detail="resume_id mismatch")
 
-    try:
-        await state.repository.get(resume_id)
-    except ResumeNotFoundError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    await require_resume_owner(state.repository, resume_id, request)
 
     interaction_id = await state.match_feedback.record(payload)
     return MatchInteractionResponse(interaction_id=interaction_id)
@@ -66,10 +63,7 @@ async def list_match_sessions(
     if state.matching_repository is None:
         raise HTTPException(status_code=503, detail="matching analytics not initialised")
 
-    try:
-        await state.repository.get(resume_id)
-    except ResumeNotFoundError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    await require_resume_owner(state.repository, resume_id, request)
 
     rows = await state.matching_repository.list_sessions(resume_id, limit=limit)
     sessions: list[MatchSessionSummary] = []

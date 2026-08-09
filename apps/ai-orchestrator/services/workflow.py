@@ -110,7 +110,7 @@ async def run_workflow(
                 company_name=job.company_name,
                 job_title=job.title,
                 job_description=job.description_raw,
-                cv_data=request.cv_data,
+                cv_data=job.cv_data or request.cv_data,
                 user_profile=request.user_profile,
             )
 

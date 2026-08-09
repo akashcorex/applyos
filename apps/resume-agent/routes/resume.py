@@ -16,7 +16,7 @@ from models import (
     ParseResponse,
     ResumeRecord,
 )
-from services.db import ResumeNotFoundError
+from services.authz import require_resume_owner, user_id_from_request
 from services.extractor import LLMExtractor
 from services.matching import (
     JobMatcher,
@@ -68,6 +68,11 @@ async def parse_resume(
     user_id: str = Form(..., min_length=1, max_length=128),
 ) -> ParseResponse:
     state = _state(request)
+    caller = user_id_from_request(request)
+    if caller is None:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    if caller != user_id:
+        raise HTTPException(status_code=403, detail="Forbidden")
     parser: ResumeParser = state.parser or ResumeParser()
     extractor: LLMExtractor = state.extractor or LLMExtractor()
 
@@ -146,10 +151,7 @@ async def parse_resume(
 @router.get("/resume/{resume_id}", response_model=ParseResponse)
 async def get_resume(resume_id: str, request: Request) -> ParseResponse:
     state = _state(request)
-    try:
-        record = await state.repository.get(resume_id)
-    except ResumeNotFoundError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    record = await require_resume_owner(state.repository, resume_id, request)
     return _to_response(record, resume_id)
 
 
@@ -166,10 +168,7 @@ async def match_resume(
     if matcher is None:
         raise HTTPException(status_code=503, detail="matcher not initialised")
 
-    try:
-        record = await state.repository.get(resume_id)
-    except ResumeNotFoundError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    record = await require_resume_owner(state.repository, resume_id, request)
 
     intent_override = (intent or "").strip() or None
     if not intent_override and record.last_match_intent:
@@ -245,10 +244,7 @@ async def chat_resume(
             detail="RAG pipeline not available — configure OPENAI_API_KEY and pgvector",
         )
 
-    try:
-        await state.repository.get(resume_id)
-    except ResumeNotFoundError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    await require_resume_owner(state.repository, resume_id, request)
 
     result = await state.rag_pipeline.chat(resume_id, payload.message)
     return ChatResponse(
@@ -272,10 +268,7 @@ async def improve_resume(
             detail="RAG pipeline not available — configure OPENAI_API_KEY and pgvector",
         )
 
-    try:
-        await state.repository.get(resume_id)
-    except ResumeNotFoundError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    await require_resume_owner(state.repository, resume_id, request)
 
     result = await state.rag_pipeline.improve(
         resume_id=resume_id,

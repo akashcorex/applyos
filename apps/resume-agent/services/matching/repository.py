@@ -76,6 +76,7 @@ class MatchingRepository:
         event_type: str,
         rank_position: int | None = None,
         match_score: float | None = None,
+        variant_id: str | None = None,
     ) -> str:
         if event_type not in VALID_EVENTS:
             raise ValueError(f"Invalid event_type: {event_type}")
@@ -86,9 +87,9 @@ class MatchingRepository:
                 INSERT INTO match_interactions (
                     session_id, user_id, resume_id, dedup_key,
                     job_title, company_name, event_type,
-                    rank_position, match_score
+                    rank_position, match_score, variant_id
                 )
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
                 RETURNING id
                 """,
                 _to_uuid(session_id),
@@ -100,6 +101,7 @@ class MatchingRepository:
                 event_type,
                 rank_position,
                 match_score,
+                _to_uuid(variant_id) if variant_id else None,
             )
         interaction_id = str(row["id"])
         logger.info(

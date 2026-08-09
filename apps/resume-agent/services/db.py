@@ -13,7 +13,8 @@ from typing import Any
 
 import asyncpg
 
-from models import ResumeRecord
+from models import ResumeRecord, VariantContent
+from services.tailoring.base_profile import parse_base_profile, record_to_base_profile
 
 logger = logging.getLogger(__name__)
 
@@ -56,9 +57,30 @@ class ResumeRepository:
                 record.file_type,
                 record.file_path,
             )
-        resume_id = str(row["id"])
+            resume_id = str(row["id"])
+            await self._ensure_base_profile(conn, resume_id, record)
         logger.info("Stored resume id=%s user=%s", resume_id, record.user_id)
         return resume_id
+
+    async def _ensure_base_profile(
+        self,
+        conn: asyncpg.Connection,
+        resume_id: str,
+        record: ResumeRecord,
+    ) -> None:
+        await conn.execute(
+            """
+            UPDATE resumes
+            SET base_profile = COALESCE(
+                base_profile,
+                $2::jsonb
+            ),
+            updated_at = NOW()
+            WHERE id = $1
+            """,
+            _to_uuid(resume_id),
+            json.dumps(record_to_base_profile(record).model_dump()),
+        )
 
     async def update_file_path(self, resume_id: str, file_path: str) -> None:
         async with self._pool.acquire() as conn:
@@ -114,6 +136,36 @@ class ResumeRepository:
             )
         if result == "UPDATE 0":
             raise ResumeNotFoundError(f"Resume {resume_id} not found")
+
+    async def get_base_profile(self, resume_id: str) -> VariantContent:
+        record = await self.get(resume_id)
+        async with self._pool.acquire() as conn:
+            row = await conn.fetchrow(
+                "SELECT base_profile FROM resumes WHERE id = $1",
+                _to_uuid(resume_id),
+            )
+        raw = row["base_profile"] if row else None
+        return parse_base_profile(raw, record)
+
+    async def update_base_profile(
+        self,
+        resume_id: str,
+        content: VariantContent,
+    ) -> VariantContent:
+        async with self._pool.acquire() as conn:
+            result = await conn.execute(
+                """
+                UPDATE resumes
+                SET base_profile = $2::jsonb,
+                    updated_at = NOW()
+                WHERE id = $1
+                """,
+                _to_uuid(resume_id),
+                json.dumps(content.model_dump()),
+            )
+        if result == "UPDATE 0":
+            raise ResumeNotFoundError(f"Resume {resume_id} not found")
+        return content
 
     async def get(self, resume_id: str) -> ResumeRecord:
         async with self._pool.acquire() as conn:

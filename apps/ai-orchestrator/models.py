@@ -71,6 +71,8 @@ class DirectApplyJob(BaseModel):
     department: str | None = None
     location: str | None = None
     description_raw: str | None = None
+    dedup_key: str | None = None
+    cv_data: CVData | None = None
 
 
 class StartWorkflowRequest(BaseModel):
@@ -130,6 +132,7 @@ class DiscoveredJobRecord(BaseModel):
     description_raw: str | None = None
     dedup_key: str
     filter_score: float = 0.0
+    cv_data: CVData | None = None
 
 
 class ApplyTaskRecord(BaseModel):

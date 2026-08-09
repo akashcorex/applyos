@@ -25,4 +25,5 @@ class MatchFeedbackService:
             event_type=payload.event_type,
             rank_position=payload.rank_position,
             match_score=payload.match_score,
+            variant_id=payload.variant_id,
         )
