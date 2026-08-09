@@ -4,11 +4,17 @@ from services.parsers.base import fetch_json_with_retries
 GREENHOUSE_JOBS_URL = "https://api.greenhouse.io/v1/boards/{slug}/jobs"
 
 
+def _strip_html(html: str) -> str:
+    import re
+
+    return re.sub(r"<[^>]+>", " ", html)
+
+
 class GreenhouseParser:
     ats_type = "greenhouse"
 
     async def fetch_jobs(self, slug: str) -> list[RawJob]:
-        url = GREENHOUSE_JOBS_URL.format(slug=slug)
+        url = f"{GREENHOUSE_JOBS_URL.format(slug=slug)}?content=true"
         payload = await fetch_json_with_retries(url)
 
         if not isinstance(payload, dict):
@@ -45,14 +51,18 @@ class GreenhouseParser:
                 else None
             )
 
+            content = item.get("content")
+            description_html = str(content).strip() if content else None
+            description_raw = _strip_html(description_html).strip() if description_html else None
+
             jobs.append(
                 RawJob(
                     external_id=external_id,
                     title=str(item.get("title", "")).strip(),
                     department=department,
                     location=location,
-                    description_raw=None,
-                    description_html=None,
+                    description_raw=description_raw or None,
+                    description_html=description_html,
                     workplace_type=None,
                     application_url=application_url,
                     raw_payload=item,

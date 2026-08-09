@@ -18,7 +18,12 @@ from models import (
 )
 from services.db import ResumeNotFoundError
 from services.extractor import LLMExtractor
-from services.matcher import JobMatcher
+from services.matching import (
+    JobMatcher,
+    MatchSessionService,
+    cached_embedding_valid,
+    compute_profile_embedding,
+)
 from services.parser import ResumeParser, UnsupportedFileTypeError
 from services.storage import save_resume_file
 
@@ -125,6 +130,16 @@ async def parse_resume(
         except Exception as exc:
             logger.warning("RAG ingestion failed (non-fatal): %s", exc)
 
+    embed_result = await compute_profile_embedding(record)
+    if embed_result is not None:
+        vector, text_hash = embed_result
+        try:
+            await state.repository.update_profile_embedding(resume_id, vector, text_hash)
+            record.profile_embedding = vector
+            record.profile_text_hash = text_hash
+        except Exception as exc:
+            logger.warning("Profile embedding cache failed (non-fatal): %s", exc)
+
     return _to_response(record, resume_id)
 
 
@@ -144,6 +159,7 @@ async def match_resume(
     request: Request,
     max_companies: int = 10,
     max_jobs: int = 50,
+    intent: str | None = None,
 ) -> MatchResponse:
     state = _state(request)
     matcher: JobMatcher | None = state.matcher
@@ -155,12 +171,65 @@ async def match_resume(
     except ResumeNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
-    return await matcher.match(
+    intent_override = (intent or "").strip() or None
+    if not intent_override and record.last_match_intent:
+        intent_override = record.last_match_intent.strip() or None
+
+    if intent_override:
+        try:
+            await state.repository.update_last_match_intent(resume_id, intent_override)
+            record.last_match_intent = intent_override
+        except Exception as exc:
+            logger.warning("Failed to persist match intent: %s", exc)
+    elif intent is not None and intent.strip() == "":
+        # Explicit clear from client.
+        try:
+            await state.repository.update_last_match_intent(resume_id, None)
+            record.last_match_intent = None
+        except Exception as exc:
+            logger.warning("Failed to clear match intent: %s", exc)
+
+    if not cached_embedding_valid(record, intent_override=intent_override):
+        embed_result = await compute_profile_embedding(
+            record, intent_override=intent_override
+        )
+        if embed_result is not None and not intent_override:
+            vector, text_hash = embed_result
+            try:
+                await state.repository.update_profile_embedding(
+                    resume_id, vector, text_hash
+                )
+                record.profile_embedding = vector
+                record.profile_text_hash = text_hash
+            except Exception as exc:
+                logger.warning("Profile embedding refresh failed: %s", exc)
+
+    response, latency_ms = await matcher.match(
         resume=record,
         resume_id=resume_id,
         max_companies=max_companies,
         max_jobs=max_jobs,
+        intent_override=intent_override,
     )
+    response.intent_override = intent_override
+
+    session_service: MatchSessionService | None = state.match_sessions
+    if session_service is not None:
+        try:
+            session_id = await session_service.record(
+                user_id=record.user_id,
+                resume_id=resume_id,
+                response=response,
+                query_role=(record.preferred_role or "").strip() or "Software Engineer",
+                intent_override=intent_override,
+                latency_ms=latency_ms,
+            )
+            response.session_id = session_id
+            MatchSessionService.log_ranked_results(response, intent_override)
+        except Exception as exc:
+            logger.warning("Match session recording failed (non-fatal): %s", exc)
+
+    return response
 
 
 @router.post("/resume/{resume_id}/chat", response_model=ChatResponse)

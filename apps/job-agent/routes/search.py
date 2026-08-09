@@ -8,6 +8,7 @@ import logging
 from fastapi import APIRouter
 
 from models import ScrapeRequest, SearchRequest, SearchResponse, SearchResult
+from services.dedup import dedupe_search_results
 from services.ingest import scrape_jobs
 from services.parsers.yc import fetch_normalized_companies
 
@@ -90,6 +91,8 @@ async def search_jobs(payload: SearchRequest) -> SearchResponse:
         if isinstance(result, list):
             companies_scraped += 1
             all_results.extend(result)
+
+    all_results = dedupe_search_results(all_results)
 
     return SearchResponse(
         query=payload.job_title,

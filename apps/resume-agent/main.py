@@ -9,7 +9,7 @@ from fastapi import FastAPI
 
 from dependencies import app_state
 from logging_filters import install_health_access_filter
-from routes import health, resume
+from routes import health, matching, resume
 
 logging.basicConfig(
     level=logging.INFO,
@@ -33,3 +33,4 @@ app = FastAPI(title="resume-agent", lifespan=lifespan)
 
 app.include_router(health.router)
 app.include_router(resume.router)
+app.include_router(matching.router)

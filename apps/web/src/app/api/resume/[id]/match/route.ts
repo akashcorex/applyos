@@ -2,17 +2,26 @@ const RESUME_AGENT_URL =
   process.env.RESUME_AGENT_URL ?? 'http://127.0.0.1:8005';
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
-  const url = new URL(_request.url);
+  const url = new URL(request.url);
   const maxCompanies = url.searchParams.get('max_companies') ?? '10';
   const maxJobs = url.searchParams.get('max_jobs') ?? '50';
+  const intent = url.searchParams.get('intent');
+
+  const query = new URLSearchParams({
+    max_companies: maxCompanies,
+    max_jobs: maxJobs,
+  });
+  if (intent) {
+    query.set('intent', intent);
+  }
 
   try {
     const res = await fetch(
-      `${RESUME_AGENT_URL}/resume/${encodeURIComponent(id)}/match?max_companies=${maxCompanies}&max_jobs=${maxJobs}`,
+      `${RESUME_AGENT_URL}/resume/${encodeURIComponent(id)}/match?${query}`,
       { signal: AbortSignal.timeout(120000) },
     );
     const data = await res.json();

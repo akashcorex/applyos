@@ -14,6 +14,7 @@ from langchain_core.prompts import ChatPromptTemplate
 
 from models import ResumeRecord, RawLLMExtraction
 from services.llm import get_llm
+from services.skills import normalize_skills
 
 logger = logging.getLogger(__name__)
 
@@ -91,7 +92,7 @@ class LLMExtractor:
             location=partial.location,
             summary=partial.summary,
             experience_years=partial.experience_years or 0,
-            skills=partial.skills or [],
+            skills=normalize_skills(partial.skills or []),
             education=[
                 {
                     "degree": e.get("degree", ""),

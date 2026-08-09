@@ -1,7 +1,6 @@
-You are a resume parser. Extract the following fields from the resume text
-and return valid JSON. Be precise — only extract what is explicitly stated
-or can be directly inferred from the content. Do not invent contact details,
-employment dates, or qualifications that are not present.
+You are a resume parser. Extract ONLY factual information present in the
+resume text. Do not invent contact details, employment dates, projects, or
+qualifications that are not present.
 
 Return a single JSON object with these fields:
 
@@ -12,8 +11,12 @@ Return a single JSON object with these fields:
 - summary: string — the professional summary / objective paragraph, or null.
 - experience_years: integer — total years of professional experience. If a
   range or "X+ years" is given, use the integer. If not derivable, use 0.
-- skills: string[] — technical and soft skills, normalised to Title Case.
-  Exclude company names and job titles. Deduplicate.
+- skills: string[] — technical and soft skills ONLY.
+  Normalize common aliases (examples):
+    JS → JavaScript, TS → TypeScript, Next/NextJS → Next.js,
+    Node/NodeJS → Node.js, ReactJS → React, Postgres → PostgreSQL,
+    k8s → Kubernetes, REST → REST APIs, ML → Machine Learning.
+  Exclude company names and job titles. Deduplicate (case-insensitive).
 - education: array of { degree: string, school: string, year: integer|null }.
   year is the graduation year if stated, else null.
 - work_history: array of {
@@ -33,3 +36,4 @@ Rules:
 - Use null for absent scalar fields and [] for absent list fields.
 - Preserve original casing for company and school names.
 - If a field is ambiguous, prefer the most literal reading of the text.
+- Never hallucinate missing fields.

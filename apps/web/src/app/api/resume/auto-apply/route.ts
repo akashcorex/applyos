@@ -31,6 +31,7 @@ interface MatchedJob {
   company_name: string;
   location?: string | null;
   application_url?: string | null;
+  dedup_key?: string | null;
   external_id?: string | null;
   ats_type?: string | null;
   ats_slug?: string | null;
@@ -52,7 +53,8 @@ export async function POST(request: Request) {
       Math.max(Number(body.max_applies ?? 5), 1),
       10,
     );
-    const minScore = Number(body.min_score ?? 0);
+    // Match scores are 0–100. Default skips clearly irrelevant roles (<20).
+    const minScore = Number(body.min_score ?? 20);
 
     if (!resumeId) {
       return Response.json({ error: 'resume_id is required' }, { status: 400 });
@@ -95,12 +97,14 @@ export async function POST(request: Request) {
     const matchData = (await matchRes.json()) as MatchResponse;
 
     const eligibleJobs = (matchData.jobs ?? [])
-      .filter(
-        (job) =>
-          job.application_url &&
-          typeof job.match_score === 'number' &&
-          job.match_score >= minScore,
-      )
+      .filter((job) => {
+        if (!job.application_url || typeof job.match_score !== 'number') {
+          return false;
+        }
+        const score =
+          job.match_score <= 1 ? job.match_score * 100 : job.match_score;
+        return score >= minScore;
+      })
       .slice(0, maxApplies);
 
     if (eligibleJobs.length === 0) {
@@ -173,6 +177,7 @@ export async function POST(request: Request) {
         company_name: job.company_name,
         match_score: job.match_score,
         application_url: job.application_url,
+        dedup_key: job.dedup_key,
       })),
     });
   } catch {

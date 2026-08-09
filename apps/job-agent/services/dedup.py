@@ -1,4 +1,5 @@
 import re
+import hashlib
 
 
 def normalize_title(title: str) -> str:
@@ -33,3 +34,61 @@ def build_dedup_key(
     location_normalized: str,
 ) -> str:
     return f"{namespace}::{title_normalized}::{location_normalized}"
+
+
+def normalize_description(description: str | None, limit: int = 2000) -> str:
+    if not description:
+        return ""
+    text = re.sub(r"<[^>]+>", " ", description)
+    text = re.sub(r"[^\w\s+#./-]", " ", text.lower())
+    text = re.sub(r"\s+", " ", text).strip()
+    return text[:limit]
+
+
+def description_hash(description: str | None) -> str:
+    normalized = normalize_description(description, limit=2000)
+    if not normalized:
+        return ""
+    return hashlib.sha256(normalized.encode("utf-8")).hexdigest()[:32]
+
+
+def listing_fingerprint(
+    company_name: str,
+    title: str,
+    description: str | None,
+) -> str:
+    """Stable key: company + normalized title + description hash."""
+    company = company_name.strip().lower()
+    title_norm = normalize_title(title)
+    desc_hash = description_hash(description)
+    if desc_hash:
+        raw = f"{company}|{title_norm}|{desc_hash}"
+    else:
+        raw = f"{company}|{title_norm}"
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:24]
+
+
+def dedupe_search_results(jobs: list) -> list:
+    """Drop duplicate listings across companies (by dedup_key + content fingerprint)."""
+    seen_keys: set[str] = set()
+    seen_fingerprints: set[str] = set()
+    unique: list = []
+
+    for job in jobs:
+        dedup_key = getattr(job, "dedup_key", None) or job.get("dedup_key", "")
+        if dedup_key and dedup_key in seen_keys:
+            continue
+
+        company = getattr(job, "company_name", None) or job.get("company_name", "")
+        title = getattr(job, "title", None) or job.get("title", "")
+        description = getattr(job, "description", None) or job.get("description")
+        fingerprint = listing_fingerprint(str(company), str(title), description)
+        if fingerprint in seen_fingerprints:
+            continue
+
+        if dedup_key:
+            seen_keys.add(dedup_key)
+        seen_fingerprints.add(fingerprint)
+        unique.append(job)
+
+    return unique

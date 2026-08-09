@@ -177,6 +177,7 @@ class SearchResult(BaseModel):
     dedup_key: str
     ats_type: str
     ats_slug: str
+    description: str | None = None
 
 
 class SearchResponse(BaseModel):
@@ -192,16 +193,23 @@ class SemanticSearchRequest(BaseModel):
     experience_years: int = Field(default=0, ge=0)
     max_companies: int = Field(default=10, ge=1, le=20)
     max_jobs_per_company: int = Field(default=50, ge=1, le=200)
+    summary: str | None = None
+    recent_role: str | None = None
+    recent_highlights: list[str] = Field(default_factory=list)
+    profile_embedding: list[float] | None = None
+    intent_override: str | None = Field(default=None, max_length=256)
 
 
 class SemanticMatchResult(SearchResult):
     semantic_score: float = 0.0
     match_reason: str = ""
     matching_skills: list[str] = Field(default_factory=list)
+    missing_skills: list[str] = Field(default_factory=list)
 
 
 class SemanticSearchResponse(BaseModel):
     query: str
     companies_scraped: int
+    jobs_scraped: int = 0
     total_matches: int
     jobs: list[SemanticMatchResult]

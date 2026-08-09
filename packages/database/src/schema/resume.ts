@@ -39,6 +39,9 @@ export const resumes = pgTable(
     fileName: text('file_name'),
     fileType: text('file_type'),
     filePath: text('file_path'),
+    profileEmbedding: jsonb('profile_embedding'),
+    profileTextHash: text('profile_text_hash'),
+    lastMatchIntent: text('last_match_intent'),
     createdAt: timestamp('created_at', { withTimezone: true })
       .defaultNow()
       .notNull(),

@@ -7,6 +7,7 @@ rows at runtime.
 
 from __future__ import annotations
 
+import json
 import logging
 from typing import Any
 
@@ -73,6 +74,47 @@ class ResumeRepository:
         if result == "UPDATE 0":
             raise ResumeNotFoundError(f"Resume {resume_id} not found")
 
+    async def update_profile_embedding(
+        self,
+        resume_id: str,
+        embedding: list[float],
+        text_hash: str,
+    ) -> None:
+        async with self._pool.acquire() as conn:
+            result = await conn.execute(
+                """
+                UPDATE resumes
+                SET profile_embedding = $2::jsonb,
+                    profile_text_hash = $3,
+                    updated_at = NOW()
+                WHERE id = $1
+                """,
+                _to_uuid(resume_id),
+                json.dumps(embedding),
+                text_hash,
+            )
+        if result == "UPDATE 0":
+            raise ResumeNotFoundError(f"Resume {resume_id} not found")
+
+    async def update_last_match_intent(
+        self,
+        resume_id: str,
+        intent: str | None,
+    ) -> None:
+        async with self._pool.acquire() as conn:
+            result = await conn.execute(
+                """
+                UPDATE resumes
+                SET last_match_intent = $2,
+                    updated_at = NOW()
+                WHERE id = $1
+                """,
+                _to_uuid(resume_id),
+                intent,
+            )
+        if result == "UPDATE 0":
+            raise ResumeNotFoundError(f"Resume {resume_id} not found")
+
     async def get(self, resume_id: str) -> ResumeRecord:
         async with self._pool.acquire() as conn:
             row: dict[str, Any] | None = await conn.fetchrow(
@@ -85,6 +127,18 @@ class ResumeRepository:
 
     @staticmethod
     def _row_to_record(row: dict[str, Any]) -> ResumeRecord:
+        raw_embedding = row.get("profile_embedding")
+        profile_embedding: list[float] | None = None
+        if isinstance(raw_embedding, list):
+            profile_embedding = [float(x) for x in raw_embedding]
+        elif isinstance(raw_embedding, str):
+            try:
+                parsed = json.loads(raw_embedding)
+                if isinstance(parsed, list):
+                    profile_embedding = [float(x) for x in parsed]
+            except json.JSONDecodeError:
+                profile_embedding = None
+
         return ResumeRecord(
             user_id=row["user_id"],
             full_name=row["full_name"],
@@ -102,6 +156,9 @@ class ResumeRepository:
             file_name=row["file_name"],
             file_type=row["file_type"],
             file_path=row.get("file_path"),
+            profile_embedding=profile_embedding,
+            profile_text_hash=row.get("profile_text_hash"),
+            last_match_intent=row.get("last_match_intent"),
         )
 
 

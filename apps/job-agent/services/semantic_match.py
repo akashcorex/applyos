@@ -1,13 +1,14 @@
-"""LangChain-powered semantic job matching.
+"""Embedding-based job matching with optional LLM explanations.
 
-Uses ChatAnthropic to score discovered jobs against a candidate's profile
-(skills, preferred role, experience) — replacing the naive substring
-matching with LLM-based semantic relevance scoring.
+Ranking: OpenAI embeddings + cosine similarity (fast, deterministic).
+Explanation: Claude on top-K only — does not affect scores or order.
 """
 
 from __future__ import annotations
 
 import logging
+import math
+import re
 
 from langchain_anthropic import ChatAnthropic
 from langchain_core.prompts import ChatPromptTemplate
@@ -15,36 +16,34 @@ from pydantic import BaseModel, Field
 
 from config import settings
 from models import SearchResult, SemanticMatchResult
+from services.embeddings import embed_texts, embeddings_available
+from services.skill_utils import infer_skill_overlap
 
 logger = logging.getLogger(__name__)
 
-_SYSTEM_PROMPT = """\
-You are an expert technical recruiter. Score each job listing's relevance
-to the candidate's profile on a scale of 0.0 to 1.0.
+_MAX_DESC_CHARS = 1500
 
-Consider:
-- How well the job title aligns with the candidate's preferred role
-- Overlap between required skills and the candidate's skills
-- Whether the seniority level matches the candidate's experience
-- Location compatibility (remote-friendly is a plus)
+_EXPLAIN_SYSTEM = """\
+You are a technical recruiter. For each job listing, explain why it does or
+does not fit the candidate. Do NOT change scores or ranking — only explain.
 
-Return a structured object with a "scores" list. Each entry has:
-- job_index: the 0-based index of the job in the input list
-- score: relevance score 0.0-1.0
-- reason: one-sentence explanation
-- matching_skills: skills from the candidate that are relevant to this job
+Return structured explanations with:
+- job_index: index in the input list (0-based)
+- reason: one concrete sentence citing profile + job evidence
+- matching_skills: candidate skills relevant to this job (normalize names)
+- missing_skills: skills the job likely needs that the candidate lacks
 """
 
 
-class JobScore(BaseModel):
+class JobExplanation(BaseModel):
     job_index: int
-    score: float = Field(ge=0.0, le=1.0)
     reason: str = ""
     matching_skills: list[str] = Field(default_factory=list)
+    missing_skills: list[str] = Field(default_factory=list)
 
 
-class SemanticScores(BaseModel):
-    scores: list[JobScore] = Field(default_factory=list)
+class JobExplanations(BaseModel):
+    explanations: list[JobExplanation] = Field(default_factory=list)
 
 
 _llm: ChatAnthropic | None = None
@@ -64,54 +63,122 @@ def _get_llm() -> ChatAnthropic:
     return _llm
 
 
-def _format_jobs(jobs: list[SearchResult]) -> str:
+def _strip_html(text: str) -> str:
+    return re.sub(r"<[^>]+>", " ", text)
+
+
+def _truncate(text: str | None, limit: int = _MAX_DESC_CHARS) -> str:
+    if not text:
+        return ""
+    cleaned = _strip_html(text).strip()
+    if len(cleaned) <= limit:
+        return cleaned
+    return cleaned[:limit] + "…"
+
+
+def build_candidate_text(
+    preferred_role: str,
+    skills: list[str],
+    experience_years: int,
+    *,
+    summary: str | None = None,
+    recent_role: str | None = None,
+    recent_highlights: list[str] | None = None,
+    intent_override: str | None = None,
+) -> str:
+    parts = [f"Target Role: {preferred_role}"]
+    if intent_override and intent_override.strip():
+        parts.append(f"User intent: {intent_override.strip()}")
+    if recent_role and recent_role.strip().lower() != preferred_role.strip().lower():
+        parts.append(f"Recent Role: {recent_role}")
+    parts.append(f"Experience: {experience_years} year(s)")
+    if skills:
+        parts.append(f"Skills: {', '.join(skills)}")
+    if summary:
+        parts.append(f"Summary: {_truncate(summary, 500)}")
+    if recent_highlights:
+        bullets = "; ".join(h.strip() for h in recent_highlights[:3] if h.strip())
+        if bullets:
+            parts.append(f"Recent work: {bullets}")
+    return "\n".join(parts)
+
+
+def build_job_text(job: SearchResult) -> str:
+    parts = [
+        f"Title: {job.title}",
+        f"Company: {job.company_name}",
+    ]
+    if job.department:
+        parts.append(f"Department: {job.department}")
+    if job.seniority:
+        parts.append(f"Seniority: {job.seniority}")
+    if job.location:
+        parts.append(f"Location: {job.location}")
+    if job.location_type:
+        parts.append(f"Workplace: {job.location_type}")
+
+    description = _truncate(job.description)
+    requirements_bits = [b for b in [job.department, job.seniority] if b]
+    if description:
+        first_sentence = description.split(".")[0].strip()
+        if first_sentence:
+            requirements_bits.append(first_sentence)
+    if requirements_bits:
+        parts.append(f"Requirements: {', '.join(requirements_bits)}")
+    if description:
+        parts.append(f"Description: {description}")
+    return "\n".join(parts)
+
+
+def cosine_similarity(a: list[float], b: list[float]) -> float:
+    """Cosine similarity clamped to [0, 1]. OpenAI vectors are L2-normalized."""
+    if not a or not b or len(a) != len(b):
+        return 0.0
+    dot = sum(x * y for x, y in zip(a, b, strict=True))
+    norm_a = math.sqrt(sum(x * x for x in a))
+    norm_b = math.sqrt(sum(x * x for x in b))
+    if norm_a == 0.0 or norm_b == 0.0:
+        return 0.0
+    cos = dot / (norm_a * norm_b)
+    return max(0.0, min(1.0, cos))
+
+
+def _format_jobs_for_explain(jobs: list[SearchResult]) -> str:
     lines: list[str] = []
     for i, job in enumerate(jobs):
-        parts = [
-            f"[{i}] {job.title} @ {job.company_name}",
-            f"    Location: {job.location or 'N/A'} ({job.location_type or 'N/A'})",
-            f"    Seniority: {job.seniority or 'N/A'}",
-            f"    Department: {job.department or 'N/A'}",
-        ]
-        lines.append("\n".join(parts))
+        lines.append(f"[{i}] {build_job_text(job)}")
     return "\n\n".join(lines)
 
 
-async def semantic_rank_jobs(
+async def _explain_top_jobs(
     jobs: list[SearchResult],
-    skills: list[str],
     preferred_role: str,
-    experience_years: int = 0,
-) -> list[SemanticMatchResult]:
-    """Rank jobs by LLM-scored semantic relevance to the candidate profile."""
-    if not jobs:
-        return []
-
-    if not settings.anthropic_api_key:
-        logger.warning("ANTHROPIC_API_KEY not set — falling back to unranked results")
-        return [SemanticMatchResult(**job.model_dump()) for job in jobs]
+    skills: list[str],
+    experience_years: int,
+) -> dict[int, JobExplanation]:
+    if not jobs or not settings.anthropic_api_key:
+        return {}
 
     try:
         llm = _get_llm()
-        structured_llm = llm.with_structured_output(SemanticScores)
+        structured_llm = llm.with_structured_output(JobExplanations)
     except RuntimeError as exc:
-        logger.warning("LLM unavailable: %s — returning unranked results", exc)
-        return [SemanticMatchResult(**job.model_dump()) for job in jobs]
+        logger.warning("LLM unavailable for explanations: %s", exc)
+        return {}
 
     prompt = ChatPromptTemplate.from_messages(
         [
-            ("system", _SYSTEM_PROMPT),
+            ("system", _EXPLAIN_SYSTEM),
             (
                 "human",
-                "## Candidate Profile\n"
-                "Preferred role: {preferred_role}\n"
-                "Years of experience: {experience_years}\n"
+                "## Candidate\n"
+                "Role: {preferred_role}\n"
+                "Experience: {experience_years} years\n"
                 "Skills: {skills}\n\n"
-                "## Job Listings\n{jobs}",
+                "## Jobs\n{jobs}",
             ),
         ]
     )
-
     chain = prompt | structured_llm
 
     try:
@@ -120,27 +187,119 @@ async def semantic_rank_jobs(
                 "preferred_role": preferred_role,
                 "experience_years": experience_years,
                 "skills": ", ".join(skills) if skills else "N/A",
-                "jobs": _format_jobs(jobs),
+                "jobs": _format_jobs_for_explain(jobs),
             }
         )
     except Exception as exc:
-        logger.error("Semantic ranking failed: %s", exc)
+        logger.error("Job explanation failed: %s", exc)
+        return {}
+
+    return {item.job_index: item for item in result.explanations}
+
+
+async def semantic_rank_jobs(
+    jobs: list[SearchResult],
+    skills: list[str],
+    preferred_role: str,
+    experience_years: int = 0,
+    *,
+    summary: str | None = None,
+    recent_role: str | None = None,
+    recent_highlights: list[str] | None = None,
+    profile_embedding: list[float] | None = None,
+    intent_override: str | None = None,
+) -> list[SemanticMatchResult]:
+    """Rank jobs by embedding cosine similarity; explain top-K with Claude."""
+    if not jobs:
+        return []
+
+    if not embeddings_available():
+        logger.warning("OPENAI_API_KEY not set — returning unranked jobs")
         return [SemanticMatchResult(**job.model_dump()) for job in jobs]
 
-    score_map: dict[int, JobScore] = {s.job_index: s for s in result.scores}
+    candidate_text = build_candidate_text(
+        preferred_role,
+        skills,
+        experience_years,
+        summary=summary,
+        recent_role=recent_role,
+        recent_highlights=recent_highlights,
+        intent_override=intent_override,
+    )
+    job_texts = [build_job_text(job) for job in jobs]
+
+    use_cached_profile = (
+        profile_embedding
+        and len(profile_embedding) > 0
+        and not (intent_override and intent_override.strip())
+    )
+
+    try:
+        if use_cached_profile:
+            job_vectors = await embed_texts(job_texts)
+            candidate_vec = profile_embedding  # type: ignore[assignment]
+        else:
+            vectors = await embed_texts([candidate_text, *job_texts])
+            candidate_vec = vectors[0]
+            job_vectors = vectors[1:]
+    except Exception as exc:
+        logger.error("Embedding failed: %s", exc)
+        return [SemanticMatchResult(**job.model_dump()) for job in jobs]
+
+    scored: list[tuple[SearchResult, float, str]] = []
+    for job, vec in zip(jobs, job_vectors, strict=True):
+        score = cosine_similarity(candidate_vec, vec)
+        scored.append((job, score, build_job_text(job)))
+
+    scored.sort(key=lambda item: item[1], reverse=True)
+    top_k = max(1, settings.semantic_top_k)
+    scored = scored[:top_k]
+
+    if scored:
+        preview = ", ".join(
+            f"{job.company_name}/{job.title}={score:.3f}"
+            for job, score, _ in scored[:5]
+        )
+        logger.info(
+            "Embedding rank for role=%s top5: %s",
+            preferred_role,
+            preview,
+        )
+
+    explain_k = min(settings.explain_top_k, len(scored))
+    explain_jobs = [job for job, _, _ in scored[:explain_k]]
+    explanations = await _explain_top_jobs(
+        explain_jobs,
+        preferred_role=preferred_role,
+        skills=skills,
+        experience_years=experience_years,
+    )
 
     ranked: list[SemanticMatchResult] = []
-    for i, job in enumerate(jobs):
-        score = score_map.get(i)
+    for idx, (job, score, job_text) in enumerate(scored):
+        rule_matched, rule_missing = infer_skill_overlap(skills, job_text)
+        explanation = explanations.get(idx)
+
+        matched = explanation.matching_skills if explanation and explanation.matching_skills else rule_matched
+        missing = explanation.missing_skills if explanation and explanation.missing_skills else rule_missing
+        reason = explanation.reason if explanation else ""
+
         ranked.append(
             SemanticMatchResult(
                 **job.model_dump(),
-                semantic_score=score.score if score else 0.0,
-                match_reason=score.reason if score else "",
-                matching_skills=score.matching_skills if score else [],
+                semantic_score=round(score, 4),
+                match_reason=reason,
+                matching_skills=matched,
+                missing_skills=missing,
             )
         )
 
-    ranked.sort(key=lambda j: j.semantic_score, reverse=True)
-    logger.info("Semantic-ranked %d jobs for role=%s", len(ranked), preferred_role)
+    logger.info(
+        "Embedding-ranked %d/%d jobs (top_k=%d, explained=%d) for role=%s",
+        len(ranked),
+        len(jobs),
+        top_k,
+        explain_k,
+        preferred_role,
+    )
     return ranked
