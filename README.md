@@ -1,6 +1,6 @@
 # Outreach Autometer
 
-AI-powered outreach automation platform — an Nx monorepo with a Next.js frontend, Express API, and four Python agent microservices.
+AI-powered outreach automation platform — a Turborepo monorepo with a Next.js frontend, Express API, and four Python agent microservices.
 
 ## Architecture
 
@@ -30,11 +30,11 @@ AI-powered outreach automation platform — an Nx monorepo with a Next.js fronte
 
 | Layer | Technology |
 |-------|-----------|
-| Monorepo | Nx 22 + Bun |
+| Monorepo | Turborepo 2 + Bun |
 | Frontend | Next.js 16, React 19, Tailwind CSS 3.4 |
 | API | Express 4, TypeScript, esbuild |
 | Agents | Python 3.12, FastAPI, Uvicorn |
-| Shared Libs | `@org/{database,logger,queue,sdk,types,ui}` (scaffolded) |
+| Shared Libs | `@applyso/{database,logger,queue,sdk,types,ui}` (scaffolded) |
 
 ## Apps
 
@@ -76,21 +76,22 @@ bun run dev:job-agent # http://127.0.0.1:8002
 | `bun run dev:outreach-agent` | Start outreach agent |
 | `bun run build:web` | Production build (Next.js) |
 | `bun run build:api` | Production build (esbuild) |
-| `bun nx show projects` | List all Nx projects |
-| `bun nx run-many -t lint` | Lint all projects |
+| `bunx turbo run build --filter=@applyso/web` | Build a single package |
+| `bunx turbo run <task> --filter=<pkg>` | Run any task in one package |
+| `bunx turbo run build --dry=json` | Inspect the task graph without running |
 
 ## Shared packages
 
 | Package | Import |
 |---------|--------|
-| `packages/database` | `@org/database` |
-| `packages/logger` | `@org/logger` |
-| `packages/queue` | `@org/queue` |
-| `packages/sdk` | `@org/sdk` |
-| `packages/types` | `@org/types` |
-| `packages/ui` | `@org/ui` |
+| `packages/database` | `@applyso/database` |
+| `packages/logger` | `@applyso/logger` |
+| `packages/queue` | `@applyso/queue` |
+| `packages/sdk` | `@applyso/sdk` |
+| `packages/types` | `@applyso/types` |
+| `packages/ui` | `@applyso/ui` |
 
-All are workspace-linked — import via `@org/<name>` after adding to your app's `package.json` and running `bun install`.
+All are workspace-linked — import via `@applyso/<name>` after adding to your app's `package.json` and running `bun install`.
 
 ## Env files
 

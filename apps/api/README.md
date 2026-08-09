@@ -7,7 +7,7 @@
 ## What it does
 
 - **Authentication** — email/password and LinkedIn OAuth via better-auth with Drizzle/PostgreSQL adapter
-- **Database gateway** — connects to PostgreSQL (Neon) via `@org/database` shared package
+- **Database gateway** — connects to PostgreSQL (Neon) via `@applyso/database` shared package
 - **Health check** — `GET /` returns service status
 - **Future** — API routes for job management, workflow orchestration, and agent coordination
 
@@ -35,15 +35,15 @@ better-auth handles these sub-routes automatically:
 
 ## Shared packages
 
-- `@org/database` — Drizzle schema (user, session, account, verification) and DB client
-- `@org/types`, `@org/sdk`, `@org/ui`, `@org/logger`, `@org/queue` — available for future use
+- `@applyso/database` — Drizzle schema (user, session, account, verification) and DB client
+- `@applyso/types`, `@applyso/sdk`, `@applyso/ui`, `@applyso/logger`, `@applyso/queue` — available for future use
 
 ## Run locally
 
 From the repository root:
 
 ```bash
-bun nx run api:serve
+bun run dev:api
 ```
 
 The API will be available at `http://localhost:3333`.

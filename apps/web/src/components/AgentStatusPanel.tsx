@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react';
 
-import { Badge } from '@org/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@org/ui/card';
+import { Badge } from '@applyso/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@applyso/ui/card';
 
 interface AgentHealth {
   name: string;

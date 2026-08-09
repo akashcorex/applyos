@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 
-import { Badge, Button, Input, toast } from '@org/ui';
+import { Badge, Button, Input, toast } from '@applyso/ui';
 import { ArrowRight, Loader2, Mail } from 'lucide-react';
 
 import {

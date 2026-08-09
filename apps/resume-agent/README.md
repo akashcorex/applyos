@@ -78,13 +78,13 @@ The app reads environment values from `apps/resume-agent/.env`. Copy
 
 The `resumes` table is owned by the Drizzle schema in
 `packages/database/src/schema/resume.ts`. Apply migrations with
-`bun nx run @org/database:migrate` (or `push` for local dev) before starting
+`bun run db:migrate` (or `db:push` for local dev) before starting
 the service.
 
 ## Run
 
 ```bash
-bun run dev:resume-agent          # nx serve, port 8005
+bun run dev:resume-agent          # turbo serve, port 8005
 bun run resume-agent:sync        # uv sync --extra dev
 bun run test:resume-agent        # pytest suite
 ```

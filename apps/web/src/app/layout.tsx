@@ -3,7 +3,7 @@ import './global.css';
 import type { Metadata } from 'next';
 import Script from 'next/script';
 import { Analytics } from '@vercel/analytics/next';
-import { Toaster } from '@org/ui';
+import { Toaster } from '@applyso/ui';
 
 const GA_MEASUREMENT_ID =
   process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID ?? '';

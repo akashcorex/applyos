@@ -5,10 +5,10 @@ import { useRouter } from 'next/navigation';
 import { FormEvent, useState } from 'react';
 
 import { authClient } from '@/lib/auth-client';
-import { Button } from '@org/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@org/ui/card';
-import { Input } from '@org/ui/input';
-import { Label } from '@org/ui/label';
+import { Button } from '@applyso/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@applyso/ui/card';
+import { Input } from '@applyso/ui/input';
+import { Label } from '@applyso/ui/label';
 
 export default function SignupPage() {
   const router = useRouter();

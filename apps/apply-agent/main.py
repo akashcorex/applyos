@@ -1,4 +1,4 @@
-"""Backward-compatible re-export — Nx serves via app.main:app."""
+"""Backward-compatible re-export — turbo serves via app.main:app."""
 
 from app.main import app
 

@@ -4,9 +4,9 @@ import { useEffect, useState } from 'react';
 import { Linkedin } from 'lucide-react';
 
 import { appCallbackURL, authClient } from '@/lib/auth-client';
-import { Button } from '@org/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@org/ui/card';
-import { Badge } from '@org/ui/badge';
+import { Button } from '@applyso/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@applyso/ui/card';
+import { Badge } from '@applyso/ui/badge';
 
 interface AutomationSessionStatus {
   has_session: boolean;

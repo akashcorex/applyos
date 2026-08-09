@@ -1,5 +1,6 @@
 {
-  "name": "@org/sdk",
+  "name": "@applyso/sdk",
   "version": "0.0.0",
-  "private": true
+  "private": true,
+  "description": "applyso — shared client SDK and API helpers."
 }

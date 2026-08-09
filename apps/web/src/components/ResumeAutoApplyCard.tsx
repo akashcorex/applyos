@@ -4,9 +4,9 @@ import { useRef, useState } from 'react';
 import { FileUp, Loader2, Sparkles } from 'lucide-react';
 
 import { authClient } from '@/lib/auth-client';
-import { Button } from '@org/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@org/ui/card';
-import { Badge } from '@org/ui/badge';
+import { Button } from '@applyso/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@applyso/ui/card';
+import { Badge } from '@applyso/ui/badge';
 
 interface ParsedResume {
   resume_id: string;

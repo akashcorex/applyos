@@ -1,0 +1,10 @@
+{
+  "name": "ai-orchestrator",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "sync": "uv sync --extra dev",
+    "serve": "uv run uvicorn main:app --reload --host 127.0.0.1 --port 8001",
+    "test": "python3 ../../tests/run.py ai-orchestrator"
+  }
+}

@@ -93,7 +93,7 @@ See `.env.example` for the full list.
 From the repository root:
 
 ```bash
-bun nx run apply-agent:serve
+bun run dev:apply-agent
 ```
 
 Or from the app directory:
@@ -107,11 +107,7 @@ The service will be available at `http://127.0.0.1:8003`.
 
 ## Test locally
 
-```bash
-bun nx run apply-agent:test
-```
-
-Or from the app directory:
+From the app directory:
 
 ```bash
 cd apps/apply-agent

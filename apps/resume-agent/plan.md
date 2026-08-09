@@ -16,7 +16,7 @@ User uploads resume (PDF/DOCX)
 │  1. Parse file    │──► PDF: pdfplumber / PyPDF2
 │  2. Extract text   │──► DOCX: python-docx
 │  3. LLM structure  │──► Claude: skills, experience, education, etc.
-│  4. Store           │──► Postgres via @org/database
+│  4. Store           │──► Postgres via @applyso/database
 │  5. Match jobs     │──► calls job-agent /search with extracted role + skills
 └───────────────────┘
         │
@@ -51,7 +51,7 @@ apps/resume-agent/
 ├── config.py                # Settings (port 8005, API keys, URLs)
 ├── models.py                # Pydantic models
 ├── dependencies.py          # AppState (LLM client, DB client)
-├── project.json             # Nx config (serve, sync targets)
+├── package.json             # turbo tasks (serve, sync, test)
 ├── pyproject.toml           # uv deps
 ├── requirements.txt         # pip deps
 ├── .env.example             # ANTHROPIC_API_KEY, DATABASE_URL, JOB_AGENT_URL
@@ -209,7 +209,7 @@ This lives in `packages/database/src/schema/resume.ts` alongside the auth schema
 | Direction | What | How |
 |-----------|------|-----|
 | resume-agent → job-agent | Match parsed resume to jobs | Resume agent calls `POST /search` on job-agent with `preferred_role` from parsed resume. Re-rank results by skill overlap. |
-| resume-agent → api | Store resume in DB | Direct Postgres write via `@org/database` (or HTTP POST to API if we add a resume endpoint). |
+| resume-agent → api | Store resume in DB | Direct Postgres write via `@applyso/database` (or HTTP POST to API if we add a resume endpoint). |
 | web → resume-agent | Upload resume from UI | Next.js API route proxies `POST /api/resume/parse` → `POST /parse` on resume-agent. |
 | orchestrator → resume-agent | Get CVData for workflow | Orchestrator fetches parsed resume from DB or resume-agent to populate `CVData` in workflow payload. |
 | apply-agent → resume | Auto-fill forms | Already uses orchestrated `CVData`. No changes needed — resume-agent feeds CVData upstream. |
@@ -224,37 +224,22 @@ This lives in `packages/database/src/schema/resume.ts` alongside the auth schema
 
 2. **Auto-enrichment**: After upload, auto-trigger `/resume/{id}/match` and pre-fill the job discovery panel
 
-## Nx project config
+## Turbo package config
 
 ```json
 {
   "name": "resume-agent",
-  "$schema": "../../node_modules/nx/schemas/project-schema.json",
-  "sourceRoot": "apps/resume-agent",
-  "projectType": "application",
-  "tags": ["type:app", "lang:python"],
-  "targets": {
-    "sync": {
-      "executor": "nx:run-commands",
-      "options": {
-        "cwd": "apps/resume-agent",
-        "command": "uv sync --extra dev"
-      }
-    },
-    "serve": {
-      "continuous": true,
-      "executor": "nx:run-commands",
-      "dependsOn": ["sync"],
-      "options": {
-        "cwd": "apps/resume-agent",
-        "command": "uv run uvicorn main:app --reload --host 127.0.0.1 --port 8005"
-      }
-    }
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "sync": "uv sync --extra dev",
+    "serve": "uv run uvicorn main:app --reload --host 127.0.0.1 --port 8005",
+    "test": "python3 ../../tests/run.py resume-agent"
   }
 }
 ```
 
-Add `resume-agent` to root `package.json` dev scripts and `nx run-many -t dev -t serve` command.
+Add `resume-agent` to root `package.json` dev scripts and the root `dev` script (`turbo run dev serve --filter=...resume-agent`).
 
 ## env vars
 

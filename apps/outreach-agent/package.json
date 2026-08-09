@@ -1,0 +1,10 @@
+{
+  "name": "outreach-agent",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "sync": "uv sync --extra dev",
+    "serve": "uv run uvicorn main:app --reload --host 127.0.0.1 --port 8004",
+    "test": "python3 ../../tests/run.py outreach-agent"
+  }
+}

@@ -3,9 +3,9 @@
 import { useEffect, useState } from 'react';
 import { ChevronDown, ChevronRight, Clock, RefreshCw } from 'lucide-react';
 
-import { Button } from '@org/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@org/ui/card';
-import { Badge } from '@org/ui/badge';
+import { Button } from '@applyso/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@applyso/ui/card';
+import { Badge } from '@applyso/ui/badge';
 
 type WorkflowStatus =
   | 'pending'

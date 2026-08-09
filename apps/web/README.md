@@ -34,7 +34,7 @@ All auth operations are proxied to the Express API at `http://localhost:3333` (c
 From the repository root:
 
 ```bash
-bun nx run web:dev
+bun run dev:web
 ```
 
 The app will be available at `http://localhost:3000`.

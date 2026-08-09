@@ -1,5 +1,6 @@
 {
-  "name": "@org/queue",
+  "name": "@applyso/queue",
   "version": "0.0.0",
-  "private": true
+  "private": true,
+  "description": "applyso — shared background job queue (Redis)."
 }

@@ -61,7 +61,7 @@ See `.env.example` for the full list.
 From the repository root:
 
 ```bash
-bun nx run ai-orchestrator:serve
+bun run dev:ai-orchestrator
 ```
 
 Or from the app directory:
@@ -76,7 +76,7 @@ The service will be available at `http://127.0.0.1:8001`.
 ## Test locally
 
 ```bash
-bun nx run ai-orchestrator:test
+bun run test:ai-orchestrator
 ```
 
 Or from the app directory:

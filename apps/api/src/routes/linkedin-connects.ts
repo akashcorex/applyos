@@ -1,7 +1,7 @@
 import { and, eq } from 'drizzle-orm';
 import { Router } from 'express';
 
-import { db, linkedinConnects, linkedinConnectStatuses } from '@org/database';
+import { db, linkedinConnects, linkedinConnectStatuses } from '@applyso/database';
 
 type ConnectStatus = (typeof linkedinConnectStatuses)[number];
 

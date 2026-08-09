@@ -3,13 +3,13 @@
 import { useState } from 'react';
 import { Search, Building2, ExternalLink, Send, Globe, Loader2 } from 'lucide-react';
 
-import { Button } from '@org/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@org/ui/card';
-import { Input } from '@org/ui/input';
-import { Badge } from '@org/ui/badge';
-import { Label } from '@org/ui/label';
-import { Separator } from '@org/ui/separator';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@org/ui/tabs';
+import { Button } from '@applyso/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@applyso/ui/card';
+import { Input } from '@applyso/ui/input';
+import { Badge } from '@applyso/ui/badge';
+import { Label } from '@applyso/ui/label';
+import { Separator } from '@applyso/ui/separator';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@applyso/ui/tabs';
 
 import { authClient } from '@/lib/auth-client';
 

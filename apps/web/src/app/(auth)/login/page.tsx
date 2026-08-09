@@ -6,11 +6,11 @@ import { FormEvent, useState } from 'react';
 import { Linkedin } from 'lucide-react';
 
 import { appCallbackURL, authClient } from '@/lib/auth-client';
-import { Button } from '@org/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@org/ui/card';
-import { Input } from '@org/ui/input';
-import { Label } from '@org/ui/label';
-import { Separator } from '@org/ui/separator';
+import { Button } from '@applyso/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@applyso/ui/card';
+import { Input } from '@applyso/ui/input';
+import { Label } from '@applyso/ui/label';
+import { Separator } from '@applyso/ui/separator';
 
 export default function LoginPage() {
   const router = useRouter();

@@ -9,9 +9,9 @@ import { AgentStatusPanel } from '@/components/AgentStatusPanel';
 import { ResumeAutoApplyCard } from '@/components/ResumeAutoApplyCard';
 import { WorkflowPanel } from '@/components/WorkflowPanel';
 import { LinkedInConnectCard } from '@/components/LinkedInConnectCard';
-import { Avatar, AvatarFallback } from '@org/ui/avatar';
-import { Button } from '@org/ui/button';
-import { Separator } from '@org/ui/separator';
+import { Avatar, AvatarFallback } from '@applyso/ui/avatar';
+import { Button } from '@applyso/ui/button';
+import { Separator } from '@applyso/ui/separator';
 
 export default function DashboardPage() {
   const router = useRouter();

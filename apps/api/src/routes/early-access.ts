@@ -1,6 +1,6 @@
 import { Router } from 'express';
 
-import { db, earlyAccessEmail } from '@org/database';
+import { db, earlyAccessEmail } from '@applyso/database';
 
 function validateEmail(raw: unknown): { email: string } | { error: string } {
   if (!raw || typeof raw !== 'string') {

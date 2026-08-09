@@ -1,7 +1,37 @@
-# Add files here to ignore them from prettier formatting
-/.venv
-/dist
-/coverage
-/.nx/cache
-/.nx/workspace-data
-.nx/self-healing
+# Dependencies
+node_modules
+
+# Build output
+dist
+build
+.next
+.turbo
+.out
+*.tsbuildinfo
+
+# Environments & secrets
+.env
+.env.*
+.envrc
+
+# Python agents (handled by ruff/black)
+.venv
+__pycache__
+*.pyc
+.pytest_cache
+
+# Test & coverage artifacts
+coverage
+.nyc_output
+.nx/cache
+.nx/workspace-data
+.fallow
+
+# Generated / third-party files
+bun.lock
+*.pdf
+*.lock
+next-env.d.ts
+
+# Docs assets
+docs/generated

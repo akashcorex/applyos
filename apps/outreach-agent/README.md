@@ -21,7 +21,7 @@
 From the repository root:
 
 ```bash
-bun nx run outreach-agent:serve
+bun run dev:outreach-agent
 ```
 
 Or from the app directory:

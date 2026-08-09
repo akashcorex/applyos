@@ -1,4 +1,4 @@
-// const { createGlobPatternsForDependencies } = require('@nx/next/tailwind');
+// shared @applyso/* packages are listed explicitly in `content` below
 
 /** @type {import('tailwindcss').Config} */
 module.exports = {

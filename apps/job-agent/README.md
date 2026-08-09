@@ -111,7 +111,7 @@ See `.env.example` for the full list.
 From the repository root:
 
 ```bash
-bun nx run job-agent:serve
+bun run dev:job-agent
 ```
 
 Or from the app directory:
@@ -146,7 +146,7 @@ Returns `FundingScrapeResponse` with a list of `FundedCompany` objects (name, we
 From the repository root:
 
 ```bash
-bun nx run job-agent:test
+bun run job-agent:test
 ```
 
 Or from the app directory:

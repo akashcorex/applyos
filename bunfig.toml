@@ -1,2 +1,2 @@
 [install]
-allowBuilds = { "@parcel/watcher" = true, "@swc/core" = true, "esbuild" = true, "less" = true, "nx" = true, "sharp" = true, "unrs-resolver" = true }
+allowBuilds = { "@parcel/watcher" = true, "@swc/core" = true, "esbuild" = true, "less" = true, "sharp" = true, "unrs-resolver" = true }

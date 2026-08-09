@@ -1,105 +1,16 @@
 {
-  "name": "@org/api",
+  "name": "@applyso/api",
   "version": "0.0.1",
   "private": true,
-  "nx": {
-    "targets": {
-      "build": {
-        "executor": "@nx/esbuild:esbuild",
-        "outputs": [
-          "{options.outputPath}"
-        ],
-        "defaultConfiguration": "production",
-        "options": {
-          "platform": "node",
-          "outputPath": "apps/api/dist",
-          "format": [
-            "cjs"
-          ],
-          "bundle": false,
-          "main": "apps/api/src/main.ts",
-          "tsConfig": "apps/api/tsconfig.app.json",
-          "assets": [
-            "apps/api/src/assets"
-          ],
-          "esbuildOptions": {
-            "sourcemap": true,
-            "outExtension": {
-              ".js": ".js"
-            }
-          }
-        },
-        "configurations": {
-          "development": {},
-          "production": {
-            "esbuildOptions": {
-              "sourcemap": false,
-              "outExtension": {
-                ".js": ".js"
-              }
-            }
-          }
-        }
-      },
-      "prune-lockfile": {
-        "dependsOn": [
-          "build"
-        ],
-        "cache": true,
-        "executor": "@nx/js:prune-lockfile",
-        "outputs": [
-          "{workspaceRoot}/apps/api/dist/package.json",
-          "{workspaceRoot}/apps/api/dist/package-lock.json"
-        ],
-        "options": {
-          "buildTarget": "build"
-        }
-      },
-      "copy-workspace-modules": {
-        "dependsOn": [
-          "build"
-        ],
-        "cache": true,
-        "outputs": [
-          "{workspaceRoot}/apps/api/dist/workspace_modules"
-        ],
-        "executor": "@nx/js:copy-workspace-modules",
-        "options": {
-          "buildTarget": "build"
-        }
-      },
-      "prune": {
-        "dependsOn": [
-          "prune-lockfile",
-          "copy-workspace-modules"
-        ],
-        "executor": "nx:noop"
-      },
-      "serve": {
-        "continuous": true,
-        "executor": "@nx/js:node",
-        "defaultConfiguration": "development",
-        "dependsOn": [
-          "build"
-        ],
-        "options": {
-          "buildTarget": "@org/api:build",
-          "runBuildTargetDependencies": false
-        },
-        "configurations": {
-          "development": {
-            "buildTarget": "@org/api:build:development"
-          },
-          "production": {
-            "buildTarget": "@org/api:build:production"
-          }
-        }
-      }
-    }
+  "description": "applyso — Express API: auth, user data, and application orchestration gateway.",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "build:production": "node scripts/build.mjs --production",
+    "serve": "node dist/main.js"
   },
   "dependencies": {
     "@fallow-cli/beacon": "^0.5.1",
-    "@org/database": "workspace:*",
+    "@applyso/database": "workspace:*",
     "better-auth": "^1.2.9",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
