@@ -10,10 +10,12 @@ from app.browser.engine import create_context, launch_browser, new_stealth_page
 from app.browser.resume_upload import prepare_resume_file
 from app.browser.session_manager import (
     has_linkedin_cookies,
+    has_wellfound_cookies,
     load_session,
     save_session,
     should_save_session,
 )
+from app.ats.wellfound import WellfoundHandler
 from app.events.publisher import publish_apply_result
 from app.llm.answer_generator import generate_answers
 from app.llm.field_mapper import map_fields_with_llm
@@ -66,6 +68,7 @@ async def _run_apply(payload: JobPayload) -> ApplyResultEvent:
     async with launch_browser() as browser:
         storage_state = await load_session(user_id)
         had_linkedin_at_start = has_linkedin_cookies(storage_state)
+        had_wellfound_at_start = has_wellfound_cookies(storage_state)
         context = await create_context(browser, storage_state=storage_state)
         page = await new_stealth_page(context)
 
@@ -73,15 +76,37 @@ async def _run_apply(payload: JobPayload) -> ApplyResultEvent:
             await page.goto(job_url, wait_until="domcontentloaded", timeout=45_000)
 
             handler = await get_handler(job_url, page)
+
+            # Wellfound often lists jobs that apply on an external ATS.
+            if isinstance(handler, WellfoundHandler):
+                external = await handler.resolve_external_apply_url(page, job_url)
+                if external:
+                    logger.info(
+                        "Wellfound: redirecting to external ATS: %s", external[:120]
+                    )
+                    await page.goto(
+                        external, wait_until="domcontentloaded", timeout=45_000
+                    )
+                    handler = await get_handler(external, page)
+
             fields = await handler.extract_fields(page)
 
             if not fields:
+                err = "No application form fields found after opening apply page"
+                if isinstance(handler, WellfoundHandler):
+                    err = (
+                        "Wellfound apply failed — log in via "
+                        "scripts/bootstrap_wellfound_session.py or this job may "
+                        "use an external ATS we could not resolve"
+                    )
                 return ApplyResultEvent(
                     job_id=payload.job_id,
                     user_id=user_id,
-                    status=ApplyStatus.failed,
+                    status=ApplyStatus.login_required
+                    if isinstance(handler, WellfoundHandler)
+                    else ApplyStatus.failed,
                     ats_type=getattr(handler, "ats_name", None),
-                    error_detail="No application form fields found after opening apply page",
+                    error_detail=err,
                 )
 
             form_html = await page.evaluate(
@@ -122,7 +147,11 @@ async def _run_apply(payload: JobPayload) -> ApplyResultEvent:
             result = await handler.fill_and_submit(page, payload.cv_data, field_mapping)
 
             current_state = await context.storage_state()
-            if should_save_session(current_state, had_linkedin_at_start=had_linkedin_at_start):
+            if should_save_session(
+                current_state,
+                had_linkedin_at_start=had_linkedin_at_start,
+                had_wellfound_at_start=had_wellfound_at_start,
+            ):
                 await save_session(user_id, context)
 
             if result.success:
@@ -137,6 +166,8 @@ async def _run_apply(payload: JobPayload) -> ApplyResultEvent:
             err = (result.error or "").upper()
             if any(token in err for token in ("CAPTCHA", "TURNSTILE", "CLOUDFLARE")):
                 status = ApplyStatus.captcha_blocked
+            if "LOGIN REQUIRED" in err or "WELLFOUND LOGIN" in err:
+                status = ApplyStatus.login_required
 
             return ApplyResultEvent(
                 job_id=payload.job_id,

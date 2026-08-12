@@ -5,7 +5,7 @@
 ## What it does
 
 - **Browser automation** — uses Playwright with stealth anti-detection to fill and submit job applications
-- **ATS detection** — identifies the ATS provider (Greenhouse, Lever, Ashby, Workable, Workday, LinkedIn Easy Apply, or generic) by URL pattern and page content
+- **ATS detection** — identifies the ATS provider (Greenhouse, Lever, Ashby, Workable, Wellfound, Workday, LinkedIn Easy Apply, or generic) by URL pattern and page content
 - **Field mapping** — uses Claude Sonnet 4.6 to map job form fields to CV data fields
 - **Screening questions** — generates answers to screening/knockout questions via LLM
 - **Human-like interaction** — realistic typing delays, click patterns, and mouse movements to avoid bot detection
@@ -29,6 +29,17 @@ Check status: `GET /admin/linkedin/session/{user_id}` returns `has_session`, `li
 
 If the session is missing or expired, connect/discover workers fail with `login_required` — re-run the bootstrap script.
 
+### Wellfound session bootstrap
+
+Native Wellfound apply uses your Wellfound profile (not a full form). Log in once:
+
+```bash
+cd apps/apply-agent
+../../.venv/bin/python scripts/bootstrap_wellfound_session.py --user-id <USER_ID>
+```
+
+Many Wellfound listings link out to Greenhouse/Lever/etc. — those are handled automatically after redirect. Jobs with only Wellfound native apply need this session.
+
 ## Supported ATS handlers
 
 | ATS | Handler | Approach |
@@ -37,6 +48,7 @@ If the session is missing or expired, connect/discover workers fail with `login_
 | Lever | `LeverHandler` | Standard form filling |
 | Ashby | `AshbyHandler` | Standard form filling |
 | Workable | `WorkableHandler` | `/apply` + jobs.workable.com Apply now, resume upload, YES/NO radios, identity autofill, Cloudflare Turnstile (CapSolver / headed checkbox), thank-you confirmation |
+| Wellfound | `WellfoundHandler` | Native modal apply (note + screening Qs) when logged in; auto-redirects to external ATS (Greenhouse/Lever/etc.) when listed |
 | Workday | `WorkdayHandler` | Multi-step wizard forms with `data-automation-id` selectors |
 | LinkedIn Easy Apply | `EasyApplyHandler` | Multi-page modal flow with screening questions |
 | Generic (fallback) | `GenericHandler` | LLM-driven field mapping when no specialized handler matches |

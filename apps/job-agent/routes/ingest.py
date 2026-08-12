@@ -53,3 +53,11 @@ async def ingest_personio(payload: ScrapeRequest) -> ScrapeResponse:
         return await scrape_jobs("personio", payload)
     except Exception as error:
         raise_bad_gateway(error, public_message="Failed to ingest jobs from Personio")
+
+
+@router.post("/wellfound", response_model=ScrapeResponse)
+async def ingest_wellfound(payload: ScrapeRequest) -> ScrapeResponse:
+    try:
+        return await scrape_jobs("wellfound", payload)
+    except Exception as error:
+        raise_bad_gateway(error, public_message="Failed to ingest jobs from Wellfound")

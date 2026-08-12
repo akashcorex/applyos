@@ -58,6 +58,8 @@ def _ats_from_url(url: str) -> str:
         return "recruitee"
     if "personio" in lowered:
         return "personio"
+    if "wellfound.com" in lowered or "angel.co/jobs" in lowered:
+        return "wellfound"
     return "lever"
 
 

@@ -15,6 +15,7 @@ AtsType = Literal[
     "workable",
     "recruitee",
     "personio",
+    "wellfound",
 ]
 
 SeniorityLevel = Literal[

@@ -9,6 +9,7 @@ from services.parsers.greenhouse import GreenhouseParser
 from services.parsers.lever import LeverParser
 from services.parsers.personio import PersonioParser
 from services.parsers.recruitee import RecruiteeParser
+from services.parsers.wellfound import WellfoundParser, parse_jobs_from_html
 from services.parsers.workable import WorkableParser
 
 FIXTURES = Path(__file__).resolve().parent / "fixtures" / "job-agent"
@@ -206,3 +207,34 @@ async def test_personio_parser_maps_fixture(monkeypatch: pytest.MonkeyPatch) -> 
     assert jobs[0].title == "Data Engineer"
     assert jobs[0].department == "Data"
     assert jobs[0].location == "Munich"
+
+
+def test_wellfound_parser_maps_fixture_html() -> None:
+    html = (FIXTURES / "wellfound_company_jobs.html").read_text()
+    jobs = parse_jobs_from_html(html)
+
+    assert len(jobs) == 2
+    assert jobs[0].title == "Senior Software Engineer"
+    assert jobs[0].department == "Engineering"
+    assert jobs[0].location == "Remote"
+    assert jobs[0].workplace_type == "remote"
+    assert jobs[0].application_url == "https://wellfound.com/jobs/111-senior-software-engineer"
+    assert jobs[1].application_url == "https://wellfound.com/jobs/222-product-manager"
+
+
+@pytest.mark.asyncio
+async def test_wellfound_parser_fetch_jobs(monkeypatch: pytest.MonkeyPatch) -> None:
+    html = (FIXTURES / "wellfound_company_jobs.html").read_text()
+
+    async def fake_fetch(url: str) -> str:
+        assert url == "https://wellfound.com/company/lamatic/jobs"
+        return html
+
+    monkeypatch.setattr(
+        "services.parsers.wellfound.fetch_text_with_retries",
+        fake_fetch,
+    )
+
+    jobs = await WellfoundParser().fetch_jobs("lamatic")
+    assert len(jobs) == 2
+

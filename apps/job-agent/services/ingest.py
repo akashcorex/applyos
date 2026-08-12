@@ -5,6 +5,7 @@ from services.parsers.greenhouse import GreenhouseParser
 from services.parsers.lever import LeverParser
 from services.parsers.personio import PersonioParser
 from services.parsers.recruitee import RecruiteeParser
+from services.parsers.wellfound import WellfoundParser
 from services.parsers.workable import WorkableParser
 
 PARSERS = {
@@ -14,6 +15,7 @@ PARSERS = {
     "workable": WorkableParser(),
     "recruitee": RecruiteeParser(),
     "personio": PersonioParser(),
+    "wellfound": WellfoundParser(),
 }
 
 

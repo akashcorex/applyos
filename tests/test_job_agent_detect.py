@@ -4,6 +4,7 @@ from httpx import ASGITransport, AsyncClient
 from main import app
 from services.ats_detect import (
     detect_ats_from_html,
+    detect_ats_from_url,
     infer_slug_from_url,
 )
 
@@ -63,6 +64,45 @@ def test_infer_slug_from_url_workable_search_has_no_slug() -> None:
         "workable",
     )
     assert slug is None
+
+
+def test_detect_ats_from_url_wellfound_company() -> None:
+    assert (
+        detect_ats_from_url("https://wellfound.com/company/lamatic")
+        == "wellfound"
+    )
+
+
+def test_infer_slug_from_url_wellfound_company() -> None:
+    slug = infer_slug_from_url(
+        "https://wellfound.com/company/lamatic/jobs",
+        "wellfound",
+    )
+    assert slug == "lamatic"
+
+
+@pytest.mark.asyncio
+async def test_detect_endpoint_wellfound_company(monkeypatch: pytest.MonkeyPatch) -> None:
+    async def fail_fetch(_url: str) -> str:
+        raise RuntimeError("fetch should not run for Wellfound company URLs")
+
+    monkeypatch.setattr(
+        "services.ats_detect.fetch_text_with_retries_strict",
+        fail_fetch,
+    )
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.post(
+            "/detect",
+            json={"career_page_url": "https://wellfound.com/company/lamatic"},
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["ats_type"] == "wellfound"
+    assert body["suggested_slug"] == "lamatic"
+    assert body["confidence"] == "high"
 
 
 @pytest.mark.asyncio

@@ -39,15 +39,42 @@ def has_linkedin_cookies(storage_state: dict | None) -> bool:
     return False
 
 
+def has_wellfound_cookies(storage_state: dict | None) -> bool:
+    """Return True when *storage_state* contains a Wellfound session cookie."""
+    if not storage_state:
+        return False
+    for cookie in storage_state.get("cookies", []):
+        domain = cookie.get("domain", "")
+        name = cookie.get("name", "")
+        if "wellfound.com" not in domain and "angel.co" not in domain:
+            continue
+        if name in {"_wellfound", "wellfound_session", "cf_clearance"} or name.startswith(
+            "datadome"
+        ):
+            return True
+        if name == "session" and ("wellfound" in domain or "angel" in domain):
+            return True
+    return False
+
+
 def should_save_session(
     storage_state: dict | None,
     *,
     had_linkedin_at_start: bool,
+    had_wellfound_at_start: bool = False,
 ) -> bool:
-    """Only persist sessions that contain LinkedIn auth cookies."""
-    if had_linkedin_at_start:
+    """Persist sessions that contain LinkedIn or Wellfound auth cookies."""
+    if had_linkedin_at_start or had_wellfound_at_start:
         return True
-    return has_linkedin_cookies(storage_state)
+    return has_linkedin_cookies(storage_state) or has_wellfound_cookies(storage_state)
+
+
+def is_wellfound_login_url(url: str) -> bool:
+    """Return True when Wellfound redirected to login or signup."""
+    lower = url.lower()
+    return (
+        "wellfound.com" in lower or "angel.co" in lower
+    ) and any(token in lower for token in ("/login", "/sign-in", "/signup", "/register"))
 
 
 def is_linkedin_login_url(url: str) -> bool:

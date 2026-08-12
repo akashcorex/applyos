@@ -13,6 +13,7 @@ AtsType = Literal[
     "workable",
     "recruitee",
     "personio",
+    "wellfound",
 ]
 
 ConfidenceLevel = Literal["high", "low", "none"]
