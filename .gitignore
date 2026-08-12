@@ -17,6 +17,7 @@ node_modules
 !.env.example
 agentcontext.txt
 applyagent-implementation plan.md
+.nx/
 
 
 # Python
