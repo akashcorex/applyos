@@ -16,6 +16,54 @@ class JobAgentClient:
     def __init__(self, base_url: str | None = None) -> None:
         self._base_url = (base_url or settings.job_agent_url).rstrip("/")
 
+    async def search_jobs(
+        self,
+        job_title: str,
+        *,
+        skills: list[str] | None = None,
+        experience_years: int = 0,
+        max_companies: int = 15,
+        max_jobs_per_company: int = 50,
+        summary: str | None = None,
+        recent_role: str | None = None,
+        recent_highlights: list[str] | None = None,
+    ) -> list[DiscoveredJobRecord]:
+        url = f"{self._base_url}/search/semantic"
+        payload = {
+            "job_title": job_title,
+            "skills": skills or [],
+            "experience_years": experience_years,
+            "max_companies": max_companies,
+            "max_jobs_per_company": max_jobs_per_company,
+            "summary": summary,
+            "recent_role": recent_role,
+            "recent_highlights": recent_highlights or [],
+        }
+        async with httpx.AsyncClient(timeout=settings.http_timeout_seconds) as client:
+            response = await client.post(url, json=payload)
+            response.raise_for_status()
+            data = response.json()
+        return [_job_from_search_item(item) for item in data.get("jobs", [])]
+
+    async def scrape_career_page(
+        self,
+        career_page_url: str,
+        *,
+        job_role: str | None = None,
+        company_name: str | None = None,
+    ) -> list[DiscoveredJobRecord]:
+        url = f"{self._base_url}/scrape/page"
+        payload = {
+            "career_page_url": career_page_url,
+            "job_role": job_role,
+            "company_name": company_name,
+        }
+        async with httpx.AsyncClient(timeout=max(settings.http_timeout_seconds, 90.0)) as client:
+            response = await client.post(url, json=payload)
+            response.raise_for_status()
+            data = response.json()
+        return [_job_from_search_item(item) for item in data.get("jobs", [])]
+
     async def ingest_company(self, target: CompanyTarget) -> list[DiscoveredJobRecord]:
         url = f"{self._base_url}/ingest/{target.ats_type}"
         payload = {
@@ -121,3 +169,35 @@ class JobAgentClient:
                 return response.status_code == 200
         except httpx.HTTPError:
             return False
+
+
+_KNOWN_SOURCES = {
+    "greenhouse",
+    "lever",
+    "ashby",
+    "workable",
+    "recruitee",
+    "personio",
+    "wellfound",
+    "generic",
+}
+
+
+def _job_from_search_item(item: dict) -> DiscoveredJobRecord:
+    source = item.get("source") or item.get("ats_type") or "generic"
+    if source not in _KNOWN_SOURCES:
+        source = "generic"
+    return DiscoveredJobRecord(
+        external_id=str(item.get("external_id") or ""),
+        source=source,  # type: ignore[arg-type]
+        title=str(item.get("title") or ""),
+        company_name=str(item.get("company_name") or ""),
+        department=item.get("department"),
+        location=item.get("location"),
+        location_type=item.get("location_type"),
+        seniority=item.get("seniority"),
+        application_url=item.get("application_url"),
+        description_raw=item.get("description") or item.get("description_raw"),
+        dedup_key=str(item.get("dedup_key") or ""),
+        filter_score=float(item.get("semantic_score") or item.get("filter_score") or 0.0),
+    )
