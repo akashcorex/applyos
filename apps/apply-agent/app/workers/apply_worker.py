@@ -90,8 +90,9 @@ async def _run_apply(payload: JobPayload) -> ApplyResultEvent:
                     handler = await get_handler(external, page)
 
             fields = await handler.extract_fields(page)
+            uses_agentic_fill = getattr(handler, "uses_agentic_fill", False)
 
-            if not fields:
+            if not fields and not uses_agentic_fill:
                 err = "No application form fields found after opening apply page"
                 if isinstance(handler, WellfoundHandler):
                     err = (
@@ -109,42 +110,45 @@ async def _run_apply(payload: JobPayload) -> ApplyResultEvent:
                     error_detail=err,
                 )
 
-            form_html = await page.evaluate(
-                "() => document.querySelector('form')?.outerHTML?.substring(0, 8000) || ''"
-            )
-            field_mapping = await map_fields_with_llm(fields, payload.cv_data, form_html)
-
-            questions = _extract_screening_questions(fields, field_mapping)
-            if questions:
-                answers = await generate_answers(
-                    questions=questions,
-                    cv_data=payload.cv_data,
-                    user_profile=payload.user_profile,
-                    job_title=payload.job_title or "",
-                    company_name=payload.company_name,
-                    job_description=payload.job_description or "",
+            if uses_agentic_fill:
+                result = await handler.fill_and_submit(page, payload.cv_data, {})
+            else:
+                form_html = await page.evaluate(
+                    "() => document.querySelector('form')?.outerHTML?.substring(0, 8000) || ''"
                 )
+                field_mapping = await map_fields_with_llm(fields, payload.cv_data, form_html)
+
+                questions = _extract_screening_questions(fields, field_mapping)
+                if questions:
+                    answers = await generate_answers(
+                        questions=questions,
+                        cv_data=payload.cv_data,
+                        user_profile=payload.user_profile,
+                        job_title=payload.job_title or "",
+                        company_name=payload.company_name,
+                        job_description=payload.job_description or "",
+                    )
+                    for field in fields:
+                        if field.label in answers:
+                            field_mapping[field.selector] = answers[field.label]
+
+                # Ensure required selects/radios get a mapped answer when LLM skipped them.
                 for field in fields:
-                    if field.label in answers:
-                        field_mapping[field.selector] = answers[field.label]
+                    if field.field_type not in ("select", "radio") or not field.required:
+                        continue
+                    if field.selector in field_mapping:
+                        continue
+                    if not field.options:
+                        continue
+                    # Prefer safe Yes/No defaults when the LLM omitted compliance questions.
+                    if field.options == ["Yes", "No"]:
+                        label = field.label.lower()
+                        default = "No" if "sponsor" in label else "Yes"
+                        field_mapping[field.selector] = f"literal:{default}"
+                    else:
+                        field_mapping[field.selector] = f"literal:{field.options[0]}"
 
-            # Ensure required selects/radios get a mapped answer when LLM skipped them.
-            for field in fields:
-                if field.field_type not in ("select", "radio") or not field.required:
-                    continue
-                if field.selector in field_mapping:
-                    continue
-                if not field.options:
-                    continue
-                # Prefer safe Yes/No defaults when the LLM omitted compliance questions.
-                if field.options == ["Yes", "No"]:
-                    label = field.label.lower()
-                    default = "No" if "sponsor" in label else "Yes"
-                    field_mapping[field.selector] = f"literal:{default}"
-                else:
-                    field_mapping[field.selector] = f"literal:{field.options[0]}"
-
-            result = await handler.fill_and_submit(page, payload.cv_data, field_mapping)
+                result = await handler.fill_and_submit(page, payload.cv_data, field_mapping)
 
             current_state = await context.storage_state()
             if should_save_session(
