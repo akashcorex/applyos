@@ -14,6 +14,7 @@ AtsType = Literal[
     "recruitee",
     "personio",
     "wellfound",
+    "generic",
 ]
 
 ConfidenceLevel = Literal["high", "low", "none"]
@@ -161,7 +162,7 @@ class FundingScrapeResponse(BaseModel):
 
 class SearchRequest(BaseModel):
     job_title: str = Field(min_length=1, max_length=128)
-    max_companies: int = Field(default=10, ge=1, le=20)
+    max_companies: int = Field(default=15, ge=1, le=40)
     max_jobs_per_company: int = Field(default=50, ge=1, le=200)
 
 
@@ -192,7 +193,7 @@ class SemanticSearchRequest(BaseModel):
     job_title: str = Field(min_length=1, max_length=128)
     skills: list[str] = Field(default_factory=list)
     experience_years: int = Field(default=0, ge=0)
-    max_companies: int = Field(default=10, ge=1, le=20)
+    max_companies: int = Field(default=15, ge=1, le=40)
     max_jobs_per_company: int = Field(default=50, ge=1, le=200)
     summary: str | None = None
     recent_role: str | None = None
