@@ -16,6 +16,7 @@ AtsType = Literal[
     "recruitee",
     "personio",
     "wellfound",
+    "generic",
 ]
 
 SeniorityLevel = Literal[
@@ -100,6 +101,7 @@ class WorkflowStatus(str, Enum):
     pending = "pending"
     discovering_funding = "discovering_funding"
     discovering = "discovering"
+    deciding = "deciding"
     filtering = "filtering"
     applying = "applying"
     completed = "completed"
@@ -147,12 +149,35 @@ class ApplyTaskRecord(BaseModel):
     linkedin_connect_status: str | None = None
 
 
+class DecisionRecord(BaseModel):
+    action: Literal["apply", "skip"]
+    job_title: str
+    company_name: str
+    reason: str
+    dedup_key: str | None = None
+
+
+class StartRunRequest(BaseModel):
+    user_id: str
+    job_role: str = Field(min_length=1, max_length=128)
+    years_experience: int = Field(ge=0, le=50)
+    resume_id: str = Field(min_length=1, max_length=128)
+    max_applies: int = Field(default=5, ge=1, le=20)
+    preferred_locations: list[str] = Field(default_factory=list)
+
+
+class StartRunResponse(BaseModel):
+    workflow_id: str
+    status: WorkflowStatus
+
+
 class WorkflowRun(BaseModel):
     id: str
     status: WorkflowStatus
     request: StartWorkflowRequest
     discovered_jobs: list[DiscoveredJobRecord] = Field(default_factory=list)
     apply_tasks: list[ApplyTaskRecord] = Field(default_factory=list)
+    decisions: list[DecisionRecord] = Field(default_factory=list)
     errors: list[str] = Field(default_factory=list)
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
