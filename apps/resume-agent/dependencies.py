@@ -65,6 +65,13 @@ class AppState:
         )
         async with self.pool.acquire() as conn:
             await conn.execute("CREATE EXTENSION IF NOT EXISTS vector;")
+            resumes_table = await conn.fetchval("SELECT to_regclass('public.resumes')")
+            if resumes_table is None:
+                raise RuntimeError(
+                    "Table 'resumes' does not exist. Apply the Drizzle schema "
+                    "with `bun run db:push` (local) or `bun run db:migrate` "
+                    "before starting resume-agent."
+                )
             await conn.execute(
                 'ALTER TABLE resumes ADD COLUMN IF NOT EXISTS profile_embedding jsonb'
             )
