@@ -9,7 +9,7 @@ from fastapi import FastAPI
 
 from dependencies import app_state
 from logging_filters import install_health_access_filter
-from routes import health, workflows
+from routes import health, runs, workflows
 
 logging.basicConfig(
     level=logging.INFO,
@@ -33,3 +33,4 @@ app = FastAPI(title="ai-orchestrator", lifespan=lifespan)
 
 app.include_router(health.router)
 app.include_router(workflows.router)
+app.include_router(runs.router)

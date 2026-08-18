@@ -11,6 +11,7 @@ type WorkflowStatus =
   | 'pending'
   | 'discovering_funding'
   | 'discovering'
+  | 'deciding'
   | 'filtering'
   | 'applying'
   | 'completed'
@@ -77,6 +78,10 @@ const STATUS_CONFIG: Record<
   discovering: {
     label: 'Discovering',
     className: 'bg-blue-100 text-blue-800 border-blue-300',
+  },
+  deciding: {
+    label: 'Deciding',
+    className: 'bg-indigo-100 text-indigo-800 border-indigo-300',
   },
   filtering: {
     label: 'Filtering',
@@ -408,9 +413,9 @@ function ApplyStatusBadge({ status }: { status: string }) {
     string,
     { label: string; className: string }
   > = {
-    pending: {
-      label: 'Pending',
-      className: 'bg-gray-100 text-gray-700 border-gray-300',
+    queued: {
+      label: 'Queued',
+      className: 'bg-blue-100 text-blue-800 border-blue-300',
     },
     submitted: {
       label: 'Submitted',

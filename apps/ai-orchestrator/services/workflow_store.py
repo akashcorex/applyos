@@ -10,6 +10,8 @@ import redis.asyncio as redis
 from config import settings
 from models import (
     ApplyTaskRecord,
+    CVData,
+    DecisionRecord,
     DiscoveredJobRecord,
     StartWorkflowRequest,
     WorkflowRun,
@@ -95,6 +97,35 @@ class WorkflowStore:
         if run is None:
             return
         run.apply_tasks = tasks
+        await self.save(run)
+
+    async def append_apply_task(
+        self,
+        workflow_id: str,
+        task: ApplyTaskRecord,
+    ) -> None:
+        run = await self.get(workflow_id)
+        if run is None:
+            return
+        run.apply_tasks.append(task)
+        await self.save(run)
+
+    async def append_decision(
+        self,
+        workflow_id: str,
+        decision: DecisionRecord,
+    ) -> None:
+        run = await self.get(workflow_id)
+        if run is None:
+            return
+        run.decisions.append(decision)
+        await self.save(run)
+
+    async def update_cv_data(self, workflow_id: str, cv_data: CVData) -> None:
+        run = await self.get(workflow_id)
+        if run is None:
+            return
+        run.request.cv_data = cv_data
         await self.save(run)
 
     async def index_job(self, workflow_id: str, job_id: str) -> None:

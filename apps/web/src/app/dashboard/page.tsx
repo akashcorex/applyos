@@ -79,7 +79,7 @@ export default function DashboardPage() {
         <div className="mb-6">
           <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
           <p className="text-sm text-muted-foreground">
-            Upload your resume and let ApplyOS find and apply to matching jobs.
+            Upload your resume, set a role, and let the agent search and apply.
           </p>
         </div>
 

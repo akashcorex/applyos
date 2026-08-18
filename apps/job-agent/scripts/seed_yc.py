@@ -8,7 +8,7 @@ import asyncio
 import json
 
 from models import ScrapeRequest
-from services.ingest import scrape_jobs
+from services.ingest import PARSERS, scrape_jobs
 from services.parsers.yc import fetch_normalized_companies
 
 
@@ -26,7 +26,7 @@ async def scrape_pilot_companies(
     for company in pilot:
         ats_type = str(company["ats_type"])
         ats_slug = str(company["ats_slug"])
-        if ats_type not in {"greenhouse", "lever"}:
+        if ats_type not in PARSERS:
             continue
 
         try:
