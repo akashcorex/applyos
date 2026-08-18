@@ -162,3 +162,28 @@ async def test_detect_endpoint_rejects_internal_url() -> None:
     assert response.status_code == 502
     assert response.json()["detail"] == "Failed to detect ATS from the provided URL"
     assert "127.0.0.1" not in response.text
+
+
+@pytest.mark.asyncio
+async def test_detect_endpoint_fetch_failure_is_not_fatal(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def failing_fetch(_url: str) -> str:
+        raise RuntimeError("Failed to fetch https://careers.cloudflare.com")
+
+    monkeypatch.setattr(
+        "services.ats_detect.fetch_text_with_retries_strict",
+        failing_fetch,
+    )
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.post(
+            "/detect",
+            json={"career_page_url": "https://careers.cloudflare.com"},
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["ats_type"] is None
+    assert body["confidence"] == "none"

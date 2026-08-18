@@ -102,3 +102,45 @@ async def test_deterministic_run_applies_shortlist() -> None:
     apply_client.trigger_apply.assert_awaited()
     assert len(ctx.apply_tasks) == 1
     assert ctx.apply_tasks[0].status == "queued"
+
+
+@pytest.mark.asyncio
+async def test_detect_ats_tool_does_not_raise_on_502() -> None:
+    import httpx
+
+    ctx = DecisionContext(
+        workflow_id="wf-1",
+        request=StartRunRequest(
+            user_id="u1",
+            job_role="Software Engineer",
+            years_experience=4,
+            resume_id="r1",
+            max_applies=3,
+        ),
+        store=AsyncMock(),
+        job_client=AsyncMock(),
+        apply_client=AsyncMock(),
+        resume_client=AsyncMock(),
+        profile=UserProfile(
+            user_id="u1",
+            preferred_role="Software Engineer",
+            years_experience=4,
+        ),
+        cv_data=CVData(
+            full_name="Jane",
+            email="jane@example.com",
+            resume_url="/tmp/resume.pdf",
+        ),
+        candidates=[_job()],
+    )
+    request = httpx.Request("POST", "http://127.0.0.1:8002/detect")
+    response = httpx.Response(502, request=request)
+    ctx.job_client.detect_ats = AsyncMock(
+        side_effect=httpx.HTTPStatusError("502", request=request, response=response)
+    )
+    tools = {tool.name: tool for tool in build_tools(ctx)}
+    result = await tools["detect_ats"].ainvoke(
+        {"career_page_url": "https://careers.cloudflare.com"}
+    )
+    assert "detect failed" in result
+    assert "skip this URL" in result

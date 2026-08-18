@@ -1,7 +1,10 @@
+import logging
 from urllib.parse import urlparse
 
 from models import AtsType, ConfidenceLevel
 from services.parsers.base import fetch_text_with_retries_strict
+
+logger = logging.getLogger(__name__)
 
 WELLFOUND_HOSTS = frozenset(
     {
@@ -102,7 +105,14 @@ async def detect_ats(
             return url_ats_type, slug, "high"
         return url_ats_type, None, "low"
 
-    html = await fetch_text_with_retries_strict(career_page_url)
+    try:
+        html = await fetch_text_with_retries_strict(career_page_url)
+    except ValueError:
+        raise
+    except Exception as exc:
+        logger.warning("ATS detect fetch failed for %s: %s", career_page_url, exc)
+        return None, None, "none"
+
     ats_type = detect_ats_from_html(html)
     slug = infer_slug_from_url(career_page_url, ats_type)
 

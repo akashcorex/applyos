@@ -103,23 +103,41 @@ def build_tools(ctx: DecisionContext) -> list[StructuredTool]:
         await ctx.store.update_status(ctx.workflow_id, WorkflowStatus.discovering)
         role = (job_title or ctx.profile.preferred_role).strip()
         skills = ctx.cv_data.skills if ctx.cv_data else []
-        jobs = await ctx.job_client.search_jobs(
-            role,
-            skills=skills,
-            experience_years=ctx.profile.years_experience,
-            summary=ctx.cv_data.summary if ctx.cv_data else None,
-            recent_role=(
-                (ctx.cv_data.work_history or [{}])[0].get("title")
-                if ctx.cv_data and ctx.cv_data.work_history
-                else None
-            ),
-        )
+        try:
+            jobs = await ctx.job_client.search_jobs(
+                role,
+                skills=skills,
+                experience_years=ctx.profile.years_experience,
+                summary=ctx.cv_data.summary if ctx.cv_data else None,
+                recent_role=(
+                    (ctx.cv_data.work_history or [{}])[0].get("title")
+                    if ctx.cv_data and ctx.cv_data.work_history
+                    else None
+                ),
+            )
+        except httpx.HTTPError as exc:
+            logger.warning("search_jobs failed: %s", exc)
+            return json.dumps({"error": str(exc), "count": 0, "jobs": []})
         _merge_candidates(ctx, jobs)
         await ctx.store.set_discovered_jobs(ctx.workflow_id, ctx.candidates)
         return _dump_jobs(jobs)
 
     async def detect_ats(career_page_url: str) -> str:
-        ats_type, slug, confidence = await ctx.job_client.detect_ats(career_page_url)
+        try:
+            ats_type, slug, confidence = await ctx.job_client.detect_ats(
+                career_page_url
+            )
+        except httpx.HTTPError as exc:
+            logger.warning("detect_ats failed for %s: %s", career_page_url, exc)
+            return json.dumps(
+                {
+                    "ats_type": None,
+                    "suggested_slug": None,
+                    "confidence": "none",
+                    "career_page_url": career_page_url,
+                    "error": "detect failed; skip this URL and apply from search results",
+                }
+            )
         return json.dumps(
             {
                 "ats_type": ats_type,
@@ -135,31 +153,41 @@ def build_tools(ctx: DecisionContext) -> list[StructuredTool]:
         ats_slug: str | None = None,
         career_page_url: str | None = None,
     ) -> str:
-        if (not ats_type or not ats_slug) and career_page_url:
-            ats_type, ats_slug, _confidence = await ctx.job_client.detect_ats(
-                career_page_url
-            )
-        if not ats_type or not ats_slug or ats_type == "generic":
-            return json.dumps(
-                {
-                    "error": "unknown board; call scrape_career_page instead",
-                    "company_name": company_name,
-                }
-            )
         try:
-            target = CompanyTarget(
-                company_name=company_name,
-                ats_type=ats_type,  # type: ignore[arg-type]
-                ats_slug=ats_slug,
-            )
-        except Exception:
+            if (not ats_type or not ats_slug) and career_page_url:
+                ats_type, ats_slug, _confidence = await ctx.job_client.detect_ats(
+                    career_page_url
+                )
+            if not ats_type or not ats_slug or ats_type == "generic":
+                return json.dumps(
+                    {
+                        "error": "unknown board; skip or scrape_career_page",
+                        "company_name": company_name,
+                    }
+                )
+            try:
+                target = CompanyTarget(
+                    company_name=company_name,
+                    ats_type=ats_type,  # type: ignore[arg-type]
+                    ats_slug=ats_slug,
+                )
+            except Exception:
+                return json.dumps(
+                    {
+                        "error": "unknown board; skip or scrape_career_page",
+                        "company_name": company_name,
+                    }
+                )
+            jobs = await ctx.job_client.ingest_company(target)
+        except httpx.HTTPError as exc:
+            logger.warning("ingest_board failed for %s: %s", company_name, exc)
             return json.dumps(
                 {
-                    "error": "unknown board; call scrape_career_page instead",
+                    "error": str(exc),
                     "company_name": company_name,
+                    "jobs": [],
                 }
             )
-        jobs = await ctx.job_client.ingest_company(target)
         _merge_candidates(ctx, jobs)
         await ctx.store.set_discovered_jobs(ctx.workflow_id, ctx.candidates)
         return _dump_jobs(jobs)
@@ -168,11 +196,21 @@ def build_tools(ctx: DecisionContext) -> list[StructuredTool]:
         career_page_url: str,
         company_name: str | None = None,
     ) -> str:
-        jobs = await ctx.job_client.scrape_career_page(
-            career_page_url,
-            job_role=ctx.profile.preferred_role,
-            company_name=company_name,
-        )
+        try:
+            jobs = await ctx.job_client.scrape_career_page(
+                career_page_url,
+                job_role=ctx.profile.preferred_role,
+                company_name=company_name,
+            )
+        except httpx.HTTPError as exc:
+            logger.warning("scrape_career_page failed for %s: %s", career_page_url, exc)
+            return json.dumps(
+                {
+                    "error": str(exc),
+                    "career_page_url": career_page_url,
+                    "jobs": [],
+                }
+            )
         _merge_candidates(ctx, jobs)
         await ctx.store.set_discovered_jobs(ctx.workflow_id, ctx.candidates)
         return _dump_jobs(jobs)
