@@ -28,6 +28,23 @@ PILOT_ATS_OVERRIDES: dict[str, dict[str, str]] = {
     "spotify.com": {"ats_type": "lever", "ats_slug": "spotify"},
     "palantir.com": {"ats_type": "lever", "ats_slug": "palantir"},
     "lyft.com": {"ats_type": "greenhouse", "ats_slug": "lyft"},
+    "zapier.com": {"ats_type": "greenhouse", "ats_slug": "zapier"},
+    "gitlab.com": {"ats_type": "greenhouse", "ats_slug": "gitlab"},
+    "cloudflare.com": {"ats_type": "greenhouse", "ats_slug": "cloudflare"},
+    "databricks.com": {"ats_type": "greenhouse", "ats_slug": "databricks"},
+    "twilio.com": {"ats_type": "greenhouse", "ats_slug": "twilio"},
+    "shopify.com": {"ats_type": "greenhouse", "ats_slug": "shopify"},
+    "intercom.com": {"ats_type": "greenhouse", "ats_slug": "intercom"},
+    "webflow.com": {"ats_type": "greenhouse", "ats_slug": "webflow"},
+    "anthropic.com": {"ats_type": "ashby", "ats_slug": "anthropic"},
+    "mercury.com": {"ats_type": "ashby", "ats_slug": "mercury"},
+    "deel.com": {"ats_type": "ashby", "ats_slug": "deel"},
+    "replit.com": {"ats_type": "ashby", "ats_slug": "replit"},
+    "huggingface.co": {"ats_type": "ashby", "ats_slug": "huggingface"},
+    "remote.com": {"ats_type": "ashby", "ats_slug": "remote"},
+    "loom.com": {"ats_type": "ashby", "ats_slug": "loom"},
+    "personio.com": {"ats_type": "personio", "ats_slug": "personio"},
+    "n26.com": {"ats_type": "personio", "ats_slug": "n26"},
 }
 
 
