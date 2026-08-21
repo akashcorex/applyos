@@ -349,7 +349,7 @@ class LeverHandler(ATSHandler):
         ):
             logger.info("Lever: location focus showed challenge; CapSolver fallback")
             captcha_error = await ensure_captcha_cleared(
-                page, silent_timeout_ms=3_000, allow_solver=True
+                    page, silent_timeout_ms=3_000
             )
             if captcha_error:
                 logger.warning("Lever: captcha after location focus: %s", captcha_error)
@@ -684,9 +684,9 @@ class LeverHandler(ATSHandler):
 
                 # Stealth-first: wait for any prior silent-pass token; CapSolver only if needed.
                 captcha_error = await ensure_captcha_cleared(
-                    page, silent_timeout_ms=8_000, allow_solver=True
+                    page, silent_timeout_ms=8_000
                 )
-                if captcha_error and await is_hcaptcha_challenge_visible(page):
+                if captcha_error:
                     await self._dump_debug(
                         page,
                         error=captcha_error,
@@ -698,11 +698,6 @@ class LeverHandler(ATSHandler):
                         ats_type=self.ats_name,
                         fields_filled=filled,
                         error=captcha_error,
-                    )
-                if captcha_error:
-                    logger.warning(
-                        "Lever: proceeding to submit despite captcha warning: %s",
-                        captcha_error,
                     )
 
                 submit_btn = await page.query_selector(_SUBMIT_SELECTOR)
@@ -743,7 +738,7 @@ class LeverHandler(ATSHandler):
                         page
                     ):
                         post_captcha = await ensure_captcha_cleared(
-                            page, silent_timeout_ms=5_000, allow_solver=True
+                            page, silent_timeout_ms=5_000
                         )
                         if post_captcha:
                             await self._dump_debug(

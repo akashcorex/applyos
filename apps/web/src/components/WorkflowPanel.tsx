@@ -1,7 +1,15 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { ChevronDown, ChevronRight, Clock, RefreshCw } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import {
+  ChevronDown,
+  ChevronRight,
+  Clock,
+  Pause,
+  Play,
+  RefreshCw,
+  Square,
+} from 'lucide-react';
 
 import { Button } from '@applyso/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@applyso/ui/card';
@@ -16,7 +24,10 @@ type WorkflowStatus =
   | 'applying'
   | 'completed'
   | 'partial'
-  | 'failed';
+  | 'failed'
+  | 'paused'
+  | 'stopped'
+  | 'cancelled';
 
 interface WorkflowSummary {
   id: string;
@@ -50,7 +61,10 @@ interface ApplyTask {
   task_id: string | null;
   status: string;
   error_detail: string | null;
+  page_url?: string | null;
+  screenshot_path?: string | null;
   linkedin_connect_status: string | null;
+  outcome?: string | null;
 }
 
 interface WorkflowDetail {
@@ -62,6 +76,19 @@ interface WorkflowDetail {
   created_at: string;
   updated_at: string;
 }
+
+interface WorkflowEvent {
+  id?: string;
+  eventType?: string;
+  event_type?: string;
+  payload?: unknown;
+  occurredAt?: string;
+  occurred_at?: string;
+  createdAt?: string;
+  created_at?: string;
+}
+
+type LifecycleAction = 'pause' | 'resume' | 'stop';
 
 const STATUS_CONFIG: Record<
   WorkflowStatus,
@@ -104,6 +131,18 @@ const STATUS_CONFIG: Record<
     label: 'Failed',
     className: 'bg-red-100 text-red-800 border-red-300',
   },
+  paused: {
+    label: 'Paused',
+    className: 'bg-yellow-100 text-yellow-800 border-yellow-300',
+  },
+  stopped: {
+    label: 'Stopped',
+    className: 'bg-gray-100 text-gray-700 border-gray-300',
+  },
+  cancelled: {
+    label: 'Cancelled',
+    className: 'bg-gray-100 text-gray-700 border-gray-300',
+  },
 };
 
 function timeAgo(dateStr: string): string {
@@ -124,6 +163,52 @@ function shortId(id: string): string {
   return id.length > 8 ? `${id.slice(0, 8)}…` : id;
 }
 
+function eventTimestamp(event: WorkflowEvent): string | null {
+  const timestamp =
+    event.occurredAt ??
+    event.occurred_at ??
+    event.createdAt ??
+    event.created_at;
+  return typeof timestamp === 'string' && Number.isFinite(Date.parse(timestamp))
+    ? timestamp
+    : null;
+}
+
+function eventKey(event: WorkflowEvent): string {
+  return (
+    event.id ??
+    `${event.eventType ?? event.event_type ?? 'workflow'}:${eventTimestamp(event) ?? ''}:${JSON.stringify(event.payload ?? null)}`
+  );
+}
+
+function eventLabel(event: WorkflowEvent): string {
+  return (event.eventType ?? event.event_type ?? 'workflow.event')
+    .replaceAll('_', ' ')
+    .replaceAll('.', ' · ');
+}
+
+function eventDetail(event: WorkflowEvent): string | null {
+  if (typeof event.payload === 'string') return event.payload;
+  if (!event.payload || typeof event.payload !== 'object') return null;
+
+  const payload = event.payload as Record<string, unknown>;
+  for (const value of [
+    payload.errorDetail,
+    payload.error_detail,
+    payload.error,
+    payload.status,
+  ]) {
+    if (typeof value === 'string') return value;
+  }
+  return null;
+}
+
+function isTerminalStatus(status: WorkflowStatus): boolean {
+  return ['completed', 'partial', 'failed', 'stopped', 'cancelled'].includes(
+    status,
+  );
+}
+
 export function WorkflowPanel({
   focusWorkflowId,
   refreshKey = 0,
@@ -136,6 +221,27 @@ export function WorkflowPanel({
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<WorkflowDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [events, setEvents] = useState<WorkflowEvent[]>([]);
+  const eventsRef = useRef<WorkflowEvent[]>([]);
+  const [lifecycleAction, setLifecycleAction] =
+    useState<LifecycleAction | null>(null);
+  const [lifecycleError, setLifecycleError] = useState<string | null>(null);
+
+  function appendEvents(incoming: WorkflowEvent[]) {
+    setEvents((current) => {
+      const byKey = new Map(current.map((event) => [eventKey(event), event]));
+      for (const event of incoming) byKey.set(eventKey(event), event);
+      const next = Array.from(byKey.values())
+        .sort((a, b) => {
+          const aTime = eventTimestamp(a) ?? '';
+          const bTime = eventTimestamp(b) ?? '';
+          return aTime.localeCompare(bTime);
+        })
+        .slice(-100);
+      eventsRef.current = next;
+      return next;
+    });
+  }
 
   async function fetchWorkflows() {
     try {
@@ -181,6 +287,96 @@ export function WorkflowPanel({
     void loadWorkflowDetail(focusWorkflowId);
   }, [focusWorkflowId]);
 
+  useEffect(() => {
+    if (!expandedId) {
+      eventsRef.current = [];
+      setEvents([]);
+      return;
+    }
+
+    eventsRef.current = [];
+    setEvents([]);
+    let cancelled = false;
+    let fallbackTimer: ReturnType<typeof setInterval> | undefined;
+    let eventSource: EventSource | undefined;
+
+    const eventUrl = (once: boolean) => {
+      const url = new URL(
+        `/api/workflows/${expandedId}/events`,
+        window.location.origin,
+      );
+      if (once) url.searchParams.set('once', '1');
+      const latestEvent = eventsRef.current.at(-1);
+      const after = latestEvent ? eventTimestamp(latestEvent) : null;
+      if (after) url.searchParams.set('after', after);
+      return url.toString();
+    };
+
+    const pollEvents = async () => {
+      try {
+        const res = await fetch(eventUrl(true));
+        if (!res.ok) return;
+        const data = (await res.json()) as { events?: WorkflowEvent[] };
+        if (!cancelled && Array.isArray(data.events)) appendEvents(data.events);
+      } catch {
+        // Workflow summary polling remains available while event polling retries.
+      }
+    };
+
+    const startFallbackPolling = () => {
+      if (fallbackTimer || cancelled) return;
+      void pollEvents();
+      fallbackTimer = setInterval(() => void pollEvents(), 5000);
+    };
+
+    if (typeof EventSource === 'undefined') {
+      startFallbackPolling();
+    } else {
+      eventSource = new EventSource(eventUrl(false));
+      eventSource.addEventListener('workflow', (message) => {
+        try {
+          const event = JSON.parse(
+            (message as MessageEvent<string>).data,
+          ) as WorkflowEvent;
+          if (!cancelled) appendEvents([event]);
+        } catch {
+          // Ignore malformed event data and keep the stream open for later events.
+        }
+      });
+      eventSource.addEventListener('workflow-error', startFallbackPolling);
+      eventSource.onerror = () => {
+        eventSource?.close();
+        startFallbackPolling();
+      };
+    }
+
+    return () => {
+      cancelled = true;
+      eventSource?.close();
+      if (fallbackTimer) clearInterval(fallbackTimer);
+    };
+  }, [expandedId]);
+
+  async function handleLifecycle(id: string, action: LifecycleAction) {
+    setLifecycleAction(action);
+    setLifecycleError(null);
+    try {
+      const res = await fetch(`/api/workflows/${id}/${action}`, {
+        method: 'POST',
+      });
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) {
+        setLifecycleError(data.error ?? `Unable to ${action} workflow`);
+        return;
+      }
+      await Promise.all([fetchWorkflows(), loadWorkflowDetail(id)]);
+    } catch {
+      setLifecycleError(`Unable to ${action} workflow`);
+    } finally {
+      setLifecycleAction(null);
+    }
+  }
+
   async function handleToggle(id: string) {
     if (expandedId === id) {
       setExpandedId(null);
@@ -190,8 +386,7 @@ export function WorkflowPanel({
     await loadWorkflowDetail(id);
   }
 
-  const count =
-    workflows.length > 0 ? `${workflows.length} recent` : 'None';
+  const count = workflows.length > 0 ? `${workflows.length} recent` : 'None';
 
   return (
     <Card>
@@ -213,9 +408,7 @@ export function WorkflowPanel({
       </CardHeader>
       <CardContent>
         {loading ? (
-          <p className="text-sm text-muted-foreground">
-            Loading workflows...
-          </p>
+          <p className="text-sm text-muted-foreground">Loading workflows...</p>
         ) : workflows.length > 0 ? (
           <div className="space-y-1 max-h-96 overflow-y-auto">
             {workflows.map((wf) => {
@@ -245,9 +438,7 @@ export function WorkflowPanel({
                       </Badge>
                     </div>
                     <div className="flex items-center gap-3 text-xs text-muted-foreground shrink-0">
-                      {wf.job_count > 0 && (
-                        <span>{wf.job_count} jobs</span>
-                      )}
+                      {wf.job_count > 0 && <span>{wf.job_count} jobs</span>}
                       {wf.apply_total > 0 && (
                         <span
                           className={
@@ -277,9 +468,7 @@ export function WorkflowPanel({
                       {detail && (
                         <>
                           <div className="space-y-1">
-                            <p className="text-xs text-muted-foreground">
-                              ID
-                            </p>
+                            <p className="text-xs text-muted-foreground">ID</p>
                             <p className="font-mono text-xs break-all">
                               {detail.id}
                             </p>
@@ -287,24 +476,119 @@ export function WorkflowPanel({
 
                           <div className="grid grid-cols-2 gap-2 text-xs">
                             <div>
-                              <p className="text-muted-foreground">
-                                Created
-                              </p>
+                              <p className="text-muted-foreground">Created</p>
                               <p>{timeAgo(detail.created_at)}</p>
                             </div>
                             <div>
-                              <p className="text-muted-foreground">
-                                Updated
-                              </p>
+                              <p className="text-muted-foreground">Updated</p>
                               <p>{timeAgo(detail.updated_at)}</p>
                             </div>
+                          </div>
+
+                          {!isTerminalStatus(detail.status) && (
+                            <div className="space-y-1">
+                              <p className="text-xs font-medium">Controls</p>
+                              <div className="flex flex-wrap gap-2">
+                                {detail.status === 'paused' ? (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    disabled={lifecycleAction !== null}
+                                    onClick={() =>
+                                      void handleLifecycle(detail.id, 'resume')
+                                    }
+                                  >
+                                    <Play className="h-3.5 w-3.5" />
+                                    {lifecycleAction === 'resume'
+                                      ? 'Resuming...'
+                                      : 'Resume'}
+                                  </Button>
+                                ) : (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    disabled={lifecycleAction !== null}
+                                    onClick={() =>
+                                      void handleLifecycle(detail.id, 'pause')
+                                    }
+                                  >
+                                    <Pause className="h-3.5 w-3.5" />
+                                    {lifecycleAction === 'pause'
+                                      ? 'Pausing...'
+                                      : 'Pause'}
+                                  </Button>
+                                )}
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  disabled={lifecycleAction !== null}
+                                  onClick={() =>
+                                    void handleLifecycle(detail.id, 'stop')
+                                  }
+                                >
+                                  <Square className="h-3.5 w-3.5" />
+                                  {lifecycleAction === 'stop'
+                                    ? 'Stopping...'
+                                    : 'Stop'}
+                                </Button>
+                              </div>
+                              <p className="text-xs text-muted-foreground">
+                                Pause stops new workflow steps. A browser task
+                                that is already running may finish its current
+                                safe step; Stop requests safe cancellation
+                                before submission.
+                              </p>
+                              {lifecycleError && (
+                                <p className="text-xs text-red-600">
+                                  {lifecycleError}
+                                </p>
+                              )}
+                            </div>
+                          )}
+
+                          <div className="space-y-1">
+                            <p className="text-xs font-medium">Live Events</p>
+                            {events.length > 0 ? (
+                              <div className="space-y-1 max-h-32 overflow-y-auto">
+                                {events.map((event) => {
+                                  const timestamp = eventTimestamp(event);
+                                  const detailText = eventDetail(event);
+                                  return (
+                                    <div
+                                      key={eventKey(event)}
+                                      className="rounded border px-2 py-1 text-xs"
+                                    >
+                                      <div className="flex items-center justify-between gap-2">
+                                        <p className="font-medium truncate">
+                                          {eventLabel(event)}
+                                        </p>
+                                        {timestamp && (
+                                          <span className="shrink-0 text-muted-foreground">
+                                            {timeAgo(timestamp)}
+                                          </span>
+                                        )}
+                                      </div>
+                                      {detailText && (
+                                        <p className="text-muted-foreground truncate">
+                                          {detailText}
+                                        </p>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            ) : (
+                              <p className="text-xs text-muted-foreground">
+                                Waiting for workflow events...
+                              </p>
+                            )}
                           </div>
 
                           {detail.discovered_jobs.length > 0 && (
                             <div className="space-y-1">
                               <p className="text-xs font-medium">
-                                Discovered Jobs (
-                                {detail.discovered_jobs.length})
+                                Discovered Jobs ({detail.discovered_jobs.length}
+                                )
                               </p>
                               <div className="space-y-1 max-h-32 overflow-y-auto">
                                 {detail.discovered_jobs.map((job) => (
@@ -318,8 +602,7 @@ export function WorkflowPanel({
                                     <p className="text-muted-foreground truncate">
                                       {job.company_name}
                                       {job.location && ` · ${job.location}`}
-                                      {job.seniority &&
-                                        ` · ${job.seniority}`}
+                                      {job.seniority && ` · ${job.seniority}`}
                                     </p>
                                     <p className="text-muted-foreground">
                                       Score: {job.filter_score.toFixed(1)}
@@ -333,8 +616,7 @@ export function WorkflowPanel({
                           {detail.apply_tasks.length > 0 && (
                             <div className="space-y-1">
                               <p className="text-xs font-medium">
-                                Apply Tasks (
-                                {detail.apply_tasks.length})
+                                Apply Tasks ({detail.apply_tasks.length})
                               </p>
                               <div className="space-y-1 max-h-32 overflow-y-auto">
                                 {detail.apply_tasks.map((task) => (
@@ -346,9 +628,7 @@ export function WorkflowPanel({
                                       <p className="font-medium truncate">
                                         {task.job_title}
                                       </p>
-                                      <ApplyStatusBadge
-                                        status={task.status}
-                                      />
+                                      <ApplyStatusBadge status={task.status} />
                                     </div>
                                     <p className="text-muted-foreground truncate">
                                       {task.company_name}
@@ -361,10 +641,75 @@ export function WorkflowPanel({
                                       </div>
                                     )}
                                     {task.error_detail && (
-                                      <p className="text-red-600 truncate">
+                                      <p className="text-red-600">
                                         {task.error_detail}
                                       </p>
                                     )}
+                                    {(task.status === 'captcha_blocked' ||
+                                      task.status === 'login_required') && (
+                                      <p className="mt-1 text-amber-700">
+                                        Manual action needed
+                                        {task.page_url ? (
+                                          <>
+                                            {' '}
+                                            —{' '}
+                                            <a
+                                              href={task.page_url}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              className="underline"
+                                            >
+                                              open the page
+                                            </a>
+                                            , complete the check, then retry.
+                                          </>
+                                        ) : (
+                                          '. Open the application page, complete the check, then retry.'
+                                        )}
+                                      </p>
+                                    )}
+                                    {task.page_url &&
+                                      task.status !== 'captcha_blocked' &&
+                                      task.status !== 'login_required' && (
+                                        <a
+                                          href={task.page_url}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="mt-1 inline-block text-muted-foreground underline"
+                                        >
+                                          Page at failure
+                                        </a>
+                                      )}
+                                    {task.screenshot_path && (
+                                      <ScreenshotLink
+                                        workflowId={detail.id}
+                                        jobId={task.job_id}
+                                        screenshotPath={task.screenshot_path}
+                                      />
+                                    )}
+                                    {task.status === 'submitted' ||
+                                    task.status === 'already_applied' ? (
+                                      <OutcomeSelect
+                                        workflowId={detail.id}
+                                        jobId={task.job_id}
+                                        value={task.outcome}
+                                        onChange={(outcome) => {
+                                          setDetail((current) => {
+                                            if (!current) return current;
+                                            return {
+                                              ...current,
+                                              apply_tasks:
+                                                current.apply_tasks.map(
+                                                  (item) =>
+                                                    item.job_id === task.job_id
+                                                      ? { ...item, outcome }
+                                                      : item,
+                                                ),
+                                            };
+                                          });
+                                        }}
+                                      />
+                                    ) : null}
                                   </div>
                                 ))}
                               </div>
@@ -398,9 +743,8 @@ export function WorkflowPanel({
           </div>
         ) : (
           <p className="text-sm text-muted-foreground">
-            No workflows running. Paste a careers page URL in the Company
-            Discovery panel and the orchestrator will coordinate agents to
-            discover and apply to jobs.
+            No workflows yet. Upload a resume, tailor matches, and queue
+            applications to see a live timeline here.
           </p>
         )}
       </CardContent>
@@ -408,11 +752,78 @@ export function WorkflowPanel({
   );
 }
 
+function screenshotFile(path: string): string | null {
+  const parts = path.split(/[/\\]/).filter(Boolean);
+  const filename = parts.at(-1);
+  return filename && !filename.includes('..') ? filename : null;
+}
+
+function ScreenshotLink({
+  workflowId,
+  jobId,
+  screenshotPath,
+}: {
+  workflowId: string;
+  jobId: string;
+  screenshotPath: string;
+}) {
+  const filename = screenshotFile(screenshotPath);
+  if (!filename) return null;
+  const href = `/api/workflows/${encodeURIComponent(workflowId)}/screenshot?jobId=${encodeURIComponent(jobId)}&file=${encodeURIComponent(filename)}`;
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="mt-1 inline-block text-muted-foreground underline"
+    >
+      View screenshot
+    </a>
+  );
+}
+
+function OutcomeSelect({
+  workflowId,
+  jobId,
+  value,
+  onChange,
+}: {
+  workflowId: string;
+  jobId: string;
+  value: string | null;
+  onChange: (outcome: string) => void;
+}) {
+  async function handleChange(outcome: string) {
+    onChange(outcome);
+    await fetch(`/api/workflows/${encodeURIComponent(workflowId)}/outcome`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jobId, outcome }),
+    }).catch(() => undefined);
+  }
+
+  return (
+    <label className="mt-1 flex items-center gap-2 text-muted-foreground">
+      Outcome
+      <select
+        className="h-7 rounded border bg-background px-1 text-xs text-foreground"
+        value={value ?? ''}
+        onChange={(event) => {
+          if (event.target.value) void handleChange(event.target.value);
+        }}
+      >
+        <option value="">Not tracked</option>
+        <option value="viewed">Viewed</option>
+        <option value="rejected">Rejected</option>
+        <option value="interview">Interview</option>
+        <option value="offer">Offer</option>
+      </select>
+    </label>
+  );
+}
+
 function ApplyStatusBadge({ status }: { status: string }) {
-  const config: Record<
-    string,
-    { label: string; className: string }
-  > = {
+  const config: Record<string, { label: string; className: string }> = {
     queued: {
       label: 'Queued',
       className: 'bg-blue-100 text-blue-800 border-blue-300',
@@ -451,20 +862,14 @@ function ApplyStatusBadge({ status }: { status: string }) {
     className: 'bg-gray-100 text-gray-700 border-gray-300',
   };
   return (
-    <Badge
-      variant="outline"
-      className={`text-xs px-1.5 py-0 ${c.className}`}
-    >
+    <Badge variant="outline" className={`text-xs px-1.5 py-0 ${c.className}`}>
       {c.label}
     </Badge>
   );
 }
 
 function LinkedInConnectBadge({ status }: { status: string }) {
-  const config: Record<
-    string,
-    { label: string; className: string }
-  > = {
+  const config: Record<string, { label: string; className: string }> = {
     pending: {
       label: 'LinkedIn connects queued',
       className: 'bg-blue-100 text-blue-800 border-blue-300',
@@ -491,10 +896,7 @@ function LinkedInConnectBadge({ status }: { status: string }) {
     className: 'bg-gray-100 text-gray-700 border-gray-300',
   };
   return (
-    <Badge
-      variant="outline"
-      className={`text-xs px-1.5 py-0 ${c.className}`}
-    >
+    <Badge variant="outline" className={`text-xs px-1.5 py-0 ${c.className}`}>
       {c.label}
     </Badge>
   );

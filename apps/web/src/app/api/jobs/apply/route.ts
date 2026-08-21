@@ -1,4 +1,21 @@
+import { requireUserId } from '@/lib/require-user';
+import { agentServiceHeaders } from '@/lib/workflow-authorization';
+
+const ORCHESTRATOR_URL =
+  process.env.ORCHESTRATOR_URL ?? 'http://127.0.0.1:8001';
+
 export async function POST(request: Request) {
+  const userOrErr = await requireUserId(request);
+  if (userOrErr instanceof Response) return userOrErr;
+
+  const headers = agentServiceHeaders();
+  if (!headers) {
+    return Response.json(
+      { error: 'Workflow service is not configured' },
+      { status: 503 },
+    );
+  }
+
   try {
     const body = await request.json();
     const {
@@ -34,12 +51,12 @@ export async function POST(request: Request) {
       );
     }
 
-    const res = await fetch('http://127.0.0.1:8001/workflows', {
+    const res = await fetch(`${ORCHESTRATOR_URL}/workflows`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { ...headers, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         user_profile: {
-          user_id: body.user_id || 'default',
+          user_id: userOrErr,
           preferred_role: job_title || '',
           years_experience: 3,
           preferred_locations: [],

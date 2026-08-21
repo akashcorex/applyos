@@ -25,6 +25,13 @@ class Settings(BaseSettings):
     # --- API service (for persisting results) ---
     api_url: str = "http://localhost:3333"
 
+    # --- Trusted internal service authentication ---
+    # Shared with backend services only; never expose this token to the browser.
+    agent_service_token: str = ""
+
+    # --- Application task cancellation ---
+    apply_cancellation_ttl_seconds: int = 86400
+
     # --- Local development resume fallback ---
     default_resume_path: str = ""
 
@@ -39,13 +46,19 @@ class Settings(BaseSettings):
     linkedin_max_follows_per_day: int = 40
 
     # --- Post-apply LinkedIn employee connects ---
+    # Service-level kill switch. Per-user opt-in is still required by the orchestrator.
     post_apply_linkedin_connect_enabled: bool = True
     post_apply_connect_limit: int = 3
     post_apply_connect_delay_seconds: int = 900
 
-    # --- CAPTCHA solver (CapSolver fallback; Lever prefers stealth silent-pass) ---
+    # --- CAPTCHA / manual-action handoff ---
+    # Do not bypass site protections. Solver remains available only as an explicit opt-in.
     captcha_api_key: str = ""
     captcha_provider: str = "capsolver"
+    captcha_solver_enabled: bool = False
+
+    # --- Failure artifacts ---
+    artifact_dir: str = "/tmp/applyos-artifacts"
 
     # --- Browser stealth ---
     # Headed Chrome greatly improves Lever invisible hCaptcha silent-pass.

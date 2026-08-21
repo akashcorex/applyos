@@ -43,3 +43,5 @@ class JobPayload(BaseModel):
     job_description: str | None = None
     cv_data: CVData
     user_profile: UserProfile
+    resume_variant_id: str | None = None
+    idempotency_key: str | None = None

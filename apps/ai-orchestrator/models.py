@@ -75,9 +75,13 @@ class DirectApplyJob(BaseModel):
     description_raw: str | None = None
     dedup_key: str | None = None
     cv_data: CVData | None = None
+    resume_variant_id: str | None = None
 
 
 class StartWorkflowRequest(BaseModel):
+    # A trusted gateway can reserve a UUID in Postgres before dispatching work.
+    # Direct callers omit this and the orchestrator creates one as before.
+    workflow_id: str | None = None
     user_profile: UserProfile
     cv_data: CVData
     targets: list[CompanyTarget] = Field(default_factory=list)
@@ -95,6 +99,8 @@ class StartWorkflowRequest(BaseModel):
     max_jobs_per_company: int = Field(default=10, ge=1, le=100)
     max_total_applies: int = Field(default=5, ge=0, le=50)
     auto_apply: bool = True
+    # Per-run opt-in. Post-apply LinkedIn invites never run unless the user enabled them.
+    post_apply_linkedin_connect: bool = False
 
 
 class WorkflowStatus(str, Enum):
@@ -104,6 +110,8 @@ class WorkflowStatus(str, Enum):
     deciding = "deciding"
     filtering = "filtering"
     applying = "applying"
+    paused = "paused"
+    cancelled = "cancelled"
     completed = "completed"
     partial = "partial"
     failed = "failed"
@@ -118,6 +126,7 @@ TERMINAL_APPLY_STATUSES = frozenset(
         "login_required",
         "timed_out",
         "skipped",
+        "cancelled",
     }
 )
 
@@ -146,7 +155,10 @@ class ApplyTaskRecord(BaseModel):
     task_id: str | None = None
     status: str = "pending"
     error_detail: str | None = None
+    page_url: str | None = None
+    screenshot_path: str | None = None
     linkedin_connect_status: str | None = None
+    outcome: str | None = None
 
 
 class DecisionRecord(BaseModel):
@@ -211,6 +223,8 @@ class JobPayload(BaseModel):
     job_description: str | None = None
     cv_data: CVData
     user_profile: UserProfile
+    resume_variant_id: str | None = None
+    idempotency_key: str | None = None
 
 
 class TriggerApplyResponse(BaseModel):
@@ -224,6 +238,8 @@ class ApplyResultEvent(BaseModel):
     status: str
     ats_type: str | None = None
     error_detail: str | None = None
+    page_url: str | None = None
+    screenshot_path: str | None = None
     timestamp: datetime | None = None
 
 

@@ -33,4 +33,5 @@ app = FastAPI(title="ai-orchestrator", lifespan=lifespan)
 
 app.include_router(health.router)
 app.include_router(workflows.router)
+app.include_router(workflows.applications_router)
 app.include_router(runs.router)

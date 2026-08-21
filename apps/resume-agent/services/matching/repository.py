@@ -8,7 +8,7 @@ from typing import Any
 
 import asyncpg
 
-from services.matching.signals import EventCounts, JobSignalStats
+from services.matching.signals import EventCounts, JobSignalStats, OutcomeCounts
 
 logger = logging.getLogger(__name__)
 
@@ -216,11 +216,90 @@ class MatchingRepository:
             stats = result[row["dedup_key"]]
             _increment(stats.global_, row["event_type"], int(row["count"]))
 
+        try:
+            await self._merge_outcome_stats(conn_user_id=user_id, result=result)
+        except Exception as exc:
+            logger.warning("Could not load application outcomes for ranking: %s", exc)
+
         return {
             key: stats
             for key, stats in result.items()
-            if stats.user.has_signal or stats.global_.has_signal
+            if stats.user.has_signal
+            or stats.global_.has_signal
+            or stats.outcomes.has_signal
+            or stats.company_outcomes.has_signal
         }
+
+    async def _merge_outcome_stats(
+        self,
+        *,
+        conn_user_id: str,
+        result: dict[str, JobSignalStats],
+    ) -> None:
+        dedup_keys = list(result.keys())
+        async with self._pool.acquire() as conn:
+            job_rows = await conn.fetch(
+                """
+                SELECT wj.dedup_key, a.outcome, COUNT(*)::int AS count
+                FROM applications a
+                JOIN workflow_jobs wj ON wj.id = a.workflow_job_id
+                WHERE a.user_id = $1
+                  AND wj.dedup_key = ANY($2::text[])
+                  AND a.outcome IS NOT NULL
+                GROUP BY wj.dedup_key, a.outcome
+                """,
+                conn_user_id,
+                dedup_keys,
+            )
+            company_rows = await conn.fetch(
+                """
+                SELECT lower(wj.company_name) AS company_name, a.outcome, COUNT(*)::int AS count
+                FROM applications a
+                JOIN workflow_jobs wj ON wj.id = a.workflow_job_id
+                WHERE a.user_id = $1
+                  AND a.outcome IS NOT NULL
+                GROUP BY lower(wj.company_name), a.outcome
+                """,
+                conn_user_id,
+            )
+            company_for_keys = await conn.fetch(
+                """
+                SELECT DISTINCT dedup_key, lower(company_name) AS company_name
+                FROM workflow_jobs
+                WHERE dedup_key = ANY($1::text[])
+                """,
+                dedup_keys,
+            )
+
+        for row in job_rows:
+            stats = result.get(row["dedup_key"])
+            if stats is None:
+                continue
+            _increment_outcome(stats.outcomes, row["outcome"], int(row["count"]))
+
+        company_map: dict[str, OutcomeCounts] = {}
+        for row in company_rows:
+            counts = company_map.setdefault(row["company_name"], OutcomeCounts())
+            _increment_outcome(counts, row["outcome"], int(row["count"]))
+
+        company_by_key = {
+            row["dedup_key"]: row["company_name"] for row in company_for_keys
+        }
+        for key, stats in result.items():
+            company = company_by_key.get(key)
+            if company and company in company_map:
+                stats.company_outcomes = company_map[company]
+
+
+def _increment_outcome(counts: OutcomeCounts, outcome: str, n: int) -> None:
+    if outcome == "viewed":
+        counts.viewed += n
+    elif outcome == "rejected":
+        counts.rejected += n
+    elif outcome == "interview":
+        counts.interview += n
+    elif outcome == "offer":
+        counts.offer += n
 
 
 def _increment(counts: EventCounts, event_type: str, n: int) -> None:

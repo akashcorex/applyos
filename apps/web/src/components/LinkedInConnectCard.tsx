@@ -14,6 +14,11 @@ interface AutomationSessionStatus {
   expires_in_seconds: number | null;
 }
 
+interface UserPreferences {
+  postApplyLinkedinConnectEnabled: boolean;
+  emailOutreachEnabled: boolean;
+}
+
 function formatExpiry(seconds: number | null): string | null {
   if (seconds == null || seconds <= 0) {
     return null;
@@ -33,6 +38,13 @@ export function LinkedInConnectCard() {
     null,
   );
   const [automationError, setAutomationError] = useState(false);
+  const [preferences, setPreferences] = useState<UserPreferences>({
+    postApplyLinkedinConnectEnabled: false,
+    emailOutreachEnabled: false,
+  });
+  const [savingPreference, setSavingPreference] = useState<
+    keyof UserPreferences | null
+  >(null);
 
   useEffect(() => {
     const userId = session?.user?.id;
@@ -66,6 +78,45 @@ export function LinkedInConnectCard() {
     const interval = setInterval(fetchAutomationSession, 30000);
     return () => clearInterval(interval);
   }, [session?.user?.id]);
+
+  useEffect(() => {
+    async function fetchPreferences() {
+      try {
+        const res = await fetch('/api/preferences');
+        if (!res.ok) return;
+        const data = (await res.json()) as Partial<UserPreferences>;
+        setPreferences({
+          postApplyLinkedinConnectEnabled: Boolean(
+            data.postApplyLinkedinConnectEnabled,
+          ),
+          emailOutreachEnabled: Boolean(data.emailOutreachEnabled),
+        });
+      } catch {
+        // Preferences stay at the safe default (both off).
+      }
+    }
+    void fetchPreferences();
+  }, []);
+
+  async function updatePreference(
+    key: keyof UserPreferences,
+    enabled: boolean,
+  ) {
+    const next = { ...preferences, [key]: enabled };
+    setPreferences(next);
+    setSavingPreference(key);
+    try {
+      await fetch('/api/preferences', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(next),
+      });
+    } catch {
+      setPreferences(preferences);
+    } finally {
+      setSavingPreference(null);
+    }
+  }
 
   async function handleConnect() {
     setLinking(true);
@@ -140,6 +191,52 @@ export function LinkedInConnectCard() {
               </p>
             </>
           )}
+        </div>
+
+        <div className="rounded-md border px-3 py-2 text-sm space-y-3">
+          <p className="font-medium">Outreach (opt-in)</p>
+          <label className="flex items-start gap-2">
+            <input
+              type="checkbox"
+              className="mt-1 h-4 w-4 rounded border-input"
+              checked={preferences.postApplyLinkedinConnectEnabled}
+              disabled={savingPreference !== null}
+              onChange={(event) =>
+                void updatePreference(
+                  'postApplyLinkedinConnectEnabled',
+                  event.target.checked,
+                )
+              }
+            />
+            <span>
+              <span className="font-medium">Post-apply LinkedIn connects</span>
+              <span className="block text-xs text-muted-foreground">
+                After a successful apply, send blank connection requests to
+                people at that company. Off until you enable it.
+              </span>
+            </span>
+          </label>
+          <label className="flex items-start gap-2">
+            <input
+              type="checkbox"
+              className="mt-1 h-4 w-4 rounded border-input"
+              checked={preferences.emailOutreachEnabled}
+              disabled={savingPreference !== null}
+              onChange={(event) =>
+                void updatePreference(
+                  'emailOutreachEnabled',
+                  event.target.checked,
+                )
+              }
+            />
+            <span>
+              <span className="font-medium">Email follow-ups</span>
+              <span className="block text-xs text-muted-foreground">
+                Allow the outreach agent to send email through your configured
+                provider. Nothing is sent while this is off.
+              </span>
+            </span>
+          </label>
         </div>
       </CardContent>
     </Card>

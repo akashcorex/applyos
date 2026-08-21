@@ -76,6 +76,7 @@ Many Wellfound listings link out to Greenhouse/Lever/etc. — those are handled 
 ### Admin
 
 - `POST /admin/trigger/apply` — enqueue an apply task (returns `task_id`, `job_id`)
+- `POST /admin/tasks/{task_id}/cancel` — request cancellation of an apply task; requires `X-Agent-Service-Token`
 - `POST /admin/trigger/connect` — enqueue a LinkedIn connect/follow batch
 - `POST /admin/trigger/discover-connect` — search company employees + blank connects (post-apply)
 - `GET /admin/linkedin/session/{user_id}` — whether a Redis Playwright session exists
@@ -91,6 +92,8 @@ Key settings:
 - `REDIS_URL` — default `redis://127.0.0.1:6379/0`
 - `ANTHROPIC_API_KEY` — Claude API key for LLM field mapping
 - `API_URL` — default `http://localhost:3333`
+- `AGENT_SERVICE_TOKEN` — high-entropy token shared only with trusted backend services; required by the cancellation endpoint via `X-Agent-Service-Token`
+- `APPLY_CANCELLATION_TTL_SECONDS` — default `86400`; retains cancellation markers long enough to block delayed task retries
 - `DEFAULT_RESUME_PATH`
 - `LINKEDIN_MAX_CONNECTS_PER_DAY` — default `20`
 - `LINKEDIN_MAX_FOLLOWS_PER_DAY` — default `40`

@@ -4,6 +4,8 @@ const RESUME_AGENT_URL =
   process.env.RESUME_AGENT_URL ?? 'http://127.0.0.1:8005';
 const ORCHESTRATOR_URL =
   process.env.ORCHESTRATOR_URL ?? 'http://127.0.0.1:8001';
+const API_URL = process.env.API_URL ?? 'http://127.0.0.1:3333';
+const AGENT_SERVICE_TOKEN = process.env.AGENT_SERVICE_TOKEN;
 
 interface VariantContent {
   full_name: string;
@@ -70,10 +72,7 @@ export async function POST(request: Request) {
     const body = await request.json();
     const resumeId = body.resume_id as string | undefined;
     const userId = body.user_id as string | undefined;
-    const maxApplies = Math.min(
-      Math.max(Number(body.max_applies ?? 5), 1),
-      10,
-    );
+    const maxApplies = Math.min(Math.max(Number(body.max_applies ?? 5), 1), 10);
     const minScore = Number(body.min_score ?? 20);
     const clientJobs = (body.jobs ?? []) as ApplyJobInput[];
     const variantIds = (body.variant_ids ?? {}) as Record<string, string>;
@@ -233,43 +232,163 @@ export async function POST(request: Request) {
     }
     const resume = await resumeRes.json();
 
-    const workflowRes = await fetch(`${ORCHESTRATOR_URL}/workflows`, {
+    if (!AGENT_SERVICE_TOKEN) {
+      return Response.json(
+        { error: 'Workflow persistence is not configured' },
+        { status: 503 },
+      );
+    }
+
+    const preferencesRes = await fetch(
+      `${API_URL}/v1/preferences/internal/${encodeURIComponent(userId)}`,
+      {
+        headers: { 'X-Agent-Service-Token': AGENT_SERVICE_TOKEN },
+        cache: 'no-store',
+        signal: AbortSignal.timeout(10000),
+      },
+    );
+    const preferences = preferencesRes.ok
+      ? ((await preferencesRes.json()) as {
+          postApplyLinkedinConnectEnabled?: boolean;
+        })
+      : { postApplyLinkedinConnectEnabled: false };
+
+    const workflowPayload = {
+      user_profile: {
+        user_id: userId,
+        preferred_role: resume.preferred_role || 'Software Engineer',
+        years_experience: resume.experience_years || 0,
+        preferred_locations: resume.preferred_locations || [],
+      },
+      cv_data: buildCvData(
+        resolvedVariants.values().next().value!.content,
+        resolvedVariants.values().next().value!.file_path!,
+      ),
+      jobs: eligibleJobs.map((job) => {
+        const variant = resolvedVariants.get(job.dedup_key!)!;
+        return {
+          title: job.title,
+          company_name: job.company_name,
+          application_url: job.application_url,
+          external_id: job.external_id || undefined,
+          source: job.ats_type || undefined,
+          department: job.department || undefined,
+          location: job.location || undefined,
+          description_raw: job.description || undefined,
+          dedup_key: job.dedup_key,
+          resume_variant_id: variant.id,
+          cv_data: buildCvData(variant.content, variant.file_path!),
+        };
+      }),
+      max_jobs_per_company: 1,
+      max_total_applies: eligibleJobs.length,
+      auto_apply: true,
+      post_apply_linkedin_connect: Boolean(
+        preferences.postApplyLinkedinConnectEnabled,
+      ),
+    };
+
+    const durableRes = await fetch(`${API_URL}/v1/workflows/internal/start`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Agent-Service-Token': AGENT_SERVICE_TOKEN,
+      },
       body: JSON.stringify({
-        user_profile: {
-          user_id: userId,
-          preferred_role: resume.preferred_role || 'Software Engineer',
-          years_experience: resume.experience_years || 0,
-          preferred_locations: resume.preferred_locations || [],
-        },
-        cv_data: buildCvData(
-          resolvedVariants.values().next().value!.content,
-          resolvedVariants.values().next().value!.file_path!,
-        ),
-        jobs: eligibleJobs.map((job) => {
+        userId,
+        resumeId,
+        request: workflowPayload,
+        applications: eligibleJobs.map((job) => {
           const variant = resolvedVariants.get(job.dedup_key!)!;
           return {
+            dedupKey: job.dedup_key,
             title: job.title,
-            company_name: job.company_name,
-            application_url: job.application_url,
-            external_id: job.external_id || undefined,
-            source: job.ats_type || undefined,
-            department: job.department || undefined,
-            location: job.location || undefined,
-            description_raw: job.description || undefined,
-            dedup_key: job.dedup_key,
-            cv_data: buildCvData(variant.content, variant.file_path!),
+            companyName: job.company_name,
+            applicationUrl: job.application_url,
+            externalId: job.external_id,
+            source: job.ats_type,
+            department: job.department,
+            location: job.location,
+            descriptionRaw: job.description,
+            matchScore: job.match_score,
+            resumeVariantId: variant.id,
           };
         }),
-        max_jobs_per_company: 1,
-        max_total_applies: eligibleJobs.length,
-        auto_apply: true,
+      }),
+      signal: AbortSignal.timeout(15000),
+    });
+    const durableData = await durableRes.json().catch(() => ({}));
+    if (!durableRes.ok || typeof durableData.workflowId !== 'string') {
+      return Response.json(
+        { error: durableData.error || 'Failed to create durable workflow' },
+        { status: durableRes.status || 502 },
+      );
+    }
+
+    const queuedKeys = new Set<string>(
+      Array.isArray(durableData.queued)
+        ? durableData.queued.filter(
+            (value: unknown): value is string => typeof value === 'string',
+          )
+        : eligibleJobs
+            .map((job) => job.dedup_key)
+            .filter((key): key is string => Boolean(key)),
+    );
+    const queuedJobs = eligibleJobs.filter(
+      (job) => job.dedup_key && queuedKeys.has(job.dedup_key),
+    );
+    if (queuedJobs.length === 0) {
+      return Response.json(
+        {
+          error:
+            durableData.error ||
+            'Those jobs were already applied or are still in progress',
+          skipped: durableData.skipped ?? [],
+        },
+        { status: 409 },
+      );
+    }
+
+    workflowPayload.jobs = workflowPayload.jobs.filter(
+      (job) => job.dedup_key && queuedKeys.has(job.dedup_key),
+    );
+    workflowPayload.max_total_applies = queuedJobs.length;
+
+    const workflowRes = await fetch(`${ORCHESTRATOR_URL}/workflows`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Agent-Service-Token': AGENT_SERVICE_TOKEN,
+      },
+      body: JSON.stringify({
+        ...workflowPayload,
+        workflow_id: durableData.workflowId,
       }),
       signal: AbortSignal.timeout(15000),
     });
 
     const workflowData = await workflowRes.json();
+    if (!workflowRes.ok) {
+      await fetch(
+        `${API_URL}/v1/workflows/internal/${durableData.workflowId}/status`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Agent-Service-Token': AGENT_SERVICE_TOKEN,
+          },
+          body: JSON.stringify({
+            status: 'failed',
+            eventType: 'workflow.error',
+            errorDetail:
+              workflowData.detail ||
+              workflowData.error ||
+              'Failed to start orchestrator',
+          }),
+          signal: AbortSignal.timeout(10000),
+        },
+      ).catch(() => undefined);
+    }
     if (!workflowRes.ok) {
       return Response.json(
         {
@@ -285,8 +404,9 @@ export async function POST(request: Request) {
     return Response.json({
       workflow_id: workflowData.workflow_id,
       status: workflowData.status,
-      jobs_queued: eligibleJobs.length,
-      jobs: eligibleJobs.map((job) => ({
+      jobs_queued: queuedJobs.length,
+      skipped: durableData.skipped ?? [],
+      jobs: queuedJobs.map((job) => ({
         title: job.title,
         company_name: job.company_name,
         match_score: job.match_score,

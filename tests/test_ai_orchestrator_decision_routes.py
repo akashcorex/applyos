@@ -1,4 +1,4 @@
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -34,24 +34,25 @@ async def test_start_run_returns_202(mock_app_state: AppState) -> None:
             ),
         )
     )
+    mock_app_state.start_decision = AsyncMock()
     app.state.app_state = mock_app_state
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        with patch("routes.runs.run_decision", new=AsyncMock()):
-            response = await client.post(
-                "/runs",
-                json={
-                    "user_id": "u1",
-                    "job_role": "Backend Engineer",
-                    "years_experience": 4,
-                    "resume_id": "resume-1",
-                    "max_applies": 3,
-                },
-            )
+        response = await client.post(
+            "/runs",
+            json={
+                "user_id": "u1",
+                "job_role": "Backend Engineer",
+                "years_experience": 4,
+                "resume_id": "resume-1",
+                "max_applies": 3,
+            },
+        )
 
     assert response.status_code == 202
     body = response.json()
     assert "workflow_id" in body
     assert body["status"] == "pending"
     mock_app_state.store.create.assert_awaited()
+    mock_app_state.start_decision.assert_awaited_once()

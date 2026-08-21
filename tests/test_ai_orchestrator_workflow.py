@@ -24,8 +24,22 @@ class FakeRedis:
     async def get(self, key: str) -> str | None:
         return self.data.get(key)
 
-    async def set(self, key: str, value: str, ex: int | None = None) -> None:
+    async def set(
+        self,
+        key: str,
+        value: str,
+        ex: int | None = None,
+        nx: bool = False,
+    ) -> bool | None:
+        if nx and key in self.data:
+            return None
         self.data[key] = value
+        return True
+
+    async def delete(self, key: str) -> int:
+        existed = 1 if key in self.data else 0
+        self.data.pop(key, None)
+        return existed
 
     async def lpush(self, key: str, value: str) -> None:
         self.lists.setdefault(key, [])
@@ -41,7 +55,11 @@ class FakeRedis:
         return None
 
 
-def _sample_request(*, auto_apply: bool = False) -> StartWorkflowRequest:
+def _sample_request(
+    *,
+    auto_apply: bool = False,
+    post_apply_linkedin_connect: bool = False,
+) -> StartWorkflowRequest:
     return StartWorkflowRequest(
         user_profile=UserProfile(
             user_id="user-1",
@@ -62,6 +80,7 @@ def _sample_request(*, auto_apply: bool = False) -> StartWorkflowRequest:
         ],
         max_total_applies=1,
         auto_apply=auto_apply,
+        post_apply_linkedin_connect=post_apply_linkedin_connect,
     )
 
 
@@ -101,7 +120,7 @@ async def test_run_workflow_discover_only() -> None:
 async def test_results_consumer_updates_apply_task() -> None:
     fake_redis = FakeRedis()
     store = WorkflowStore(fake_redis)
-    await store.create("wf-2", _sample_request(auto_apply=True))
+    await store.create("wf-2", _sample_request(auto_apply=True, post_apply_linkedin_connect=True))
     run = await store.get("wf-2")
     assert run is not None
     run.apply_tasks = [

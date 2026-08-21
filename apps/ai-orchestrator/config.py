@@ -5,6 +5,9 @@ class Settings(BaseSettings):
     job_agent_url: str = "http://127.0.0.1:8002"
     apply_agent_url: str = "http://127.0.0.1:8003"
     resume_agent_url: str = "http://127.0.0.1:8005"
+    api_url: str = "http://127.0.0.1:3333"
+    # Shared only between trusted backend services; never expose to the browser.
+    agent_service_token: str = ""
     redis_url: str = "redis://localhost:6379/0"
     workflow_ttl_seconds: int = 86400
     apply_result_timeout_seconds: int = 600

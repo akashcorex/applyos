@@ -51,3 +51,17 @@ class BatchOutreachRequest(BaseModel):
 class BatchOutreachResponse(BaseModel):
     messages: list[OutreachMessage]
     total: int
+
+
+class SendOutreachRequest(BaseModel):
+    user_id: str = Field(min_length=1)
+    to_email: str = Field(min_length=3)
+    subject: str = Field(min_length=1)
+    body: str = Field(min_length=1)
+    application_id: str | None = None
+
+
+class SendOutreachResponse(BaseModel):
+    status: str
+    provider: str
+    id: str | None = None

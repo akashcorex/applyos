@@ -24,6 +24,7 @@ from langgraph.graph import END, START, StateGraph
 from config import settings
 from models import (
     ApplyTaskRecord,
+    AtsType,
     DiscoveredJobRecord,
     JobPayload,
     StartWorkflowRequest,
@@ -44,7 +45,7 @@ def build_job_id(workflow_id: str, dedup_key: str) -> str:
     return f"{workflow_id}:{dedup_key}"
 
 
-def _ats_from_url(url: str) -> str:
+def _ats_from_url(url: str) -> AtsType:
     lowered = url.lower()
     if "lever.co" in lowered:
         return "lever"
@@ -60,19 +61,30 @@ def _ats_from_url(url: str) -> str:
         return "personio"
     if "wellfound.com" in lowered or "angel.co/jobs" in lowered:
         return "wellfound"
-    return "lever"
+    return "generic"
+
+
+async def _wait_until_runnable(store: WorkflowStore, workflow_id: str) -> bool:
+    """Block graph progress while paused and stop before new side effects."""
+    while True:
+        run = await store.get(workflow_id)
+        if run is None or run.status == WorkflowStatus.cancelled:
+            return False
+        if run.status != WorkflowStatus.paused:
+            return True
+        await asyncio.sleep(1)
 
 
 def _direct_jobs_to_records(request: StartWorkflowRequest) -> list[DiscoveredJobRecord]:
     records: list[DiscoveredJobRecord] = []
     for job in request.jobs:
-        source = job.source or _ats_from_url(job.application_url)  # type: ignore[arg-type]
+        source: AtsType = job.source or _ats_from_url(job.application_url)
         external_id = job.external_id or job.application_url.rstrip("/").split("/")[-1]
         dedup_key = job.dedup_key or f"{source}:{job.company_name}:{external_id}"
         records.append(
             DiscoveredJobRecord(
                 external_id=external_id,
-                source=source,  # type: ignore[arg-type]
+                source=source,
                 title=job.title,
                 company_name=job.company_name,
                 department=job.department,
@@ -97,6 +109,9 @@ async def discover_funding_node(state: WorkflowState, config) -> dict:
     job_client: JobAgentClient = config["configurable"]["job_client"]
     request: StartWorkflowRequest = state["request"]
     workflow_id = state["workflow_id"]
+
+    if not await _wait_until_runnable(store, workflow_id):
+        return {"targets": [], "errors": [], "status": WorkflowStatus.cancelled}
 
     if request.jobs:
         return {"targets": list(request.targets), "errors": []}
@@ -139,6 +154,12 @@ async def ingest_jobs_node(state: WorkflowState, config) -> dict:
     workflow_id = state["workflow_id"]
 
     await store.update_status(workflow_id, WorkflowStatus.discovering)
+    if not await _wait_until_runnable(store, workflow_id):
+        return {"discovered_jobs": [], "errors": [], "status": WorkflowStatus.cancelled}
+
+    existing = await store.get(workflow_id)
+    if existing is not None and existing.discovered_jobs:
+        return {"discovered_jobs": existing.discovered_jobs, "errors": []}
 
     if request.jobs:
         discovered = _direct_jobs_to_records(request)
@@ -180,6 +201,8 @@ async def filter_jobs_node(state: WorkflowState, config) -> dict:
     workflow_id = state["workflow_id"]
 
     await store.update_status(workflow_id, WorkflowStatus.filtering)
+    if not await _wait_until_runnable(store, workflow_id):
+        return {"shortlisted": []}
 
     if request.jobs:
         # Caller already chose the exact listing(s) — do not re-rank/drop them.
@@ -205,51 +228,80 @@ async def apply_jobs_node(state: WorkflowState, config) -> dict:
     workflow_id = state["workflow_id"]
 
     await store.update_status(workflow_id, WorkflowStatus.applying)
+    if not await _wait_until_runnable(store, workflow_id):
+        return {"apply_tasks": [], "errors": []}
 
-    apply_tasks: list[ApplyTaskRecord] = []
+    current = await store.get(workflow_id)
+    existing_tasks = list(current.apply_tasks) if current is not None else []
+    existing_by_job = {task.job_id: task for task in existing_tasks}
+    apply_tasks: list[ApplyTaskRecord] = list(existing_tasks)
     errors: list[str] = []
+    skip_statuses = TERMINAL_APPLY_STATUSES
+    in_flight_statuses = {"queued", "running"}
+
+    variant_by_dedup = {
+        job.dedup_key: job.resume_variant_id
+        for job in request.jobs
+        if job.dedup_key and job.resume_variant_id
+    }
 
     for job in state["shortlisted"][: request.max_total_applies]:
+        if not await _wait_until_runnable(store, workflow_id):
+            break
         job_id = build_job_id(workflow_id, job.dedup_key)
+        prior = existing_by_job.get(job_id)
+        if prior is not None and (
+            prior.status in skip_statuses
+            or (prior.status in in_flight_statuses and prior.task_id)
+        ):
+            await store.index_job(workflow_id, job_id)
+            continue
+
+        application_url = job.application_url or ""
+        if not application_url:
+            continue
+        variant_id = variant_by_dedup.get(job.dedup_key)
+        idempotency_key = None
+        if variant_id:
+            idempotency_key = (
+                f"{request.user_profile.user_id}:{job.dedup_key}:{variant_id}"
+            )
         payload = JobPayload(
             job_id=job_id,
-            job_url=job.application_url,  # type: ignore[arg-type]
+            job_url=application_url,
             company_name=job.company_name,
             job_title=job.title,
             job_description=job.description_raw,
             cv_data=job.cv_data or request.cv_data,
             user_profile=request.user_profile,
+            resume_variant_id=variant_id,
+            idempotency_key=idempotency_key,
         )
 
+        # Persist a placeholder before dispatch so a fast result cannot be dropped.
+        await store.index_job(workflow_id, job_id)
+        placeholder = ApplyTaskRecord(
+            job_id=job_id,
+            job_title=job.title,
+            company_name=job.company_name,
+            application_url=application_url,
+            status="queued",
+        )
+        existing_by_job[job_id] = placeholder
+        apply_tasks = [item for item in apply_tasks if item.job_id != job_id]
+        apply_tasks.append(placeholder)
+        await store.upsert_apply_task(workflow_id, placeholder)
         try:
             result = await apply_client.trigger_apply(payload)
-            apply_tasks.append(
-                ApplyTaskRecord(
-                    job_id=job_id,
-                    job_title=job.title,
-                    company_name=job.company_name,
-                    application_url=job.application_url or "",
-                    task_id=result.task_id,
-                    status="queued",
-                )
-            )
-            await store.index_job(workflow_id, job_id)
+            await store.attach_apply_task_id(workflow_id, job_id, result.task_id)
+            placeholder.task_id = result.task_id
         except httpx.HTTPError as exc:
             message = f"Apply trigger failed for {job.title}: {exc}"
             logger.error(message)
             errors.append(message)
-            apply_tasks.append(
-                ApplyTaskRecord(
-                    job_id=job_id,
-                    job_title=job.title,
-                    company_name=job.company_name,
-                    application_url=job.application_url or "",
-                    status="failed",
-                    error_detail=message,
-                )
-            )
-
-    await store.set_apply_tasks(workflow_id, apply_tasks)
+            placeholder.status = "failed"
+            placeholder.error_detail = message
+            await store.upsert_apply_task(workflow_id, placeholder)
 
     if not apply_tasks:
         await store.update_status(workflow_id, WorkflowStatus.completed)
@@ -268,8 +320,11 @@ async def finalize_node(state: WorkflowState, config) -> dict:
 
     while time.monotonic() < deadline:
         run = await store.get(workflow_id)
-        if run is None or not run.apply_tasks:
+        if run is None or run.status == WorkflowStatus.cancelled or not run.apply_tasks:
             return {}
+        if run.status == WorkflowStatus.paused:
+            await asyncio.sleep(1)
+            continue
 
         if all(task.status in TERMINAL_APPLY_STATUSES for task in run.apply_tasks):
             await store.finalize_if_complete(workflow_id)
@@ -312,6 +367,8 @@ def route_after_apply(state: WorkflowState) -> str:
 
 
 def build_workflow_graph():
+    # MemorySaver is process-local. Redis apply_tasks (+ skip/upsert) are the
+    # durable source of truth across restarts; do not treat the checkpointer as one.
     graph = StateGraph(WorkflowState)
     graph.add_node("discover_funding", discover_funding_node)
     graph.add_node("ingest_jobs", ingest_jobs_node)

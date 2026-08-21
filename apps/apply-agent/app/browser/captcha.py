@@ -674,14 +674,16 @@ async def ensure_captcha_cleared(
     page: Page,
     *,
     silent_timeout_ms: int = 20_000,
-    allow_solver: bool = True,
+    allow_solver: bool | None = None,
 ) -> str | None:
-    """Stealth-first captcha clearance; CapSolver only if still blocked.
+    """Wait for a silent pass; do not bypass site protections unless explicitly enabled.
 
     Returns:
-        ``None`` if cleared (no captcha, silent-pass, or solver injected).
-        Error string if still blocked after silent-pass + optional CapSolver.
+        ``None`` if cleared (no captcha or silent-pass).
+        Error string asking for a manual handoff if still blocked.
     """
+    if allow_solver is None:
+        allow_solver = settings.captcha_solver_enabled
     # Already have a usable hCaptcha token (Lever silent-pass or prior inject).
     if await get_hcaptcha_token(page):
         return None
@@ -718,7 +720,8 @@ async def ensure_captcha_cleared(
 
         if not allow_solver:
             return (
-                "Cloudflare Turnstile did not pass and solver fallback is disabled"
+                "Cloudflare Turnstile requires manual action. Open the application "
+                "page in your browser to verify you are human, then retry."
             )
         if not settings.captcha_api_key:
             return (
@@ -760,7 +763,8 @@ async def ensure_captcha_cleared(
         challenge = await is_hcaptcha_challenge_visible(page)
         if not allow_solver:
             return (
-                "hCaptcha did not silent-pass and solver fallback is disabled"
+                "hCaptcha requires manual action. Open the application page in your "
+                "browser to complete the check, then retry."
             )
 
         if not settings.captcha_api_key:
@@ -791,7 +795,10 @@ async def ensure_captcha_cleared(
     r_sitekey = await extract_recaptcha_sitekey(page)
     if r_sitekey:
         if not allow_solver or not settings.captcha_api_key:
-            return "reCAPTCHA detected but CapSolver key is not configured"
+            return (
+                "reCAPTCHA requires manual action. Open the application page in your "
+                "browser to complete the check, then retry."
+            )
         token = await solve_recaptcha(page, r_sitekey)
         if not token:
             detail = _last_capsolver_error or "unknown CapSolver error"

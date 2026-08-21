@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import uuid
 
 from fastapi import APIRouter, HTTPException, Request, status
@@ -16,7 +15,6 @@ from models import (
     WorkflowRun,
     WorkflowStatus,
 )
-from services.decision.graph import run_decision
 
 router = APIRouter(prefix="/runs", tags=["runs"])
 
@@ -47,7 +45,7 @@ async def start_run(payload: StartRunRequest, request: Request) -> StartRunRespo
 
     workflow_id = str(uuid.uuid4())
     await state.store.create(workflow_id, _placeholder_workflow_request(payload))
-    asyncio.create_task(run_decision(workflow_id, payload, state.store))
+    await state.start_decision(workflow_id, payload)
 
     return StartRunResponse(workflow_id=workflow_id, status=WorkflowStatus.pending)
 

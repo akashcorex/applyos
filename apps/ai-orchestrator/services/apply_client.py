@@ -17,17 +17,33 @@ class ApplyAgentClient:
     def __init__(self, base_url: str | None = None) -> None:
         self._base_url = (base_url or settings.apply_agent_url).rstrip("/")
 
+    def _service_headers(self) -> dict[str, str]:
+        if not settings.agent_service_token:
+            raise RuntimeError("AGENT_SERVICE_TOKEN is required for apply-agent calls")
+        return {"X-Agent-Service-Token": settings.agent_service_token}
+
     async def trigger_apply(self, payload: JobPayload) -> TriggerApplyResponse:
         url = f"{self._base_url}/admin/trigger/apply"
         async with httpx.AsyncClient(timeout=settings.http_timeout_seconds) as client:
             response = await client.post(
                 url,
                 json=payload.model_dump(mode="json"),
+                headers=self._service_headers(),
             )
             response.raise_for_status()
             data = response.json()
 
         return TriggerApplyResponse.model_validate(data)
+
+    async def cancel_apply_task(self, task_id: str) -> None:
+        """Request safe cancellation; workers stop before their next submission step."""
+        url = f"{self._base_url}/admin/tasks/{task_id}/cancel"
+        async with httpx.AsyncClient(timeout=settings.http_timeout_seconds) as client:
+            response = await client.post(
+                url,
+                headers=self._service_headers(),
+            )
+            response.raise_for_status()
 
     async def linkedin_session_status(self, user_id: str) -> dict[str, Any]:
         url = f"{self._base_url}/admin/linkedin/session/{user_id}"
@@ -56,7 +72,11 @@ class ApplyAgentClient:
         if delay_seconds is not None:
             body["delay_seconds"] = delay_seconds
         async with httpx.AsyncClient(timeout=settings.http_timeout_seconds) as client:
-            response = await client.post(url, json=body)
+            response = await client.post(
+                url,
+                json=body,
+                headers=self._service_headers(),
+            )
             response.raise_for_status()
             data = response.json()
         logger.info(

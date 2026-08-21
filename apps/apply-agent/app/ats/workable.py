@@ -2058,7 +2058,7 @@ class WorkableHandler(ATSHandler):
             # Turnstile occasionally renders with the form rather than on submit.
             if await detect_turnstile(page):
                 captcha_error = await ensure_captcha_cleared(
-                    page, silent_timeout_ms=20_000, allow_solver=True
+                    page, silent_timeout_ms=20_000
                 )
                 if captcha_error:
                     logger.warning(
@@ -2101,7 +2101,7 @@ class WorkableHandler(ATSHandler):
             # Turnstile is rendered only after the first submit click.
             if await self._wait_for_turnstile(page):
                 captcha_error = await ensure_captcha_cleared(
-                    page, silent_timeout_ms=20_000, allow_solver=True
+                    page, silent_timeout_ms=20_000
                 )
                 if captcha_error:
                     logger.warning(

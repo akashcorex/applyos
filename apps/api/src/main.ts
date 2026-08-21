@@ -8,6 +8,9 @@ import { auth } from './auth';
 import { startFallowBeacon } from './fallow-beacon';
 import { earlyAccessRouter } from './routes/early-access';
 import { linkedinConnectsRouter } from './routes/linkedin-connects';
+import { outreachRouter } from './routes/outreach';
+import { preferencesRouter } from './routes/preferences';
+import { workflowsRouter } from './routes/workflows';
 
 const host = process.env.HOST ?? 'localhost';
 const port = process.env.PORT ? Number(process.env.PORT) : 3333;
@@ -32,6 +35,9 @@ app.get('/', (_req, res) => {
 
 app.use('/v1/early-access', earlyAccessRouter);
 app.use('/v1/linkedin-connects', linkedinConnectsRouter);
+app.use('/v1/preferences', preferencesRouter);
+app.use('/v1/outreach', outreachRouter);
+app.use('/v1/workflows', workflowsRouter);
 
 app.listen(port, host, () => {
   console.log(`[ ready ] http://${host}:${port}`);

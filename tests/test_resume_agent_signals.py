@@ -7,8 +7,10 @@ from services.matching.rerank import BehaviorReranker
 from services.matching.signals import (
     EventCounts,
     JobSignalStats,
+    OutcomeCounts,
     blend_user_global_rates,
     compute_behavior_delta,
+    compute_outcome_delta,
 )
 
 
@@ -41,6 +43,43 @@ def test_compute_behavior_delta_skip_penalizes() -> None:
     )
     delta = compute_behavior_delta(stats)
     assert delta < 0
+
+
+def test_compute_outcome_delta_offer_outweighs_clicks() -> None:
+    stats = JobSignalStats(
+        dedup_key="offer::1",
+        outcomes=OutcomeCounts(offer=1),
+    )
+    delta = compute_outcome_delta(stats)
+    assert delta >= 8.0
+    assert compute_behavior_delta(stats) >= 8.0
+
+
+def test_compute_outcome_delta_does_not_double_count_same_application() -> None:
+    """Company stats include this job; subtract before applying company weight."""
+    stats = JobSignalStats(
+        dedup_key="acme::1",
+        outcomes=OutcomeCounts(offer=1),
+        company_outcomes=OutcomeCounts(offer=1),
+    )
+    # Only the job-level offer should count (8), not 8 + 0.4*8.
+    assert compute_outcome_delta(stats) == 8.0
+
+    stats_with_peer = JobSignalStats(
+        dedup_key="acme::1",
+        outcomes=OutcomeCounts(interview=1),
+        company_outcomes=OutcomeCounts(interview=2),
+    )
+    # Job interview (5) + one other company interview (0.4 * 5) = 7.
+    assert compute_outcome_delta(stats_with_peer) == 5.0 + 0.4 * 5.0
+
+
+def test_compute_outcome_delta_rejection_penalizes() -> None:
+    stats = JobSignalStats(
+        dedup_key="reject::1",
+        outcomes=OutcomeCounts(rejected=1),
+    )
+    assert compute_outcome_delta(stats) < 0
 
 
 class _FakeRepo:

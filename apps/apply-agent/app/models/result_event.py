@@ -1,9 +1,9 @@
 """Pydantic models for result events emitted to Agent 3."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class ApplyStatus(str, Enum):
@@ -14,6 +14,7 @@ class ApplyStatus(str, Enum):
     captcha_blocked = "captcha_blocked"
     already_applied = "already_applied"
     login_required = "login_required"
+    cancelled = "cancelled"
 
 
 class ConnectStatus(str, Enum):
@@ -35,7 +36,9 @@ class ApplyResultEvent(BaseModel):
     status: ApplyStatus
     ats_type: str | None = None
     error_detail: str | None = None
-    timestamp: datetime = datetime.utcnow()
+    page_url: str | None = None
+    screenshot_path: str | None = None
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 class ConnectResultEvent(BaseModel):
@@ -47,4 +50,4 @@ class ConnectResultEvent(BaseModel):
     status: ConnectStatus
     job_id: str | None = None
     error_detail: str | None = None
-    timestamp: datetime = datetime.utcnow()
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
