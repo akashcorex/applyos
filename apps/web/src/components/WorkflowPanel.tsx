@@ -692,7 +692,7 @@ export function WorkflowPanel({
                                       <OutcomeSelect
                                         workflowId={detail.id}
                                         jobId={task.job_id}
-                                        value={task.outcome}
+                                        value={task.outcome ?? null}
                                         onChange={(outcome) => {
                                           setDetail((current) => {
                                             if (!current) return current;

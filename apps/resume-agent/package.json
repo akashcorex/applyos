@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "sync": "uv sync --extra dev",
-    "serve": "uv run uvicorn main:app --reload --host 127.0.0.1 --port 8005",
+    "serve": "uv run python -m uvicorn main:app --reload --host 127.0.0.1 --port 8005",
     "test": "python3 ../../tests/run.py resume-agent"
   }
 }

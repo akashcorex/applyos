@@ -28,7 +28,6 @@ def get_vectorstore(embeddings: Embeddings | None = None) -> PGVector:
         embeddings=embeddings,
         connection=settings.database_url,
         collection_name=settings.rag_collection_name,
-        pre_collection_exists=False,
     )
     logger.info("PGVector initialised (collection=%s)", settings.rag_collection_name)
     return _vectorstore
