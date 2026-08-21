@@ -21,6 +21,8 @@ def chunk_resume(
     resume_id: str,
     user_id: str,
     file_name: str | None = None,
+    source_document_hash: str | None = None,
+    ir_revision_id: str | None = None,
 ) -> list[Document]:
     """Split raw resume text into chunked Documents with metadata."""
     splitter = make_splitter()
@@ -33,6 +35,9 @@ def chunk_resume(
                 "user_id": user_id,
                 "chunk_idx": idx,
                 "file_name": file_name or "",
+                "source_document_hash": source_document_hash or "",
+                "ir_revision_id": ir_revision_id or "",
+                "index_version": "evidence-index.v1",
             },
         )
         for idx, chunk in enumerate(chunks)

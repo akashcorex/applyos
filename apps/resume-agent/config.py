@@ -7,6 +7,7 @@ class Settings(BaseSettings):
     anthropic_api_key: str = ""
     openai_api_key: str = ""
     database_url: str = "postgresql://postgres:postgres@localhost:5432/outreach"
+    agent_service_token: str = ""
     job_agent_url: str = "http://127.0.0.1:8002"
     http_timeout_seconds: float = 60.0
     llm_model: str = "claude-sonnet-4-6"
@@ -18,6 +19,9 @@ class Settings(BaseSettings):
     rag_chunk_overlap: int = 200
     rag_collection_name: str = "resumes"
     rag_retrieval_k: int = 4
+    latex_compiler: str = ""
+    latex_timeout_seconds: float = 15.0
+    allow_renderer_fallback: bool = True
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

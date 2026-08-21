@@ -41,6 +41,9 @@ export const resumes = pgTable(
     filePath: text('file_path'),
     profileEmbedding: jsonb('profile_embedding'),
     profileTextHash: text('profile_text_hash'),
+    profileEmbeddingRevisionId: text('profile_embedding_revision_id'),
+    embeddingModel: text('embedding_model'),
+    embeddingIndexVersion: text('embedding_index_version'),
     lastMatchIntent: text('last_match_intent'),
     /** Persistent editable profile — improvements compound across job variants. */
     baseProfile: jsonb('base_profile'),
@@ -75,6 +78,9 @@ export const resumeVariants = pgTable(
     content: jsonb('content').notNull(),
     suggestions: jsonb('suggestions').default([]).notNull(),
     filePath: text('file_path'),
+    sourceRevisionId: text('source_revision_id'),
+    patchId: text('patch_id'),
+    artifactId: text('artifact_id'),
     createdAt: timestamp('created_at', { withTimezone: true })
       .defaultNow()
       .notNull(),
@@ -86,6 +92,124 @@ export const resumeVariants = pgTable(
     index('idx_resume_variants_resume_id').on(table.resumeId),
     index('idx_resume_variants_user_id').on(table.userId),
     index('idx_resume_variants_dedup').on(table.resumeId, table.dedupKey),
+  ],
+);
+
+export const resumeSourceDocuments = pgTable(
+  'resume_source_documents',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    resumeId: uuid('resume_id')
+      .notNull()
+      .references(() => resumes.id, { onDelete: 'cascade' }),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    fileName: text('file_name'),
+    fileType: text('file_type').notNull(),
+    storageKey: text('storage_key').notNull(),
+    contentSha256: text('content_sha256').notNull(),
+    byteSize: integer('byte_size').notNull(),
+    parserVersion: text('parser_version').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    index('idx_resume_source_documents_resume_id').on(table.resumeId),
+    index('idx_resume_source_documents_hash').on(table.contentSha256),
+  ],
+);
+
+export const resumeIrRevisions = pgTable(
+  'resume_ir_revisions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    resumeId: uuid('resume_id')
+      .notNull()
+      .references(() => resumes.id, { onDelete: 'cascade' }),
+    sourceDocumentId: uuid('source_document_id').references(
+      () => resumeSourceDocuments.id,
+      { onDelete: 'set null' },
+    ),
+    revisionNumber: integer('revision_number').notNull(),
+    schemaVersion: text('schema_version').notNull(),
+    payload: jsonb('payload').notNull(),
+    sourceDocumentHash: text('source_document_hash').notNull(),
+    extractionModel: text('extraction_model'),
+    promptVersion: text('prompt_version'),
+    promptHash: text('prompt_hash'),
+    validation: jsonb('validation').default({}).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    index('idx_resume_ir_revisions_resume_id').on(table.resumeId),
+    index('idx_resume_ir_revisions_source_hash').on(table.sourceDocumentHash),
+  ],
+);
+
+export const resumeTailoringPatches = pgTable(
+  'resume_tailoring_patches',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    resumeId: uuid('resume_id')
+      .notNull()
+      .references(() => resumes.id, { onDelete: 'cascade' }),
+    variantId: uuid('variant_id').references(() => resumeVariants.id, {
+      onDelete: 'cascade',
+    }),
+    sourceRevisionId: uuid('source_revision_id')
+      .notNull()
+      .references(() => resumeIrRevisions.id, { onDelete: 'cascade' }),
+    policyVersion: text('policy_version').notNull(),
+    payload: jsonb('payload').notNull(),
+    diff: jsonb('diff').default({}).notNull(),
+    status: text('status').notNull().default('approved'),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    index('idx_resume_tailoring_patches_resume_id').on(table.resumeId),
+    index('idx_resume_tailoring_patches_variant_id').on(table.variantId),
+  ],
+);
+
+export const resumeArtifacts = pgTable(
+  'resume_artifacts',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    artifactHash: text('artifact_hash').notNull().unique(),
+    resumeId: uuid('resume_id')
+      .notNull()
+      .references(() => resumes.id, { onDelete: 'cascade' }),
+    variantId: uuid('variant_id').references(() => resumeVariants.id, {
+      onDelete: 'cascade',
+    }),
+    sourceRevisionId: uuid('source_revision_id')
+      .notNull()
+      .references(() => resumeIrRevisions.id, { onDelete: 'cascade' }),
+    patchId: uuid('patch_id').references(() => resumeTailoringPatches.id, {
+      onDelete: 'set null',
+    }),
+    storageKey: text('storage_key').notNull(),
+    mediaType: text('media_type').notNull().default('application/pdf'),
+    compilerVersion: text('compiler_version').notNull(),
+    templateVersion: text('template_version').notNull(),
+    pageCount: integer('page_count'),
+    validation: jsonb('validation').default({}).notNull(),
+    diff: jsonb('diff').default({}).notNull(),
+    provenance: jsonb('provenance').default({}).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    index('idx_resume_artifacts_resume_id').on(table.resumeId),
+    index('idx_resume_artifacts_variant_id').on(table.variantId),
+    index('idx_resume_artifacts_source_revision_id').on(table.sourceRevisionId),
   ],
 );
 

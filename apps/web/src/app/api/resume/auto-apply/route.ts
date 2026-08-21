@@ -31,7 +31,7 @@ interface ResumeVariant {
   dedup_key: string;
   status: 'draft' | 'ready' | 'applied';
   content: VariantContent;
-  file_path?: string | null;
+  artifact_id?: string | null;
 }
 
 interface ApplyJobInput {
@@ -190,7 +190,7 @@ export async function POST(request: Request) {
         !variant ||
         variant.dedup_key !== job.dedup_key ||
         variant.status !== 'ready' ||
-        !variant.file_path
+        !variant.artifact_id
       ) {
         missingTailoring.push({
           dedup_key: job.dedup_key,
@@ -232,6 +232,21 @@ export async function POST(request: Request) {
     }
     const resume = await resumeRes.json();
 
+    const firstVariant = resolvedVariants.values().next().value as
+      | ResumeVariant
+      | undefined;
+    if (!firstVariant?.artifact_id) {
+      return Response.json(
+        { error: 'A compiled resume artifact is required before applying' },
+        { status: 400 },
+      );
+    }
+
+    const artifactUrl = (variant: ResumeVariant) =>
+      `${RESUME_AGENT_URL}/internal/artifacts/${encodeURIComponent(
+        variant.artifact_id!,
+      )}`;
+
     if (!AGENT_SERVICE_TOKEN) {
       return Response.json(
         { error: 'Workflow persistence is not configured' },
@@ -260,10 +275,7 @@ export async function POST(request: Request) {
         years_experience: resume.experience_years || 0,
         preferred_locations: resume.preferred_locations || [],
       },
-      cv_data: buildCvData(
-        resolvedVariants.values().next().value!.content,
-        resolvedVariants.values().next().value!.file_path!,
-      ),
+      cv_data: buildCvData(firstVariant.content, artifactUrl(firstVariant)),
       jobs: eligibleJobs.map((job) => {
         const variant = resolvedVariants.get(job.dedup_key!)!;
         return {
@@ -277,7 +289,7 @@ export async function POST(request: Request) {
           description_raw: job.description || undefined,
           dedup_key: job.dedup_key,
           resume_variant_id: variant.id,
-          cv_data: buildCvData(variant.content, variant.file_path!),
+          cv_data: buildCvData(variant.content, artifactUrl(variant)),
         };
       }),
       max_jobs_per_company: 1,

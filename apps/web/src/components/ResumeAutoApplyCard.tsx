@@ -91,7 +91,7 @@ export function ResumeAutoApplyCard({
   const selectedJobs = jobs.filter((job) => selectedJobKeys.has(job.dedup_key));
   const readySelectedJobs = selectedJobs.filter((job) => {
     const variant = variantsByJob[job.dedup_key];
-    return variant?.status === 'ready' && Boolean(variant.file_path);
+    return variant?.status === 'ready' && Boolean(variant.artifact_id);
   });
   const selectedNeedsReview = selectedJobs.length - readySelectedJobs.length;
 
@@ -359,7 +359,7 @@ export function ResumeAutoApplyCard({
                   const canApply = Boolean(job.application_url);
                   const isSelected = selectedJobKeys.has(job.dedup_key);
                   const isReady =
-                    variant?.status === 'ready' && Boolean(variant.file_path);
+                    variant?.status === 'ready' && Boolean(variant.artifact_id);
 
                   return (
                     <div

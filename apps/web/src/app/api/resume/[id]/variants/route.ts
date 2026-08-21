@@ -10,6 +10,21 @@ function agentHeaders(userId: string, extra?: Record<string, string>) {
   };
 }
 
+function addPreviewUrls(
+  data: { variants?: Array<{ id: string; artifact_url?: string | null }> },
+  resumeId: string,
+) {
+  if (Array.isArray(data.variants)) {
+    data.variants = data.variants.map((variant) => ({
+      ...variant,
+      artifact_url: variant.artifact_url
+        ? `/api/resume/${resumeId}/variants/${variant.id}/pdf`
+        : null,
+    }));
+  }
+  return data;
+}
+
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
@@ -25,9 +40,7 @@ export async function GET(
   const url = new URL(request.url);
   const dedupKey = url.searchParams.get('dedup_key');
 
-  const query = dedupKey
-    ? `?dedup_key=${encodeURIComponent(dedupKey)}`
-    : '';
+  const query = dedupKey ? `?dedup_key=${encodeURIComponent(dedupKey)}` : '';
 
   try {
     const res = await fetch(
@@ -38,7 +51,9 @@ export async function GET(
       },
     );
     const data = await res.json();
-    return Response.json(data, { status: res.status });
+    return Response.json(res.ok ? addPreviewUrls(data, id) : data, {
+      status: res.status,
+    });
   } catch {
     return Response.json(
       { error: 'Resume agent is unreachable' },
@@ -73,7 +88,17 @@ export async function POST(
       },
     );
     const data = await res.json();
-    return Response.json(data, { status: res.status });
+    return Response.json(
+      res.ok
+        ? {
+            ...data,
+            artifact_url: data.artifact_url
+              ? `/api/resume/${id}/variants/${data.id}/pdf`
+              : null,
+          }
+        : data,
+      { status: res.status },
+    );
   } catch {
     return Response.json(
       { error: 'Resume agent is unreachable' },

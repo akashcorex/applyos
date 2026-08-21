@@ -123,7 +123,7 @@ async def _run_apply(payload: JobPayload, task_id: str) -> ApplyResultEvent:
     async with prepare_resume_file(payload.cv_data) as resume_path:
         if resume_path is None:
             logger.error(
-                "Apply blocked for job_id=%s: no resume_url and no DEFAULT_RESUME_PATH",
+                "Apply blocked for job_id=%s: no compiled resume artifact URL",
                 payload.job_id,
             )
             return ApplyResultEvent(
@@ -131,8 +131,7 @@ async def _run_apply(payload: JobPayload, task_id: str) -> ApplyResultEvent:
                 user_id=user_id,
                 status=ApplyStatus.failed,
                 error_detail=(
-                    "Resume required: set cv_data.resume_url or DEFAULT_RESUME_PATH "
-                    "before applying"
+                    "A compiled resume artifact URL is required before applying"
                 ),
             )
 

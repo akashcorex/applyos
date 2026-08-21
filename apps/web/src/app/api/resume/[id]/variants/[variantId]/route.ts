@@ -7,6 +7,19 @@ function agentHeaders(userId: string, extra?: Record<string, string>) {
   return { 'X-User-Id': userId, ...extra };
 }
 
+function addPreviewUrl(
+  data: { id?: string; artifact_url?: string | null },
+  resumeId: string,
+  variantId: string,
+) {
+  return {
+    ...data,
+    artifact_url: data.artifact_url
+      ? `/api/resume/${resumeId}/variants/${variantId}/pdf`
+      : null,
+  };
+}
+
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string; variantId: string }> },
@@ -25,7 +38,9 @@ export async function GET(
       { headers: agentHeaders(userId), signal: AbortSignal.timeout(30000) },
     );
     const data = await res.json();
-    return Response.json(data, { status: res.status });
+    return Response.json(res.ok ? addPreviewUrl(data, id, variantId) : data, {
+      status: res.status,
+    });
   } catch {
     return Response.json(
       { error: 'Resume agent is unreachable' },
@@ -60,7 +75,9 @@ export async function PATCH(
       },
     );
     const data = await res.json();
-    return Response.json(data, { status: res.status });
+    return Response.json(res.ok ? addPreviewUrl(data, id, variantId) : data, {
+      status: res.status,
+    });
   } catch {
     return Response.json(
       { error: 'Resume agent is unreachable' },

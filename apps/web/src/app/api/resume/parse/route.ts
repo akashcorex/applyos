@@ -34,6 +34,9 @@ export async function POST(request: Request) {
       signal: AbortSignal.timeout(120000),
     });
     const data = await res.json();
+    if (res.ok && data.source_document_url) {
+      data.source_document_url = `/api/resume/${data.resume_id}/source`;
+    }
     return Response.json(data, { status: res.status });
   } catch {
     return Response.json(

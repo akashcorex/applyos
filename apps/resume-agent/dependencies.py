@@ -25,6 +25,8 @@ from services.matching import (
     compute_profile_embedding,
 )
 from services.parser import ResumeParser
+from services.revisions import RevisionRepository
+from services.compiler import ResumeCompiler
 from services.tailoring import TailorService, VariantRepository
 from services.tailoring.versions import VersionRepository
 
@@ -43,6 +45,8 @@ class AppState:
     match_feedback: MatchFeedbackService | None = None
     variant_repository: VariantRepository | None = None
     version_repository: object | None = None
+    revision_repository: RevisionRepository | None = None
+    compiler: ResumeCompiler | None = None
     tailor_service: TailorService | None = None
     http_client: httpx.AsyncClient | None = None
     rag_pipeline: object | None = None
@@ -80,6 +84,17 @@ class AppState:
             )
             await conn.execute(
                 'ALTER TABLE resumes ADD COLUMN IF NOT EXISTS last_match_intent text'
+            )
+            await conn.execute(
+                "ALTER TABLE resumes ADD COLUMN IF NOT EXISTS "
+                "profile_embedding_revision_id text"
+            )
+            await conn.execute(
+                "ALTER TABLE resumes ADD COLUMN IF NOT EXISTS embedding_model text"
+            )
+            await conn.execute(
+                "ALTER TABLE resumes ADD COLUMN IF NOT EXISTS "
+                "embedding_index_version text"
             )
             await conn.execute("""
                 CREATE TABLE IF NOT EXISTS match_sessions (
@@ -130,6 +145,15 @@ class AppState:
                 )
             """)
             await conn.execute(
+                "ALTER TABLE resume_variants ADD COLUMN IF NOT EXISTS source_revision_id text"
+            )
+            await conn.execute(
+                "ALTER TABLE resume_variants ADD COLUMN IF NOT EXISTS patch_id text"
+            )
+            await conn.execute(
+                "ALTER TABLE resume_variants ADD COLUMN IF NOT EXISTS artifact_id text"
+            )
+            await conn.execute(
                 'ALTER TABLE resumes ADD COLUMN IF NOT EXISTS base_profile jsonb'
             )
             await conn.execute(
@@ -148,6 +172,88 @@ class AppState:
             await conn.execute(
                 "CREATE INDEX IF NOT EXISTS idx_variant_versions_variant_id ON variant_versions (variant_id)"
             )
+            await conn.execute("""
+                CREATE TABLE IF NOT EXISTS resume_source_documents (
+                    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+                    resume_id uuid NOT NULL REFERENCES resumes(id) ON DELETE CASCADE,
+                    user_id text NOT NULL,
+                    file_name text,
+                    file_type text NOT NULL,
+                    storage_key text NOT NULL,
+                    content_sha256 text NOT NULL,
+                    byte_size integer NOT NULL,
+                    parser_version text NOT NULL,
+                    created_at timestamptz DEFAULT now() NOT NULL
+                )
+            """)
+            await conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_resume_source_documents_resume_id "
+                "ON resume_source_documents (resume_id)"
+            )
+            await conn.execute("""
+                CREATE TABLE IF NOT EXISTS resume_ir_revisions (
+                    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+                    resume_id uuid NOT NULL REFERENCES resumes(id) ON DELETE CASCADE,
+                    source_document_id uuid REFERENCES resume_source_documents(id)
+                        ON DELETE SET NULL,
+                    revision_number integer NOT NULL,
+                    schema_version text NOT NULL,
+                    payload jsonb NOT NULL,
+                    source_document_hash text NOT NULL,
+                    extraction_model text,
+                    prompt_version text,
+                    validation jsonb DEFAULT '{}'::jsonb NOT NULL,
+                    prompt_hash text,
+                    created_at timestamptz DEFAULT now() NOT NULL,
+                    UNIQUE (resume_id, revision_number)
+                )
+            """)
+            await conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_resume_ir_revisions_resume_id "
+                "ON resume_ir_revisions (resume_id)"
+            )
+            await conn.execute(
+                "ALTER TABLE resume_ir_revisions ADD COLUMN IF NOT EXISTS prompt_hash text"
+            )
+            await conn.execute("""
+                CREATE TABLE IF NOT EXISTS resume_tailoring_patches (
+                    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+                    resume_id uuid NOT NULL REFERENCES resumes(id) ON DELETE CASCADE,
+                    variant_id uuid REFERENCES resume_variants(id) ON DELETE CASCADE,
+                    source_revision_id uuid NOT NULL
+                        REFERENCES resume_ir_revisions(id) ON DELETE CASCADE,
+                    policy_version text NOT NULL,
+                    payload jsonb NOT NULL,
+                    diff jsonb DEFAULT '{}'::jsonb NOT NULL,
+                    status text DEFAULT 'approved' NOT NULL,
+                    created_at timestamptz DEFAULT now() NOT NULL
+                )
+            """)
+            await conn.execute("""
+                CREATE TABLE IF NOT EXISTS resume_artifacts (
+                    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+                    artifact_hash text NOT NULL UNIQUE,
+                    resume_id uuid NOT NULL REFERENCES resumes(id) ON DELETE CASCADE,
+                    variant_id uuid REFERENCES resume_variants(id) ON DELETE CASCADE,
+                    source_revision_id uuid NOT NULL
+                        REFERENCES resume_ir_revisions(id) ON DELETE CASCADE,
+                    patch_id uuid REFERENCES resume_tailoring_patches(id)
+                        ON DELETE SET NULL,
+                    storage_key text NOT NULL,
+                    media_type text DEFAULT 'application/pdf' NOT NULL,
+                    compiler_version text NOT NULL,
+                    template_version text NOT NULL,
+                    page_count integer,
+                    validation jsonb DEFAULT '{}'::jsonb NOT NULL,
+                    diff jsonb DEFAULT '{}'::jsonb NOT NULL,
+                    provenance jsonb DEFAULT '{}'::jsonb NOT NULL,
+                    created_at timestamptz DEFAULT now() NOT NULL
+                )
+            """)
+            await conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_resume_artifacts_resume_id "
+                "ON resume_artifacts (resume_id)"
+            )
 
         self.repository = ResumeRepository(self.pool)
         self.matching_repository = MatchingRepository(self.pool)
@@ -155,6 +261,8 @@ class AppState:
         self.match_feedback = MatchFeedbackService(self.matching_repository)
         self.variant_repository = VariantRepository(self.pool)
         self.version_repository = VersionRepository(self.pool)
+        self.revision_repository = RevisionRepository(self.pool)
+        self.compiler = ResumeCompiler(revision_repository=self.revision_repository)
         self.parser = ResumeParser()
 
         from services.llm import get_llm
@@ -187,6 +295,7 @@ class AppState:
             self.variant_repository,
             self.version_repository,
             self.rag_pipeline,
+            self.revision_repository,
         )
 
         logger.info("resume-agent started (db=%s)", settings.database_url)

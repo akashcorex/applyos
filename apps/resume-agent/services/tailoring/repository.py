@@ -34,6 +34,7 @@ class VariantRepository:
         source_content: VariantContent,
         request: CreateVariantRequest,
         suggestions: VariantSuggestions | None = None,
+        source_revision_id: str | None = None,
     ) -> ResumeVariantResponse:
         existing = await self.get_by_dedup_key(resume_id, request.dedup_key)
         if existing is not None:
@@ -50,9 +51,9 @@ class VariantRepository:
                 """
                 INSERT INTO resume_variants (
                     resume_id, user_id, dedup_key, job_title, company_name,
-                    job_description, status, content, suggestions
+                    job_description, status, content, suggestions, source_revision_id
                 )
-                VALUES ($1, $2, $3, $4, $5, $6, 'draft', $7::jsonb, $8::jsonb)
+                VALUES ($1, $2, $3, $4, $5, $6, 'draft', $7::jsonb, $8::jsonb, $9)
                 RETURNING *
                 """,
                 _to_uuid(resume_id),
@@ -63,6 +64,7 @@ class VariantRepository:
                 (request.job_description or "")[:8000] or None,
                 json.dumps(source_content.model_dump()),
                 json.dumps(suggestions_payload),
+                source_revision_id,
             )
 
         return _row_to_variant(str(resume_id), row)
@@ -120,6 +122,20 @@ class VariantRepository:
         if row is None:
             raise VariantNotFoundError(f"Variant {variant_id} not found")
         return _row_to_variant(resume_id, row)
+
+    async def get_file_path(self, resume_id: str, variant_id: str) -> str | None:
+        """Legacy-only storage lookup used while old variants are migrated."""
+
+        async with self._pool.acquire() as conn:
+            return await conn.fetchval(
+                """
+                SELECT file_path
+                FROM resume_variants
+                WHERE id = $1 AND resume_id = $2
+                """,
+                _to_uuid(variant_id),
+                _to_uuid(resume_id),
+            )
 
     async def get_by_dedup_key(
         self, resume_id: str, dedup_key: str
@@ -186,6 +202,9 @@ class VariantRepository:
         suggestions: VariantSuggestions | None = None,
         status: VariantStatus | None = None,
         file_path: str | None = None,
+        source_revision_id: str | None = None,
+        patch_id: str | None = None,
+        artifact_id: str | None = None,
     ) -> ResumeVariantResponse:
         sets: list[str] = ["updated_at = NOW()"]
         params: list[Any] = []
@@ -206,6 +225,18 @@ class VariantRepository:
         if file_path is not None:
             sets.append(f"file_path = ${idx}")
             params.append(file_path)
+            idx += 1
+        if source_revision_id is not None:
+            sets.append(f"source_revision_id = ${idx}")
+            params.append(source_revision_id)
+            idx += 1
+        if patch_id is not None:
+            sets.append(f"patch_id = ${idx}")
+            params.append(patch_id)
+            idx += 1
+        if artifact_id is not None:
+            sets.append(f"artifact_id = ${idx}")
+            params.append(artifact_id)
             idx += 1
 
         params.extend([_to_uuid(variant_id), _to_uuid(resume_id)])
@@ -246,7 +277,17 @@ def _row_to_variant(resume_id: str, row: asyncpg.Record) -> ResumeVariantRespons
         status=row["status"],
         content=VariantContent.model_validate(raw_content),
         suggestions=VariantSuggestions.model_validate(raw_suggestions or {}),
-        file_path=row.get("file_path"),
+        file_path=None,
+        source_revision_id=(
+            str(row["source_revision_id"]) if row.get("source_revision_id") else None
+        ),
+        patch_id=str(row["patch_id"]) if row.get("patch_id") else None,
+        artifact_id=str(row["artifact_id"]) if row.get("artifact_id") else None,
+        artifact_url=(
+            f"/resume/{resume_id}/variants/{row['id']}/pdf"
+            if row.get("artifact_id")
+            else None
+        ),
         created_at=row["created_at"].isoformat() if row.get("created_at") else None,
         updated_at=row["updated_at"].isoformat() if row.get("updated_at") else None,
     )

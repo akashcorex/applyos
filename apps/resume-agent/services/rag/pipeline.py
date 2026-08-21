@@ -44,9 +44,18 @@ class ResumeRAGPipeline:
         raw_text: str,
         user_id: str,
         file_name: str | None = None,
+        source_document_hash: str | None = None,
+        ir_revision_id: str | None = None,
     ) -> int:
         """Chunk, embed, and store the resume text. Returns number of chunks stored."""
-        docs = chunk_resume(raw_text, resume_id, user_id, file_name)
+        docs = chunk_resume(
+            raw_text,
+            resume_id,
+            user_id,
+            file_name,
+            source_document_hash=source_document_hash,
+            ir_revision_id=ir_revision_id,
+        )
         if not docs:
             logger.warning("No chunks produced for resume %s", resume_id)
             return 0

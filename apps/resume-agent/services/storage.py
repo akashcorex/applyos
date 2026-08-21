@@ -50,3 +50,36 @@ def save_variant_pdf(
     path = user_dir / f"{variant_id}.pdf"
     path.write_bytes(pdf_bytes)
     return str(path.resolve())
+
+
+def save_artifact_pdf(
+    *,
+    user_id: str,
+    artifact_hash: str,
+    pdf_bytes: bytes,
+) -> tuple[str, str]:
+    """Store a content-addressed artifact and return (opaque key, local path)."""
+
+    user_dir = _UPLOADS_ROOT / _safe_segment(user_id) / "artifacts"
+    user_dir.mkdir(parents=True, exist_ok=True)
+    path = user_dir / f"{artifact_hash}.pdf"
+    if not path.exists():
+        path.write_bytes(pdf_bytes)
+    return f"local://resume-artifacts/{artifact_hash}.pdf", str(path.resolve())
+
+
+def resolve_artifact_path(*, user_id: str, artifact_hash: str) -> str | None:
+    path = (
+        _UPLOADS_ROOT
+        / _safe_segment(user_id)
+        / "artifacts"
+        / f"{artifact_hash}.pdf"
+    )
+    return str(path.resolve()) if path.is_file() else None
+
+
+def find_artifact_path(artifact_hash: str) -> str | None:
+    """Resolve an artifact by its opaque content address for trusted workers."""
+
+    matches = list(_UPLOADS_ROOT.glob(f"*/artifacts/{_safe_segment(artifact_hash)}.pdf"))
+    return str(matches[0].resolve()) if matches and matches[0].is_file() else None

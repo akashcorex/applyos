@@ -28,12 +28,10 @@ class Settings(BaseSettings):
     # --- Trusted internal service authentication ---
     # Shared with backend services only; never expose this token to the browser.
     agent_service_token: str = ""
+    resume_agent_url: str = "http://127.0.0.1:8005"
 
     # --- Application task cancellation ---
     apply_cancellation_ttl_seconds: int = 86400
-
-    # --- Local development resume fallback ---
-    default_resume_path: str = ""
 
     # --- Test/dev fallbacks when CV fields are missing ---
     default_phone: str = "+919876543210"

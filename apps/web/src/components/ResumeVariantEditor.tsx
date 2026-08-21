@@ -1,7 +1,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Check, Loader2, Sparkles, X } from 'lucide-react';
+import {
+  Check,
+  Download,
+  ExternalLink,
+  Loader2,
+  Sparkles,
+  X,
+} from 'lucide-react';
 
 import { Button } from '@applyso/ui/button';
 import { Badge } from '@applyso/ui/badge';
@@ -49,7 +56,19 @@ export interface ResumeVariant {
     suggestions: Suggestion[];
     overall_assessment?: string;
   };
-  file_path?: string | null;
+  source_revision_id?: string | null;
+  patch_id?: string | null;
+  artifact_id?: string | null;
+  artifact_url?: string | null;
+  diff?: {
+    semantic?: Array<{
+      node_id: string;
+      field: string;
+      before?: unknown;
+      after?: unknown;
+      reason?: string;
+    }>;
+  };
 }
 
 export interface TailorJobContext {
@@ -86,6 +105,7 @@ export function ResumeVariantEditor({
   );
   const [loading, setLoading] = useState(!initialVariant);
   const [saving, setSaving] = useState(false);
+  const [previewing, setPreviewing] = useState(false);
   const [finalizing, setFinalizing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -258,6 +278,46 @@ export function ResumeVariantEditor({
     }
   }
 
+  async function handlePreview() {
+    if (!variant || !content) return;
+    setPreviewing(true);
+    setError(null);
+    const payloadContent = {
+      ...content,
+      skills: skillsText
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean),
+    };
+    try {
+      const res = await fetch(
+        `/api/resume/${resumeId}/variants/${variant.id}/preview`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content: payloadContent }),
+        },
+      );
+      const data = await res.json();
+      if (!res.ok) {
+        setError(
+          Array.isArray(data.detail)
+            ? data.detail.join(', ')
+            : data.detail || data.error || 'Preview failed',
+        );
+        return;
+      }
+      setVariant(data.variant);
+      setContent(data.variant.content);
+      setSkillsText(data.variant.content.skills.join(', '));
+      onSaved(data.variant);
+    } catch {
+      setError('Failed to compile preview');
+    } finally {
+      setPreviewing(false);
+    }
+  }
+
   if (loading || !content) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
@@ -270,6 +330,10 @@ export function ResumeVariantEditor({
   }
 
   const suggestions = variant?.suggestions?.suggestions ?? [];
+  const semanticDiff = variant?.diff?.semantic ?? [];
+  const previewUrl = variant?.artifact_id
+    ? `/api/resume/${encodeURIComponent(resumeId)}/variants/${encodeURIComponent(variant.id)}/pdf`
+    : null;
   const safeIds = suggestions
     .filter((s) => (s.confidence ?? 0) >= 0.8 && s.risk === 'low')
     .map((s) => s.id);
@@ -326,7 +390,10 @@ export function ResumeVariantEditor({
                 ) : null}
               </div>
               {suggestions.map((s) => (
-                <div key={s.id} className="rounded border p-3 space-y-2 text-sm">
+                <div
+                  key={s.id}
+                  className="rounded border p-3 space-y-2 text-sm"
+                >
                   <div className="flex items-center justify-between gap-2 flex-wrap">
                     <div className="flex items-center gap-1">
                       <Badge variant="secondary">{s.section}</Badge>
@@ -414,26 +481,85 @@ export function ResumeVariantEditor({
             ))}
           </div>
 
-          {variant?.status === 'ready' && (
-            <p className="text-sm text-green-700 flex items-center gap-1">
-              <Check className="h-4 w-4" />
-              Ready to apply with tailored resume
-            </p>
-          )}
+          {previewUrl ? (
+            <div className="space-y-3 rounded-md border border-green-300 bg-green-50/50 p-3">
+              <p className="text-sm text-green-700 flex items-center gap-1">
+                <Check className="h-4 w-4" />
+                {variant?.status === 'ready'
+                  ? 'Ready to apply with tailored resume'
+                  : 'Draft preview compiled'}
+              </p>
+              {previewUrl ? (
+                <>
+                  <div className="flex flex-wrap gap-2">
+                    <a
+                      href={previewUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 rounded-md border px-3 py-1.5 text-sm hover:bg-background"
+                    >
+                      <ExternalLink className="h-3.5 w-3.5" />
+                      Open preview
+                    </a>
+                    <a
+                      href={previewUrl}
+                      download={`resume-${variant?.id ?? 'resume'}.pdf`}
+                      className="inline-flex items-center gap-1 rounded-md border px-3 py-1.5 text-sm hover:bg-background"
+                    >
+                      <Download className="h-3.5 w-3.5" />
+                      Download PDF
+                    </a>
+                  </div>
+                  <iframe
+                    title={`Tailored resume preview for ${job.company_name}`}
+                    src={previewUrl}
+                    className="h-[32rem] w-full rounded border bg-white"
+                  />
+                </>
+              ) : null}
+              {semanticDiff.length > 0 ? (
+                <div className="space-y-1">
+                  <p className="text-xs font-medium text-green-900">
+                    Changes applied
+                  </p>
+                  {semanticDiff.map((entry) => (
+                    <p
+                      key={`${entry.node_id}-${entry.field}`}
+                      className="text-xs text-green-900"
+                    >
+                      {entry.field}: {String(entry.reason || 'Updated')}
+                    </p>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
 
           {error && <p className="text-sm text-red-600">{error}</p>}
 
           <div className="flex flex-wrap gap-2 pt-2 border-t">
             <Button
               variant="outline"
-              disabled={saving || finalizing}
+              disabled={saving || previewing || finalizing}
               onClick={() => void handleSaveDraft()}
             >
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
               Save draft
             </Button>
             <Button
-              disabled={saving || finalizing}
+              variant="outline"
+              disabled={saving || previewing || finalizing}
+              onClick={() => void handlePreview()}
+            >
+              {previewing ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <ExternalLink className="h-4 w-4" />
+              )}
+              Preview draft
+            </Button>
+            <Button
+              disabled={saving || previewing || finalizing}
               onClick={() => void handleFinalize()}
             >
               {finalizing ? (

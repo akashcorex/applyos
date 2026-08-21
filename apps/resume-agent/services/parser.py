@@ -4,12 +4,29 @@ from __future__ import annotations
 
 import io
 import logging
+from dataclasses import dataclass
 from typing import Final
 
 logger = logging.getLogger(__name__)
 
 SUPPORTED_EXTENSIONS: Final[frozenset[str]] = frozenset({".pdf", ".docx"})
 MAX_TEXT_CHARS: Final[int] = 200_000
+
+
+@dataclass(frozen=True)
+class SourceSegment:
+    text: str
+    page: int | None = None
+    kind: str = "text"
+    start: int | None = None
+    end: int | None = None
+
+
+@dataclass(frozen=True)
+class ParsedDocument:
+    file_type: str
+    text: str
+    segments: tuple[SourceSegment, ...]
 
 
 class UnsupportedFileTypeError(ValueError):
@@ -34,49 +51,91 @@ class ResumeParser:
         )
 
     def parse(self, file_name: str, raw_bytes: bytes, content_type: str | None = None) -> str:
+        return self.parse_document(file_name, raw_bytes, content_type).text
+
+    def parse_document(
+        self,
+        file_name: str,
+        raw_bytes: bytes,
+        content_type: str | None = None,
+    ) -> ParsedDocument:
         if not raw_bytes:
             raise ValueError("Uploaded file is empty")
         file_type = self.detect_file_type(file_name, content_type)
         if file_type == "pdf":
-            text = self._parse_pdf(raw_bytes)
+            segments = self._parse_pdf_segments(raw_bytes)
         else:
-            text = self._parse_docx(raw_bytes)
+            segments = self._parse_docx_segments(raw_bytes)
 
-        text = self._normalise(text)
+        normalised_segments: list[SourceSegment] = []
+        offset = 0
+        for segment in segments:
+            segment_text = self._normalise(segment.text)
+            if not segment_text:
+                continue
+            normalised_segments.append(
+                SourceSegment(
+                    text=segment_text,
+                    page=segment.page,
+                    kind=segment.kind,
+                    start=offset,
+                    end=offset + len(segment_text),
+                )
+            )
+            offset += len(segment_text) + 1
+        text = self._normalise("\n".join(segment.text for segment in normalised_segments))
         logger.info(
             "Parsed %s (%s): %d chars", file_name, file_type, len(text)
         )
-        return text
+        return ParsedDocument(
+            file_type=file_type,
+            text=text,
+            segments=tuple(normalised_segments),
+        )
 
     @staticmethod
     def _parse_pdf(raw_bytes: bytes) -> str:
+        return "\n".join(segment.text for segment in ResumeParser._parse_pdf_segments(raw_bytes))
+
+    @staticmethod
+    def _parse_pdf_segments(raw_bytes: bytes) -> list[SourceSegment]:
         import pdfplumber
 
-        pages: list[str] = []
+        segments: list[SourceSegment] = []
         with pdfplumber.open(io.BytesIO(raw_bytes)) as pdf:
-            for page in pdf.pages:
+            for page_number, page in enumerate(pdf.pages, start=1):
                 page_text = page.extract_text() or ""
                 if page_text:
-                    pages.append(page_text)
+                    segments.append(SourceSegment(page_text, page=page_number))
                 # pdfplumber tables — flatten cell text into the page stream
                 for table in page.extract_tables() or []:
                     for row in table:
                         cells = [c for c in row if c]
                         if cells:
-                            pages.append(" ".join(str(c) for c in cells))
-        return "\n".join(pages)
+                            segments.append(
+                                SourceSegment(
+                                    " ".join(str(c) for c in cells),
+                                    page=page_number,
+                                    kind="table",
+                                )
+                            )
+        return segments
 
     @staticmethod
     def _parse_docx(raw_bytes: bytes) -> str:
+        return "\n".join(segment.text for segment in ResumeParser._parse_docx_segments(raw_bytes))
+
+    @staticmethod
+    def _parse_docx_segments(raw_bytes: bytes) -> list[SourceSegment]:
         from docx import Document
 
         doc = Document(io.BytesIO(raw_bytes))
-        chunks: list[str] = []
+        segments: list[SourceSegment] = []
 
         for para in doc.paragraphs:
             text = (para.text or "").strip()
             if text:
-                chunks.append(text)
+                segments.append(SourceSegment(text))
 
         for table in doc.tables:
             for row in table.rows:
@@ -86,9 +145,9 @@ class ResumeParser:
                 ]
                 line = " ".join(c for c in cells if c)
                 if line:
-                    chunks.append(line)
+                    segments.append(SourceSegment(line, kind="table"))
 
-        return "\n".join(chunks)
+        return segments
 
     @staticmethod
     def _normalise(text: str) -> str:

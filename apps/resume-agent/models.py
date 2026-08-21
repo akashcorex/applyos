@@ -3,8 +3,216 @@
 from __future__ import annotations
 
 from typing import Any, Literal
+from uuid import uuid4
 
 from pydantic import BaseModel, Field, HttpUrl
+
+
+RESUME_IR_SCHEMA_VERSION = "resume-ir.v1"
+TAILORING_POLICY_VERSION = "tailoring-policy.v1"
+COMPILER_VERSION = "resume-compiler.v1"
+TEMPLATE_VERSION = "ats-latex.v1"
+
+
+class EvidenceSpan(BaseModel):
+    """A location in the uploaded source document supporting a fact."""
+
+    source_document_hash: str
+    page: int | None = None
+    start: int | None = Field(default=None, ge=0)
+    end: int | None = Field(default=None, ge=0)
+    excerpt: str = ""
+
+
+class EvidenceRef(BaseModel):
+    """Provenance for a canonical IR node or field."""
+
+    id: str
+    kind: Literal["assertion", "inference", "derived"] = "assertion"
+    spans: list[EvidenceSpan] = Field(default_factory=list)
+    confidence: float = Field(default=1.0, ge=0.0, le=1.0)
+    note: str | None = None
+
+
+class IRIdentity(BaseModel):
+    full_name: str = ""
+    email: str = ""
+    phone: str | None = None
+    location: str | None = None
+
+
+class IRSkill(BaseModel):
+    id: str
+    name: str
+    normalized_name: str
+    evidence_ids: list[str] = Field(default_factory=list)
+
+
+class IRBullet(BaseModel):
+    id: str
+    text: str
+    evidence_ids: list[str] = Field(default_factory=list)
+    metrics: list[str] = Field(default_factory=list)
+    skill_names: list[str] = Field(default_factory=list)
+
+
+class IRWorkExperience(BaseModel):
+    id: str
+    company: str
+    title: str
+    start_date: str | None = None
+    end_date: str | None = None
+    bullets: list[IRBullet] = Field(default_factory=list)
+    evidence_ids: list[str] = Field(default_factory=list)
+
+
+class IREducation(BaseModel):
+    id: str
+    degree: str
+    school: str
+    year: int | None = None
+    evidence_ids: list[str] = Field(default_factory=list)
+
+
+class ResumeIR(BaseModel):
+    """Canonical, versioned resume representation.
+
+    This object intentionally contains facts and provenance, but not
+    embeddings. Embeddings are a rebuildable projection of evidence nodes.
+    """
+
+    schema_version: str = RESUME_IR_SCHEMA_VERSION
+    resume_id: str | None = None
+    user_id: str
+    source_document_id: str | None = None
+    source_document_hash: str
+    identity: IRIdentity
+    summary: str | None = None
+    experience_years: int = Field(default=0, ge=0)
+    skills: list[IRSkill] = Field(default_factory=list)
+    education: list[IREducation] = Field(default_factory=list)
+    experience: list[IRWorkExperience] = Field(default_factory=list)
+    preferred_role: str | None = None
+    preferred_locations: list[str] = Field(default_factory=list)
+    evidence: dict[str, EvidenceRef] = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class JobProfile(BaseModel):
+    """Normalized job requirements used by matching and tailoring."""
+
+    schema_version: str = "job-profile.v1"
+    title: str
+    company_name: str | None = None
+    seniority: str | None = None
+    required_skills: list[str] = Field(default_factory=list)
+    preferred_skills: list[str] = Field(default_factory=list)
+    domain: list[str] = Field(default_factory=list)
+    locations: list[str] = Field(default_factory=list)
+    experience_years_min: int | None = Field(default=None, ge=0)
+    education_requirements: list[str] = Field(default_factory=list)
+    description_hash: str | None = None
+
+
+class TailoringPolicy(BaseModel):
+    """Hard safety boundary for all model and manual tailoring operations."""
+
+    version: str = TAILORING_POLICY_VERSION
+    allowed_operations: list[str] = Field(
+        default_factory=lambda: [
+            "reorder",
+            "select",
+            "rewrite_existing",
+            "summarize_existing",
+            "reorder_skills",
+        ]
+    )
+    forbidden_changes: list[str] = Field(
+        default_factory=lambda: [
+            "new_fact",
+            "new_technology",
+            "changed_metric",
+            "changed_date",
+            "changed_employer",
+            "unsupported_skill",
+        ]
+    )
+
+
+class TailoringOperation(BaseModel):
+    id: str = Field(default_factory=lambda: f"op_{uuid4().hex}")
+    operation: Literal[
+        "reorder",
+        "select",
+        "rewrite_existing",
+        "summarize_existing",
+        "reorder_skills",
+    ]
+    node_id: str
+    field: str
+    before: Any = None
+    after: Any = None
+    evidence_ids: list[str] = Field(default_factory=list)
+    rationale: str = ""
+
+
+class TailoringPatch(BaseModel):
+    id: str = Field(default_factory=lambda: f"patch_{uuid4().hex}")
+    schema_version: str = "tailoring-patch.v1"
+    source_revision_id: str
+    source_ir_hash: str
+    job_profile: JobProfile
+    policy_version: str = TAILORING_POLICY_VERSION
+    operations: list[TailoringOperation] = Field(default_factory=list)
+    provenance: dict[str, Any] = Field(default_factory=dict)
+
+
+class DiffEntry(BaseModel):
+    node_id: str
+    field: str
+    before: Any = None
+    after: Any = None
+    evidence_ids: list[str] = Field(default_factory=list)
+    reason: str = ""
+
+
+class DiffContract(BaseModel):
+    schema_version: str = "resume-diff.v1"
+    semantic: list[DiffEntry] = Field(default_factory=list)
+    source: list[DiffEntry] = Field(default_factory=list)
+    visual: dict[str, Any] = Field(default_factory=dict)
+
+
+class ValidationDiagnostic(BaseModel):
+    code: str
+    severity: Literal["info", "warning", "error"]
+    message: str
+    node_id: str | None = None
+
+
+class ValidationReport(BaseModel):
+    valid: bool
+    diagnostics: list[ValidationDiagnostic] = Field(default_factory=list)
+
+
+class CompiledArtifact(BaseModel):
+    """Immutable output metadata for a compiled resume."""
+
+    id: str
+    artifact_hash: str
+    resume_id: str
+    variant_id: str | None = None
+    source_revision_id: str
+    patch_id: str | None = None
+    storage_key: str
+    media_type: str = "application/pdf"
+    compiler_version: str = COMPILER_VERSION
+    template_version: str = TEMPLATE_VERSION
+    page_count: int | None = None
+    validation: ValidationReport
+    diff: DiffContract = Field(default_factory=DiffContract)
+    provenance: dict[str, Any] = Field(default_factory=dict)
+    created_at: str | None = None
 
 
 class Education(BaseModel):
@@ -48,6 +256,9 @@ class ResumeRecord(BaseModel):
 class ParseResponse(BaseModel):
     resume_id: str
     user_id: str
+    ir_revision_id: str | None = None
+    source_document_hash: str | None = None
+    source_document_url: str | None = None
     full_name: str
     email: str
     phone: str | None = None
@@ -135,6 +346,20 @@ class MatchSessionsResponse(BaseModel):
     sessions: list[MatchSessionSummary] = Field(default_factory=list)
 
 
+class RawEducation(BaseModel):
+    degree: str = ""
+    school: str = ""
+    year: int | None = None
+
+
+class RawWorkHistory(BaseModel):
+    company: str = ""
+    title: str = ""
+    start_date: str | None = None
+    end_date: str | None = None
+    highlights: list[str] = Field(default_factory=list)
+
+
 class RawLLMExtraction(BaseModel):
     """Loose schema used to validate the JSON blob returned by Claude.
 
@@ -149,8 +374,8 @@ class RawLLMExtraction(BaseModel):
     summary: str | None = None
     experience_years: int | None = None
     skills: list[str] | None = None
-    education: list[dict[str, Any]] | None = None
-    work_history: list[dict[str, Any]] | None = None
+    education: list[RawEducation] | None = None
+    work_history: list[RawWorkHistory] | None = None
     preferred_role: str | None = None
     preferred_locations: list[str] | None = None
 
@@ -178,6 +403,15 @@ class ImprovementSuggestion(BaseModel):
     reason: str
     confidence: float = Field(default=0.7, ge=0.0, le=1.0)
     risk: Literal["low", "medium", "high"] = "medium"
+    operation: Literal[
+        "reorder",
+        "select",
+        "rewrite_existing",
+        "summarize_existing",
+        "reorder_skills",
+    ] = "rewrite_existing"
+    node_id: str | None = None
+    evidence_ids: list[str] = Field(default_factory=list)
 
 
 class ImprovementSuggestions(BaseModel):
@@ -249,6 +483,11 @@ class ResumeVariantResponse(BaseModel):
     content: VariantContent
     suggestions: VariantSuggestions = Field(default_factory=VariantSuggestions)
     file_path: str | None = None
+    source_revision_id: str | None = None
+    patch_id: str | None = None
+    artifact_id: str | None = None
+    artifact_url: str | None = None
+    diff: DiffContract = Field(default_factory=DiffContract)
     created_at: str | None = None
     updated_at: str | None = None
 
@@ -261,11 +500,13 @@ class VariantListResponse(BaseModel):
 class VariantFinalizeResponse(BaseModel):
     variant: ResumeVariantResponse
     preview_url: str | None = None
+    artifact: CompiledArtifact | None = None
 
 
 class BaseProfileResponse(BaseModel):
     resume_id: str
     content: VariantContent
+    ir_revision_id: str | None = None
 
 
 class UpdateBaseProfileRequest(BaseModel):

@@ -1,6 +1,6 @@
 # Outreach Autometer
 
-AI-powered outreach automation platform — a Turborepo monorepo with a Next.js frontend, Express API, and four Python agent microservices.
+AI-powered job application platform — a Turborepo monorepo with a Next.js frontend, Express API, and Python agent microservices.
 
 ## Architecture
 
@@ -45,6 +45,7 @@ AI-powered outreach automation platform — a Turborepo monorepo with a Next.js 
 | **Orchestrator** (`apps/ai-orchestrator`)  | Coordinates multi-agent workflows — state machine, job ingestion, apply dispatch    | [README](apps/ai-orchestrator/README.md) |
 | **Job Agent** (`apps/job-agent`)           | Job discovery — ATS detection, job scraping, funding data                           | [README](apps/job-agent/README.md)       |
 | **Apply Agent** (`apps/apply-agent`)       | Automated job application — browser automation, LLM field mapping, LinkedIn actions | [README](apps/apply-agent/README.md)     |
+| **Resume Agent** (`apps/resume-agent`)     | Resume ingestion, IR revisions, evidence-constrained tailoring, PDF compilation | [README](apps/resume-agent/README.md)   |
 | **Outreach Agent** (`apps/outreach-agent`) | Outreach communications — emails, follow-ups, messaging (scaffold)                  | [README](apps/outreach-agent/README.md)  |
 
 ## Quick start
@@ -104,8 +105,9 @@ All are workspace-linked — import via `@applyso/<name>` after adding to your a
 ### Durable workflow configuration
 
 Set the same high-entropy `AGENT_SERVICE_TOKEN` in `apps/web/.env.local`,
-`apps/api/.env`, and `apps/ai-orchestrator/.env`. It is used only for trusted
-server-to-server workflow persistence; do not expose it through a
+`apps/api/.env`, `apps/ai-orchestrator/.env`, `apps/resume-agent/.env`, and
+`apps/apply-agent/.env`. It is used only for trusted server-to-server workflow
+persistence and compiled artifact downloads; do not expose it through a
 `NEXT_PUBLIC_` variable. The web service may also set `API_URL` and the
 orchestrator may set `API_URL` when these services do not use their local
 port defaults.

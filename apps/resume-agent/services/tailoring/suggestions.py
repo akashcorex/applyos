@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+
 from models import SuggestionWithId, VariantSuggestions
 
 MAX_SUGGESTIONS = 5
@@ -65,15 +67,37 @@ def enrich_suggestion(
         risk = infer_risk(section, suggested)
     confidence = float(item.get("confidence", infer_confidence(section, risk, has_job_context)))
     confidence = max(0.0, min(1.0, confidence))
+    operation = str(item.get("operation", "rewrite_existing"))
+    allowed_operations = {
+        "reorder",
+        "select",
+        "rewrite_existing",
+        "summarize_existing",
+        "reorder_skills",
+    }
+    if operation not in allowed_operations:
+        operation = "rewrite_existing"
+    current = str(item.get("current", ""))
+    node_id = item.get("node_id")
+    if not node_id:
+        digest = hashlib.sha256(
+            f"{section}:{current}".encode("utf-8")
+        ).hexdigest()[:16]
+        node_id = f"suggestion_{digest}"
 
     return SuggestionWithId(
         id=f"s{index}",
         section=section,
-        current=str(item.get("current", "")),
+        current=current,
         suggested=suggested,
         reason=str(item.get("reason", "")),
         confidence=confidence,
         risk=risk,  # type: ignore[arg-type]
+        operation=operation,  # type: ignore[arg-type]
+        node_id=str(node_id),
+        evidence_ids=[
+            str(value) for value in (item.get("evidence_ids") or [])
+        ],
     )
 
 

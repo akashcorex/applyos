@@ -88,6 +88,9 @@ async def _load_resume(ctx: DecisionContext) -> None:
     data = await ctx.resume_client.get_resume(
         ctx.request.resume_id, ctx.request.user_id
     )
+    artifact = await ctx.resume_client.get_latest_artifact(
+        ctx.request.resume_id, ctx.request.user_id
+    )
     ctx.cv_data = CVData(
         full_name=str(data.get("full_name") or ""),
         email=str(data.get("email") or ""),
@@ -104,7 +107,7 @@ async def _load_resume(ctx: DecisionContext) -> None:
             item if isinstance(item, dict) else dict(item)
             for item in (data.get("work_history") or [])
         ],
-        resume_url=data.get("file_path"),
+        resume_url=ctx.resume_client.artifact_download_url(artifact["artifact_id"]),
     )
     if not (ctx.cv_data.resume_url or "").strip():
         raise RuntimeError("Resume file is required before applying")

@@ -38,14 +38,6 @@ def _resolve_local_candidate(source: str) -> Path | None:
     return None
 
 
-def _default_resume_path() -> Path | None:
-    """Only an explicitly configured DEFAULT_RESUME_PATH is used as fallback."""
-    configured = getattr(settings, "default_resume_path", "")
-    if not configured:
-        return None
-    return _resolve_local_candidate(configured)
-
-
 def _guess_suffix(source: str, content_type: str | None) -> str:
     parsed = urlparse(source)
     suffix = Path(parsed.path).suffix
@@ -60,9 +52,9 @@ def _guess_suffix(source: str, content_type: str | None) -> str:
     return ".pdf"
 
 
-async def _download_resume(source: str) -> Path:
+async def _download_resume(source: str, headers: dict[str, str] | None = None) -> Path:
     async with httpx.AsyncClient(follow_redirects=True, timeout=60.0) as client:
-        response = await client.get(source)
+        response = await client.get(source, headers=headers)
         response.raise_for_status()
         suffix = _guess_suffix(source, response.headers.get("content-type"))
         with NamedTemporaryFile(delete=False, suffix=suffix) as temp_file:
@@ -77,7 +69,7 @@ async def prepare_resume_file(cv_data: CVData):
     Resolution order:
     1. ``cv_data.resume_url`` if it points to a local path
     2. ``cv_data.resume_url`` if it is an HTTP(S) URL (downloaded to a temp file)
-    3. ``settings.default_resume_path`` if configured
+    3. No fallback — every apply must reference a compiled artifact.
 
     Yields ``None`` when no resume file can be resolved.
     """
@@ -92,12 +84,20 @@ async def prepare_resume_file(cv_data: CVData):
                 return
 
             if source.startswith("http://") or source.startswith("https://"):
-                temporary_path = await _download_resume(source)
+                headers: dict[str, str] | None = None
+                if source.startswith(settings.resume_agent_url.rstrip("/")):
+                    if not settings.agent_service_token:
+                        raise RuntimeError(
+                            "AGENT_SERVICE_TOKEN is required for resume artifact downloads"
+                        )
+                    headers = {
+                        "X-Agent-Service-Token": settings.agent_service_token,
+                    }
+                temporary_path = await _download_resume(source, headers=headers)
                 yield temporary_path
                 return
 
-        default_path = _default_resume_path()
-        yield default_path
+        yield None
     finally:
         if temporary_path is not None and temporary_path.exists():
             temporary_path.unlink(missing_ok=True)

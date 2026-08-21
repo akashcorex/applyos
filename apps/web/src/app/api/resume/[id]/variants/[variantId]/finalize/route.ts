@@ -35,6 +35,9 @@ export async function POST(
     const data = await res.json();
     if (res.ok && data.preview_url) {
       data.preview_url = `/api/resume/${id}/variants/${variantId}/pdf`;
+      if (data.variant) {
+        data.variant.artifact_url = data.preview_url;
+      }
     }
     return Response.json(data, { status: res.status });
   } catch {

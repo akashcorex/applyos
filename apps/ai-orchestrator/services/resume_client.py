@@ -26,7 +26,23 @@ class ResumeAgentClient:
 
     async def get_cv_data(self, resume_id: str, user_id: str) -> CVData:
         data = await self.get_resume(resume_id, user_id)
-        return cv_data_from_resume(data)
+        artifact = await self.get_latest_artifact(resume_id, user_id)
+        return cv_data_from_resume(
+            data,
+            resume_url=self.artifact_download_url(artifact["artifact_id"]),
+        )
+
+    async def get_latest_artifact(
+        self, resume_id: str, user_id: str
+    ) -> dict[str, Any]:
+        url = f"{self._base_url}/resume/{resume_id}/latest-artifact"
+        async with httpx.AsyncClient(timeout=settings.http_timeout_seconds) as client:
+            response = await client.get(url, headers={"X-User-Id": user_id})
+            response.raise_for_status()
+            return response.json()
+
+    def artifact_download_url(self, artifact_id: str) -> str:
+        return f"{self._base_url}/internal/artifacts/{artifact_id}"
 
     async def health(self) -> bool:
         try:
@@ -37,7 +53,11 @@ class ResumeAgentClient:
             return False
 
 
-def cv_data_from_resume(data: dict[str, Any]) -> CVData:
+def cv_data_from_resume(
+    data: dict[str, Any],
+    *,
+    resume_url: str | None = None,
+) -> CVData:
     education = data.get("education") or []
     work_history = data.get("work_history") or []
     return CVData(
@@ -52,7 +72,7 @@ def cv_data_from_resume(data: dict[str, Any]) -> CVData:
         work_history=[
             item if isinstance(item, dict) else dict(item) for item in work_history
         ],
-        resume_url=data.get("file_path"),
+        resume_url=resume_url,
         linkedin_url=data.get("linkedin_url"),
         github_url=data.get("github_url"),
         portfolio_url=data.get("portfolio_url"),

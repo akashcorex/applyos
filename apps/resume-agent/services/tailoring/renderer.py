@@ -20,13 +20,16 @@ class VariantRenderer:
         variant_id: str,
         content: VariantContent,
     ) -> str:
+        return save_variant_pdf(
+            user_id=user_id,
+            variant_id=variant_id,
+            pdf_bytes=self.render_pdf_bytes(content),
+        )
+
+    def render_pdf_bytes(self, content: VariantContent) -> bytes:
         pdf: FPDF = self._engine.create_document()
         self._engine.render(pdf, content)
 
         raw = pdf.output()
         pdf_bytes = raw if isinstance(raw, (bytes, bytearray)) else raw.encode("latin-1")
-        return save_variant_pdf(
-            user_id=user_id,
-            variant_id=variant_id,
-            pdf_bytes=bytes(pdf_bytes),
-        )
+        return bytes(pdf_bytes)

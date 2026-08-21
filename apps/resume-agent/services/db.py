@@ -101,6 +101,9 @@ class ResumeRepository:
         resume_id: str,
         embedding: list[float],
         text_hash: str,
+        revision_id: str | None = None,
+        model: str | None = None,
+        index_version: str = "evidence-index.v1",
     ) -> None:
         async with self._pool.acquire() as conn:
             result = await conn.execute(
@@ -108,12 +111,18 @@ class ResumeRepository:
                 UPDATE resumes
                 SET profile_embedding = $2::jsonb,
                     profile_text_hash = $3,
+                    profile_embedding_revision_id = $4,
+                    embedding_model = $5,
+                    embedding_index_version = $6,
                     updated_at = NOW()
                 WHERE id = $1
                 """,
                 _to_uuid(resume_id),
                 json.dumps(embedding),
                 text_hash,
+                revision_id,
+                model,
+                index_version,
             )
         if result == "UPDATE 0":
             raise ResumeNotFoundError(f"Resume {resume_id} not found")
@@ -156,11 +165,31 @@ class ResumeRepository:
             result = await conn.execute(
                 """
                 UPDATE resumes
-                SET base_profile = $2::jsonb,
+                SET full_name = $2,
+                    email = $3,
+                    phone = $4,
+                    location = $5,
+                    summary = $6,
+                    experience_years = $7,
+                    skills = $8,
+                    education = $9::jsonb,
+                    work_history = $10::jsonb,
+                    preferred_role = $11,
+                    base_profile = $12::jsonb,
                     updated_at = NOW()
                 WHERE id = $1
                 """,
                 _to_uuid(resume_id),
+                content.full_name,
+                content.email,
+                content.phone,
+                content.location,
+                content.summary,
+                content.experience_years,
+                content.skills,
+                json.dumps([item.model_dump() for item in content.education]),
+                json.dumps([item.model_dump() for item in content.work_history]),
+                content.preferred_role,
                 json.dumps(content.model_dump()),
             )
         if result == "UPDATE 0":

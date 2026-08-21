@@ -8,6 +8,7 @@ JSON parsing or fence-stripping required.
 from __future__ import annotations
 
 import logging
+import hashlib
 from pathlib import Path
 
 from langchain_core.prompts import ChatPromptTemplate
@@ -30,6 +31,10 @@ class LLMExtractor:
 
     def __init__(self, llm=None) -> None:
         self._llm = llm
+
+    @staticmethod
+    def prompt_hash() -> str:
+        return hashlib.sha256(_load_prompt().encode("utf-8")).hexdigest()
 
     def _get_structured_llm(self):
         llm = self._llm or get_llm()
@@ -95,19 +100,48 @@ class LLMExtractor:
             skills=normalize_skills(partial.skills or []),
             education=[
                 {
-                    "degree": e.get("degree", ""),
-                    "school": e.get("school", ""),
-                    "year": e.get("year"),
+                    "degree": (
+                        e.degree
+                        if hasattr(e, "degree")
+                        else e.get("degree", "")
+                    ),
+                    "school": (
+                        e.school
+                        if hasattr(e, "school")
+                        else e.get("school", "")
+                    ),
+                    "year": e.year if hasattr(e, "year") else e.get("year"),
                 }
                 for e in (partial.education or [])
             ],
             work_history=[
                 {
-                    "company": w.get("company", ""),
-                    "title": w.get("title", ""),
-                    "start_date": w.get("start_date"),
-                    "end_date": w.get("end_date"),
-                    "highlights": w.get("highlights", []) or [],
+                    "company": (
+                        w.company
+                        if hasattr(w, "company")
+                        else w.get("company", "")
+                    ),
+                    "title": (
+                        w.title
+                        if hasattr(w, "title")
+                        else w.get("title", "")
+                    ),
+                    "start_date": (
+                        w.start_date
+                        if hasattr(w, "start_date")
+                        else w.get("start_date")
+                    ),
+                    "end_date": (
+                        w.end_date
+                        if hasattr(w, "end_date")
+                        else w.get("end_date")
+                    ),
+                    "highlights": (
+                        w.highlights
+                        if hasattr(w, "highlights")
+                        else w.get("highlights", [])
+                    )
+                    or [],
                 }
                 for w in (partial.work_history or [])
             ],
