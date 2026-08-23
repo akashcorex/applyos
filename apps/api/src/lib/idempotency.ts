@@ -3,9 +3,9 @@
 export function applicationIdempotencyKey(
   userId: string,
   dedupKey: string,
-  resumeVariantId: string,
+  resumeVariantId?: string | null,
 ): string {
-  return `${userId}:${dedupKey}:${resumeVariantId}`;
+  return `${userId}:${dedupKey}:${resumeVariantId?.trim() || 'original'}`;
 }
 
 export function agentTaskIdempotencyKey(applicationKey: string): string {

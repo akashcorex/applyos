@@ -17,11 +17,31 @@ from pydantic import BaseModel, Field
 from config import settings
 from models import SearchResult, SemanticMatchResult
 from services.embeddings import embed_texts, embeddings_available
+from services.seniority import (
+    SENIORITY_RANK,
+    infer_seniority,
+    max_rank_for_years,
+    seniority_allowed,
+)
 from services.skill_utils import infer_skill_overlap
 
 logger = logging.getLogger(__name__)
 
 _MAX_DESC_CHARS = 1500
+
+
+def _seniority_score_boost(years_experience: int, job: SearchResult) -> float:
+    resolved = infer_seniority(job.title, job.seniority)
+    if resolved is None:
+        return 1.0
+    gap = max_rank_for_years(years_experience) - SENIORITY_RANK.get(
+        resolved, SENIORITY_RANK["mid"]
+    )
+    if gap == 0:
+        return 1.06
+    if gap >= 2:
+        return 0.8
+    return 1.0
 
 _EXPLAIN_SYSTEM = """\
 You are a technical recruiter. For each job listing, explain why it does or
@@ -213,6 +233,22 @@ async def semantic_rank_jobs(
     if not jobs:
         return []
 
+    before = len(jobs)
+    jobs = [
+        job
+        for job in jobs
+        if seniority_allowed(experience_years, job.seniority, job.title)
+    ]
+    dropped = before - len(jobs)
+    if dropped:
+        logger.info(
+            "Dropped %d over-senior job(s) for %s year(s) experience",
+            dropped,
+            experience_years,
+        )
+    if not jobs:
+        return []
+
     if not embeddings_available():
         logger.warning("OPENAI_API_KEY not set — returning unranked jobs")
         return [SemanticMatchResult(**job.model_dump()) for job in jobs]
@@ -248,7 +284,9 @@ async def semantic_rank_jobs(
 
     scored: list[tuple[SearchResult, float, str]] = []
     for job, vec in zip(jobs, job_vectors, strict=True):
-        score = cosine_similarity(candidate_vec, vec)
+        score = cosine_similarity(candidate_vec, vec) * _seniority_score_boost(
+            experience_years, job
+        )
         scored.append((job, score, build_job_text(job)))
 
     scored.sort(key=lambda item: item[1], reverse=True)

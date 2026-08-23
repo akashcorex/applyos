@@ -4,7 +4,7 @@ const RESUME_AGENT_URL =
   process.env.RESUME_AGENT_URL ?? 'http://127.0.0.1:8005';
 const ORCHESTRATOR_URL =
   process.env.ORCHESTRATOR_URL ?? 'http://127.0.0.1:8001';
-const API_URL = process.env.API_URL ?? 'http://127.0.0.1:3333';
+const API_URL = process.env.API_URL ?? 'http://localhost:3333';
 const AGENT_SERVICE_TOKEN = process.env.AGENT_SERVICE_TOKEN;
 
 interface VariantContent {
@@ -48,6 +48,51 @@ interface ApplyJobInput {
   match_score: number;
 }
 
+function buildCvDataFromResume(
+  resume: {
+    full_name?: string;
+    email?: string;
+    phone?: string | null;
+    location?: string | null;
+    summary?: string | null;
+    experience_years?: number;
+    skills?: string[];
+    education?: VariantContent['education'];
+    work_history?: VariantContent['work_history'];
+  },
+  resumeUrl: string,
+) {
+  return buildCvData(
+    {
+      full_name: resume.full_name || '',
+      email: resume.email || '',
+      phone: resume.phone,
+      location: resume.location,
+      summary: resume.summary,
+      experience_years: resume.experience_years || 0,
+      skills: resume.skills || [],
+      education: resume.education || [],
+      work_history: resume.work_history || [],
+    },
+    resumeUrl,
+  );
+}
+
+function readyVariant(
+  variant: ResumeVariant | undefined,
+  dedupKey: string,
+): ResumeVariant | undefined {
+  if (
+    !variant ||
+    variant.dedup_key !== dedupKey ||
+    variant.status !== 'ready' ||
+    !variant.artifact_id
+  ) {
+    return undefined;
+  }
+  return variant;
+}
+
 function buildCvData(content: VariantContent, resumeUrl: string) {
   return {
     full_name: content.full_name,
@@ -87,30 +132,29 @@ export async function POST(request: Request) {
     const forbidden = await assertResumeOwner(resumeId, sessionUserId);
     if (forbidden) return forbidden;
 
-    let eligibleJobs: ApplyJobInput[] = clientJobs;
-
-    const matchRes = await fetch(
-      `${RESUME_AGENT_URL}/resume/${encodeURIComponent(resumeId)}/match?max_companies=10&max_jobs=50`,
-      {
-        headers: { 'X-User-Id': sessionUserId },
-        signal: AbortSignal.timeout(120000),
-      },
-    );
-    if (!matchRes.ok) {
-      const err = await matchRes.json().catch(() => ({}));
-      return Response.json(
-        { error: err.detail || 'Failed to match jobs' },
-        { status: matchRes.status },
-      );
-    }
-    const matchData = await matchRes.json();
-    const serverJobsByKey = new Map<string, ApplyJobInput>(
-      (matchData.jobs ?? [])
-        .filter((job: ApplyJobInput) => job.dedup_key)
-        .map((job: ApplyJobInput) => [job.dedup_key!, job]),
-    );
+    let eligibleJobs: ApplyJobInput[] = clientJobs.filter((job) => {
+      if (!job.dedup_key || !job.application_url) return false;
+      if (typeof job.match_score !== 'number') return false;
+      const score = job.match_score <= 1 ? job.match_score * 100 : job.match_score;
+      return score >= minScore;
+    }).slice(0, maxApplies);
 
     if (eligibleJobs.length === 0) {
+      const matchRes = await fetch(
+        `${RESUME_AGENT_URL}/resume/${encodeURIComponent(resumeId)}/match?max_companies=10&max_jobs=50`,
+        {
+          headers: { 'X-User-Id': sessionUserId },
+          signal: AbortSignal.timeout(120000),
+        },
+      );
+      if (!matchRes.ok) {
+        const err = await matchRes.json().catch(() => ({}));
+        return Response.json(
+          { error: err.detail || 'Failed to match jobs' },
+          { status: matchRes.status },
+        );
+      }
+      const matchData = await matchRes.json();
       eligibleJobs = (matchData.jobs ?? [])
         .filter((job: ApplyJobInput) => {
           if (!job.application_url || typeof job.match_score !== 'number') {
@@ -119,27 +163,6 @@ export async function POST(request: Request) {
           const score =
             job.match_score <= 1 ? job.match_score * 100 : job.match_score;
           return score >= minScore;
-        })
-        .slice(0, maxApplies);
-    } else {
-      eligibleJobs = eligibleJobs
-        .filter((job) => {
-          if (!job.dedup_key || !serverJobsByKey.has(job.dedup_key)) {
-            return false;
-          }
-          if (!job.application_url || typeof job.match_score !== 'number') {
-            return false;
-          }
-          const score =
-            job.match_score <= 1 ? job.match_score * 100 : job.match_score;
-          return score >= minScore;
-        })
-        .map((job) => {
-          const serverJob = serverJobsByKey.get(job.dedup_key!)!;
-          return {
-            ...serverJob,
-            match_score: job.match_score,
-          };
         })
         .slice(0, maxApplies);
     }
@@ -162,62 +185,28 @@ export async function POST(request: Request) {
       ? await variantsRes.json()
       : { variants: [] };
 
-    const missingTailoring: Array<{
-      dedup_key: string;
-      company_name: string;
-      title: string;
-    }> = [];
     const resolvedVariants: Map<string, ResumeVariant> = new Map();
 
     for (const job of eligibleJobs) {
       if (!job.dedup_key) {
         return Response.json(
-          { error: 'Each job must include a dedup_key for tailored apply' },
+          { error: 'Each job must include a dedup_key' },
           { status: 400 },
         );
       }
 
       const variantId = variantIds[job.dedup_key];
-      const variant = variantId
+      const candidate = variantId
         ? (variantsData.variants ?? []).find(
             (v: ResumeVariant) => v.id === variantId,
           )
         : (variantsData.variants ?? []).find(
             (v: ResumeVariant) => v.dedup_key === job.dedup_key,
           );
-
-      if (
-        !variant ||
-        variant.dedup_key !== job.dedup_key ||
-        variant.status !== 'ready' ||
-        !variant.artifact_id
-      ) {
-        missingTailoring.push({
-          dedup_key: job.dedup_key,
-          company_name: job.company_name,
-          title: job.title,
-        });
-        continue;
+      const variant = readyVariant(candidate, job.dedup_key);
+      if (variant) {
+        resolvedVariants.set(job.dedup_key, variant);
       }
-
-      if (variantId && variant.id !== variantId) {
-        return Response.json(
-          { error: 'variant_id does not match dedup_key' },
-          { status: 400 },
-        );
-      }
-
-      resolvedVariants.set(job.dedup_key, variant);
-    }
-
-    if (missingTailoring.length > 0) {
-      return Response.json(
-        {
-          error: 'Tailored resume required before applying',
-          missing_variants: missingTailoring,
-        },
-        { status: 400 },
-      );
     }
 
     const resumeRes = await fetch(
@@ -232,20 +221,24 @@ export async function POST(request: Request) {
     }
     const resume = await resumeRes.json();
 
+    const originalResumeUrl = `${RESUME_AGENT_URL}/internal/resumes/${encodeURIComponent(
+      resumeId,
+    )}/source`;
+    const defaultCv = buildCvDataFromResume(resume, originalResumeUrl);
     const firstVariant = resolvedVariants.values().next().value as
       | ResumeVariant
       | undefined;
-    if (!firstVariant?.artifact_id) {
-      return Response.json(
-        { error: 'A compiled resume artifact is required before applying' },
-        { status: 400 },
-      );
-    }
 
     const artifactUrl = (variant: ResumeVariant) =>
       `${RESUME_AGENT_URL}/internal/artifacts/${encodeURIComponent(
         variant.artifact_id!,
       )}`;
+    const cvForJob = (dedupKey: string) => {
+      const variant = resolvedVariants.get(dedupKey);
+      return variant
+        ? buildCvData(variant.content, artifactUrl(variant))
+        : defaultCv;
+    };
 
     if (!AGENT_SERVICE_TOKEN) {
       return Response.json(
@@ -275,9 +268,11 @@ export async function POST(request: Request) {
         years_experience: resume.experience_years || 0,
         preferred_locations: resume.preferred_locations || [],
       },
-      cv_data: buildCvData(firstVariant.content, artifactUrl(firstVariant)),
+      cv_data: firstVariant
+        ? buildCvData(firstVariant.content, artifactUrl(firstVariant))
+        : defaultCv,
       jobs: eligibleJobs.map((job) => {
-        const variant = resolvedVariants.get(job.dedup_key!)!;
+        const variant = resolvedVariants.get(job.dedup_key!);
         return {
           title: job.title,
           company_name: job.company_name,
@@ -288,8 +283,8 @@ export async function POST(request: Request) {
           location: job.location || undefined,
           description_raw: job.description || undefined,
           dedup_key: job.dedup_key,
-          resume_variant_id: variant.id,
-          cv_data: buildCvData(variant.content, artifactUrl(variant)),
+          resume_variant_id: variant?.id,
+          cv_data: cvForJob(job.dedup_key!),
         };
       }),
       max_jobs_per_company: 1,
@@ -311,7 +306,7 @@ export async function POST(request: Request) {
         resumeId,
         request: workflowPayload,
         applications: eligibleJobs.map((job) => {
-          const variant = resolvedVariants.get(job.dedup_key!)!;
+          const variant = resolvedVariants.get(job.dedup_key!);
           return {
             dedupKey: job.dedup_key,
             title: job.title,
@@ -323,7 +318,7 @@ export async function POST(request: Request) {
             location: job.location,
             descriptionRaw: job.description,
             matchScore: job.match_score,
-            resumeVariantId: variant.id,
+            resumeVariantId: variant?.id ?? null,
           };
         }),
       }),
@@ -427,10 +422,13 @@ export async function POST(request: Request) {
         variant_id: resolvedVariants.get(job.dedup_key!)?.id,
       })),
     });
-  } catch {
-    return Response.json(
-      { error: 'Auto-apply service is unreachable' },
-      { status: 502 },
-    );
+  } catch (error) {
+    const message =
+      error instanceof Error && error.name === 'TimeoutError'
+        ? 'Auto-apply timed out waiting for a backend service'
+        : error instanceof Error
+          ? error.message
+          : 'Auto-apply service is unreachable';
+    return Response.json({ error: message }, { status: 502 });
   }
 }

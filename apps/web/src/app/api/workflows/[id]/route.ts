@@ -5,7 +5,7 @@ import {
 
 const ORCHESTRATOR_URL =
   process.env.ORCHESTRATOR_URL ?? 'http://127.0.0.1:8001';
-const API_URL = process.env.API_URL ?? 'http://127.0.0.1:3333';
+const API_URL = process.env.API_URL ?? 'http://localhost:3333';
 
 interface DurableApplication {
   workflowJobId?: string | null;

@@ -1,6 +1,6 @@
 import { requireUserId } from '@/lib/require-user';
 
-const API_URL = process.env.API_URL ?? 'http://127.0.0.1:3333';
+const API_URL = process.env.API_URL ?? 'http://localhost:3333';
 const AGENT_SERVICE_TOKEN = process.env.AGENT_SERVICE_TOKEN;
 
 export interface DurableWorkflow {

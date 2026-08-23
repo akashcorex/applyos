@@ -114,6 +114,7 @@ async def test_semantic_rank_jobs_with_llm_explanation(monkeypatch: pytest.Monke
         jobs,
         skills=["Python"],
         preferred_role="Engineer",
+        experience_years=5,
     )
 
     assert len(ranked) == 1
@@ -146,6 +147,7 @@ async def test_semantic_rank_uses_cached_profile_embedding(
         jobs,
         skills=["Python"],
         preferred_role="Engineer",
+        experience_years=5,
         profile_embedding=cached,
     )
 
@@ -160,7 +162,12 @@ async def test_semantic_rank_jobs_fallback_without_api_key(
     monkeypatch.setattr(semantic_module.settings, "openai_api_key", "")
 
     jobs = [_make_job("Engineer", "Acme")]
-    ranked = await semantic_rank_jobs(jobs, skills=["Python"], preferred_role="Engineer")
+    ranked = await semantic_rank_jobs(
+        jobs,
+        skills=["Python"],
+        preferred_role="Engineer",
+        experience_years=5,
+    )
 
     assert len(ranked) == 1
     assert ranked[0].semantic_score == 0.0
@@ -216,3 +223,44 @@ def test_infer_skill_overlap() -> None:
     )
     assert "Python" in matched
     assert "Django" in missing
+
+
+@pytest.mark.asyncio
+async def test_semantic_rank_drops_senior_jobs_for_one_year(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(semantic_module.settings, "openai_api_key", "")
+
+    jobs = [
+        _make_job("Senior Software Engineer", "Acme", seniority=None),
+        _make_job("Staff Engineer", "Stripe", seniority=None),
+        _make_job("Junior Software Engineer", "Notion", seniority=None),
+        _make_job("Software Engineer", "Vercel", seniority=None),
+    ]
+    ranked = await semantic_rank_jobs(
+        jobs,
+        skills=["Python"],
+        preferred_role="Software Engineer",
+        experience_years=1,
+    )
+    titles = {job.title for job in ranked}
+    assert "Senior Software Engineer" not in titles
+    assert "Staff Engineer" not in titles
+    assert "Junior Software Engineer" in titles
+    assert "Software Engineer" in titles
+
+
+@pytest.mark.asyncio
+async def test_semantic_rank_keeps_senior_for_five_years(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(semantic_module.settings, "openai_api_key", "")
+
+    jobs = [_make_job("Senior Software Engineer", "Acme", seniority=None)]
+    ranked = await semantic_rank_jobs(
+        jobs,
+        skills=["Python"],
+        preferred_role="Software Engineer",
+        experience_years=5,
+    )
+    assert [job.title for job in ranked] == ["Senior Software Engineer"]

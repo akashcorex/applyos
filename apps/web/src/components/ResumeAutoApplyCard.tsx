@@ -215,7 +215,7 @@ export function ResumeAutoApplyCard({
 
   async function handleApply() {
     const userId = session?.user?.id;
-    if (!resume?.resume_id || !userId || readySelectedJobs.length === 0) return;
+    if (!resume?.resume_id || !userId || selectedJobs.length === 0) return;
 
     setApplying(true);
     setError(null);
@@ -233,9 +233,9 @@ export function ResumeAutoApplyCard({
         body: JSON.stringify({
           user_id: userId,
           resume_id: resume.resume_id,
-          jobs: readySelectedJobs,
+          jobs: selectedJobs,
           variant_ids: variantIds,
-          max_applies: readySelectedJobs.length,
+          max_applies: selectedJobs.length,
           min_score: 0,
         }),
       });
@@ -265,8 +265,8 @@ export function ResumeAutoApplyCard({
         <CardHeader>
           <CardTitle className="text-lg">Review applications</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Match roles, tailor each resume, then explicitly queue the ready
-            applications.
+            Match roles, then queue applications. Tailoring is optional —
+            untailored jobs use your uploaded resume.
           </p>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -389,7 +389,11 @@ export function ResumeAutoApplyCard({
                                 variant="outline"
                                 className="text-xs bg-green-100 text-green-800 border-green-300"
                               >
-                                ready
+                                tailored
+                              </Badge>
+                            ) : isSelected ? (
+                              <Badge variant="outline" className="text-xs">
+                                original resume
                               </Badge>
                             ) : variant ? (
                               <Badge variant="outline" className="text-xs">
@@ -420,7 +424,7 @@ export function ResumeAutoApplyCard({
                         <p className="text-xs text-muted-foreground">
                           {job.reason ||
                             (canApply
-                              ? 'Review a tailored resume before applying.'
+                              ? 'Optional: tailor this resume, or apply with the original.'
                               : 'No application link is available for this role.')}
                         </p>
                         <Button
@@ -440,7 +444,7 @@ export function ResumeAutoApplyCard({
             ) : resume && !matching ? (
               <p className="rounded-md border border-dashed px-3 py-4 text-sm text-muted-foreground">
                 Find matches to review roles and select the ones you want to
-                tailor.
+                apply to.
               </p>
             ) : null}
           </section>
@@ -449,24 +453,24 @@ export function ResumeAutoApplyCard({
             <div className="flex items-center gap-2">
               <Badge variant="outline">3</Badge>
               <div>
-                <p className="text-sm font-medium">Tailor and finalize</p>
+                <p className="text-sm font-medium">Tailor (optional)</p>
                 <p className="text-xs text-muted-foreground">
-                  Open each selected role to review edits and mark its variant
-                  ready.
+                  Open a role to customize the resume. Skip this step to apply
+                  with your original upload.
                 </p>
               </div>
             </div>
             {selectedJobs.length > 0 ? (
               <p className="text-sm text-muted-foreground">
                 {readySelectedJobs.length} of {selectedJobs.length} selected
-                resumes are ready (up to 10 jobs per workflow).
+                jobs have a tailored resume.
                 {selectedNeedsReview > 0
-                  ? ` ${selectedNeedsReview} still need review.`
-                  : ' All selected resumes are ready to queue.'}
+                  ? ` The other ${selectedNeedsReview} will use your original resume.`
+                  : ' All selected jobs will use a tailored resume.'}
               </p>
             ) : (
               <p className="text-sm text-muted-foreground">
-                Select one or more matched jobs to begin tailoring.
+                Select jobs to queue. Tailoring is optional.
               </p>
             )}
           </section>
@@ -475,15 +479,16 @@ export function ResumeAutoApplyCard({
             <div className="flex items-center gap-2">
               <Badge variant="outline">4</Badge>
               <div>
-                <p className="text-sm font-medium">Queue ready applications</p>
+                <p className="text-sm font-medium">Queue applications</p>
                 <p className="text-xs text-muted-foreground">
-                  Only selected, finalized variants will be submitted.
+                  Selected jobs are submitted with a tailored PDF when ready,
+                  otherwise your original resume.
                 </p>
               </div>
             </div>
             <Button
               className="w-full"
-              disabled={applying || readySelectedJobs.length === 0}
+              disabled={applying || selectedJobs.length === 0}
               onClick={() => void handleApply()}
             >
               {applying ? (
@@ -493,8 +498,8 @@ export function ResumeAutoApplyCard({
               )}
               {applying
                 ? 'Queuing applications...'
-                : `Queue ${readySelectedJobs.length} ready application${
-                    readySelectedJobs.length === 1 ? '' : 's'
+                : `Queue ${selectedJobs.length} application${
+                    selectedJobs.length === 1 ? '' : 's'
                   }`}
             </Button>
             {workflowId ? (

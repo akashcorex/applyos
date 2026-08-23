@@ -58,7 +58,7 @@ interface ApplicationInput {
   location?: string | null;
   descriptionRaw?: string | null;
   matchScore?: number | null;
-  resumeVariantId: string;
+  resumeVariantId: string | null;
 }
 
 interface StartInput {
@@ -115,8 +115,7 @@ function parseApplication(raw: unknown): ApplicationInput | null {
   if (
     !hasString(item.dedupKey) ||
     !hasString(item.title) ||
-    !hasString(item.companyName) ||
-    !hasString(item.resumeVariantId)
+    !hasString(item.companyName)
   ) {
     return null;
   }
@@ -135,7 +134,9 @@ function parseApplication(raw: unknown): ApplicationInput | null {
       typeof item.matchScore === 'number' && Number.isFinite(item.matchScore)
         ? item.matchScore
         : null,
-    resumeVariantId: item.resumeVariantId,
+    resumeVariantId: hasString(item.resumeVariantId)
+      ? item.resumeVariantId
+      : null,
   };
 }
 

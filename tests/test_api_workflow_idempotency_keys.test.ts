@@ -17,4 +17,13 @@ describe('workflow idempotency keys', () => {
       'user-1:acme::123:variant-9:apply',
     );
   });
+
+  it('uses original when a variant was not tailored', () => {
+    expect(applicationIdempotencyKey('user-1', 'acme::123')).toBe(
+      'user-1:acme::123:original',
+    );
+    expect(applicationIdempotencyKey('user-1', 'acme::123', null)).toBe(
+      'user-1:acme::123:original',
+    );
+  });
 });

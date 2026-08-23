@@ -33,6 +33,7 @@ from services.matching import (
 )
 from services.parser import ResumeParser, UnsupportedFileTypeError
 from services.ir import ir_to_record, record_to_ir, sha256_bytes
+from services.db import ResumeNotFoundError
 from services.storage import find_artifact_path, save_resume_file
 
 logger = logging.getLogger(__name__)
@@ -254,6 +255,32 @@ async def get_resume(resume_id: str, request: Request) -> ParseResponse:
         resume_id,
         ir_revision_id=revision[0] if revision else None,
         source_document_hash=revision[1].source_document_hash if revision else None,
+    )
+
+
+@router.get("/internal/resumes/{resume_id}/source")
+async def download_internal_source_resume(
+    resume_id: str, request: Request
+) -> FileResponse:
+    """Serve the uploaded original resume to trusted apply workers."""
+
+    require_service_token(request)
+    state = _state(request)
+    try:
+        record = await state.repository.get(resume_id)
+    except ResumeNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    if not record.file_path or not Path(record.file_path).is_file():
+        raise HTTPException(status_code=404, detail="Source resume not found")
+    media_type = (
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        if record.file_type == "docx"
+        else "application/pdf"
+    )
+    return FileResponse(
+        record.file_path,
+        media_type=media_type,
+        filename=record.file_name or f"resume-{resume_id}",
     )
 
 

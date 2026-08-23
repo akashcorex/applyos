@@ -743,7 +743,7 @@ export function WorkflowPanel({
           </div>
         ) : (
           <p className="text-sm text-muted-foreground">
-            No workflows yet. Upload a resume, tailor matches, and queue
+            No workflows yet. Upload a resume, select matches, and queue
             applications to see a live timeline here.
           </p>
         )}

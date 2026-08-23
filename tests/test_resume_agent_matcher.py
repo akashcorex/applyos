@@ -69,6 +69,7 @@ async def test_match_uses_semantic_endpoint_and_weighted_score() -> None:
                 "title": "Marketing Lead",
                 "company_name": "Notion",
                 "location": "NYC",
+                "seniority": "mid",
                 "application_url": "https://example.com/2",
                 "dedup_key": "notion::2",
                 "ats_type": "lever",
@@ -192,6 +193,36 @@ async def test_match_falls_back_to_default_role_when_missing() -> None:
     )
 
     assert client.posted[0]["json"]["job_title"] == "Software Engineer"
+
+
+@pytest.mark.asyncio
+async def test_match_drops_senior_roles_for_one_year_experience() -> None:
+    payload = {
+        "companies_scraped": 2,
+        "jobs": [
+            {
+                "title": "Senior Software Engineer",
+                "company_name": "Acme",
+                "dedup_key": "acme::senior",
+                "semantic_score": 0.99,
+            },
+            {
+                "title": "Junior Software Engineer",
+                "company_name": "Beta",
+                "dedup_key": "beta::junior",
+                "semantic_score": 0.4,
+            },
+        ],
+    }
+    client = _FakeClient(payload)
+    matcher = JobMatcher(client)
+    resume = _resume(["Python"], role="Software Engineer")
+    resume.experience_years = 1
+
+    response, _ = await matcher.match(resume=resume, resume_id="r-4")
+
+    assert [job.title for job in response.jobs] == ["Junior Software Engineer"]
+    assert response.total_matches == 1
 
 
 def test_normalize_skills_aliases_and_dedupe() -> None:

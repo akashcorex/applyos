@@ -13,6 +13,7 @@ from models import MatchedJob, MatchResponse, ResumeRecord
 from services.matching.profile import cached_embedding_valid
 from services.matching.rerank import BehaviorReranker
 from services.matching.repository import MatchingRepository
+from services.matching.seniority import seniority_allowed
 from services.skills import (
     combine_match_score,
     find_matching_skills,
@@ -91,6 +92,13 @@ class JobMatcher:
         raw_jobs = data.get("jobs", []) or []
 
         ranked = [self._score_job(resume_skills, job) for job in raw_jobs]
+        ranked = [
+            job
+            for job in ranked
+            if seniority_allowed(
+                resume.experience_years or 0, job.seniority, job.title
+            )
+        ]
         ranked.sort(key=lambda j: j.match_score, reverse=True)
 
         if self._behavior is not None:
@@ -135,6 +143,7 @@ class JobMatcher:
             "job_title": payload["job_title"],
             "max_companies": payload["max_companies"],
             "max_jobs_per_company": payload["max_jobs_per_company"],
+            "experience_years": payload.get("experience_years") or 0,
         }
         try:
             response = await self._client.post(

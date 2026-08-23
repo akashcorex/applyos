@@ -46,13 +46,8 @@ export async function POST(request: Request) {
       resume_variant_id,
     } = body;
 
-    if (!resume_id || !resume_variant_id) {
-      return Response.json(
-        {
-          error: 'resume_id and resume_variant_id are required',
-        },
-        { status: 400 },
-      );
+    if (!resume_id) {
+      return Response.json({ error: 'resume_id is required' }, { status: 400 });
     }
 
     const forbidden = await assertResumeOwner(resume_id, userOrErr);
@@ -71,33 +66,50 @@ export async function POST(request: Request) {
         },
       ),
     ]);
-    if (!resumeRes.ok || !variantsRes.ok) {
+    if (!resumeRes.ok) {
       return Response.json(
         { error: 'Failed to load canonical resume data' },
         { status: 404 },
       );
     }
     const resume = await resumeRes.json();
-    const variantsData = await variantsRes.json();
-    const variant = (
-      variantsData.variants as Array<{
-        id?: string;
-        status?: string;
-        artifact_id?: string | null;
-        content: VariantContent;
-      }>
-    ).find((item) => item.id === resume_variant_id);
-    if (!variant || variant.status !== 'ready' || !variant.artifact_id) {
-      return Response.json(
-        { error: 'A ready compiled resume variant is required' },
-        { status: 400 },
-      );
-    }
+    const variantsData = variantsRes.ok
+      ? await variantsRes.json()
+      : { variants: [] };
+    const variant = resume_variant_id
+      ? (
+          variantsData.variants as Array<{
+            id?: string;
+            status?: string;
+            artifact_id?: string | null;
+            content: VariantContent;
+          }>
+        ).find((item) => item.id === resume_variant_id)
+      : undefined;
+    const useVariant = Boolean(
+      variant && variant.status === 'ready' && variant.artifact_id,
+    );
 
-    const artifactUrl = `${RESUME_AGENT_URL}/internal/artifacts/${encodeURIComponent(
-      variant.artifact_id,
-    )}`;
-    const content = variant.content;
+    const artifactUrl = useVariant
+      ? `${RESUME_AGENT_URL}/internal/artifacts/${encodeURIComponent(
+          variant!.artifact_id!,
+        )}`
+      : `${RESUME_AGENT_URL}/internal/resumes/${encodeURIComponent(
+          resume_id,
+        )}/source`;
+    const content = useVariant
+      ? variant!.content
+      : {
+          full_name: resume.full_name,
+          email: resume.email,
+          phone: resume.phone,
+          location: resume.location,
+          summary: resume.summary,
+          experience_years: resume.experience_years,
+          skills: resume.skills || [],
+          education: resume.education || [],
+          work_history: resume.work_history || [],
+        };
 
     if (!application_url) {
       return Response.json(
@@ -150,7 +162,7 @@ export async function POST(request: Request) {
             location: location || undefined,
             description_raw: description_raw || undefined,
             dedup_key: body.dedup_key || undefined,
-            resume_variant_id,
+            resume_variant_id: useVariant ? resume_variant_id : undefined,
             cv_data: {
               full_name: content.full_name,
               email: content.email,

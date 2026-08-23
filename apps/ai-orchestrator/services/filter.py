@@ -16,6 +16,26 @@ SENIORITY_RANK: dict[str, int] = {
     "exec": 6,
 }
 
+_TITLE_SENIORITY_PATTERNS: list[tuple[str, str]] = [
+    (r"\b(intern|internship|co-op|coop)\b", "intern"),
+    (r"\b(new grad|university grad|entry[- ]level|associate|junior|jr\.?)\b", "junior"),
+    (r"\b(mid[- ]level|middle)\b", "mid"),
+    (r"\b(senior|sr\.?)\b", "senior"),
+    (r"\bstaff\b", "staff"),
+    (r"\b(lead|principal|staff\+|distinguished)\b", "lead"),
+    (r"\b(director|vp|head of|chief|c[to]o|exec)\b", "exec"),
+]
+
+
+def _infer_seniority_from_title(title: str | None) -> SeniorityLevel | None:
+    if not title:
+        return None
+    title_lower = title.lower()
+    for pattern, level in _TITLE_SENIORITY_PATTERNS:
+        if re.search(pattern, title_lower):
+            return level  # type: ignore[return-value]
+    return None
+
 
 def _user_seniority_rank(years_experience: int) -> int:
     if years_experience <= 1:
@@ -24,7 +44,9 @@ def _user_seniority_rank(years_experience: int) -> int:
         return SENIORITY_RANK["mid"]
     if years_experience <= 6:
         return SENIORITY_RANK["senior"]
-    return SENIORITY_RANK["staff"]
+    if years_experience <= 9:
+        return SENIORITY_RANK["staff"]
+    return SENIORITY_RANK["lead"]
 
 
 def _title_match_score(title: str, preferred_role: str) -> float:
@@ -55,13 +77,15 @@ def _location_matches(
 def _seniority_allowed(
     job_seniority: SeniorityLevel | None,
     years_experience: int,
+    title: str | None = None,
 ) -> bool:
-    if job_seniority is None:
+    resolved = job_seniority or _infer_seniority_from_title(title)
+    if resolved is None:
         return True
 
     user_rank = _user_seniority_rank(years_experience)
-    job_rank = SENIORITY_RANK.get(job_seniority, SENIORITY_RANK["mid"])
-    return job_rank <= user_rank + 1
+    job_rank = SENIORITY_RANK.get(resolved, SENIORITY_RANK["mid"])
+    return job_rank <= user_rank
 
 
 def _score_job(job: DiscoveredJobRecord, profile: UserProfile) -> float:
@@ -92,7 +116,9 @@ def filter_jobs(
             continue
         if not _location_matches(job, profile.preferred_locations):
             continue
-        if not _seniority_allowed(job.seniority, profile.years_experience):
+        if not _seniority_allowed(
+            job.seniority, profile.years_experience, job.title
+        ):
             continue
 
         company_count = per_company.get(job.company_name, 0)

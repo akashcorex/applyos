@@ -79,8 +79,8 @@ export default function DashboardPage() {
         <div className="mb-6">
           <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
           <p className="text-sm text-muted-foreground">
-            Upload your resume, review matched roles, and approve each tailored
-            application before it is queued.
+            Upload your resume, review matched roles, and queue applications.
+            Tailoring is optional.
           </p>
         </div>
 

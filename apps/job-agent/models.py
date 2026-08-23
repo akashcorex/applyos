@@ -164,6 +164,7 @@ class SearchRequest(BaseModel):
     job_title: str = Field(min_length=1, max_length=128)
     max_companies: int = Field(default=15, ge=1, le=40)
     max_jobs_per_company: int = Field(default=50, ge=1, le=200)
+    experience_years: int = Field(default=0, ge=0)
 
 
 class SearchResult(BaseModel):

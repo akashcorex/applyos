@@ -82,6 +82,20 @@ def test_policy_vetoes_duplicate_and_cap() -> None:
     assert not capped.allowed
 
 
+def test_policy_vetoes_senior_title_for_junior_profile() -> None:
+    verdict = evaluate_job(
+        _job(title="Senior Software Engineer", seniority=None),
+        _profile(years_experience=1),
+        seen_dedup=set(),
+        applied_dedup=set(),
+        per_company={},
+        queued_count=0,
+        max_applies=5,
+    )
+    assert not verdict.allowed
+    assert "seniority" in verdict.reason
+
+
 def test_rank_eligible_caps_and_scores() -> None:
     jobs = [
         _job(title="Software Engineer", dedup_key="a", company_name="A"),

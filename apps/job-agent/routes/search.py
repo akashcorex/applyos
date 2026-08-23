@@ -11,6 +11,7 @@ from models import SearchRequest, SearchResponse, SearchResult
 from services.company_scrape import scrape_company_jobs
 from services.dedup import dedupe_search_results
 from services.parsers.yc import fetch_normalized_companies
+from services.seniority import seniority_allowed
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +52,11 @@ async def search_jobs(payload: SearchRequest) -> SearchResponse:
             )
 
     all_results = dedupe_search_results(all_results)
+    all_results = [
+        job
+        for job in all_results
+        if seniority_allowed(payload.experience_years, job.seniority, job.title)
+    ]
 
     return SearchResponse(
         query=payload.job_title,

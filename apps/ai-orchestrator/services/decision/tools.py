@@ -20,6 +20,7 @@ from models import (
 )
 from services.decision.context import DecisionContext
 from services.decision.policy import evaluate_job
+from services.filter import _seniority_allowed
 
 logger = logging.getLogger(__name__)
 
@@ -123,6 +124,13 @@ def build_tools(ctx: DecisionContext) -> list[StructuredTool]:
         except httpx.HTTPError as exc:
             logger.warning("search_jobs failed: %s", exc)
             return json.dumps({"error": str(exc), "count": 0, "jobs": []})
+        jobs = [
+            job
+            for job in jobs
+            if _seniority_allowed(
+                job.seniority, ctx.profile.years_experience, job.title
+            )
+        ]
         _merge_candidates(ctx, jobs)
         await ctx.store.set_discovered_jobs(ctx.workflow_id, ctx.candidates)
         return _dump_jobs(jobs)
@@ -397,7 +405,10 @@ def build_tools(ctx: DecisionContext) -> list[StructuredTool]:
 
 def _merge_candidates(ctx: DecisionContext, jobs: list[DiscoveredJobRecord]) -> None:
     by_key = {job.dedup_key: job for job in ctx.candidates if job.dedup_key}
+    years = ctx.profile.years_experience
     for job in jobs:
+        if not _seniority_allowed(job.seniority, years, job.title):
+            continue
         if job.dedup_key and job.dedup_key not in by_key:
             ctx.candidates.append(job)
             by_key[job.dedup_key] = job

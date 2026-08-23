@@ -72,6 +72,29 @@ def test_filter_excludes_seniority_too_high() -> None:
     assert result == []
 
 
+def test_filter_excludes_senior_title_for_one_year_experience() -> None:
+    jobs = [
+        _job("Senior Software Engineer", seniority=None),
+        _job("Junior Software Engineer", seniority=None),
+        _job("Software Engineer", seniority=None),
+    ]
+    result = filter_jobs(
+        jobs,
+        _request(
+            user_profile=UserProfile(
+                user_id="user-1",
+                preferred_role="Software Engineer",
+                years_experience=1,
+                preferred_locations=[],
+            )
+        ),
+    )
+    titles = {job.title for job in result}
+    assert "Senior Software Engineer" not in titles
+    assert "Junior Software Engineer" in titles
+    assert "Software Engineer" in titles
+
+
 def test_filter_deduplicates_by_dedup_key() -> None:
     jobs = [
         _job("Software Engineer", dedup_key="acme::engineer"),

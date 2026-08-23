@@ -49,7 +49,9 @@ def evaluate_job(
     if not _location_matches(job, profile.preferred_locations):
         return PolicyVerdict(False, "location does not match preferences")
 
-    if not _seniority_allowed(job.seniority, profile.years_experience):
+    if not _seniority_allowed(
+        job.seniority, profile.years_experience, job.title
+    ):
         return PolicyVerdict(False, "seniority exceeds experience")
 
     company_count = per_company.get(job.company_name, 0)

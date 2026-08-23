@@ -3,7 +3,7 @@ import {
   authorizeWorkflowOwner,
 } from '@/lib/workflow-authorization';
 
-const API_URL = process.env.API_URL ?? 'http://127.0.0.1:3333';
+const API_URL = process.env.API_URL ?? 'http://localhost:3333';
 
 const OUTCOMES = new Set(['viewed', 'rejected', 'interview', 'offer']);
 
