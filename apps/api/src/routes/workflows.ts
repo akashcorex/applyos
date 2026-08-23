@@ -304,19 +304,33 @@ workflowsRouter.post('/internal/start', async (req, res) => {
   const idempotencyKeys = selectedApplications.map((job) =>
     applicationIdempotencyKey(userId, job.dedupKey, job.resumeVariantId),
   );
-  const existingRows = await db
-    .select({
-      application: applications,
-      workflowStatus: workflowRuns.status,
-    })
-    .from(applications)
-    .innerJoin(workflowRuns, eq(applications.workflowRunId, workflowRuns.id))
-    .where(
-      and(
-        eq(applications.userId, userId),
-        inArray(applications.idempotencyKey, idempotencyKeys),
-      ),
-    );
+
+  let existingRows: Array<{
+    application: typeof applications.$inferSelect;
+    workflowStatus: string | null;
+  }>;
+  try {
+    existingRows = await db
+      .select({
+        application: applications,
+        workflowStatus: workflowRuns.status,
+      })
+      .from(applications)
+      .innerJoin(workflowRuns, eq(applications.workflowRunId, workflowRuns.id))
+      .where(
+        and(
+          eq(applications.userId, userId),
+          inArray(applications.idempotencyKey, idempotencyKeys),
+        ),
+      );
+  } catch (error) {
+    console.error('[workflows] failed to load existing applications:', error);
+    res.status(500).json({
+      error:
+        'Workflow tables are missing or the database is unavailable. Run bun run db:migrate against the API database.',
+    });
+    return;
+  }
   const existingByKey = new Map(
     existingRows.map((row) => [row.application.idempotencyKey, row]),
   );

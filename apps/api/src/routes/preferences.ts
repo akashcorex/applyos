@@ -35,15 +35,23 @@ preferencesRouter.get('/internal/:userId', async (req, res) => {
     return;
   }
 
-  const [row] = await db
-    .select()
-    .from(userPreferences)
-    .where(eq(userPreferences.userId, req.params.userId));
+  try {
+    const [row] = await db
+      .select()
+      .from(userPreferences)
+      .where(eq(userPreferences.userId, req.params.userId));
 
-  res.status(200).json({
-    userId: req.params.userId,
-    ...(row ?? defaultPreferences),
-  });
+    res.status(200).json({
+      userId: req.params.userId,
+      ...(row ?? defaultPreferences),
+    });
+  } catch (error) {
+    console.error('[preferences] failed to load user preferences:', error);
+    res.status(200).json({
+      userId: req.params.userId,
+      ...defaultPreferences,
+    });
+  }
 });
 
 preferencesRouter.put('/internal/:userId', async (req, res) => {
@@ -61,39 +69,48 @@ preferencesRouter.put('/internal/:userId', async (req, res) => {
     emailOutreachEnabled?: unknown;
   };
   const now = new Date();
-  const [existing] = await db
-    .select()
-    .from(userPreferences)
-    .where(eq(userPreferences.userId, req.params.userId));
+  try {
+    const [existing] = await db
+      .select()
+      .from(userPreferences)
+      .where(eq(userPreferences.userId, req.params.userId));
 
-  const nextLinkedin =
-    body.postApplyLinkedinConnectEnabled === undefined
-      ? (existing?.postApplyLinkedinConnectEnabled ?? false)
-      : body.postApplyLinkedinConnectEnabled === true;
-  const nextEmail =
-    body.emailOutreachEnabled === undefined
-      ? (existing?.emailOutreachEnabled ?? false)
-      : body.emailOutreachEnabled === true;
+    const nextLinkedin =
+      body.postApplyLinkedinConnectEnabled === undefined
+        ? (existing?.postApplyLinkedinConnectEnabled ?? false)
+        : body.postApplyLinkedinConnectEnabled === true;
+    const nextEmail =
+      body.emailOutreachEnabled === undefined
+        ? (existing?.emailOutreachEnabled ?? false)
+        : body.emailOutreachEnabled === true;
 
-  const values = {
-    userId: req.params.userId,
-    postApplyLinkedinConnectEnabled: nextLinkedin,
-    emailOutreachEnabled: nextEmail,
-    updatedAt: now,
-  };
+    const values = {
+      userId: req.params.userId,
+      postApplyLinkedinConnectEnabled: nextLinkedin,
+      emailOutreachEnabled: nextEmail,
+      updatedAt: now,
+    };
 
-  const [row] = await db
-    .insert(userPreferences)
-    .values(values)
-    .onConflictDoUpdate({
-      target: userPreferences.userId,
-      set: {
-        postApplyLinkedinConnectEnabled: values.postApplyLinkedinConnectEnabled,
-        emailOutreachEnabled: values.emailOutreachEnabled,
-        updatedAt: now,
-      },
-    })
-    .returning();
+    const [row] = await db
+      .insert(userPreferences)
+      .values(values)
+      .onConflictDoUpdate({
+        target: userPreferences.userId,
+        set: {
+          postApplyLinkedinConnectEnabled:
+            values.postApplyLinkedinConnectEnabled,
+          emailOutreachEnabled: values.emailOutreachEnabled,
+          updatedAt: now,
+        },
+      })
+      .returning();
 
-  res.status(200).json(row);
+    res.status(200).json(row);
+  } catch (error) {
+    console.error('[preferences] failed to save user preferences:', error);
+    res.status(503).json({
+      error:
+        'Preferences table is missing. Run bun run db:migrate against the API database.',
+    });
+  }
 });

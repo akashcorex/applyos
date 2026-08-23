@@ -423,12 +423,15 @@ export async function POST(request: Request) {
       })),
     });
   } catch (error) {
+    const cause = (error as { cause?: { code?: string } } | null)?.cause;
     const message =
-      error instanceof Error && error.name === 'TimeoutError'
-        ? 'Auto-apply timed out waiting for a backend service'
-        : error instanceof Error
-          ? error.message
-          : 'Auto-apply service is unreachable';
+      cause?.code === 'ECONNREFUSED'
+        ? `Could not reach ${API_URL}. Restart the API after setting AGENT_SERVICE_TOKEN, and use API_URL=http://localhost:3333.`
+        : error instanceof Error && error.name === 'TimeoutError'
+          ? 'Auto-apply timed out waiting for a backend service'
+          : error instanceof Error
+            ? error.message
+            : 'Auto-apply service is unreachable';
     return Response.json({ error: message }, { status: 502 });
   }
 }
