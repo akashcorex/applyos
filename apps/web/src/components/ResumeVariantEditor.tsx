@@ -10,9 +10,9 @@ import {
   X,
 } from 'lucide-react';
 
+import { ResumeDocumentCanvas } from '@/components/ResumeDocumentCanvas';
 import { Button } from '@applyso/ui/button';
 import { Badge } from '@applyso/ui/badge';
-import { Input } from '@applyso/ui/input';
 
 export interface VariantContent {
   full_name: string;
@@ -128,6 +128,38 @@ function scoreLabel(score: number | null | undefined): string {
   if (score == null || Number.isNaN(score)) return '—';
   const normalized = score <= 1 ? score * 100 : score;
   return `${Math.round(normalized)}%`;
+}
+
+function buildPayload(
+  content: VariantContent,
+  skillsText: string,
+): VariantContent {
+  return {
+    ...content,
+    full_name: content.full_name.trim(),
+    email: content.email.trim(),
+    phone: content.phone?.trim() || null,
+    location: content.location?.trim() || null,
+    summary: content.summary?.trim() || null,
+    preferred_role: content.preferred_role?.trim() || null,
+    skills: skillsText
+      .split(',')
+      .map((skill) => skill.trim())
+      .filter(Boolean),
+    work_history: content.work_history.map((role) => ({
+      ...role,
+      company: role.company.trim(),
+      title: role.title.trim(),
+      start_date: role.start_date?.trim() || null,
+      end_date: role.end_date?.trim() || null,
+      highlights: (role.highlights ?? []).map((item) => item.trim()).filter(Boolean),
+    })),
+    education: content.education.map((item) => ({
+      ...item,
+      degree: item.degree.trim(),
+      school: item.school.trim(),
+    })),
+  };
 }
 
 function scoreDelta(
@@ -304,10 +336,8 @@ export function ResumeVariantEditor({
         setError(apiErrorMessage(data, 'AI suggestions failed'));
         return;
       }
-      setVariant(data);
-      setContent(data.content);
-      setSkillsText(data.content.skills.join(', '));
-      onSaved(data);
+      setVariant({ ...data, content });
+      onSaved({ ...data, content });
     } catch {
       setError('Failed to fetch AI suggestions');
     } finally {
@@ -363,13 +393,7 @@ export function ResumeVariantEditor({
     setError(null);
     setSaveNotice(null);
 
-    const payloadContent = {
-      ...content,
-      skills: skillsText
-        .split(',')
-        .map((s) => s.trim())
-        .filter(Boolean),
-    };
+    const payloadContent = buildPayload(content, skillsText);
 
     try {
       const res = await fetch(
@@ -413,13 +437,7 @@ export function ResumeVariantEditor({
     setFinalizing(true);
     setError(null);
 
-    const payloadContent = {
-      ...content,
-      skills: skillsText
-        .split(',')
-        .map((s) => s.trim())
-        .filter(Boolean),
-    };
+    const payloadContent = buildPayload(content, skillsText);
 
     try {
       const res = await fetch(
@@ -440,6 +458,7 @@ export function ResumeVariantEditor({
       }
       setVariant(data.variant);
       setContent(data.variant.content);
+      setSkillsText(data.variant.content.skills.join(', '));
       setAcceptedIds(new Set());
       onSaved(data.variant);
     } catch {
@@ -453,13 +472,7 @@ export function ResumeVariantEditor({
     if (!variant || !content) return;
     setPreviewing(true);
     setError(null);
-    const payloadContent = {
-      ...content,
-      skills: skillsText
-        .split(',')
-        .map((s) => s.trim())
-        .filter(Boolean),
-    };
+    const payloadContent = buildPayload(content, skillsText);
     try {
       const res = await fetch(
         `/api/resume/${resumeId}/variants/${variant.id}/preview`,
@@ -557,7 +570,7 @@ export function ResumeVariantEditor({
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-2 sm:p-4">
-      <div className="w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-lg bg-background shadow-xl border">
+      <div className="flex w-full max-w-6xl max-h-[92vh] flex-col overflow-hidden rounded-lg bg-background shadow-xl border">
         <div className="sticky top-0 z-10 flex items-center justify-between border-b px-4 py-3 bg-background">
           <div>
             <p className="font-semibold">Tailor resume</p>
@@ -598,203 +611,169 @@ export function ResumeVariantEditor({
           </Button>
         </div>
 
-        <div className="p-4 space-y-4">
-          {variant?.suggestions?.overall_assessment ? (
-            <p className="text-sm text-muted-foreground rounded border px-3 py-2">
-              {variant.suggestions.overall_assessment}
-            </p>
-          ) : null}
-
-          {saveNotice ? (
-            <p className="text-sm text-green-700 rounded border border-green-200 bg-green-50 px-3 py-2">
-              {saveNotice}
-            </p>
-          ) : null}
-
-          <div className="flex flex-wrap gap-2">
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              disabled={suggesting || !variant}
-              onClick={() => void handleGetAiSuggestions()}
-            >
-              {suggesting ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Sparkles className="h-4 w-4" />
-              )}
-              Get AI suggestions
-            </Button>
-          </div>
-
-          {(job.missing_skills?.length ?? 0) > 0 && (
-            <div className="flex flex-wrap gap-1">
-              {job.missing_skills!.map((skill) => (
-                <Badge key={skill} variant="outline" className="text-xs">
-                  gap: {skill}
-                </Badge>
-              ))}
-            </div>
-          )}
-
-          {suggestions.length > 0 && (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-sm font-medium">AI suggestions</p>
-                {safeIds.length > 0 ? (
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={acceptAllSafe}
-                  >
-                    Accept all safe ({safeIds.length})
-                  </Button>
-                ) : null}
-              </div>
-              {suggestions.map((s) => (
-                <div
-                  key={s.id}
-                  className="rounded border p-3 space-y-2 text-sm"
-                >
-                  <div className="flex items-center justify-between gap-2 flex-wrap">
-                    <div className="flex items-center gap-1">
-                      <Badge variant="secondary">{s.section}</Badge>
-                      {s.risk ? (
-                        <Badge
-                          variant={
-                            s.risk === 'high'
-                              ? 'destructive'
-                              : s.risk === 'medium'
-                                ? 'outline'
-                                : 'secondary'
-                          }
-                          className="text-[10px]"
-                        >
-                          {s.risk} risk
-                        </Badge>
-                      ) : null}
-                      {s.confidence != null ? (
-                        <Badge variant="outline" className="text-[10px]">
-                          {Math.round(s.confidence * 100)}% conf
-                        </Badge>
-                      ) : null}
-                    </div>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant={acceptedIds.has(s.id) ? 'default' : 'outline'}
-                      onClick={() => toggleSuggestion(s.id)}
-                    >
-                      {acceptedIds.has(s.id) ? (
-                        <Check className="h-3 w-3 mr-1" />
-                      ) : null}
-                      Accept
-                    </Button>
-                  </div>
-                  <p className="text-xs text-muted-foreground line-through">
-                    {s.current}
-                  </p>
-                  <p className="text-xs">{s.suggested}</p>
-                  <p className="text-xs text-muted-foreground">{s.reason}</p>
-                </div>
-              ))}
-            </div>
-          )}
-
-          <div className="space-y-3">
-            <div>
-              <p className="text-sm font-medium">Manual edits</p>
-              <p className="text-xs text-muted-foreground">
-                Edit the summary, skills, and bullets directly. AI suggestions
-                are optional.
-              </p>
-            </div>
-            <textarea
-              className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              placeholder="Professional summary"
-              value={content.summary ?? ''}
-              onChange={(e) =>
-                setContent({ ...content, summary: e.target.value })
-              }
-              rows={4}
-            />
-            <Input
-              placeholder="Skills (comma-separated)"
-              value={skillsText}
-              onChange={(e) => setSkillsText(e.target.value)}
-            />
-            {content.work_history.map((role, i) => (
-              <div key={`${role.company}-${i}`} className="space-y-1">
-                <p className="text-xs font-medium">
-                  {role.title} — {role.company}
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          <div className="grid gap-4 p-4 lg:grid-cols-[minmax(0,1fr)_19rem]">
+            <div className="space-y-3">
+              {saveNotice ? (
+                <p className="text-sm text-green-700 rounded border border-green-200 bg-green-50 px-3 py-2">
+                  {saveNotice}
                 </p>
-                <textarea
-                  className="flex min-h-[60px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  placeholder="Highlights (one per line)"
-                  value={(role.highlights ?? []).join('\n')}
-                  onChange={(e) => {
-                    const next = [...content.work_history];
-                    next[i] = {
-                      ...role,
-                      highlights: e.target.value
-                        .split('\n')
-                        .map((l) => l.trim())
-                        .filter(Boolean),
-                    };
-                    setContent({ ...content, work_history: next });
-                  }}
-                  rows={3}
-                />
-              </div>
-            ))}
-          </div>
+              ) : null}
+              {error ? <p className="text-sm text-red-600">{error}</p> : null}
+              <ResumeDocumentCanvas
+                content={content}
+                skillsText={skillsText}
+                onContentChange={setContent}
+                onSkillsTextChange={setSkillsText}
+              />
+            </div>
 
-          {versions.length > 0 || versionsLoading ? (
-            <div className="space-y-2">
-              <p className="text-sm font-medium">Version history</p>
-              {versionsLoading ? (
-                <p className="text-xs text-muted-foreground">Loading…</p>
-              ) : (
-                <div className="space-y-1 max-h-32 overflow-y-auto">
-                  {versions.map((version) => (
-                    <div
-                      key={version.id}
-                      className="flex items-center justify-between gap-2 rounded border px-2 py-1 text-xs"
-                    >
-                      <span className="text-muted-foreground">
-                        {version.change_reason.replaceAll('_', ' ')}
-                        {version.created_at
-                          ? ` · ${new Date(version.created_at).toLocaleString()}`
-                          : ''}
-                      </span>
+            <aside className="space-y-4">
+              <div className="space-y-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="w-full"
+                  disabled={suggesting || !variant}
+                  onClick={() => void handleGetAiSuggestions()}
+                >
+                  {suggesting ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Sparkles className="h-4 w-4" />
+                  )}
+                  Get AI suggestions
+                </Button>
+                <p className="text-xs text-muted-foreground">
+                  AI proposes keyword edits. Accept them here, or type directly
+                  on the page.
+                </p>
+              </div>
+
+              {variant?.suggestions?.overall_assessment ? (
+                <p className="text-sm text-muted-foreground rounded border px-3 py-2">
+                  {variant.suggestions.overall_assessment}
+                </p>
+              ) : null}
+
+              {(job.missing_skills?.length ?? 0) > 0 && (
+                <div className="flex flex-wrap gap-1">
+                  {job.missing_skills!.map((skill) => (
+                    <Badge key={skill} variant="outline" className="text-xs">
+                      gap: {skill}
+                    </Badge>
+                  ))}
+                </div>
+              )}
+
+              {suggestions.length > 0 && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-sm font-medium">AI suggestions</p>
+                    {safeIds.length > 0 ? (
                       <Button
                         type="button"
                         size="sm"
-                        variant="ghost"
-                        disabled={saving}
-                        onClick={() => void handleRestoreVersion(version.id)}
+                        variant="outline"
+                        onClick={acceptAllSafe}
                       >
-                        Restore
+                        Accept all safe ({safeIds.length})
                       </Button>
+                    ) : null}
+                  </div>
+                  {suggestions.map((s) => (
+                    <div
+                      key={s.id}
+                      className="rounded border p-3 space-y-2 text-sm"
+                    >
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <div className="flex items-center gap-1">
+                          <Badge variant="secondary">{s.section}</Badge>
+                          {s.risk ? (
+                            <Badge
+                              variant={
+                                s.risk === 'high'
+                                  ? 'destructive'
+                                  : s.risk === 'medium'
+                                    ? 'outline'
+                                    : 'secondary'
+                              }
+                              className="text-[10px]"
+                            >
+                              {s.risk} risk
+                            </Badge>
+                          ) : null}
+                          {s.confidence != null ? (
+                            <Badge variant="outline" className="text-[10px]">
+                              {Math.round(s.confidence * 100)}% conf
+                            </Badge>
+                          ) : null}
+                        </div>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant={acceptedIds.has(s.id) ? 'default' : 'outline'}
+                          onClick={() => toggleSuggestion(s.id)}
+                        >
+                          {acceptedIds.has(s.id) ? (
+                            <Check className="h-3 w-3 mr-1" />
+                          ) : null}
+                          Accept
+                        </Button>
+                      </div>
+                      <p className="text-xs text-muted-foreground line-through">
+                        {s.current}
+                      </p>
+                      <p className="text-xs">{s.suggested}</p>
+                      <p className="text-xs text-muted-foreground">{s.reason}</p>
                     </div>
                   ))}
                 </div>
               )}
-            </div>
-          ) : null}
 
-          {previewUrl ? (
-            <div className="space-y-3 rounded-md border border-green-300 bg-green-50/50 p-3">
-              <p className="text-sm text-green-700 flex items-center gap-1">
-                <Check className="h-4 w-4" />
-                {variant?.status === 'ready'
-                  ? 'Ready to apply with tailored resume'
-                  : 'Draft preview compiled'}
-              </p>
+              {versions.length > 0 || versionsLoading ? (
+                <div className="space-y-2">
+                  <p className="text-sm font-medium">Version history</p>
+                  {versionsLoading ? (
+                    <p className="text-xs text-muted-foreground">Loading…</p>
+                  ) : (
+                    <div className="space-y-1 max-h-32 overflow-y-auto">
+                      {versions.map((version) => (
+                        <div
+                          key={version.id}
+                          className="flex items-center justify-between gap-2 rounded border px-2 py-1 text-xs"
+                        >
+                          <span className="text-muted-foreground">
+                            {version.change_reason.replaceAll('_', ' ')}
+                            {version.created_at
+                              ? ` · ${new Date(version.created_at).toLocaleString()}`
+                              : ''}
+                          </span>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            disabled={saving}
+                            onClick={() => void handleRestoreVersion(version.id)}
+                          >
+                            Restore
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : null}
+
               {previewUrl ? (
-                <>
+                <div className="space-y-3 rounded-md border border-green-300 bg-green-50/50 p-3">
+                  <p className="text-sm text-green-700 flex items-center gap-1">
+                    <Check className="h-4 w-4" />
+                    {variant?.status === 'ready'
+                      ? 'Ready to apply with tailored resume'
+                      : 'Draft preview compiled'}
+                  </p>
                   <div className="flex flex-wrap gap-2">
                     <a
                       href={previewUrl}
@@ -803,7 +782,7 @@ export function ResumeVariantEditor({
                       className="inline-flex items-center gap-1 rounded-md border px-3 py-1.5 text-sm hover:bg-background"
                     >
                       <ExternalLink className="h-3.5 w-3.5" />
-                      Open preview
+                      Open PDF
                     </a>
                     <a
                       href={previewUrl}
@@ -814,66 +793,59 @@ export function ResumeVariantEditor({
                       Download PDF
                     </a>
                   </div>
-                  <iframe
-                    title={`Tailored resume preview for ${job.company_name}`}
-                    src={previewUrl}
-                    className="h-[32rem] w-full rounded border bg-white"
-                  />
-                </>
-              ) : null}
-              {semanticDiff.length > 0 ? (
-                <div className="space-y-1">
-                  <p className="text-xs font-medium text-green-900">
-                    Changes applied
-                  </p>
-                  {semanticDiff.map((entry) => (
-                    <p
-                      key={`${entry.node_id}-${entry.field}`}
-                      className="text-xs text-green-900"
-                    >
-                      {entry.field}: {String(entry.reason || 'Updated')}
-                    </p>
-                  ))}
+                  {semanticDiff.length > 0 ? (
+                    <div className="space-y-1">
+                      <p className="text-xs font-medium text-green-900">
+                        Changes applied
+                      </p>
+                      {semanticDiff.map((entry) => (
+                        <p
+                          key={`${entry.node_id}-${entry.field}`}
+                          className="text-xs text-green-900"
+                        >
+                          {entry.field}: {String(entry.reason || 'Updated')}
+                        </p>
+                      ))}
+                    </div>
+                  ) : null}
                 </div>
               ) : null}
-            </div>
-          ) : null}
-
-          {error && <p className="text-sm text-red-600">{error}</p>}
-
-          <div className="flex flex-wrap gap-2 pt-2 border-t">
-            <Button
-              variant="outline"
-              disabled={saving || previewing || finalizing}
-              onClick={() => void handleSaveDraft()}
-            >
-              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-              Save draft
-            </Button>
-            <Button
-              variant="outline"
-              disabled={saving || previewing || finalizing}
-              onClick={() => void handlePreview()}
-            >
-              {previewing ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <ExternalLink className="h-4 w-4" />
-              )}
-              Preview draft
-            </Button>
-            <Button
-              disabled={saving || previewing || finalizing}
-              onClick={() => void handleFinalize()}
-            >
-              {finalizing ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Sparkles className="h-4 w-4" />
-              )}
-              Mark ready
-            </Button>
+            </aside>
           </div>
+        </div>
+
+        <div className="flex flex-wrap gap-2 border-t bg-background px-4 py-3">
+          <Button
+            variant="outline"
+            disabled={saving || previewing || finalizing}
+            onClick={() => void handleSaveDraft()}
+          >
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+            Save draft
+          </Button>
+          <Button
+            variant="outline"
+            disabled={saving || previewing || finalizing}
+            onClick={() => void handlePreview()}
+          >
+            {previewing ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <ExternalLink className="h-4 w-4" />
+            )}
+            Preview PDF
+          </Button>
+          <Button
+            disabled={saving || previewing || finalizing}
+            onClick={() => void handleFinalize()}
+          >
+            {finalizing ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Sparkles className="h-4 w-4" />
+            )}
+            Mark ready
+          </Button>
         </div>
       </div>
     </div>
