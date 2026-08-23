@@ -7,8 +7,30 @@ const ORCHESTRATOR_URL =
   process.env.ORCHESTRATOR_URL ?? 'http://127.0.0.1:8001';
 const API_URL = process.env.API_URL ?? 'http://localhost:3333';
 
+const TERMINAL_WORKFLOW_STATUSES = new Set([
+  'completed',
+  'partial',
+  'failed',
+  'cancelled',
+]);
+
+const APPLY_STATUS_RANK: Record<string, number> = {
+  pending: 0,
+  queued: 1,
+  running: 2,
+  timed_out: 3,
+  failed: 4,
+  captcha_blocked: 5,
+  login_required: 5,
+  skipped: 5,
+  cancelled: 5,
+  already_applied: 10,
+  submitted: 10,
+};
+
 interface DurableApplication {
   workflowJobId?: string | null;
+  status?: string | null;
   errorDetail?: string | null;
   pageUrl?: string | null;
   screenshotPath?: string | null;
@@ -18,6 +40,35 @@ interface DurableApplication {
 interface DurableJob {
   id: string;
   dedupKey: string;
+  title?: string | null;
+  companyName?: string | null;
+}
+
+interface DurableWorkflow {
+  status?: string | null;
+}
+
+function pickApplyStatus(
+  orchestratorStatus: string,
+  durableStatus?: string | null,
+): string {
+  if (!durableStatus) return orchestratorStatus;
+  const orchestratorRank = APPLY_STATUS_RANK[orchestratorStatus] ?? 0;
+  const durableRank = APPLY_STATUS_RANK[durableStatus] ?? 0;
+  return durableRank > orchestratorRank ? durableStatus : orchestratorStatus;
+}
+
+function pickWorkflowStatus(
+  orchestratorStatus: string,
+  durableStatus?: string | null,
+): string {
+  if (TERMINAL_WORKFLOW_STATUSES.has(orchestratorStatus)) {
+    return orchestratorStatus;
+  }
+  if (durableStatus && TERMINAL_WORKFLOW_STATUSES.has(durableStatus)) {
+    return durableStatus;
+  }
+  return orchestratorStatus;
 }
 
 export async function GET(
@@ -43,6 +94,7 @@ export async function GET(
       );
     }
     const data = (await res.json()) as {
+      status?: string;
       apply_tasks?: Array<Record<string, unknown>>;
     };
 
@@ -54,32 +106,59 @@ export async function GET(
       );
       if (durableRes.ok) {
         const durable = (await durableRes.json()) as {
+          workflow?: DurableWorkflow;
           jobs?: DurableJob[];
           applications?: DurableApplication[];
         };
         const jobsById = new Map(
-          (durable.jobs ?? []).map((job) => [job.id, job.dedupKey]),
+          (durable.jobs ?? []).map((job) => [job.id, job]),
+        );
+        const jobsByDedup = new Map(
+          (durable.jobs ?? []).map((job) => [job.dedupKey, job]),
         );
         const byDedup = new Map<string, DurableApplication>();
         for (const application of durable.applications ?? []) {
           if (!application.workflowJobId) continue;
-          const dedupKey = jobsById.get(application.workflowJobId);
-          if (dedupKey) byDedup.set(dedupKey, application);
+          const job = jobsById.get(application.workflowJobId);
+          if (job) byDedup.set(job.dedupKey, application);
         }
+
+        if (typeof data.status === 'string') {
+          data.status = pickWorkflowStatus(
+            data.status,
+            durable.workflow?.status,
+          );
+        }
+
         data.apply_tasks = (data.apply_tasks ?? []).map((task) => {
           const jobId = typeof task.job_id === 'string' ? task.job_id : '';
           const prefix = `${id}:`;
           const dedupKey = jobId.startsWith(prefix)
             ? jobId.slice(prefix.length)
             : null;
+          const durableJob = dedupKey ? jobsByDedup.get(dedupKey) : undefined;
           const extra = dedupKey ? byDedup.get(dedupKey) : undefined;
-          if (!extra) return task;
+          const orchestratorStatus =
+            typeof task.status === 'string' ? task.status : 'queued';
+          const mergedStatus = pickApplyStatus(
+            orchestratorStatus,
+            extra?.status,
+          );
           return {
             ...task,
-            error_detail: extra.errorDetail ?? task.error_detail,
-            page_url: extra.pageUrl ?? task.page_url,
-            screenshot_path: extra.screenshotPath ?? task.screenshot_path,
-            outcome: extra.outcome ?? task.outcome,
+            job_title:
+              (typeof task.job_title === 'string' && task.job_title) ||
+              durableJob?.title ||
+              task.job_title,
+            company_name:
+              (typeof task.company_name === 'string' && task.company_name) ||
+              durableJob?.companyName ||
+              task.company_name,
+            status: mergedStatus,
+            error_detail: extra?.errorDetail ?? task.error_detail,
+            page_url: extra?.pageUrl ?? task.page_url,
+            screenshot_path: extra?.screenshotPath ?? task.screenshot_path,
+            outcome: extra?.outcome ?? task.outcome,
           };
         });
       }

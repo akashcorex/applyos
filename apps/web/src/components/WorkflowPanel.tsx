@@ -192,21 +192,100 @@ function eventDetail(event: WorkflowEvent): string | null {
   if (!event.payload || typeof event.payload !== 'object') return null;
 
   const payload = event.payload as Record<string, unknown>;
+  const jobTitle =
+    typeof payload.jobTitle === 'string' ? payload.jobTitle : null;
+  const companyName =
+    typeof payload.companyName === 'string' ? payload.companyName : null;
+  const jobLabel =
+    companyName && jobTitle
+      ? `${companyName} — ${jobTitle}`
+      : companyName || jobTitle;
+
+  const applications = Array.isArray(payload.applications)
+    ? payload.applications
+    : null;
+  const application = applications?.find(
+    (item): item is Record<string, unknown> =>
+      Boolean(item) && typeof item === 'object',
+  );
+  const applicationJobTitle =
+    application && typeof application.jobTitle === 'string'
+      ? application.jobTitle
+      : null;
+  const applicationCompanyName =
+    application && typeof application.companyName === 'string'
+      ? application.companyName
+      : null;
+  const applicationLabel =
+    applicationCompanyName && applicationJobTitle
+      ? `${applicationCompanyName} — ${applicationJobTitle}`
+      : applicationCompanyName || applicationJobTitle;
+
+  const status =
+    typeof payload.status === 'string' ? payload.status : null;
+  const applicationStatus =
+    application && typeof application.status === 'string'
+      ? application.status
+      : null;
+
   for (const value of [
     payload.errorDetail,
     payload.error_detail,
     payload.error,
-    payload.status,
   ]) {
-    if (typeof value === 'string') return value;
+    if (typeof value === 'string') {
+      const label = jobLabel || applicationLabel;
+      return label ? `${label}: ${value}` : value;
+    }
   }
-  return null;
+
+  const resolvedStatus = applicationStatus || status;
+  if (resolvedStatus) {
+    const label = jobLabel || applicationLabel;
+    return label ? `${label}: ${resolvedStatus}` : resolvedStatus;
+  }
+
+  return jobLabel || applicationLabel;
+}
+
+function applyTaskLabel(task: ApplyTask): string {
+  if (task.company_name && task.job_title) {
+    return `${task.company_name} — ${task.job_title}`;
+  }
+  return task.job_title || task.company_name || 'Unknown job';
 }
 
 function isTerminalStatus(status: WorkflowStatus): boolean {
   return ['completed', 'partial', 'failed', 'stopped', 'cancelled'].includes(
     status,
   );
+}
+
+function effectiveWorkflowStatus(
+  wf: WorkflowSummary,
+  detail?: WorkflowDetail | null,
+): WorkflowStatus {
+  if (detail && detail.id === wf.id && isTerminalStatus(detail.status)) {
+    return detail.status;
+  }
+  if (wf.apply_total > 0 && wf.apply_successful === wf.apply_total) {
+    return 'completed';
+  }
+  if (
+    wf.apply_total > 0 &&
+    wf.apply_completed === wf.apply_total &&
+    wf.apply_successful > 0
+  ) {
+    return 'partial';
+  }
+  if (
+    wf.apply_total > 0 &&
+    wf.apply_completed === wf.apply_total &&
+    wf.apply_successful === 0
+  ) {
+    return 'partial';
+  }
+  return detail?.id === wf.id ? detail.status : wf.status;
 }
 
 export function WorkflowPanel({
@@ -247,7 +326,14 @@ export function WorkflowPanel({
     try {
       const res = await fetch('/api/workflows');
       const data = await res.json();
-      setWorkflows(data.workflows ?? []);
+      const nextWorkflows = (data.workflows ?? []) as WorkflowSummary[];
+      setWorkflows(nextWorkflows);
+      if (expandedId) {
+        const summary = nextWorkflows.find((wf) => wf.id === expandedId);
+        if (summary && detail && summary.status !== detail.status) {
+          void refreshWorkflowDetail(expandedId);
+        }
+      }
     } catch {
       // orchestrator not running
     } finally {
@@ -259,24 +345,36 @@ export function WorkflowPanel({
     setExpandedId(id);
     setDetailLoading(true);
     setDetail(null);
+    await refreshWorkflowDetail(id, { showLoading: true });
+  }
+
+  async function refreshWorkflowDetail(
+    id: string,
+    options: { showLoading?: boolean } = {},
+  ) {
+    if (options.showLoading) {
+      setDetailLoading(true);
+    }
     try {
       const res = await fetch(`/api/workflows/${id}`);
       if (!res.ok) {
-        setDetail(null);
+        if (options.showLoading) setDetail(null);
         return;
       }
-      const data = await res.json();
+      const data = (await res.json()) as WorkflowDetail;
       setDetail(data);
     } catch {
-      setDetail(null);
+      if (options.showLoading) setDetail(null);
     } finally {
-      setDetailLoading(false);
+      if (options.showLoading) {
+        setDetailLoading(false);
+      }
     }
   }
 
   useEffect(() => {
     fetchWorkflows();
-    const interval = setInterval(fetchWorkflows, 15000);
+    const interval = setInterval(fetchWorkflows, 5000);
     return () => clearInterval(interval);
   }, [refreshKey]);
 
@@ -286,6 +384,16 @@ export function WorkflowPanel({
     }
     void loadWorkflowDetail(focusWorkflowId);
   }, [focusWorkflowId]);
+
+  useEffect(() => {
+    if (!expandedId || !detail || isTerminalStatus(detail.status)) {
+      return;
+    }
+    const interval = setInterval(() => {
+      void refreshWorkflowDetail(expandedId);
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [expandedId, detail?.status]);
 
   useEffect(() => {
     if (!expandedId) {
@@ -369,7 +477,7 @@ export function WorkflowPanel({
         setLifecycleError(data.error ?? `Unable to ${action} workflow`);
         return;
       }
-      await Promise.all([fetchWorkflows(), loadWorkflowDetail(id)]);
+      await Promise.all([fetchWorkflows(), refreshWorkflowDetail(id)]);
     } catch {
       setLifecycleError(`Unable to ${action} workflow`);
     } finally {
@@ -412,7 +520,12 @@ export function WorkflowPanel({
         ) : workflows.length > 0 ? (
           <div className="space-y-1 max-h-96 overflow-y-auto">
             {workflows.map((wf) => {
-              const cfg = STATUS_CONFIG[wf.status] ?? STATUS_CONFIG.pending;
+              const detailStatus = effectiveWorkflowStatus(
+                wf,
+                expandedId === wf.id ? detail : null,
+              );
+              const cfg =
+                STATUS_CONFIG[detailStatus] ?? STATUS_CONFIG.pending;
               return (
                 <div key={wf.id}>
                   <button
@@ -616,23 +729,32 @@ export function WorkflowPanel({
                           {detail.apply_tasks.length > 0 && (
                             <div className="space-y-1">
                               <p className="text-xs font-medium">
-                                Apply Tasks ({detail.apply_tasks.length})
+                                Applications ({detail.apply_tasks.length})
                               </p>
-                              <div className="space-y-1 max-h-32 overflow-y-auto">
+                              <div className="space-y-2 max-h-48 overflow-y-auto">
                                 {detail.apply_tasks.map((task) => (
                                   <div
                                     key={task.job_id}
-                                    className="rounded border px-2 py-1 text-xs"
+                                    className="rounded border px-2 py-2 text-xs"
                                   >
-                                    <div className="flex items-center justify-between">
-                                      <p className="font-medium truncate">
-                                        {task.job_title}
-                                      </p>
+                                    <div className="flex items-start justify-between gap-2">
+                                      <div className="min-w-0">
+                                        <p className="font-medium leading-snug">
+                                          {applyTaskLabel(task)}
+                                        </p>
+                                        {task.application_url ? (
+                                          <a
+                                            href={task.application_url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="mt-0.5 inline-block truncate text-muted-foreground underline"
+                                          >
+                                            View job posting
+                                          </a>
+                                        ) : null}
+                                      </div>
                                       <ApplyStatusBadge status={task.status} />
                                     </div>
-                                    <p className="text-muted-foreground truncate">
-                                      {task.company_name}
-                                    </p>
                                     {task.linkedin_connect_status && (
                                       <div className="mt-1">
                                         <LinkedInConnectBadge
@@ -827,6 +949,14 @@ function ApplyStatusBadge({ status }: { status: string }) {
     queued: {
       label: 'Queued',
       className: 'bg-blue-100 text-blue-800 border-blue-300',
+    },
+    running: {
+      label: 'Running',
+      className: 'bg-orange-100 text-orange-800 border-orange-300',
+    },
+    pending: {
+      label: 'Pending',
+      className: 'bg-gray-100 text-gray-700 border-gray-300',
     },
     submitted: {
       label: 'Submitted',

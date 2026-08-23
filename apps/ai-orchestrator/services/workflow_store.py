@@ -405,11 +405,15 @@ class WorkflowStore:
             applications=[
                 {
                     "jobId": job_id,
+                    "jobTitle": task.job_title,
+                    "companyName": task.company_name,
                     "status": status,
                     "errorDetail": error_detail,
                     "pageUrl": page_url,
                     "screenshotPath": screenshot_path,
                 }
+                for task in run.apply_tasks
+                if task.job_id == job_id
             ],
         )
         return run
