@@ -91,6 +91,39 @@ export interface TailorJobContext {
   match_score?: number;
 }
 
+const JOB_DESCRIPTION_MAX_LENGTH = 8000;
+
+function truncateJobDescription(
+  value: string | null | undefined,
+): string | undefined {
+  const text = value?.trim();
+  if (!text) return undefined;
+  return text.length > JOB_DESCRIPTION_MAX_LENGTH
+    ? text.slice(0, JOB_DESCRIPTION_MAX_LENGTH)
+    : text;
+}
+
+function apiErrorMessage(data: unknown, fallback: string): string {
+  if (!data || typeof data !== 'object') return fallback;
+  const detail = (data as { detail?: unknown; error?: unknown }).detail;
+  const error = (data as { error?: unknown }).error;
+  if (typeof detail === 'string' && detail.trim()) return detail;
+  if (Array.isArray(detail)) {
+    const parts = detail
+      .map((item) => {
+        if (typeof item === 'string') return item;
+        if (item && typeof item === 'object' && 'msg' in item) {
+          return String((item as { msg: unknown }).msg);
+        }
+        return null;
+      })
+      .filter((part): part is string => Boolean(part));
+    if (parts.length > 0) return parts.join('; ');
+  }
+  if (typeof error === 'string' && error.trim()) return error;
+  return fallback;
+}
+
 function scoreLabel(score: number | null | undefined): string {
   if (score == null || Number.isNaN(score)) return '—';
   const normalized = score <= 1 ? score * 100 : score;
@@ -148,6 +181,7 @@ export function ResumeVariantEditor({
   const [versionsLoading, setVersionsLoading] = useState(false);
   const [saveNotice, setSaveNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [reloadNonce, setReloadNonce] = useState(0);
 
   useEffect(() => {
     if (!initialVariant) return;
@@ -190,7 +224,7 @@ export function ResumeVariantEditor({
             dedup_key: job.dedup_key,
             job_title: job.title,
             company_name: job.company_name,
-            job_description: job.description ?? undefined,
+            job_description: truncateJobDescription(job.description),
             missing_skills: job.missing_skills ?? [],
             matched_skills: job.matched_skills ?? [],
             initial_match_score:
@@ -203,7 +237,9 @@ export function ResumeVariantEditor({
         });
         const data = await res.json();
         if (!res.ok) {
-          setError(data.detail || data.error || 'Failed to create draft');
+          if (!cancelled) {
+            setError(apiErrorMessage(data, 'Failed to create draft'));
+          }
           return;
         }
         if (cancelled) return;
@@ -212,9 +248,9 @@ export function ResumeVariantEditor({
         setSkillsText(data.content.skills.join(', '));
         onSaved(data);
       } catch {
-        setError('Tailor service is unreachable');
+        if (!cancelled) setError('Tailor service is unreachable');
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     }
 
@@ -222,7 +258,15 @@ export function ResumeVariantEditor({
     return () => {
       cancelled = true;
     };
-  }, [initialVariant, job.dedup_key, job.title, job.company_name, resumeId]);
+  }, [
+    initialVariant,
+    job.company_name,
+    job.dedup_key,
+    job.description,
+    job.title,
+    reloadNonce,
+    resumeId,
+  ]);
 
   useEffect(() => {
     if (!variant?.id) return;
@@ -257,7 +301,7 @@ export function ResumeVariantEditor({
       );
       const data = await res.json();
       if (!res.ok) {
-        setError(data.detail || data.error || 'AI suggestions failed');
+        setError(apiErrorMessage(data, 'AI suggestions failed'));
         return;
       }
       setVariant(data);
@@ -282,7 +326,7 @@ export function ResumeVariantEditor({
       );
       const data = await res.json();
       if (!res.ok) {
-        setError(data.detail || data.error || 'Restore failed');
+        setError(apiErrorMessage(data, 'Restore failed'));
         return;
       }
       setVariant(data);
@@ -341,11 +385,7 @@ export function ResumeVariantEditor({
       );
       const data = await res.json();
       if (!res.ok) {
-        setError(
-          Array.isArray(data.detail)
-            ? data.detail.join(', ')
-            : data.detail || data.error || 'Save failed',
-        );
+        setError(apiErrorMessage(data, 'Save failed'));
         return;
       }
       setVariant(data);
@@ -395,11 +435,7 @@ export function ResumeVariantEditor({
       );
       const data = await res.json();
       if (!res.ok) {
-        setError(
-          Array.isArray(data.detail)
-            ? data.detail.join(', ')
-            : data.detail || data.error || 'Finalize failed',
-        );
+        setError(apiErrorMessage(data, 'Finalize failed'));
         return;
       }
       setVariant(data.variant);
@@ -435,11 +471,7 @@ export function ResumeVariantEditor({
       );
       const data = await res.json();
       if (!res.ok) {
-        setError(
-          Array.isArray(data.detail)
-            ? data.detail.join(', ')
-            : data.detail || data.error || 'Preview failed',
-        );
+        setError(apiErrorMessage(data, 'Preview failed'));
         return;
       }
       setVariant(data.variant);
@@ -453,12 +485,58 @@ export function ResumeVariantEditor({
     }
   }
 
-  if (loading || !content) {
+  if (loading) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-        <div className="rounded-lg bg-background p-6 shadow-lg flex items-center gap-2">
-          <Loader2 className="h-5 w-5 animate-spin" />
-          <span>Loading tailor for {job.company_name}…</span>
+        <div className="rounded-lg bg-background p-6 shadow-lg space-y-4 max-w-sm w-full">
+          <div className="flex items-center gap-2">
+            <Loader2 className="h-5 w-5 animate-spin" />
+            <span>Loading tailor for {job.company_name}…</span>
+          </div>
+          <Button variant="outline" className="w-full" onClick={onClose}>
+            Cancel
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (error && !content) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+        <div className="rounded-lg bg-background p-6 shadow-lg space-y-4 max-w-sm w-full">
+          <div>
+            <p className="font-semibold">Could not open tailor</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              {job.title} · {job.company_name}
+            </p>
+          </div>
+          <p className="text-sm text-red-600">{error}</p>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              className="flex-1"
+              onClick={() => setReloadNonce((n) => n + 1)}
+            >
+              Try again
+            </Button>
+            <Button className="flex-1" onClick={onClose}>
+              Close
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!content) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+        <div className="rounded-lg bg-background p-6 shadow-lg space-y-4 max-w-sm w-full">
+          <p className="text-sm">No resume content is available to edit.</p>
+          <Button className="w-full" onClick={onClose}>
+            Close
+          </Button>
         </div>
       </div>
     );
@@ -626,7 +704,13 @@ export function ResumeVariantEditor({
           )}
 
           <div className="space-y-3">
-            <p className="text-sm font-medium">Manual edits</p>
+            <div>
+              <p className="text-sm font-medium">Manual edits</p>
+              <p className="text-xs text-muted-foreground">
+                Edit the summary, skills, and bullets directly. AI suggestions
+                are optional.
+              </p>
+            </div>
             <textarea
               className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
               placeholder="Professional summary"

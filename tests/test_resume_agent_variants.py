@@ -183,3 +183,18 @@ def test_create_draft_preserves_existing_content() -> None:
     assert result.content.summary == existing.content.summary
     assert result.file_path == "/tmp/ready.pdf"
     repo.update_job_metadata.assert_awaited_once()
+
+
+def test_create_variant_request_truncates_long_job_description() -> None:
+    from models import CreateVariantRequest
+
+    payload = CreateVariantRequest(
+        dedup_key="scale.com::ai builder intern::san francisco, ca",
+        job_title="AI Builder Intern",
+        company_name="Scale AI",
+        job_description="x" * 20_000,
+        initial_match_score=140,
+    )
+    assert payload.job_description is not None
+    assert len(payload.job_description) == 8000
+    assert payload.initial_match_score == 100.0

@@ -5,13 +5,20 @@ from __future__ import annotations
 from typing import Any, Literal
 from uuid import uuid4
 
-from pydantic import BaseModel, Field, HttpUrl
+from pydantic import BaseModel, Field, HttpUrl, field_validator
 
 
 RESUME_IR_SCHEMA_VERSION = "resume-ir.v1"
 TAILORING_POLICY_VERSION = "tailoring-policy.v1"
 COMPILER_VERSION = "resume-compiler.v1"
 TEMPLATE_VERSION = "ats-latex.v1"
+JOB_DESCRIPTION_MAX_LENGTH = 8000
+
+
+def _truncate_text(value: object, limit: int) -> object:
+    if isinstance(value, str) and len(value) > limit:
+        return value[:limit]
+    return value
 
 
 class EvidenceSpan(BaseModel):
@@ -393,7 +400,14 @@ class ChatResponse(BaseModel):
 
 class ImproveRequest(BaseModel):
     target_role: str | None = Field(default=None, max_length=200)
-    job_description: str | None = Field(default=None, max_length=8000)
+    job_description: str | None = Field(
+        default=None, max_length=JOB_DESCRIPTION_MAX_LENGTH
+    )
+
+    @field_validator("job_description", mode="before")
+    @classmethod
+    def truncate_job_description(cls, value: object) -> object:
+        return _truncate_text(value, JOB_DESCRIPTION_MAX_LENGTH)
 
 
 class ImprovementSuggestion(BaseModel):
@@ -453,13 +467,27 @@ VariantStatus = Literal["draft", "ready", "applied"]
 
 
 class CreateVariantRequest(BaseModel):
-    dedup_key: str = Field(min_length=1, max_length=200)
+    dedup_key: str = Field(min_length=1, max_length=512)
     job_title: str = Field(min_length=1, max_length=300)
     company_name: str = Field(min_length=1, max_length=200)
-    job_description: str | None = Field(default=None, max_length=8000)
+    job_description: str | None = Field(
+        default=None, max_length=JOB_DESCRIPTION_MAX_LENGTH
+    )
     missing_skills: list[str] = Field(default_factory=list)
     matched_skills: list[str] = Field(default_factory=list)
     initial_match_score: float | None = Field(default=None, ge=0.0, le=100.0)
+
+    @field_validator("job_description", mode="before")
+    @classmethod
+    def truncate_job_description(cls, value: object) -> object:
+        return _truncate_text(value, JOB_DESCRIPTION_MAX_LENGTH)
+
+    @field_validator("initial_match_score", mode="before")
+    @classmethod
+    def clamp_initial_match_score(cls, value: object) -> object:
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            return value
+        return max(0.0, min(100.0, float(value)))
 
 
 class MatchScoreMeta(BaseModel):
