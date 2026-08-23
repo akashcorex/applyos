@@ -60,6 +60,16 @@ export interface ResumeVariant {
   patch_id?: string | null;
   artifact_id?: string | null;
   artifact_url?: string | null;
+  baseline_match_score?: number | null;
+  match_score?: number | null;
+  match_score_updated_at?: string | null;
+  match_score_meta?: {
+    semantic_score?: number;
+    skill_score?: number;
+    matched_skills?: string[];
+    missing_skills?: string[];
+  } | null;
+  updated_at?: string | null;
   diff?: {
     semantic?: Array<{
       node_id: string;
@@ -78,6 +88,32 @@ export interface TailorJobContext {
   description?: string | null;
   missing_skills?: string[];
   matched_skills?: string[];
+  match_score?: number;
+}
+
+function scoreLabel(score: number | null | undefined): string {
+  if (score == null || Number.isNaN(score)) return '—';
+  const normalized = score <= 1 ? score * 100 : score;
+  return `${Math.round(normalized)}%`;
+}
+
+function scoreDelta(
+  current: number | null | undefined,
+  baseline: number | null | undefined,
+): string | null {
+  if (current == null || baseline == null) return null;
+  const c = current <= 1 ? current * 100 : current;
+  const b = baseline <= 1 ? baseline * 100 : baseline;
+  const delta = Math.round(c - b);
+  if (delta === 0) return 'no change';
+  return delta > 0 ? `+${delta}` : `${delta}`;
+}
+
+interface VariantVersionSummary {
+  id: string;
+  variant_id: string;
+  change_reason: string;
+  created_at?: string | null;
 }
 
 interface ResumeVariantEditorProps {
@@ -107,6 +143,10 @@ export function ResumeVariantEditor({
   const [saving, setSaving] = useState(false);
   const [previewing, setPreviewing] = useState(false);
   const [finalizing, setFinalizing] = useState(false);
+  const [suggesting, setSuggesting] = useState(false);
+  const [versions, setVersions] = useState<VariantVersionSummary[]>([]);
+  const [versionsLoading, setVersionsLoading] = useState(false);
+  const [saveNotice, setSaveNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -153,6 +193,12 @@ export function ResumeVariantEditor({
             job_description: job.description ?? undefined,
             missing_skills: job.missing_skills ?? [],
             matched_skills: job.matched_skills ?? [],
+            initial_match_score:
+              job.match_score != null
+                ? job.match_score <= 1
+                  ? job.match_score * 100
+                  : job.match_score
+                : undefined,
           }),
         });
         const data = await res.json();
@@ -178,6 +224,85 @@ export function ResumeVariantEditor({
     };
   }, [initialVariant, job.dedup_key, job.title, job.company_name, resumeId]);
 
+  useEffect(() => {
+    if (!variant?.id) return;
+    let cancelled = false;
+    async function loadVersions() {
+      setVersionsLoading(true);
+      try {
+        const res = await fetch(
+          `/api/resume/${resumeId}/variants/${variant.id}/versions`,
+        );
+        if (!res.ok) return;
+        const data = (await res.json()) as { versions?: VariantVersionSummary[] };
+        if (!cancelled) setVersions(data.versions ?? []);
+      } finally {
+        if (!cancelled) setVersionsLoading(false);
+      }
+    }
+    void loadVersions();
+    return () => {
+      cancelled = true;
+    };
+  }, [resumeId, variant?.id, variant?.updated_at]);
+
+  async function handleGetAiSuggestions() {
+    if (!variant) return;
+    setSuggesting(true);
+    setError(null);
+    try {
+      const res = await fetch(
+        `/api/resume/${resumeId}/variants/${variant.id}/suggest`,
+        { method: 'POST' },
+      );
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.detail || data.error || 'AI suggestions failed');
+        return;
+      }
+      setVariant(data);
+      setContent(data.content);
+      setSkillsText(data.content.skills.join(', '));
+      onSaved(data);
+    } catch {
+      setError('Failed to fetch AI suggestions');
+    } finally {
+      setSuggesting(false);
+    }
+  }
+
+  async function handleRestoreVersion(versionId: string) {
+    if (!variant) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const res = await fetch(
+        `/api/resume/${resumeId}/variants/${variant.id}/versions/${versionId}/restore`,
+        { method: 'POST' },
+      );
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.detail || data.error || 'Restore failed');
+        return;
+      }
+      setVariant(data);
+      setContent(data.content);
+      setSkillsText(data.content.skills.join(', '));
+      setAcceptedIds(new Set());
+      onSaved(data);
+      const delta = scoreDelta(data.match_score, data.baseline_match_score);
+      setSaveNotice(
+        delta
+          ? `Restored · match ${scoreLabel(data.match_score)} (${delta})`
+          : `Restored · match ${scoreLabel(data.match_score)}`,
+      );
+    } catch {
+      setError('Failed to restore version');
+    } finally {
+      setSaving(false);
+    }
+  }
+
   function toggleSuggestion(id: string) {
     setAcceptedIds((prev) => {
       const next = new Set(prev);
@@ -189,8 +314,10 @@ export function ResumeVariantEditor({
 
   async function handleSaveDraft() {
     if (!variant || !content) return;
+    const priorScore = variant.match_score;
     setSaving(true);
     setError(null);
+    setSaveNotice(null);
 
     const payloadContent = {
       ...content,
@@ -226,6 +353,14 @@ export function ResumeVariantEditor({
       setSkillsText(data.content.skills.join(', '));
       setAcceptedIds(new Set());
       onSaved(data);
+      const delta = scoreDelta(data.match_score, data.baseline_match_score);
+      const from = scoreLabel(priorScore ?? data.baseline_match_score);
+      const to = scoreLabel(data.match_score);
+      setSaveNotice(
+        delta && priorScore != null
+          ? `Saved · match ${from} → ${to} (${delta})`
+          : `Saved · match ${to}${delta ? ` (${delta})` : ''}`,
+      );
     } catch {
       setError('Failed to save draft');
     } finally {
@@ -323,7 +458,7 @@ export function ResumeVariantEditor({
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
         <div className="rounded-lg bg-background p-6 shadow-lg flex items-center gap-2">
           <Loader2 className="h-5 w-5 animate-spin" />
-          <span>Tailoring resume for {job.company_name}…</span>
+          <span>Loading tailor for {job.company_name}…</span>
         </div>
       </div>
     );
@@ -351,6 +486,34 @@ export function ResumeVariantEditor({
             <p className="text-sm text-muted-foreground">
               {job.title} · {job.company_name}
             </p>
+            {variant ? (
+              <div className="mt-1 flex flex-wrap items-center gap-2 text-xs">
+                <Badge variant="secondary">
+                  Match {scoreLabel(variant.match_score)}
+                </Badge>
+                {variant.baseline_match_score != null ? (
+                  <span className="text-muted-foreground">
+                    baseline {scoreLabel(variant.baseline_match_score)}
+                    {scoreDelta(variant.match_score, variant.baseline_match_score)
+                      ? ` (${scoreDelta(variant.match_score, variant.baseline_match_score)})`
+                      : ''}
+                  </span>
+                ) : null}
+                {variant.match_score_meta ? (
+                  <span className="text-muted-foreground">
+                    semantic{' '}
+                    {Math.round(
+                      (variant.match_score_meta.semantic_score ?? 0) * 100,
+                    )}
+                    % · skills{' '}
+                    {Math.round(
+                      (variant.match_score_meta.skill_score ?? 0) * 100,
+                    )}
+                    %
+                  </span>
+                ) : null}
+              </div>
+            ) : null}
           </div>
           <Button variant="ghost" size="icon" onClick={onClose}>
             <X className="h-4 w-4" />
@@ -363,6 +526,29 @@ export function ResumeVariantEditor({
               {variant.suggestions.overall_assessment}
             </p>
           ) : null}
+
+          {saveNotice ? (
+            <p className="text-sm text-green-700 rounded border border-green-200 bg-green-50 px-3 py-2">
+              {saveNotice}
+            </p>
+          ) : null}
+
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={suggesting || !variant}
+              onClick={() => void handleGetAiSuggestions()}
+            >
+              {suggesting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Sparkles className="h-4 w-4" />
+              )}
+              Get AI suggestions
+            </Button>
+          </div>
 
           {(job.missing_skills?.length ?? 0) > 0 && (
             <div className="flex flex-wrap gap-1">
@@ -480,6 +666,40 @@ export function ResumeVariantEditor({
               </div>
             ))}
           </div>
+
+          {versions.length > 0 || versionsLoading ? (
+            <div className="space-y-2">
+              <p className="text-sm font-medium">Version history</p>
+              {versionsLoading ? (
+                <p className="text-xs text-muted-foreground">Loading…</p>
+              ) : (
+                <div className="space-y-1 max-h-32 overflow-y-auto">
+                  {versions.map((version) => (
+                    <div
+                      key={version.id}
+                      className="flex items-center justify-between gap-2 rounded border px-2 py-1 text-xs"
+                    >
+                      <span className="text-muted-foreground">
+                        {version.change_reason.replaceAll('_', ' ')}
+                        {version.created_at
+                          ? ` · ${new Date(version.created_at).toLocaleString()}`
+                          : ''}
+                      </span>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        disabled={saving}
+                        onClick={() => void handleRestoreVersion(version.id)}
+                      >
+                        Restore
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : null}
 
           {previewUrl ? (
             <div className="space-y-3 rounded-md border border-green-300 bg-green-50/50 p-3">

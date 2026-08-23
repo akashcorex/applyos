@@ -35,6 +35,10 @@ class VariantRepository:
         request: CreateVariantRequest,
         suggestions: VariantSuggestions | None = None,
         source_revision_id: str | None = None,
+        *,
+        baseline_match_score: float | None = None,
+        match_score: float | None = None,
+        match_score_meta: dict | None = None,
     ) -> ResumeVariantResponse:
         existing = await self.get_by_dedup_key(resume_id, request.dedup_key)
         if existing is not None:
@@ -51,9 +55,10 @@ class VariantRepository:
                 """
                 INSERT INTO resume_variants (
                     resume_id, user_id, dedup_key, job_title, company_name,
-                    job_description, status, content, suggestions, source_revision_id
+                    job_description, status, content, suggestions, source_revision_id,
+                    baseline_match_score, match_score, match_score_meta, match_score_updated_at
                 )
-                VALUES ($1, $2, $3, $4, $5, $6, 'draft', $7::jsonb, $8::jsonb, $9)
+                VALUES ($1, $2, $3, $4, $5, $6, 'draft', $7::jsonb, $8::jsonb, $9, $10, $11, $12::jsonb, NOW())
                 RETURNING *
                 """,
                 _to_uuid(resume_id),
@@ -65,6 +70,9 @@ class VariantRepository:
                 json.dumps(source_content.model_dump()),
                 json.dumps(suggestions_payload),
                 source_revision_id,
+                baseline_match_score,
+                match_score,
+                json.dumps(match_score_meta) if match_score_meta else None,
             )
 
         return _row_to_variant(str(resume_id), row)
@@ -257,6 +265,37 @@ class VariantRepository:
     async def mark_applied(self, resume_id: str, variant_id: str) -> ResumeVariantResponse:
         return await self.update(resume_id, variant_id, status="applied")
 
+    async def update_scores(
+        self,
+        resume_id: str,
+        variant_id: str,
+        *,
+        match_score: float,
+        baseline_match_score: float | None = None,
+        match_score_meta: dict | None = None,
+    ) -> ResumeVariantResponse:
+        async with self._pool.acquire() as conn:
+            row = await conn.fetchrow(
+                """
+                UPDATE resume_variants
+                SET match_score = $3,
+                    baseline_match_score = COALESCE($4, baseline_match_score),
+                    match_score_meta = $5::jsonb,
+                    match_score_updated_at = NOW(),
+                    updated_at = NOW()
+                WHERE id = $1 AND resume_id = $2
+                RETURNING *
+                """,
+                _to_uuid(variant_id),
+                _to_uuid(resume_id),
+                match_score,
+                baseline_match_score,
+                json.dumps(match_score_meta) if match_score_meta else None,
+            )
+        if row is None:
+            raise VariantNotFoundError(f"Variant {variant_id} not found")
+        return _row_to_variant(resume_id, row)
+
 
 def _row_to_variant(resume_id: str, row: asyncpg.Record) -> ResumeVariantResponse:
     raw_content = row["content"]
@@ -265,6 +304,12 @@ def _row_to_variant(resume_id: str, row: asyncpg.Record) -> ResumeVariantRespons
     raw_suggestions = row["suggestions"]
     if isinstance(raw_suggestions, str):
         raw_suggestions = json.loads(raw_suggestions)
+
+    raw_meta = row.get("match_score_meta")
+    if isinstance(raw_meta, str):
+        raw_meta = json.loads(raw_meta)
+
+    from models import MatchScoreMeta
 
     return ResumeVariantResponse(
         id=str(row["id"]),
@@ -287,6 +332,16 @@ def _row_to_variant(resume_id: str, row: asyncpg.Record) -> ResumeVariantRespons
             f"/resume/{resume_id}/variants/{row['id']}/pdf"
             if row.get("artifact_id")
             else None
+        ),
+        baseline_match_score=row.get("baseline_match_score"),
+        match_score=row.get("match_score"),
+        match_score_updated_at=(
+            row["match_score_updated_at"].isoformat()
+            if row.get("match_score_updated_at")
+            else None
+        ),
+        match_score_meta=(
+            MatchScoreMeta.model_validate(raw_meta) if raw_meta else None
         ),
         created_at=row["created_at"].isoformat() if row.get("created_at") else None,
         updated_at=row["updated_at"].isoformat() if row.get("updated_at") else None,

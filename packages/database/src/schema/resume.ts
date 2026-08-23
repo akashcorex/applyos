@@ -4,6 +4,7 @@ import {
   integer,
   jsonb,
   pgTable,
+  real,
   text,
   timestamp,
   uuid,
@@ -81,6 +82,10 @@ export const resumeVariants = pgTable(
     sourceRevisionId: text('source_revision_id'),
     patchId: text('patch_id'),
     artifactId: text('artifact_id'),
+    baselineMatchScore: real('baseline_match_score'),
+    matchScore: real('match_score'),
+    matchScoreUpdatedAt: timestamp('match_score_updated_at', { withTimezone: true }),
+    matchScoreMeta: jsonb('match_score_meta'),
     createdAt: timestamp('created_at', { withTimezone: true })
       .defaultNow()
       .notNull(),

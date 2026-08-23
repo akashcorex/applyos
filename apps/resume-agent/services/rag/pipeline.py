@@ -143,3 +143,48 @@ class ResumeRAGPipeline:
             }
         )
         return result.model_dump()
+
+    async def improve_keywords(
+        self,
+        *,
+        target_role: str | None = None,
+        job_description: str | None = None,
+        profile_context: str | None = None,
+        matched_skills: list[str] | None = None,
+        missing_skills: list[str] | None = None,
+    ) -> dict:
+        """Keyword micro-edit suggestions without RAG retrieval."""
+        context = (profile_context or "").strip()
+        if not context:
+            return {"suggestions": [], "overall_assessment": "No profile context."}
+
+        jd_parts = [job_description or ""]
+        if matched_skills:
+            jd_parts.append("Matched skills: " + ", ".join(matched_skills))
+        if missing_skills:
+            jd_parts.append("Gap skills (do not invent): " + ", ".join(missing_skills))
+        jd_block = "\n".join(jd_parts)[:4000]
+
+        system = _load_prompt("resume_keyword_tailor.txt")
+        prompt = ChatPromptTemplate.from_messages(
+            [
+                ("system", "{system_prompt}"),
+                (
+                    "human",
+                    "Target role: {target_role}\n\n"
+                    "Job description and keyword hints:\n{job_description}\n\n"
+                    "Structured profile (authoritative):\n{context}",
+                ),
+            ]
+        )
+        structured_llm = self._llm.with_structured_output(ImprovementSuggestions)
+        chain = prompt | structured_llm
+        result = await chain.ainvoke(
+            {
+                "system_prompt": system,
+                "target_role": target_role or "Not specified",
+                "job_description": jd_block,
+                "context": context[:4000],
+            }
+        )
+        return result.model_dump()

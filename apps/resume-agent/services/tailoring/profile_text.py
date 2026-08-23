@@ -20,8 +20,26 @@ def variant_content_to_prompt_text(content: VariantContent) -> str:
         lines.append(f"Skills: {', '.join(content.skills)}")
     for role in content.work_history:
         lines.append(f"Role: {role.title} at {role.company}")
-        for bullet in role.highlights:
+        for bullet in role.highlights or []:
             lines.append(f"  - {bullet}")
     for edu in content.education:
         lines.append(f"Education: {edu.degree}, {edu.school}")
     return "\n".join(lines)
+
+
+def variant_content_to_scoring_text(content: VariantContent) -> str:
+    """Richer text for per-variant match scoring (all roles and bullets)."""
+    parts = [f"Target Role: {content.preferred_role or 'Software Engineer'}"]
+    parts.append(f"Experience: {content.experience_years} year(s)")
+    if content.skills:
+        parts.append(f"Skills: {', '.join(content.skills)}")
+    if content.summary:
+        summary = content.summary.strip()
+        if len(summary) > 800:
+            summary = summary[:800] + "…"
+        parts.append(f"Summary: {summary}")
+    for role in content.work_history:
+        parts.append(f"Role: {role.title} at {role.company}")
+        for bullet in (role.highlights or [])[:6]:
+            parts.append(f"  - {bullet}")
+    return "\n".join(parts)

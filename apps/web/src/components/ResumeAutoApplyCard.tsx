@@ -211,6 +211,19 @@ export function ResumeAutoApplyCard({
       ...previous,
       [variant.dedup_key]: variant,
     }));
+    if (variant.match_score != null) {
+      const normalized =
+        variant.match_score <= 1
+          ? variant.match_score * 100
+          : variant.match_score;
+      setJobs((previous) =>
+        previous.map((job) =>
+          job.dedup_key === variant.dedup_key
+            ? { ...job, match_score: normalized }
+            : job,
+        ),
+      );
+    }
   }
 
   async function handleApply() {
@@ -382,7 +395,9 @@ export function ResumeAutoApplyCard({
                           <div className="flex flex-wrap items-center gap-1.5">
                             <p className="font-medium text-sm">{job.title}</p>
                             <Badge variant="secondary" className="text-xs">
-                              {scoreLabel(job.match_score)}
+                              {scoreLabel(
+                                variant?.match_score ?? job.match_score,
+                              )}
                             </Badge>
                             {isReady ? (
                               <Badge

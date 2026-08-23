@@ -376,6 +376,29 @@ async def suggest_variant(
     return await state.tailor_service.suggest(resume_id, master, variant)
 
 
+@router.post(
+    "/resume/{resume_id}/variants/{variant_id}/score",
+    response_model=ResumeVariantResponse,
+)
+async def score_variant_route(
+    resume_id: str,
+    variant_id: str,
+    request: Request,
+) -> ResumeVariantResponse:
+    state = _state(request)
+    assert state.repository is not None
+    assert state.tailor_service is not None
+    assert state.variant_repository is not None
+
+    await require_resume_owner(state.repository, resume_id, request)
+    try:
+        variant = await state.variant_repository.get(resume_id, variant_id)
+    except VariantNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    return await state.tailor_service.rescore_variant(resume_id, variant)
+
+
 @router.get(
     "/resume/{resume_id}/variants/{variant_id}/versions",
     response_model=VariantVersionListResponse,
@@ -436,7 +459,7 @@ async def restore_variant_version(
         content=detail.content_snapshot,
         change_reason="restore",
     )
-    return updated
+    return await state.tailor_service.rescore_variant(resume_id, updated)
 
 
 @router.post(

@@ -22,6 +22,9 @@ class Settings(BaseSettings):
     latex_compiler: str = ""
     latex_timeout_seconds: float = 15.0
     allow_renderer_fallback: bool = True
+    tailor_mode: str = "keyword"
+    tailor_llm_on_create: bool = False
+    tailor_max_suggestions: int = 5
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

@@ -40,20 +40,21 @@ def test_apply_suggestions_updates_summary() -> None:
     assert "Python engineer" in (updated.summary or "")
 
 
-def test_apply_suggestions_merges_skills() -> None:
+def test_apply_suggestions_reorders_skills_without_adding() -> None:
     content = _sample_content()
     suggestions = [
         SuggestionWithId(
             id="s0",
             section="skills",
             current="Python, PostgreSQL",
-            suggested="Python, PostgreSQL, Django, React",
-            reason="Close skill gaps",
+            suggested="PostgreSQL, Python",
+            reason="Prioritize PostgreSQL for this role",
+            operation="reorder_skills",
         )
     ]
     updated = apply_suggestions(content, suggestions, ["s0"])
-    assert "Django" in updated.skills
-    assert "React" in updated.skills
+    assert updated.skills == ["PostgreSQL", "Python"]
+    assert "Django" not in updated.skills
 
 
 def test_validate_variant_content_requires_email() -> None:
@@ -182,32 +183,3 @@ def test_create_draft_preserves_existing_content() -> None:
     assert result.content.summary == existing.content.summary
     assert result.file_path == "/tmp/ready.pdf"
     repo.update_job_metadata.assert_awaited_once()
-
-
-def test_structured_fallback_includes_missing_skills() -> None:
-    from models import CreateVariantRequest
-    from services.tailoring.tailor import _structured_fallback
-
-    content = _sample_content()
-    request = CreateVariantRequest(
-        dedup_key="stripe::1",
-        job_title="Full Stack Engineer",
-        company_name="Stripe",
-        missing_skills=["React", "TypeScript"],
-    )
-    result = _structured_fallback(content, request, True)
-    assert result.suggestions
-    assert "React" in result.suggestions[0].suggested
-    from models import CreateVariantRequest
-    from services.tailoring.tailor import _structured_fallback
-
-    content = _sample_content()
-    request = CreateVariantRequest(
-        dedup_key="stripe::1",
-        job_title="Full Stack Engineer",
-        company_name="Stripe",
-        missing_skills=["React", "TypeScript"],
-    )
-    result = _structured_fallback(content, request, True)
-    assert result.suggestions
-    assert "React" in result.suggestions[0].suggested

@@ -459,6 +459,14 @@ class CreateVariantRequest(BaseModel):
     job_description: str | None = Field(default=None, max_length=8000)
     missing_skills: list[str] = Field(default_factory=list)
     matched_skills: list[str] = Field(default_factory=list)
+    initial_match_score: float | None = Field(default=None, ge=0.0, le=100.0)
+
+
+class MatchScoreMeta(BaseModel):
+    semantic_score: float = 0.0
+    skill_score: float = 0.0
+    matched_skills: list[str] = Field(default_factory=list)
+    missing_skills: list[str] = Field(default_factory=list)
 
 
 class UpdateVariantRequest(BaseModel):
@@ -488,6 +496,10 @@ class ResumeVariantResponse(BaseModel):
     artifact_id: str | None = None
     artifact_url: str | None = None
     diff: DiffContract = Field(default_factory=DiffContract)
+    baseline_match_score: float | None = None
+    match_score: float | None = None
+    match_score_updated_at: str | None = None
+    match_score_meta: MatchScoreMeta | None = None
     created_at: str | None = None
     updated_at: str | None = None
 

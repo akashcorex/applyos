@@ -154,6 +154,18 @@ class AppState:
                 "ALTER TABLE resume_variants ADD COLUMN IF NOT EXISTS artifact_id text"
             )
             await conn.execute(
+                "ALTER TABLE resume_variants ADD COLUMN IF NOT EXISTS baseline_match_score real"
+            )
+            await conn.execute(
+                "ALTER TABLE resume_variants ADD COLUMN IF NOT EXISTS match_score real"
+            )
+            await conn.execute(
+                "ALTER TABLE resume_variants ADD COLUMN IF NOT EXISTS match_score_updated_at timestamptz"
+            )
+            await conn.execute(
+                "ALTER TABLE resume_variants ADD COLUMN IF NOT EXISTS match_score_meta jsonb"
+            )
+            await conn.execute(
                 'ALTER TABLE resumes ADD COLUMN IF NOT EXISTS base_profile jsonb'
             )
             await conn.execute(
