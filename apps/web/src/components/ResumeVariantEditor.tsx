@@ -301,13 +301,14 @@ export function ResumeVariantEditor({
   ]);
 
   useEffect(() => {
-    if (!variant?.id) return;
+    const variantId = variant?.id;
+    if (!variantId) return;
     let cancelled = false;
     async function loadVersions() {
       setVersionsLoading(true);
       try {
         const res = await fetch(
-          `/api/resume/${resumeId}/variants/${variant.id}/versions`,
+          `/api/resume/${resumeId}/variants/${variantId}/versions`,
         );
         if (!res.ok) return;
         const data = (await res.json()) as { versions?: VariantVersionSummary[] };

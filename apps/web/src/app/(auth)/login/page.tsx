@@ -3,19 +3,16 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { FormEvent, useState } from 'react';
-import { Linkedin } from 'lucide-react';
+import { Linkedin, Loader2 } from 'lucide-react';
 
 import { appCallbackURL, authClient } from '@/lib/auth-client';
-import { Button } from '@applyso/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@applyso/ui/card';
-import { Input } from '@applyso/ui/input';
-import { Label } from '@applyso/ui/label';
-import { Separator } from '@applyso/ui/separator';
+import { AuthCardLayout } from '@/components/auth/AuthCardLayout';
 
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -51,71 +48,109 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl">Sign in</CardTitle>
-          <CardDescription>
-            Welcome back. Sign in to your account.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form className="space-y-4" onSubmit={handleEmailLogin}>
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                required
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                required
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-              />
-            </div>
+    <AuthCardLayout headlineLine1="EXPLORE." headlineLine2="LEARN. GROW.">
+      {/* Top Header Section */}
+      <div className="flex flex-col items-center text-center">
+        {/* Brand Icon Badge */}
+        <div className="h-10 w-10 rounded-2xl bg-slate-950 p-2 shadow-md flex items-center justify-center mb-3">
+          <img src="/logo-white.png" alt="ApplyOS" className="h-4 w-auto object-contain" />
+        </div>
 
-            {error ? <p className="text-sm text-destructive">{error}</p> : null}
+        <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight uppercase">
+          WELCOME BACK
+        </h1>
+        <p className="text-xs sm:text-sm text-slate-500 mt-1 mb-6 font-medium">
+          Enter your email and password to access your account
+        </p>
+      </div>
 
-            <Button type="submit" disabled={loading} className="w-full">
-              {loading ? 'Signing in...' : 'Sign in'}
-            </Button>
-          </form>
+      {/* Login Form */}
+      <form onSubmit={handleEmailLogin} className="space-y-4 w-full">
+        {/* Email Field */}
+        <div>
+          <label htmlFor="email" className="block text-xs font-semibold text-slate-700 mb-1.5">
+            Email
+          </label>
+          <input
+            id="email"
+            type="email"
+            required
+            placeholder="Enter your email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="w-full bg-slate-50/80 border border-slate-200/80 rounded-xl px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all"
+          />
+        </div>
 
-          <div className="my-6 flex items-center gap-3">
-            <Separator className="flex-1" />
-            <span className="text-xs text-muted-foreground">or</span>
-            <Separator className="flex-1" />
+        {/* Password Field */}
+        <div>
+          <label htmlFor="password" className="block text-xs font-semibold text-slate-700 mb-1.5">
+            Password
+          </label>
+          <input
+            id="password"
+            type="password"
+            required
+            placeholder="Enter your password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="w-full bg-slate-50/80 border border-slate-200/80 rounded-xl px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all"
+          />
+        </div>
+
+        {/* Options Row: Remember Me & Forgot Password */}
+        <div className="flex items-center justify-between text-xs pt-1 pb-1">
+          <label className="flex items-center gap-2 text-slate-600 font-medium cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={rememberMe}
+              onChange={(e) => setRememberMe(e.target.checked)}
+              className="h-3.5 w-3.5 rounded border-slate-300 text-slate-900 focus:ring-slate-900 accent-slate-900"
+            />
+            <span>Remember me</span>
+          </label>
+
+          <Link href="#" className="text-slate-500 hover:text-slate-900 font-medium transition-colors">
+            Forgot Password
+          </Link>
+        </div>
+
+        {/* Error Alert */}
+        {error ? (
+          <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs text-red-600 font-medium">
+            {error}
           </div>
+        ) : null}
 
-          <Button
-            variant="outline"
-            className="w-full"
-            onClick={handleLinkedInLogin}
-            disabled={loading}
-          >
-            <Linkedin className="h-4 w-4" />
-            Continue with LinkedIn
-          </Button>
+        {/* Primary Action Button (Black Pill Button) */}
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full bg-slate-950 hover:bg-slate-900 text-white font-semibold text-sm py-3 rounded-xl shadow-md transition-all hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 flex items-center justify-center gap-2"
+        >
+          {loading ? <Loader2 className="h-4 w-4 animate-spin text-white" /> : null}
+          <span>{loading ? 'Signing in...' : 'Sign In'}</span>
+        </button>
 
-          <p className="mt-6 text-center text-sm text-muted-foreground">
-            No account?{' '}
-            <Link
-              href="/signup"
-              className="font-medium text-primary hover:underline"
-            >
-              Sign up
-            </Link>
-          </p>
-        </CardContent>
-      </Card>
-    </main>
+        {/* Social Login Button */}
+        <button
+          type="button"
+          onClick={handleLinkedInLogin}
+          disabled={loading}
+          className="w-full bg-white border border-slate-200 hover:bg-slate-50 text-slate-800 font-medium text-xs sm:text-sm py-2.5 rounded-xl shadow-sm transition-all hover:scale-[1.01] active:scale-[0.99] flex items-center justify-center gap-2 mt-3"
+        >
+          <Linkedin className="h-4 w-4 text-[#0A66C2]" />
+          <span>Sign in with LinkedIn</span>
+        </button>
+      </form>
+
+      {/* Footer Link */}
+      <p className="mt-6 text-center text-xs text-slate-500 font-medium">
+        Don't have an account?{' '}
+        <Link href="/signup" className="font-semibold text-slate-900 hover:underline">
+          Sign up
+        </Link>
+      </p>
+    </AuthCardLayout>
   );
 }
