@@ -16,9 +16,9 @@ export function AuthCardLayout({
 }: AuthCardLayoutProps) {
   return (
     <main className="min-h-screen md:h-screen w-full bg-white flex flex-col md:flex-row overflow-x-hidden md:overflow-hidden font-sans antialiased">
-      {/* Left Visual Media Column - Full Height Left Half */}
-      <div className="relative w-full md:w-1/2 h-64 md:h-full p-3 sm:p-4 bg-white flex shrink-0">
-        <div className="relative w-full h-full rounded-2xl md:rounded-3xl overflow-hidden bg-slate-950 flex flex-col justify-between p-6 sm:p-10 select-none shadow-md">
+      {/* Left Visual Media Column - Sharp Geometry */}
+      <div className="relative w-full md:w-1/2 h-64 md:h-full p-2 sm:p-3 bg-white flex shrink-0">
+        <div className="relative w-full h-full rounded-md md:rounded-lg overflow-hidden bg-slate-950 flex flex-col justify-between p-6 sm:p-10 select-none shadow-md border border-slate-200">
           {/* Background Image */}
           <div
             className="absolute inset-0 bg-cover bg-center bg-no-repeat transition-transform duration-700 hover:scale-105"
@@ -31,8 +31,8 @@ export function AuthCardLayout({
 
           {/* Top Brand Tag */}
           <div className="relative z-10 flex items-center gap-2">
-            <Link href="/" className="flex items-center gap-2">
-              <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-950 border border-white/20 shadow-md">
+            <Link href="/" className="flex items-center gap-2 group">
+              <span className="flex h-8 w-8 items-center justify-center rounded-md bg-slate-950 border border-white/20 shadow-md transition-transform duration-150 group-hover:scale-105">
                 <img src="/logo-white.png" alt="ApplyOS" className="h-4 w-auto object-contain" />
               </span>
               <span className="text-sm font-bold text-white tracking-wider uppercase">
@@ -43,8 +43,8 @@ export function AuthCardLayout({
 
           {/* Center Play Button Overlay Icon */}
           <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
-            <div className="h-16 w-16 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center pl-1 border border-white/40 shadow-xl text-white">
-              <svg className="w-7 h-7 fill-current text-white" viewBox="0 0 24 24">
+            <div className="h-14 w-14 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center pl-1 border border-white/40 shadow-xl text-white">
+              <svg className="w-6 h-6 fill-current text-white" viewBox="0 0 24 24">
                 <path d="M8 5v14l11-7z" />
               </svg>
             </div>

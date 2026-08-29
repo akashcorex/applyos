@@ -1,32 +1,33 @@
 'use client';
 
 import { useState } from 'react';
-import { AppSidebar, DashboardTab } from './AppSidebar';
+import { AppSidebar } from './AppSidebar';
 import { DashboardHeader } from './DashboardHeader';
 
 interface DashboardLayoutProps {
-  children: (props: { activeTab: DashboardTab; setActiveTab: (tab: DashboardTab) => void }) => React.ReactNode;
+  children: React.ReactNode;
   userName?: string | null;
   userEmail?: string | null;
+  currentTitle?: string;
   onSignOut: () => void;
+  onQuickAction?: () => void;
 }
 
 export function DashboardLayout({
   children,
   userName,
   userEmail,
+  currentTitle = 'Overview',
   onSignOut,
+  onQuickAction,
 }: DashboardLayoutProps) {
-  const [activeTab, setActiveTab] = useState<DashboardTab>('overview');
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <div className="flex h-screen w-full bg-slate-50/60 overflow-hidden font-sans text-slate-900 antialiased">
+    <div className="flex h-screen w-full bg-[#0d0f12] text-[#f1f3f9] overflow-hidden font-sans antialiased">
       {/* Desktop Sidebar */}
       <div className="hidden md:flex h-full">
         <AppSidebar
-          activeTab={activeTab}
-          setActiveTab={setActiveTab}
           userName={userName}
           userEmail={userEmail}
           onSignOut={onSignOut}
@@ -37,35 +38,30 @@ export function DashboardLayout({
       {sidebarOpen ? (
         <div className="fixed inset-0 z-40 md:hidden flex">
           <div
-            className="fixed inset-0 bg-slate-950/40 backdrop-blur-sm transition-opacity"
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
             onClick={() => setSidebarOpen(false)}
           />
-          <div className="relative z-50 w-64 h-full bg-white shadow-2xl">
+          <div className="relative z-50 w-64 h-full bg-[#121418] shadow-2xl border-r border-[#262931]">
             <AppSidebar
-              activeTab={activeTab}
-              setActiveTab={(tab) => {
-                setActiveTab(tab);
-                setSidebarOpen(false);
-              }}
               userName={userName}
               userEmail={userEmail}
               onSignOut={onSignOut}
+              onNavigate={() => setSidebarOpen(false)}
             />
           </div>
         </div>
       ) : null}
 
       {/* Main Content Workspace */}
-      <div className="flex-1 flex flex-col h-full overflow-hidden">
+      <div className="flex-1 flex flex-col h-full overflow-hidden bg-[#0d0f12]">
         <DashboardHeader
-          userName={userName}
-          userEmail={userEmail}
-          onQuickAction={() => setActiveTab('auto-apply')}
+          currentTitle={currentTitle}
+          onQuickAction={onQuickAction}
           onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
         />
 
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-8">
-          {children({ activeTab, setActiveTab })}
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-6 bg-[#0d0f12]">
+          {children}
         </main>
       </div>
     </div>
