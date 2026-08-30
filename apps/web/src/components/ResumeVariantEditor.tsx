@@ -13,6 +13,7 @@ import {
 import { ResumeDocumentCanvas } from '@/components/ResumeDocumentCanvas';
 import { Button } from '@applyso/ui/button';
 import { Badge } from '@applyso/ui/badge';
+import { analytics } from '@applyso/analytics';
 
 export interface VariantContent {
   full_name: string;
@@ -152,7 +153,9 @@ function buildPayload(
       title: role.title.trim(),
       start_date: role.start_date?.trim() || null,
       end_date: role.end_date?.trim() || null,
-      highlights: (role.highlights ?? []).map((item) => item.trim()).filter(Boolean),
+      highlights: (role.highlights ?? [])
+        .map((item) => item.trim())
+        .filter(Boolean),
     })),
     education: content.education.map((item) => ({
       ...item,
@@ -311,7 +314,9 @@ export function ResumeVariantEditor({
           `/api/resume/${resumeId}/variants/${variantId}/versions`,
         );
         if (!res.ok) return;
-        const data = (await res.json()) as { versions?: VariantVersionSummary[] };
+        const data = (await res.json()) as {
+          versions?: VariantVersionSummary[];
+        };
         if (!cancelled) setVersions(data.versions ?? []);
       } finally {
         if (!cancelled) setVersionsLoading(false);
@@ -418,6 +423,14 @@ export function ResumeVariantEditor({
       setSkillsText(data.content.skills.join(', '));
       setAcceptedIds(new Set());
       onSaved(data);
+      analytics.track(
+        'resume_variant_saved',
+        {
+          variant_id: data.id,
+          match_score: data.match_score ?? undefined,
+        },
+        { feature: 'resume_builder' },
+      );
       const delta = scoreDelta(data.match_score, data.baseline_match_score);
       const from = scoreLabel(priorScore ?? data.baseline_match_score);
       const to = scoreLabel(data.match_score);
@@ -501,13 +514,17 @@ export function ResumeVariantEditor({
 
   if (loading) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-        <div className="rounded-lg bg-background p-6 shadow-lg space-y-4 max-w-sm w-full">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+        <div className="rounded-[12px] bg-white dark:bg-[#16171b] border border-slate-200 dark:border-[#282a32] p-6 shadow-2xl space-y-4 max-w-sm w-full text-slate-900 dark:text-[#f1f3f9]">
           <div className="flex items-center gap-2">
-            <Loader2 className="h-5 w-5 animate-spin" />
+            <Loader2 className="h-5 w-5 animate-spin text-slate-900 dark:text-[#f1f3f9]" />
             <span>Loading tailor for {job.company_name}…</span>
           </div>
-          <Button variant="outline" className="w-full" onClick={onClose}>
+          <Button
+            variant="outline"
+            className="w-full rounded-[6px]"
+            onClick={onClose}
+          >
             Cancel
           </Button>
         </div>
@@ -517,24 +534,26 @@ export function ResumeVariantEditor({
 
   if (error && !content) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-        <div className="rounded-lg bg-background p-6 shadow-lg space-y-4 max-w-sm w-full">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+        <div className="rounded-[12px] bg-white dark:bg-[#16171b] border border-slate-200 dark:border-[#282a32] p-6 shadow-2xl space-y-4 max-w-sm w-full text-slate-900 dark:text-[#f1f3f9]">
           <div>
-            <p className="font-semibold">Could not open tailor</p>
-            <p className="text-sm text-muted-foreground mt-1">
+            <p className="font-semibold text-slate-900 dark:text-[#f1f3f9]">
+              Could not open tailor
+            </p>
+            <p className="text-sm text-slate-500 dark:text-[#8a8f9d] mt-1">
               {job.title} · {job.company_name}
             </p>
           </div>
-          <p className="text-sm text-red-600">{error}</p>
+          <p className="text-sm text-red-500">{error}</p>
           <div className="flex gap-2">
             <Button
               variant="outline"
-              className="flex-1"
+              className="flex-1 rounded-[6px]"
               onClick={() => setReloadNonce((n) => n + 1)}
             >
               Try again
             </Button>
-            <Button className="flex-1" onClick={onClose}>
+            <Button className="flex-1 rounded-[6px]" onClick={onClose}>
               Close
             </Button>
           </div>
@@ -545,10 +564,12 @@ export function ResumeVariantEditor({
 
   if (!content) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-        <div className="rounded-lg bg-background p-6 shadow-lg space-y-4 max-w-sm w-full">
-          <p className="text-sm">No resume content is available to edit.</p>
-          <Button className="w-full" onClick={onClose}>
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+        <div className="rounded-[12px] bg-white dark:bg-[#16171b] border border-slate-200 dark:border-[#282a32] p-6 shadow-2xl space-y-4 max-w-sm w-full text-slate-900 dark:text-[#f1f3f9]">
+          <p className="text-sm text-slate-500 dark:text-[#8a8f9d]">
+            No resume content is available to edit.
+          </p>
+          <Button className="w-full rounded-[6px]" onClick={onClose}>
             Close
           </Button>
         </div>
@@ -570,12 +591,14 @@ export function ResumeVariantEditor({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-2 sm:p-4">
-      <div className="flex w-full max-w-6xl max-h-[92vh] flex-col overflow-hidden rounded-lg bg-background shadow-xl border">
-        <div className="sticky top-0 z-10 flex items-center justify-between border-b px-4 py-3 bg-background">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-2 sm:p-4">
+      <div className="flex w-full max-w-6xl max-h-[92vh] flex-col overflow-hidden rounded-[12px] bg-white dark:bg-[#16171b] shadow-2xl border border-slate-200 dark:border-[#282a32] text-slate-900 dark:text-[#f1f3f9]">
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 dark:border-[#282a32] px-4 py-3 bg-white dark:bg-[#16171b]">
           <div>
-            <p className="font-semibold">Tailor resume</p>
-            <p className="text-sm text-muted-foreground">
+            <p className="font-semibold text-slate-900 dark:text-[#f1f3f9]">
+              Tailor resume
+            </p>
+            <p className="text-sm text-slate-500 dark:text-[#8a8f9d]">
               {job.title} · {job.company_name}
             </p>
             {variant ? (
@@ -586,7 +609,10 @@ export function ResumeVariantEditor({
                 {variant.baseline_match_score != null ? (
                   <span className="text-muted-foreground">
                     baseline {scoreLabel(variant.baseline_match_score)}
-                    {scoreDelta(variant.match_score, variant.baseline_match_score)
+                    {scoreDelta(
+                      variant.match_score,
+                      variant.baseline_match_score,
+                    )
                       ? ` (${scoreDelta(variant.match_score, variant.baseline_match_score)})`
                       : ''}
                   </span>
@@ -686,7 +712,7 @@ export function ResumeVariantEditor({
                   {suggestions.map((s) => (
                     <div
                       key={s.id}
-                      className="rounded border p-3 space-y-2 text-sm"
+                      className="rounded-[8px] border border-[#26282e] bg-[#141518] p-3 space-y-2 text-sm"
                     >
                       <div className="flex items-center justify-between gap-2 flex-wrap">
                         <div className="flex items-center gap-1">
@@ -714,7 +740,10 @@ export function ResumeVariantEditor({
                         <Button
                           type="button"
                           size="sm"
-                          variant={acceptedIds.has(s.id) ? 'default' : 'outline'}
+                          variant={
+                            acceptedIds.has(s.id) ? 'default' : 'outline'
+                          }
+                          className="rounded-[6px]"
                           onClick={() => toggleSuggestion(s.id)}
                         >
                           {acceptedIds.has(s.id) ? (
@@ -723,11 +752,11 @@ export function ResumeVariantEditor({
                           Accept
                         </Button>
                       </div>
-                      <p className="text-xs text-muted-foreground line-through">
+                      <p className="text-xs text-[#8a8f9d] line-through">
                         {s.current}
                       </p>
-                      <p className="text-xs">{s.suggested}</p>
-                      <p className="text-xs text-muted-foreground">{s.reason}</p>
+                      <p className="text-xs text-[#f1f3f9]">{s.suggested}</p>
+                      <p className="text-xs text-[#8a8f9d]">{s.reason}</p>
                     </div>
                   ))}
                 </div>
@@ -735,17 +764,19 @@ export function ResumeVariantEditor({
 
               {versions.length > 0 || versionsLoading ? (
                 <div className="space-y-2">
-                  <p className="text-sm font-medium">Version history</p>
+                  <p className="text-sm font-medium text-[#f1f3f9]">
+                    Version history
+                  </p>
                   {versionsLoading ? (
-                    <p className="text-xs text-muted-foreground">Loading…</p>
+                    <p className="text-xs text-[#8a8f9d]">Loading…</p>
                   ) : (
                     <div className="space-y-1 max-h-32 overflow-y-auto">
                       {versions.map((version) => (
                         <div
                           key={version.id}
-                          className="flex items-center justify-between gap-2 rounded border px-2 py-1 text-xs"
+                          className="flex items-center justify-between gap-2 rounded-[6px] border border-[#26282e] bg-[#141518] px-2.5 py-1.5 text-xs"
                         >
-                          <span className="text-muted-foreground">
+                          <span className="text-[#8a8f9d]">
                             {version.change_reason.replaceAll('_', ' ')}
                             {version.created_at
                               ? ` · ${new Date(version.created_at).toLocaleString()}`
@@ -755,8 +786,11 @@ export function ResumeVariantEditor({
                             type="button"
                             size="sm"
                             variant="ghost"
+                            className="rounded-[4px] h-6 px-2 text-xs"
                             disabled={saving}
-                            onClick={() => void handleRestoreVersion(version.id)}
+                            onClick={() =>
+                              void handleRestoreVersion(version.id)
+                            }
                           >
                             Restore
                           </Button>
@@ -768,8 +802,8 @@ export function ResumeVariantEditor({
               ) : null}
 
               {previewUrl ? (
-                <div className="space-y-3 rounded-md border border-green-300 bg-green-50/50 p-3">
-                  <p className="text-sm text-green-700 flex items-center gap-1">
+                <div className="space-y-3 rounded-[8px] border border-emerald-800/50 bg-emerald-950/40 p-3.5">
+                  <p className="text-sm text-emerald-400 flex items-center gap-1">
                     <Check className="h-4 w-4" />
                     {variant?.status === 'ready'
                       ? 'Ready to apply with tailored resume'
@@ -780,7 +814,7 @@ export function ResumeVariantEditor({
                       href={previewUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 rounded-md border px-3 py-1.5 text-sm hover:bg-background"
+                      className="inline-flex items-center gap-1 rounded-[6px] border border-[#26282e] bg-[#141518] text-[#f1f3f9] px-3 py-1.5 text-xs font-semibold hover:bg-[#1f2025]"
                     >
                       <ExternalLink className="h-3.5 w-3.5" />
                       Open PDF
@@ -788,7 +822,7 @@ export function ResumeVariantEditor({
                     <a
                       href={previewUrl}
                       download={`resume-${variant?.id ?? 'resume'}.pdf`}
-                      className="inline-flex items-center gap-1 rounded-md border px-3 py-1.5 text-sm hover:bg-background"
+                      className="inline-flex items-center gap-1 rounded-[6px] border border-[#26282e] bg-[#141518] text-[#f1f3f9] px-3 py-1.5 text-xs font-semibold hover:bg-[#1f2025]"
                     >
                       <Download className="h-3.5 w-3.5" />
                       Download PDF

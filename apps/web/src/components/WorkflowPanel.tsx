@@ -14,6 +14,7 @@ import {
 import { Button } from '@applyso/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@applyso/ui/card';
 import { Badge } from '@applyso/ui/badge';
+import { analytics } from '@applyso/analytics';
 
 type WorkflowStatus =
   | 'pending'
@@ -96,52 +97,63 @@ const STATUS_CONFIG: Record<
 > = {
   pending: {
     label: 'Pending',
-    className: 'bg-gray-100 text-gray-700 border-gray-300',
+    className:
+      'bg-slate-100 dark:bg-slate-800/40 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700',
   },
   discovering_funding: {
     label: 'Funding',
-    className: 'bg-blue-100 text-blue-800 border-blue-300',
+    className:
+      'bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20',
   },
   discovering: {
     label: 'Discovering',
-    className: 'bg-blue-100 text-blue-800 border-blue-300',
+    className:
+      'bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20',
   },
   deciding: {
     label: 'Deciding',
-    className: 'bg-indigo-100 text-indigo-800 border-indigo-300',
+    className:
+      'bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 border-indigo-500/20',
   },
   filtering: {
     label: 'Filtering',
-    className: 'bg-purple-100 text-purple-800 border-purple-300',
+    className:
+      'bg-purple-500/10 text-purple-700 dark:text-purple-400 border-purple-500/20',
   },
   applying: {
     label: 'Applying',
-    className: 'bg-orange-100 text-orange-800 border-orange-300',
+    className:
+      'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20',
   },
   completed: {
     label: 'Completed',
-    className: 'bg-green-100 text-green-800 border-green-300',
+    className:
+      'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20',
   },
   partial: {
     label: 'Partial',
-    className: 'bg-yellow-100 text-yellow-800 border-yellow-300',
+    className:
+      'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20',
     title: 'Some apply tasks finished, but not all succeeded',
   },
   failed: {
     label: 'Failed',
-    className: 'bg-red-100 text-red-800 border-red-300',
+    className: 'bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20',
   },
   paused: {
     label: 'Paused',
-    className: 'bg-yellow-100 text-yellow-800 border-yellow-300',
+    className:
+      'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20',
   },
   stopped: {
     label: 'Stopped',
-    className: 'bg-gray-100 text-gray-700 border-gray-300',
+    className:
+      'bg-slate-100 dark:bg-slate-800/40 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700',
   },
   cancelled: {
     label: 'Cancelled',
-    className: 'bg-gray-100 text-gray-700 border-gray-300',
+    className:
+      'bg-slate-100 dark:bg-slate-800/40 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700',
   },
 };
 
@@ -221,8 +233,7 @@ function eventDetail(event: WorkflowEvent): string | null {
       ? `${applicationCompanyName} — ${applicationJobTitle}`
       : applicationCompanyName || applicationJobTitle;
 
-  const status =
-    typeof payload.status === 'string' ? payload.status : null;
+  const status = typeof payload.status === 'string' ? payload.status : null;
   const applicationStatus =
     application && typeof application.status === 'string'
       ? application.status
@@ -477,6 +488,20 @@ export function WorkflowPanel({
         setLifecycleError(data.error ?? `Unable to ${action} workflow`);
         return;
       }
+      if (action === 'pause') {
+        analytics.track('workflow_paused', { current_step: detail?.status }, { feature: 'workflows' });
+      } else if (action === 'resume') {
+        analytics.track('workflow_resumed', { current_step: detail?.status }, { feature: 'workflows' });
+      } else if (action === 'stop') {
+        analytics.track(
+          'workflow_cancelled',
+          {
+            completed_count: detail?.apply_tasks?.filter((t) => t.status === 'completed').length ?? 0,
+            total_count: detail?.apply_tasks?.length ?? 0,
+          },
+          { feature: 'workflows' }
+        );
+      }
       await Promise.all([fetchWorkflows(), refreshWorkflowDetail(id)]);
     } catch {
       setLifecycleError(`Unable to ${action} workflow`);
@@ -524,14 +549,13 @@ export function WorkflowPanel({
                 wf,
                 expandedId === wf.id ? detail : null,
               );
-              const cfg =
-                STATUS_CONFIG[detailStatus] ?? STATUS_CONFIG.pending;
+              const cfg = STATUS_CONFIG[detailStatus] ?? STATUS_CONFIG.pending;
               return (
                 <div key={wf.id}>
                   <button
                     type="button"
                     onClick={() => handleToggle(wf.id)}
-                    className="flex w-full items-center justify-between rounded px-2 py-1.5 text-sm hover:bg-muted"
+                    className="flex w-full items-center justify-between rounded-[6px] px-2.5 py-1.5 text-sm hover:bg-[#1f2025] transition-colors"
                   >
                     <div className="flex items-center gap-2 min-w-0">
                       {expandedId === wf.id ? (
@@ -660,7 +684,9 @@ export function WorkflowPanel({
                           )}
 
                           <div className="space-y-1">
-                            <p className="text-xs font-medium">Live Events</p>
+                            <p className="text-xs font-medium text-slate-900 dark:text-[#f1f3f9]">
+                              Live Events
+                            </p>
                             {events.length > 0 ? (
                               <div className="space-y-1 max-h-32 overflow-y-auto">
                                 {events.map((event) => {
@@ -669,20 +695,20 @@ export function WorkflowPanel({
                                   return (
                                     <div
                                       key={eventKey(event)}
-                                      className="rounded border px-2 py-1 text-xs"
+                                      className="rounded-[8px] border border-slate-200 dark:border-[#22242a] bg-slate-50 dark:bg-[#0e0f12] px-2.5 py-1.5 text-xs"
                                     >
                                       <div className="flex items-center justify-between gap-2">
-                                        <p className="font-medium truncate">
+                                        <p className="font-medium truncate text-slate-900 dark:text-[#f1f3f9]">
                                           {eventLabel(event)}
                                         </p>
                                         {timestamp && (
-                                          <span className="shrink-0 text-muted-foreground">
+                                          <span className="shrink-0 text-slate-500 dark:text-[#8a8f9d]">
                                             {timeAgo(timestamp)}
                                           </span>
                                         )}
                                       </div>
                                       {detailText && (
-                                        <p className="text-muted-foreground truncate">
+                                        <p className="text-slate-500 dark:text-[#8a8f9d] truncate">
                                           {detailText}
                                         </p>
                                       )}
@@ -691,7 +717,7 @@ export function WorkflowPanel({
                                 })}
                               </div>
                             ) : (
-                              <p className="text-xs text-muted-foreground">
+                              <p className="text-xs text-slate-500 dark:text-[#8a8f9d]">
                                 Waiting for workflow events...
                               </p>
                             )}
@@ -699,7 +725,7 @@ export function WorkflowPanel({
 
                           {detail.discovered_jobs.length > 0 && (
                             <div className="space-y-1">
-                              <p className="text-xs font-medium">
+                              <p className="text-xs font-medium text-slate-900 dark:text-[#f1f3f9]">
                                 Discovered Jobs ({detail.discovered_jobs.length}
                                 )
                               </p>
@@ -707,17 +733,17 @@ export function WorkflowPanel({
                                 {detail.discovered_jobs.map((job) => (
                                   <div
                                     key={job.external_id}
-                                    className="rounded border px-2 py-1 text-xs"
+                                    className="rounded-[8px] border border-slate-200 dark:border-[#22242a] bg-slate-50 dark:bg-[#0e0f12] px-2.5 py-1.5 text-xs"
                                   >
-                                    <p className="font-medium truncate">
+                                    <p className="font-medium truncate text-slate-900 dark:text-[#f1f3f9]">
                                       {job.title}
                                     </p>
-                                    <p className="text-muted-foreground truncate">
+                                    <p className="text-slate-500 dark:text-[#8a8f9d] truncate">
                                       {job.company_name}
                                       {job.location && ` · ${job.location}`}
                                       {job.seniority && ` · ${job.seniority}`}
                                     </p>
-                                    <p className="text-muted-foreground">
+                                    <p className="text-slate-500 dark:text-[#8a8f9d]">
                                       Score: {job.filter_score.toFixed(1)}
                                     </p>
                                   </div>
@@ -728,14 +754,14 @@ export function WorkflowPanel({
 
                           {detail.apply_tasks.length > 0 && (
                             <div className="space-y-1">
-                              <p className="text-xs font-medium">
+                              <p className="text-xs font-medium text-slate-900 dark:text-[#f1f3f9]">
                                 Applications ({detail.apply_tasks.length})
                               </p>
                               <div className="space-y-2 max-h-48 overflow-y-auto">
                                 {detail.apply_tasks.map((task) => (
                                   <div
                                     key={task.job_id}
-                                    className="rounded border px-2 py-2 text-xs"
+                                    className="rounded-[8px] border border-slate-200 dark:border-[#22242a] bg-slate-50 dark:bg-[#0e0f12] px-3 py-2.5 text-xs"
                                   >
                                     <div className="flex items-start justify-between gap-2">
                                       <div className="min-w-0">
@@ -948,48 +974,59 @@ function ApplyStatusBadge({ status }: { status: string }) {
   const config: Record<string, { label: string; className: string }> = {
     queued: {
       label: 'Queued',
-      className: 'bg-blue-100 text-blue-800 border-blue-300',
+      className:
+        'bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20',
     },
     running: {
       label: 'Running',
-      className: 'bg-orange-100 text-orange-800 border-orange-300',
+      className:
+        'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20',
     },
     pending: {
       label: 'Pending',
-      className: 'bg-gray-100 text-gray-700 border-gray-300',
+      className:
+        'bg-slate-100 dark:bg-slate-800/40 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700',
     },
     submitted: {
       label: 'Submitted',
-      className: 'bg-green-100 text-green-800 border-green-300',
+      className:
+        'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20',
     },
     already_applied: {
       label: 'Already Applied',
-      className: 'bg-blue-100 text-blue-800 border-blue-300',
+      className:
+        'bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20',
     },
     failed: {
       label: 'Failed',
-      className: 'bg-red-100 text-red-800 border-red-300',
+      className:
+        'bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20',
     },
     captcha_blocked: {
       label: 'Captcha',
-      className: 'bg-yellow-100 text-yellow-800 border-yellow-300',
+      className:
+        'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20',
     },
     login_required: {
       label: 'Login',
-      className: 'bg-orange-100 text-orange-800 border-orange-300',
+      className:
+        'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20',
     },
     timed_out: {
       label: 'Timed Out',
-      className: 'bg-red-100 text-red-800 border-red-300',
+      className:
+        'bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20',
     },
     skipped: {
       label: 'Skipped',
-      className: 'bg-gray-100 text-gray-500 border-gray-300',
+      className:
+        'bg-slate-100 dark:bg-slate-800/40 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700',
     },
   };
   const c = config[status] ?? {
     label: status,
-    className: 'bg-gray-100 text-gray-700 border-gray-300',
+    className:
+      'bg-slate-100 dark:bg-slate-800/40 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700',
   };
   return (
     <Badge variant="outline" className={`text-xs px-1.5 py-0 ${c.className}`}>
@@ -1002,28 +1039,34 @@ function LinkedInConnectBadge({ status }: { status: string }) {
   const config: Record<string, { label: string; className: string }> = {
     pending: {
       label: 'LinkedIn connects queued',
-      className: 'bg-blue-100 text-blue-800 border-blue-300',
+      className:
+        'bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20',
     },
     sent: {
       label: 'LinkedIn connects sent',
-      className: 'bg-green-100 text-green-800 border-green-300',
+      className:
+        'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20',
     },
     login_required: {
       label: 'LinkedIn session required',
-      className: 'bg-orange-100 text-orange-800 border-orange-300',
+      className:
+        'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20',
     },
     failed: {
       label: 'LinkedIn connects failed',
-      className: 'bg-red-100 text-red-800 border-red-300',
+      className:
+        'bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20',
     },
     skipped: {
       label: 'LinkedIn connects skipped',
-      className: 'bg-gray-100 text-gray-600 border-gray-300',
+      className:
+        'bg-slate-100 dark:bg-slate-800/40 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700',
     },
   };
   const c = config[status] ?? {
     label: `LinkedIn: ${status}`,
-    className: 'bg-gray-100 text-gray-700 border-gray-300',
+    className:
+      'bg-slate-100 dark:bg-slate-800/40 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700',
   };
   return (
     <Badge variant="outline" className={`text-xs px-1.5 py-0 ${c.className}`}>

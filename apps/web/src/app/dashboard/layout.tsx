@@ -4,19 +4,21 @@ import { useRouter, usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
 import { authClient } from '@/lib/auth-client';
+import { analytics } from '@applyso/analytics';
 import { AppSidebar } from '@/components/dashboard/AppSidebar';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { DashboardSkeleton } from '@/components/dashboard/DashboardSkeleton';
 
 const sectionTitles: Record<string, string> = {
   '/dashboard': 'Overview',
-  '/dashboard/auto-apply': 'Auto-Apply & Resumes',
-  '/dashboard/workflows': 'Workflows & Queue',
-  '/dashboard/discovery': 'Company Discovery',
-  '/dashboard/linkedin': 'LinkedIn Outreach',
-  '/dashboard/settings': 'General Profile',
-  '/dashboard/settings/security': 'Security & Auth',
-  '/dashboard/settings/preferences': 'Agent Preferences',
+  '/dashboard/auto-apply': 'Profile & Resume',
+  '/dashboard/discovery': 'Jobs',
+  '/dashboard/workflows': 'Tracker',
+  '/dashboard/linkedin': 'Outreach',
+  '/dashboard/settings': 'Profile',
+  '/dashboard/settings/billing': 'Plans & Billing',
+  '/dashboard/settings/security': 'Security',
+  '/dashboard/settings/preferences': 'Preferences',
 };
 
 export default function DashboardAppLayout({
@@ -28,6 +30,31 @@ export default function DashboardAppLayout({
   const pathname = usePathname();
   const { data: session, isPending } = authClient.useSession();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(false);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('applyos-sidebar-collapsed');
+      if (saved !== null) {
+        setIsCollapsed(saved === 'true');
+      }
+    } catch {}
+  }, []);
+
+  function toggleCollapse() {
+    setIsCollapsed((prev) => {
+      const next = !prev;
+      analytics.track(
+        'sidebar_toggled',
+        { is_collapsed: next },
+        { feature: 'navigation' },
+      );
+      try {
+        localStorage.setItem('applyos-sidebar-collapsed', String(next));
+      } catch {}
+      return next;
+    });
+  }
 
   useEffect(() => {
     if (!isPending && !session) {
@@ -36,16 +63,18 @@ export default function DashboardAppLayout({
   }, [isPending, session, router]);
 
   async function handleSignOut() {
-    await authClient.signOut({
-      fetchOptions: {
-        onSuccess: () => router.replace('/login'),
-      },
-    });
+    try {
+      await authClient.signOut();
+    } catch (err) {
+      console.error('Sign out error:', err);
+    } finally {
+      window.location.href = '/login';
+    }
   }
 
   if (isPending || !session) {
     return (
-      <main className="min-h-screen bg-[#0d0f12] p-6 flex items-center justify-center text-[#f1f3f9]">
+      <main className="min-h-screen bg-[#f0f2f5] dark:bg-[#09090A] p-6 flex items-center justify-center text-slate-900 dark:text-[#f1f3f9] transition-colors duration-150">
         <DashboardSkeleton />
       </main>
     );
@@ -54,13 +83,15 @@ export default function DashboardAppLayout({
   const currentTitle = sectionTitles[pathname] ?? 'Dashboard';
 
   return (
-    <div className="flex h-screen w-full bg-[#0d0f12] text-[#f1f3f9] overflow-hidden font-sans antialiased">
+    <div className="flex h-screen w-full bg-[#f0f2f5] dark:bg-[#09090A] text-slate-900 dark:text-[#f1f3f9] overflow-hidden font-sans antialiased transition-colors duration-150">
       {/* Desktop Sidebar */}
-      <div className="hidden md:flex h-full">
+      <div className="hidden md:flex h-full shrink-0">
         <AppSidebar
           userName={session.user.name}
           userEmail={session.user.email}
           onSignOut={handleSignOut}
+          isCollapsed={isCollapsed}
+          onToggleCollapse={toggleCollapse}
         />
       </div>
 
@@ -71,19 +102,20 @@ export default function DashboardAppLayout({
             className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
             onClick={() => setSidebarOpen(false)}
           />
-          <div className="relative z-50 w-64 h-full bg-[#121418] shadow-2xl border-r border-[#262931]">
+          <div className="relative z-50 w-64 h-full bg-[#f0f2f5] dark:bg-[#09090A] shadow-2xl border-r border-slate-200 dark:border-[#22242a]">
             <AppSidebar
               userName={session.user.name}
               userEmail={session.user.email}
               onSignOut={handleSignOut}
               onNavigate={() => setSidebarOpen(false)}
+              onToggleCollapse={() => setSidebarOpen(false)}
             />
           </div>
         </div>
       ) : null}
 
-      {/* Main Workspace Area */}
-      <div className="flex-1 flex flex-col h-full overflow-hidden bg-[#0d0f12]">
+      {/* Main Workspace Area with Sidebar-Facing Corner Curves (Top-Left & Bottom-Left Only) */}
+      <div className="flex-1 flex flex-col h-full md:my-2 md:h-[calc(100vh-1rem)] overflow-hidden bg-white dark:bg-[#121213] md:rounded-l-2xl md:rounded-r-none md:border-l md:border-y md:border-r-0 border-slate-200/80 dark:border-[#22242a] shadow-xl dark:shadow-2xl transition-colors duration-150">
         {/* Single Unified Linear Header Bar */}
         <DashboardHeader
           currentTitle={currentTitle}
@@ -92,7 +124,7 @@ export default function DashboardAppLayout({
         />
 
         {/* Scrollable Page Workspace */}
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-6 bg-[#0d0f12]">
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-6 bg-white dark:bg-[#121213] transition-colors duration-150">
           {children}
         </main>
       </div>

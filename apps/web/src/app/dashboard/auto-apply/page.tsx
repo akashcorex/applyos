@@ -9,8 +9,13 @@ export default function AutoApplyPage() {
   return (
     <div className="w-full max-w-[1240px] mx-auto space-y-5 animate-fadeIn text-[#f1f3f9]">
       <div>
-        <h1 className="text-xl font-semibold text-[#f1f3f9] tracking-tight">Auto-Apply & Resume Tailoring Engine</h1>
-        <p className="text-xs text-[#8b90a0] mt-0.5 font-normal">Upload your master resume, discover high-match positions, and trigger autonomous job applications.</p>
+        <h1 className="text-xl font-semibold text-[#f1f3f9] tracking-tight">
+          Profile & Resume
+        </h1>
+        <p className="text-xs text-[#8a8f9d] mt-0.5 font-normal">
+          Manage your master resume, tailor CVs for high-match roles, and launch
+          auto-applications.
+        </p>
       </div>
 
       <ResumeAutoApplyCard

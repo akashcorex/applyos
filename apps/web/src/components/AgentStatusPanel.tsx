@@ -13,14 +13,16 @@ interface AgentHealth {
 }
 
 const statusColors: Record<AgentHealth['status'], string> = {
-  healthy: 'bg-green-100 text-green-800 border-green-300',
-  degraded: 'bg-yellow-100 text-yellow-800 border-yellow-300',
-  offline: 'bg-red-100 text-red-800 border-red-300',
+  healthy:
+    'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20',
+  degraded:
+    'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20',
+  offline: 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20',
 };
 
 const statusDots: Record<AgentHealth['status'], string> = {
-  healthy: 'bg-green-500',
-  degraded: 'bg-yellow-500',
+  healthy: 'bg-emerald-500',
+  degraded: 'bg-amber-500',
   offline: 'bg-red-500',
 };
 
@@ -73,21 +75,25 @@ export function AgentStatusPanel() {
       </CardHeader>
       <CardContent>
         {loading && agents.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Connecting to agents...</p>
+          <p className="text-sm text-slate-500 dark:text-[#8a8f9d]">
+            Connecting to agents...
+          </p>
         ) : (
           <div className="space-y-2">
             {agents.map((agent) => (
               <div
                 key={agent.name}
-                className="flex items-center justify-between rounded-md border px-3 py-2"
+                className="flex items-center justify-between rounded-[8px] border border-slate-200 dark:border-[#22242a] bg-slate-50 dark:bg-[#0e0f12] px-3.5 py-2.5"
               >
                 <div className="flex items-center gap-3">
                   <span
                     className={`h-2 w-2 rounded-full ${statusDots[agent.status]}`}
                   />
                   <div>
-                    <p className="text-sm font-medium">{agent.name}</p>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-sm font-medium text-slate-900 dark:text-[#f1f3f9]">
+                      {agent.name}
+                    </p>
+                    <p className="text-xs text-slate-500 dark:text-[#8a8f9d] font-mono">
                       :{agent.port}
                     </p>
                   </div>

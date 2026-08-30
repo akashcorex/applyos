@@ -19,7 +19,11 @@
       }
     ],
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@applyso/analytics": ["../../packages/analytics/src/index.ts"],
+      "@applyso/analytics/*": ["../../packages/analytics/src/*"],
+      "@applyso/database": ["../../packages/database/src/index.ts"],
+      "@applyso/database/*": ["../../packages/database/src/*"]
     },
     "outDir": "dist",
     "rootDir": "src",
@@ -51,6 +55,9 @@
   "references": [
     {
       "path": "../../packages/database"
+    },
+    {
+      "path": "../../packages/analytics"
     }
   ]
 }

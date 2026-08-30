@@ -9,6 +9,7 @@
     "start": "next start"
   },
   "dependencies": {
+    "@applyso/analytics": "workspace:*",
     "@applyso/database": "workspace:*",
     "@applyso/ui": "workspace:*",
     "@vercel/analytics": "^2.0.1",

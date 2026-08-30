@@ -33,7 +33,11 @@ export function AuthCardLayout({
           <div className="relative z-10 flex items-center gap-2">
             <Link href="/" className="flex items-center gap-2 group">
               <span className="flex h-8 w-8 items-center justify-center rounded-md bg-slate-950 border border-white/20 shadow-md transition-transform duration-150 group-hover:scale-105">
-                <img src="/logo-white.png" alt="ApplyOS" className="h-4 w-auto object-contain" />
+                <img
+                  src="/logo-white.png"
+                  alt="ApplyOS"
+                  className="h-4 w-auto object-contain"
+                />
               </span>
               <span className="text-sm font-bold text-white tracking-wider uppercase">
                 ApplyOS.in
@@ -44,7 +48,10 @@ export function AuthCardLayout({
           {/* Center Play Button Overlay Icon */}
           <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
             <div className="h-14 w-14 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center pl-1 border border-white/40 shadow-xl text-white">
-              <svg className="w-6 h-6 fill-current text-white" viewBox="0 0 24 24">
+              <svg
+                className="w-6 h-6 fill-current text-white"
+                viewBox="0 0 24 24"
+              >
                 <path d="M8 5v14l11-7z" />
               </svg>
             </div>
@@ -60,9 +67,7 @@ export function AuthCardLayout({
 
       {/* Right Form Column - Full Height Right Half */}
       <div className="w-full md:w-1/2 h-full flex flex-col justify-center items-center px-6 sm:px-12 lg:px-20 py-8 overflow-y-auto bg-white">
-        <div className="w-full max-w-md">
-          {children}
-        </div>
+        <div className="w-full max-w-md">{children}</div>
       </div>
     </main>
   );

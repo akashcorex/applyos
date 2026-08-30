@@ -5,9 +5,7 @@ import Script from 'next/script';
 import { Analytics } from '@vercel/analytics/next';
 import { Toaster } from '@applyso/ui';
 
-const GA_MEASUREMENT_ID =
-  process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID ?? '';
-
+const GA_MEASUREMENT_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID ?? '';
 
 function resolveSiteUrl(): string {
   const fallback = 'https://www.applyos.in';
@@ -17,8 +15,12 @@ function resolveSiteUrl(): string {
     (process.env.VERCEL_PROJECT_PRODUCTION_URL
       ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
       : undefined) ??
-    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined) ??
-    (process.env.NODE_ENV === 'production' ? fallback : 'http://localhost:3000');
+    (process.env.VERCEL_URL
+      ? `https://${process.env.VERCEL_URL}`
+      : undefined) ??
+    (process.env.NODE_ENV === 'production'
+      ? fallback
+      : 'http://localhost:3000');
 
   try {
     const url = new URL(raw);
@@ -89,14 +91,34 @@ export const metadata: Metadata = {
   },
 };
 
+import { ThemeProvider } from '@/components/theme-provider';
+import { AnalyticsProvider } from '@/components/analytics/AnalyticsProvider';
+
 export default function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning className="dark">
       <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              try {
+                var stored = localStorage.getItem('applyos-theme');
+                var isDark = stored === 'dark' || (!stored && window.matchMedia('(prefers-color-scheme: dark)').matches) || stored === null;
+                if (!isDark && stored === 'light') {
+                  document.documentElement.classList.remove('dark');
+                  document.documentElement.classList.add('light');
+                } else {
+                  document.documentElement.classList.add('dark');
+                  document.documentElement.classList.remove('light');
+                }
+              } catch (e) {}
+            `,
+          }}
+        />
         {GA_MEASUREMENT_ID ? (
           <>
             <Script
@@ -116,9 +138,13 @@ export default function RootLayout({
         ) : null}
       </head>
       <body suppressHydrationWarning>
-        {children}
-        <Toaster />
-        <Analytics />
+        <ThemeProvider defaultTheme="dark" storageKey="applyos-theme">
+          <AnalyticsProvider>
+            {children}
+            <Toaster />
+            <Analytics />
+          </AnalyticsProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

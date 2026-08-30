@@ -24,11 +24,7 @@ function useSignupCount() {
   return { count, setCount };
 }
 
-function EmailForm({
-  onBumpCount,
-}: {
-  onBumpCount: () => void;
-}) {
+function EmailForm({ onBumpCount }: { onBumpCount: () => void }) {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -52,7 +48,9 @@ function EmailForm({
         const isNew = !result.alreadyRegistered;
 
         toast({
-          title: isNew ? "One less thing to worry about." : 'Already on the list',
+          title: isNew
+            ? 'One less thing to worry about.'
+            : 'Already on the list',
           description: isNew
             ? "Your future AI job agent is warming up. We'll email you when it's ready."
             : 'This email is already on the priority list.',
@@ -132,10 +130,17 @@ export default function EarlyAccessPage() {
         {/* Navbar */}
         <nav className="relative z-10 flex w-full items-center justify-between px-6 sm:px-10 py-5">
           <div className="flex items-center gap-3">
-            <img src="/logo-white.png" alt="APPLYOS.in" className="h-5 w-auto object-contain" />
+            <img
+              src="/logo-white.png"
+              alt="APPLYOS.in"
+              className="h-5 w-auto object-contain"
+            />
           </div>
 
-          <Badge variant="outline" className="flex items-center gap-2 border-slate-900/15 bg-white/50 px-3.5 py-1.5 text-xs font-semibold text-slate-800 shadow-sm backdrop-blur-md rounded-xl">
+          <Badge
+            variant="outline"
+            className="flex items-center gap-2 border-slate-900/15 bg-white/50 px-3.5 py-1.5 text-xs font-semibold text-slate-800 shadow-sm backdrop-blur-md rounded-xl"
+          >
             <span className="h-2 w-2 rounded-full bg-emerald-600 animate-pulse" />
             <span>Early Access</span>
           </Badge>
@@ -159,7 +164,9 @@ export default function EarlyAccessPage() {
             </h1>
 
             <p className="mt-3 max-w-[34rem] text-base leading-relaxed text-white/70 antialiased">
-              Be first to every opportunity that matters. ApplyOS finds high-growth roles, tailors your applications, and reaches out automatically.
+              Be first to every opportunity that matters. ApplyOS finds
+              high-growth roles, tailors your applications, and reaches out
+              automatically.
             </p>
 
             <div className="mt-5 w-full max-w-[30rem]">
@@ -169,7 +176,8 @@ export default function EarlyAccessPage() {
             {count != null && count > 0 && (
               <div className="mt-2 px-1 flex items-center gap-2 text-xs text-white/40">
                 <span className="h-1.5 w-1.5 rounded-full bg-white/50" />
-                Join <span className="text-white/60">{count}+</span> builders on the priority list
+                Join <span className="text-white/60">{count}+</span> builders on
+                the priority list
               </div>
             )}
           </div>
@@ -177,7 +185,9 @@ export default function EarlyAccessPage() {
 
         {/* Footer */}
         <footer className="relative z-10 flex w-full items-center px-6 sm:px-10 py-5 text-xs font-semibold text-white/80">
-          <div>© {new Date().getFullYear()} ApplyOS Inc. All rights reserved.</div>
+          <div>
+            © {new Date().getFullYear()} ApplyOS Inc. All rights reserved.
+          </div>
         </footer>
       </div>
     </div>

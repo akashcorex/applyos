@@ -1,0 +1,15 @@
+{
+  "name": "@applyso/analytics",
+  "version": "0.0.1",
+  "private": true,
+  "description": "applyso — typed product analytics, privacy-aware autocapture, and event transport SDK.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./client": "./src/client.ts",
+    "./server": "./src/server.ts",
+    "./types": "./src/types.ts"
+  },
+  "dependencies": {
+    "@applyso/database": "workspace:*"
+  }
+}

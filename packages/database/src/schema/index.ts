@@ -5,3 +5,4 @@ export * from './early-access';
 export * from './matching';
 export * from './workflows';
 export * from './preferences';
+export * from './analytics';

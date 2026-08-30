@@ -6,25 +6,26 @@
 
 ## What it does
 
-- **Authentication** — email/password and LinkedIn OAuth via better-auth with Drizzle/PostgreSQL adapter
+- **Authentication** — email/password, Google OAuth, and LinkedIn OAuth via better-auth with Drizzle/PostgreSQL adapter
 - **Database gateway** — connects to PostgreSQL (Neon) via `@applyso/database` shared package
 - **Health check** — `GET /` returns service status
 - **Future** — API routes for job management, workflow orchestration, and agent coordination
 
 ## Endpoints
 
-| Method | Path | Description |
-|--------|------|-------------|
-| `ALL` | `/api/auth/*` | better-auth universal handler (sign-in, sign-up, session, sign-out, OAuth callbacks) |
-| `GET` | `/` | Health check |
+| Method | Path          | Description                                                                          |
+| ------ | ------------- | ------------------------------------------------------------------------------------ |
+| `ALL`  | `/api/auth/*` | better-auth universal handler (sign-in, sign-up, session, sign-out, OAuth callbacks) |
+| `GET`  | `/`           | Health check                                                                         |
 
 better-auth handles these sub-routes automatically:
+
 - `POST /api/auth/sign-in/email`
 - `POST /api/auth/sign-up/email`
 - `GET /api/auth/session`
 - `POST /api/auth/sign-out`
+- `GET /api/auth/callback/google`
 - `GET /api/auth/callback/linkedin`
-- `GET /api/auth/linkedin/authorize`
 
 ## Tech stack
 
@@ -53,10 +54,10 @@ The API will be available at `http://localhost:3333`.
 The app reads environment values from `apps/api/.env`.
 
 Key settings:
+
 - `DATABASE_URL` — PostgreSQL connection string
 - `AUTH_SECRET` — better-auth secret key
+- `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` — Google OAuth credentials
 - `LINKEDIN_CLIENT_ID` / `LINKEDIN_CLIENT_SECRET` — LinkedIn OAuth credentials
 - `WEB_URL` — frontend origin for CORS (default `http://localhost:3000`)
 - `BEACON_API_KEY` — (optional) Fallow runtime coverage beacon
-
-See `.env.example` for the full list.

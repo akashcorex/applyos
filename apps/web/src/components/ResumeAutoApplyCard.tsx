@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 
 import { authClient } from '@/lib/auth-client';
+import { analytics } from '@applyso/analytics';
 import {
   ResumeVariantEditor,
   type ResumeVariant,
@@ -110,6 +111,25 @@ export function ResumeAutoApplyCard({
       return;
     }
 
+    const fileSizeBucket =
+      file.size < 1024 * 1024
+        ? '<1mb'
+        : file.size < 5 * 1024 * 1024
+          ? '1-5mb'
+          : '>5mb';
+
+    analytics.track(
+      'resume_uploaded',
+      {
+        file_type: file.type || file.name.split('.').pop() || 'unknown',
+        file_size_bucket: fileSizeBucket,
+      },
+      { feature: 'resume_builder' },
+    );
+
+    const startTime = Date.now();
+    analytics.track('resume_parse_started', {}, { feature: 'resume_builder' });
+
     setUploading(true);
     setError(null);
     setResume(null);
@@ -126,12 +146,39 @@ export function ResumeAutoApplyCard({
       });
       const data = (await res.json().catch(() => null)) as unknown;
       if (!res.ok) {
-        setError(errorMessage(data, 'Failed to parse resume'));
+        const errMsg = errorMessage(data, 'Failed to parse resume');
+        analytics.track(
+          'resume_parse_failed',
+          {
+            error_code: 'PARSE_HTTP_ERROR',
+            duration_ms: Date.now() - startTime,
+          },
+          { feature: 'resume_builder' },
+        );
+        setError(errMsg);
         return;
       }
 
-      setResume(data as ParsedResume);
+      const parsed = data as ParsedResume;
+      analytics.track(
+        'resume_parse_completed',
+        {
+          resume_id: parsed.resume_id,
+          duration_ms: Date.now() - startTime,
+          skill_count: parsed.skills?.length,
+        },
+        { feature: 'resume_builder' },
+      );
+      setResume(parsed);
     } catch {
+      analytics.track(
+        'resume_parse_failed',
+        {
+          error_code: 'AGENT_UNAVAILABLE',
+          duration_ms: Date.now() - startTime,
+        },
+        { feature: 'resume_builder' },
+      );
       setError('Resume agent is not running');
     } finally {
       setUploading(false);
@@ -320,10 +367,14 @@ export function ResumeAutoApplyCard({
             </Button>
 
             {resume ? (
-              <div className="rounded-md border px-3 py-2 text-sm space-y-1">
-                <p className="font-medium">{resume.full_name}</p>
-                <p className="text-muted-foreground">{resume.email}</p>
-                <p className="text-xs text-muted-foreground">
+              <div className="rounded-[8px] border border-slate-200 dark:border-[#22242a] bg-slate-50 dark:bg-[#0e0f12] px-3.5 py-2.5 text-sm space-y-1">
+                <p className="font-medium text-slate-900 dark:text-[#f1f3f9]">
+                  {resume.full_name}
+                </p>
+                <p className="text-slate-500 dark:text-[#8a8f9d] text-xs font-mono">
+                  {resume.email}
+                </p>
+                <p className="text-xs text-slate-500 dark:text-[#8a8f9d]">
                   {[
                     resume.preferred_role,
                     `${resume.experience_years} years experience`,
@@ -335,13 +386,15 @@ export function ResumeAutoApplyCard({
             ) : null}
           </section>
 
-          <section className="space-y-3 border-t pt-5">
+          <section className="space-y-3 border-t border-slate-200 dark:border-[#22242a] pt-5">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-2">
                 <Badge variant="outline">2</Badge>
                 <div>
-                  <p className="text-sm font-medium">Match and select jobs</p>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-sm font-medium text-slate-900 dark:text-[#f1f3f9]">
+                    Match and select jobs
+                  </p>
+                  <p className="text-xs text-slate-500 dark:text-[#8a8f9d]">
                     Choose up to 10 roles with an application link.
                   </p>
                 </div>
@@ -377,13 +430,13 @@ export function ResumeAutoApplyCard({
                   return (
                     <div
                       key={job.dedup_key}
-                      className="rounded-md border p-3 space-y-2"
+                      className="rounded-[8px] border border-slate-200 dark:border-[#22242a] bg-slate-50/50 dark:bg-[#0e0f12] p-3.5 space-y-2"
                     >
                       <div className="flex items-start gap-3">
                         <input
                           id={`job-${job.dedup_key}`}
                           type="checkbox"
-                          className="mt-1 h-4 w-4 shrink-0 rounded border-input"
+                          className="mt-1 h-3.5 w-3.5 shrink-0 rounded-[4px] border-slate-300 dark:border-[#282a32] bg-white dark:bg-[#16171b] text-slate-900 dark:text-[#f1f3f9] focus:ring-slate-900 dark:focus:ring-[#f1f3f9]"
                           checked={isSelected}
                           disabled={!canApply}
                           onChange={() => toggleJob(job)}
@@ -393,7 +446,9 @@ export function ResumeAutoApplyCard({
                           className="min-w-0 flex-1 cursor-pointer"
                         >
                           <div className="flex flex-wrap items-center gap-1.5">
-                            <p className="font-medium text-sm">{job.title}</p>
+                            <p className="font-medium text-sm text-slate-900 dark:text-[#f1f3f9]">
+                              {job.title}
+                            </p>
                             <Badge variant="secondary" className="text-xs">
                               {scoreLabel(
                                 variant?.match_score ?? job.match_score,
@@ -402,7 +457,7 @@ export function ResumeAutoApplyCard({
                             {isReady ? (
                               <Badge
                                 variant="outline"
-                                className="text-xs bg-green-100 text-green-800 border-green-300"
+                                className="text-xs bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
                               >
                                 tailored
                               </Badge>
@@ -416,7 +471,7 @@ export function ResumeAutoApplyCard({
                               </Badge>
                             ) : null}
                           </div>
-                          <p className="text-xs text-muted-foreground">
+                          <p className="text-xs text-slate-500 dark:text-[#8a8f9d]">
                             {[job.company_name, job.location, job.seniority]
                               .filter(Boolean)
                               .join(' · ')}
@@ -428,7 +483,7 @@ export function ResumeAutoApplyCard({
                             target="_blank"
                             rel="noopener noreferrer"
                             aria-label={`Open ${job.title} at ${job.company_name}`}
-                            className="shrink-0 text-muted-foreground hover:text-foreground"
+                            className="shrink-0 text-slate-500 dark:text-[#8a8f9d] hover:text-slate-900 dark:hover:text-[#f1f3f9]"
                           >
                             <ExternalLink className="h-4 w-4" />
                           </a>
@@ -436,7 +491,7 @@ export function ResumeAutoApplyCard({
                       </div>
 
                       <div className="flex flex-wrap items-center justify-between gap-2 pl-7">
-                        <p className="text-xs text-muted-foreground">
+                        <p className="text-xs text-slate-500 dark:text-[#8a8f9d]">
                           {job.reason ||
                             (canApply
                               ? 'Optional: tailor this resume, or apply with the original.'
@@ -457,26 +512,28 @@ export function ResumeAutoApplyCard({
                 })}
               </div>
             ) : resume && !matching ? (
-              <p className="rounded-md border border-dashed px-3 py-4 text-sm text-muted-foreground">
+              <p className="rounded-[8px] border border-dashed border-slate-200 dark:border-[#22242a] px-3 py-4 text-sm text-slate-500 dark:text-[#8a8f9d]">
                 Find matches to review roles and select the ones you want to
                 apply to.
               </p>
             ) : null}
           </section>
 
-          <section className="space-y-3 border-t pt-5">
+          <section className="space-y-3 border-t border-slate-200 dark:border-[#22242a] pt-5">
             <div className="flex items-center gap-2">
               <Badge variant="outline">3</Badge>
               <div>
-                <p className="text-sm font-medium">Tailor (optional)</p>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-sm font-medium text-slate-900 dark:text-[#f1f3f9]">
+                  Tailor (optional)
+                </p>
+                <p className="text-xs text-slate-500 dark:text-[#8a8f9d]">
                   Open a role to customize the resume. Skip this step to apply
                   with your original upload.
                 </p>
               </div>
             </div>
             {selectedJobs.length > 0 ? (
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-slate-500 dark:text-[#8a8f9d]">
                 {readySelectedJobs.length} of {selectedJobs.length} selected
                 jobs have a tailored resume.
                 {selectedNeedsReview > 0
@@ -484,13 +541,13 @@ export function ResumeAutoApplyCard({
                   : ' All selected jobs will use a tailored resume.'}
               </p>
             ) : (
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-slate-500 dark:text-[#8a8f9d]">
                 Select jobs to queue. Tailoring is optional.
               </p>
             )}
           </section>
 
-          <section className="space-y-3 border-t pt-5">
+          <section className="space-y-3 border-t border-slate-200 dark:border-[#26282e] pt-5">
             <div className="flex items-center gap-2">
               <Badge variant="outline">4</Badge>
               <div>

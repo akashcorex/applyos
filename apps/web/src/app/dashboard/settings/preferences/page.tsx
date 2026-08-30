@@ -1,7 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@applyso/ui/card';
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from '@applyso/ui/card';
 import { Button } from '@applyso/ui/button';
 import { Input } from '@applyso/ui/input';
 import { Sliders, Bot, Check } from 'lucide-react';
@@ -19,26 +25,35 @@ export default function PreferencesSettingsPage() {
   }
 
   return (
-    <div className="w-full max-w-[1240px] mx-auto space-y-6 animate-fadeIn text-[#f1f3f9]">
+    <div className="w-full max-w-[1240px] mx-auto space-y-6 animate-fadeIn text-slate-900 dark:text-[#f1f3f9]">
       <div>
-        <h1 className="text-xl font-semibold text-[#f1f3f9] tracking-tight">Agent Preferences & Limits</h1>
-        <p className="text-xs text-[#8b90a0] mt-0.5">Configure autonomous application throughput, matchmaking score thresholds, and alert notifications.</p>
+        <h1 className="text-xl font-semibold text-slate-900 dark:text-[#f1f3f9] tracking-tight">
+          Agent Preferences & Limits
+        </h1>
+        <p className="text-xs text-slate-500 dark:text-[#8a8f9d] mt-0.5">
+          Configure autonomous application throughput, matchmaking score
+          thresholds, and alert notifications.
+        </p>
       </div>
 
       <div className="grid gap-6 md:grid-cols-3">
         {/* Agent Limits Card */}
-        <Card className="md:col-span-2 rounded-[12px] border-[#262931] bg-[#17191e]">
+        <Card className="md:col-span-2">
           <CardHeader>
             <div className="flex items-center gap-2">
-              <Sliders className="h-4 w-4 text-[#f1f3f9]" />
-              <CardTitle className="text-sm font-semibold text-[#f1f3f9]">Automation Throughput</CardTitle>
+              <Sliders className="h-4 w-4 text-slate-900 dark:text-[#f1f3f9]" />
+              <CardTitle className="text-sm font-semibold text-slate-900 dark:text-[#f1f3f9]">
+                Automation Throughput
+              </CardTitle>
             </div>
-            <CardDescription className="text-xs text-[#8b90a0]">Control how aggressively autonomous agents apply on your behalf.</CardDescription>
+            <CardDescription className="text-xs text-slate-500 dark:text-[#8a8f9d]">
+              Control how aggressively autonomous agents apply on your behalf.
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSave} className="space-y-4 text-xs">
               <div>
-                <label className="block text-[11px] font-semibold text-[#8b90a0] uppercase tracking-wider mb-1.5 font-mono">
+                <label className="block text-[11px] font-semibold text-slate-500 dark:text-[#8a8f9d] uppercase tracking-wider mb-1.5 font-mono">
                   Daily Application Limit
                 </label>
                 <Input
@@ -47,13 +62,14 @@ export default function PreferencesSettingsPage() {
                   max="100"
                   value={dailyLimit}
                   onChange={(e) => setDailyLimit(e.target.value)}
-                  className="bg-[#121418] border-[#262931] text-[#f1f3f9]"
                 />
-                <span className="text-[10px] text-[#8b90a0] mt-1 block">Maximum applications submitted per 24-hour cycle.</span>
+                <span className="text-[10px] text-slate-500 dark:text-[#8a8f9d] mt-1 block">
+                  Maximum applications submitted per 24-hour cycle.
+                </span>
               </div>
 
               <div>
-                <label className="block text-[11px] font-semibold text-[#8b90a0] uppercase tracking-wider mb-1.5 font-mono">
+                <label className="block text-[11px] font-semibold text-slate-500 dark:text-[#8a8f9d] uppercase tracking-wider mb-1.5 font-mono">
                   Minimum AI Match Score Threshold (%)
                 </label>
                 <Input
@@ -62,20 +78,23 @@ export default function PreferencesSettingsPage() {
                   max="100"
                   value={minScore}
                   onChange={(e) => setMinScore(e.target.value)}
-                  className="bg-[#121418] border-[#262931] text-[#f1f3f9]"
                 />
-                <span className="text-[10px] text-[#8b90a0] mt-1 block">Jobs scoring below this threshold will be skipped.</span>
+                <span className="text-[10px] text-slate-500 dark:text-[#8a8f9d] mt-1 block">
+                  Jobs scoring below this threshold will be skipped.
+                </span>
               </div>
 
               <div className="pt-2">
-                <label className="flex items-center gap-2 text-slate-300 font-medium cursor-pointer select-none">
+                <label className="flex items-center gap-2 text-slate-700 dark:text-slate-300 font-medium cursor-pointer select-none">
                   <input
                     type="checkbox"
                     checked={emailAlerts}
                     onChange={(e) => setEmailAlerts(e.target.checked)}
-                    className="h-3.5 w-3.5 rounded border-[#262931] bg-[#121418] text-[#f1f3f9] focus:ring-[#f1f3f9] accent-[#f1f3f9]"
+                    className="h-3.5 w-3.5 rounded border-slate-300 dark:border-[#26282e] bg-white dark:bg-[#141518] text-slate-900 dark:text-[#f1f3f9] focus:ring-slate-900 dark:focus:ring-[#f1f3f9]"
                   />
-                  <span>Send daily email summary of submitted applications</span>
+                  <span>
+                    Send daily email summary of submitted applications
+                  </span>
                 </label>
               </div>
 
@@ -97,28 +116,38 @@ export default function PreferencesSettingsPage() {
 
         {/* Autonomous Engine Health */}
         <div className="space-y-6">
-          <Card className="rounded-[12px] border-[#262931] bg-[#17191e]">
+          <Card>
             <CardHeader>
               <div className="flex items-center gap-2">
-                <Bot className="h-4 w-4 text-[#f1f3f9]" />
-                <CardTitle className="text-xs font-semibold text-[#f1f3f9]">Engine Safety Guards</CardTitle>
+                <Bot className="h-4 w-4 text-slate-900 dark:text-[#f1f3f9]" />
+                <CardTitle className="text-xs font-semibold text-slate-900 dark:text-[#f1f3f9]">
+                  Engine Safety Guards
+                </CardTitle>
               </div>
             </CardHeader>
-            <CardContent className="space-y-2 text-xs text-[#8b90a0]">
-              <div className="p-2 rounded-[6px] bg-[#121418] border border-[#262931] text-[11px] space-y-1">
-                <div className="flex justify-between text-[#f1f3f9] font-medium">
+            <CardContent className="space-y-2 text-xs text-slate-500 dark:text-[#8a8f9d]">
+              <div className="p-2 rounded-[6px] bg-slate-50 dark:bg-[#0e0f12] border border-slate-200 dark:border-[#22242a] text-[11px] space-y-1">
+                <div className="flex justify-between text-slate-900 dark:text-[#f1f3f9] font-medium">
                   <span>Duplicate Protection</span>
-                  <span className="font-mono text-emerald-400">ENABLED</span>
+                  <span className="font-mono text-emerald-600 dark:text-emerald-400">
+                    ENABLED
+                  </span>
                 </div>
-                <p className="text-[10px] text-[#8b90a0]">Prevents reapplying to previously targeted companies.</p>
+                <p className="text-[10px] text-slate-500 dark:text-[#8a8f9d]">
+                  Prevents reapplying to previously targeted companies.
+                </p>
               </div>
 
-              <div className="p-2 rounded-[6px] bg-[#121418] border border-[#262931] text-[11px] space-y-1">
-                <div className="flex justify-between text-[#f1f3f9] font-medium">
+              <div className="p-2 rounded-[6px] bg-slate-50 dark:bg-[#0e0f12] border border-slate-200 dark:border-[#22242a] text-[11px] space-y-1">
+                <div className="flex justify-between text-slate-900 dark:text-[#f1f3f9] font-medium">
                   <span>Rate Jitter</span>
-                  <span className="font-mono text-emerald-400">ENABLED</span>
+                  <span className="font-mono text-emerald-600 dark:text-emerald-400">
+                    ENABLED
+                  </span>
                 </div>
-                <p className="text-[10px] text-[#8b90a0]">Randomizes submission timestamps to mimic human behavior.</p>
+                <p className="text-[10px] text-slate-500 dark:text-[#8a8f9d]">
+                  Randomizes submission timestamps to mimic human behavior.
+                </p>
               </div>
             </CardContent>
           </Card>

@@ -6,18 +6,18 @@
 
 ## What it does
 
-- **Authentication** — login/signup with email/password or LinkedIn OAuth (via better-auth)
+- **Authentication** — login/signup with email/password, Google OAuth, or LinkedIn OAuth (via better-auth)
 - **Dashboard** — post-login landing page showing session info, user profile, and account actions
 - **Future** — job management, workflow creation, outreach campaign monitoring, and analytics
 
 ## Routes
 
-| Path | Page | Description |
-|------|------|-------------|
-| `/` | Redirect to `/login` | Landing page |
-| `/login` | Login form | Email/password sign-in + LinkedIn OAuth button |
-| `/signup` | Signup form | Name/email/password registration |
-| `/dashboard` | Dashboard | Protected — shows user info, session details, sign-out |
+| Path         | Page                 | Description                                                |
+| ------------ | -------------------- | ---------------------------------------------------------- |
+| `/`          | Redirect to `/login` | Landing page                                               |
+| `/login`     | Login form           | Email/password sign-in + Google & LinkedIn OAuth buttons   |
+| `/signup`    | Signup form          | Name/email/password registration + Google & LinkedIn OAuth |
+| `/dashboard` | Dashboard            | Protected — shows user info, session details, sign-out     |
 
 ## Tech stack
 

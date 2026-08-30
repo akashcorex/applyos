@@ -8,8 +8,15 @@ export function LandingHeader() {
   return (
     <nav className="relative z-10 flex w-full items-center justify-between px-6 sm:px-10 py-5">
       <div className="flex items-center gap-3">
-        <Link href="/" className="flex items-center gap-2 transition-opacity hover:opacity-90">
-          <img src="/logo-white.png" alt="ApplyOS" className="h-6 w-auto object-contain" />
+        <Link
+          href="/"
+          className="flex items-center gap-2 transition-opacity hover:opacity-90"
+        >
+          <img
+            src="/logo-white.png"
+            alt="ApplyOS"
+            className="h-6 w-auto object-contain"
+          />
         </Link>
       </div>
 

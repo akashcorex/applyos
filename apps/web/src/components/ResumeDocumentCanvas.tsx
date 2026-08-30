@@ -1,10 +1,6 @@
 'use client';
 
-import {
-  useLayoutEffect,
-  useRef,
-  type KeyboardEvent,
-} from 'react';
+import { useLayoutEffect, useRef, type KeyboardEvent } from 'react';
 
 interface DocumentContent {
   full_name: string;

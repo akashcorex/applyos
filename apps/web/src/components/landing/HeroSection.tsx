@@ -28,7 +28,9 @@ export function HeroSection() {
 
         {/* Subtitle */}
         <p className="mt-5 max-w-xl text-base sm:text-lg leading-relaxed text-white/75 font-normal antialiased">
-          Be first to every opportunity that matters. ApplyOS finds high-growth roles, custom-tailors your applications, and manages recruiter outreach on your behalf.
+          Be first to every opportunity that matters. ApplyOS finds high-growth
+          roles, custom-tailors your applications, and manages recruiter
+          outreach on your behalf.
         </p>
 
         {/* Centered CTA Buttons — Login & Signup Flow */}
@@ -38,7 +40,10 @@ export function HeroSection() {
             size="lg"
             className="w-full sm:w-auto flex-1 h-12 px-7 rounded-full bg-white hover:bg-white/90 text-slate-950 font-semibold text-sm shadow-xl transition-all hover:scale-[1.03] active:scale-[0.98]"
           >
-            <Link href="/signup" className="flex items-center justify-center gap-2">
+            <Link
+              href="/signup"
+              className="flex items-center justify-center gap-2"
+            >
               <UserPlus className="h-4 w-4 text-slate-950" />
               <span>Sign up for free</span>
               <ArrowRight className="h-4 w-4 text-slate-950" />
@@ -51,7 +56,10 @@ export function HeroSection() {
             variant="outline"
             className="w-full sm:w-auto flex-1 h-12 px-7 rounded-full border-white/30 bg-slate-950/40 hover:bg-slate-900/80 text-white font-medium text-sm backdrop-blur-xl shadow-lg transition-all hover:scale-[1.03] active:scale-[0.98]"
           >
-            <Link href="/login" className="flex items-center justify-center gap-2">
+            <Link
+              href="/login"
+              className="flex items-center justify-center gap-2"
+            >
               <LogIn className="h-4 w-4 text-white/90" />
               <span>Log in to account</span>
             </Link>
