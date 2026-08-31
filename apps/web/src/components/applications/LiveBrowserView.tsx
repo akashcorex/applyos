@@ -8,6 +8,27 @@ interface LiveBrowserViewProps {
   browserSessionReady?: boolean;
 }
 
+function mapClickToCanvasPixels(
+  canvas: HTMLCanvasElement,
+  clientX: number,
+  clientY: number,
+) {
+  const rect = canvas.getBoundingClientRect();
+  if (rect.width <= 0 || rect.height <= 0 || canvas.width <= 0 || canvas.height <= 0) {
+    return null;
+  }
+
+  const x = ((clientX - rect.left) / rect.width) * canvas.width;
+  const y = ((clientY - rect.top) / rect.height) * canvas.height;
+
+  return {
+    x,
+    y,
+    viewportWidth: canvas.width,
+    viewportHeight: canvas.height,
+  };
+}
+
 export function LiveBrowserView({
   applicationId,
   controlMode,
@@ -91,6 +112,12 @@ export function LiveBrowserView({
     };
   }, [connect]);
 
+  useEffect(() => {
+    if (controlMode === 'human_control') {
+      canvasRef.current?.focus();
+    }
+  }, [controlMode]);
+
   const sendInput = (message: Record<string, unknown>) => {
     if (controlMode !== 'human_control') return;
     if (wsRef.current?.readyState === WebSocket.OPEN) {
@@ -98,12 +125,28 @@ export function LiveBrowserView({
     }
   };
 
+  const handlePointerClick = (clientX: number, clientY: number) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const mapped = mapClickToCanvasPixels(canvas, clientX, clientY);
+    if (!mapped) return;
+    sendInput({
+      type: 'click',
+      x: mapped.x,
+      y: mapped.y,
+      viewportWidth: mapped.viewportWidth,
+      viewportHeight: mapped.viewportHeight,
+    });
+  };
+
   return (
     <div className="relative flex h-full min-h-[420px] flex-col overflow-hidden rounded-lg border border-slate-200 bg-black dark:border-[#22242a]">
       <div className="flex items-center justify-between border-b border-slate-800 px-3 py-2 text-xs text-slate-300">
         <span>{connected ? 'Live' : 'Connecting…'}</span>
         <span>
-          {controlMode === 'human_control' ? 'You have control' : 'AI is in control'}
+          {controlMode === 'human_control'
+            ? 'You have control — click to focus fields, then type'
+            : 'AI is in control'}
         </span>
       </div>
       {error && !connected ? (
@@ -114,18 +157,26 @@ export function LiveBrowserView({
         <div className="relative flex-1 overflow-auto bg-[#111]">
           <canvas
             ref={canvasRef}
-            className="mx-auto max-w-full cursor-crosshair"
-            onClick={(event) => {
-              const rect = event.currentTarget.getBoundingClientRect();
-              sendInput({
-                type: 'click',
-                x: event.clientX - rect.left,
-                y: event.clientY - rect.top,
-                viewportWidth: rect.width,
-                viewportHeight: rect.height,
-              });
+            tabIndex={controlMode === 'human_control' ? 0 : -1}
+            className="mx-auto block max-w-full cursor-crosshair outline-none"
+            onMouseDown={(event) => {
+              if (controlMode !== 'human_control') return;
+              event.preventDefault();
+              handlePointerClick(event.clientX, event.clientY);
+              canvasRef.current?.focus();
+            }}
+            onKeyDown={(event) => {
+              if (controlMode !== 'human_control') return;
+              event.preventDefault();
+              if (event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey) {
+                sendInput({ type: 'type', text: event.key });
+                return;
+              }
+              sendInput({ type: 'keydown', key: event.key });
             }}
             onWheel={(event) => {
+              if (controlMode !== 'human_control') return;
+              event.preventDefault();
               sendInput({ type: 'scroll', deltaY: event.deltaY });
             }}
           />
