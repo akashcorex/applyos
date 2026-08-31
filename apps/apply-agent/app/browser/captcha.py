@@ -48,13 +48,90 @@ _CHALLENGE_VISIBLE_SELECTORS = [
 
 
 async def detect_captcha(page: Page) -> bool:
-    """Return True if the page contains a known CAPTCHA iframe or element."""
+    """Return True if the page contains a known CAPTCHA iframe or element.
+
+    Presence alone is useful for solver paths. Prefer
+    :func:`detect_visible_captcha_challenge` for HITL pause decisions —
+    Greenhouse and others embed invisible reCAPTCHA badges that must not
+    block form fill.
+    """
     for selector in _CAPTCHA_SELECTORS:
         if await page.query_selector(selector):
             logger.warning("CAPTCHA detected: %s", selector)
             return True
     return False
 
+
+async def detect_visible_captcha_challenge(page: Page) -> bool:
+    """Return True only when a human-solvable CAPTCHA UI is actually shown."""
+    try:
+        visible = await page.evaluate(
+            """() => {
+              const isVisible = (el) => {
+                if (!el) return false;
+                const style = window.getComputedStyle(el);
+                if (
+                  style.display === 'none' ||
+                  style.visibility === 'hidden' ||
+                  Number(style.opacity) === 0
+                ) {
+                  return false;
+                }
+                const r = el.getBoundingClientRect();
+                return r.width >= 20 && r.height >= 20;
+              };
+
+              for (const iframe of document.querySelectorAll(
+                "iframe[src*='recaptcha']"
+              )) {
+                if (!isVisible(iframe)) continue;
+                const src = iframe.src || '';
+                const r = iframe.getBoundingClientRect();
+                // Challenge dialog
+                if (src.includes('bframe') && r.width >= 50 && r.height >= 50) {
+                  return true;
+                }
+                // Checkbox anchor (not the tiny badge)
+                if (src.includes('anchor') && r.width >= 100 && r.height >= 40) {
+                  return true;
+                }
+              }
+
+              for (const iframe of document.querySelectorAll(
+                "iframe[src*='hcaptcha']"
+              )) {
+                if (!isVisible(iframe)) continue;
+                const r = iframe.getBoundingClientRect();
+                const src = iframe.src || '';
+                if (src.includes('frame=challenge') || src.includes('frame=enclave')) {
+                  return true;
+                }
+                if (r.width >= 100 && r.height >= 40) return true;
+              }
+
+              for (const sel of [
+                '.g-recaptcha',
+                '.h-captcha',
+                '#h-captcha',
+                'iframe[title*="hCaptcha security challenge"]',
+                'iframe[title*="checkbox for hCaptcha"]',
+              ]) {
+                const el = document.querySelector(sel);
+                if (el && isVisible(el)) {
+                  const r = el.getBoundingClientRect();
+                  if (r.width >= 40 && r.height >= 40) return true;
+                }
+              }
+              return false;
+            }"""
+        )
+    except Exception:
+        logger.exception("detect_visible_captcha_challenge evaluate failed")
+        return False
+
+    if visible:
+        logger.warning("Visible CAPTCHA challenge detected")
+    return bool(visible)
 
 async def extract_hcaptcha_sitekey(page: Page) -> str | None:
     """Find the hCaptcha sitekey on the current page."""

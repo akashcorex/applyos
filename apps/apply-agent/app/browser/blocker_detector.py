@@ -8,7 +8,7 @@ from dataclasses import dataclass
 
 from playwright.async_api import Page
 
-from app.browser.captcha import detect_captcha, detect_turnstile
+from app.browser.captcha import detect_turnstile, detect_visible_captcha_challenge
 from app.browser.session_manager import is_linkedin_login_url, is_wellfound_login_url
 from app.config import settings
 
@@ -47,7 +47,9 @@ async def detect_blocker(page: Page) -> BlockerResult | None:
             message="Cloudflare verification is blocking this application",
         )
 
-    if await detect_captcha(page):
+    # Invisible reCAPTCHA badges/iframes are common on ATS pages and must not
+    # pause HITL before the form is filled.
+    if await detect_visible_captcha_challenge(page):
         return BlockerResult(
             type="CAPTCHA",
             message="CAPTCHA verification requires human interaction",
