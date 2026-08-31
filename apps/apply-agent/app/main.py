@@ -9,7 +9,7 @@ from fastapi import FastAPI
 
 from app.dependencies import app_state
 from app.logging_filters import install_health_access_filter
-from app.routers import admin, health
+from app.routers import admin, applications, health
 from app.workers.dispatcher import start_dispatcher, stop_dispatcher
 
 logging.basicConfig(
@@ -37,6 +37,7 @@ app = FastAPI(title="apply-agent", lifespan=lifespan)
 
 app.include_router(health.router)
 app.include_router(admin.router)
+app.include_router(applications.router)
 
 
 @app.get("/")

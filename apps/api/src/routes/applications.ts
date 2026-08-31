@@ -424,12 +424,79 @@ applicationsRouter.post(
     }
 
     const token = randomUUID();
+
+    const applyAgentUrl = process.env.APPLY_AGENT_URL ?? 'http://127.0.0.1:8003';
+    const agentToken = process.env.AGENT_SERVICE_TOKEN;
+    if (agentToken) {
+      try {
+        await fetch(
+          `${applyAgentUrl}/admin/applications/${encodeURIComponent(applicationId)}/register-browser-token`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Agent-Service-Token': agentToken,
+            },
+            body: JSON.stringify({ token }),
+          },
+        );
+      } catch {
+        res.status(502).json({ error: 'Failed to register browser token with apply-agent' });
+        return;
+      }
+    }
+
     res.status(200).json({
       token,
       applicationId,
       browserSessionId: application.browserSessionId,
       expiresInSeconds: 300,
     });
+  },
+);
+
+/** Register browser token with apply-agent for WebSocket auth. */
+applicationsRouter.post(
+  '/internal/:applicationId/register-browser-token',
+  async (req, res) => {
+    if (!internalRequestAllowed(req.header('x-agent-service-token'))) {
+      res.status(401).json({ error: 'Unauthorized internal request' });
+      return;
+    }
+
+    const token = (req.body as { token?: unknown }).token;
+    if (typeof token !== 'string' || !token.trim()) {
+      res.status(400).json({ error: 'token is required' });
+      return;
+    }
+
+    const applyAgentUrl = process.env.APPLY_AGENT_URL ?? 'http://127.0.0.1:8003';
+    const agentToken = process.env.AGENT_SERVICE_TOKEN;
+    if (!agentToken) {
+      res.status(503).json({ error: 'Apply agent is not configured' });
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `${applyAgentUrl}/admin/applications/${encodeURIComponent(req.params.applicationId)}/register-browser-token`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Agent-Service-Token': agentToken,
+          },
+          body: JSON.stringify({ token }),
+        },
+      );
+      if (!response.ok) {
+        res.status(502).json({ error: 'Failed to register browser token' });
+        return;
+      }
+      res.status(200).json({ ok: true });
+    } catch {
+      res.status(502).json({ error: 'Apply agent is unavailable' });
+    }
   },
 );
 

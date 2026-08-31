@@ -25,7 +25,7 @@ from app.workers.apply_worker import apply_job
 from app.workers.cancellation import mark_apply_task_cancelled
 from app.workers.celery_app import celery_app
 from app.workers.connect_worker import connect_contacts
-from app.services.resume_signal import publish_resume
+from app.routers.applications import register_browser_token
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 logger = logging.getLogger(__name__)
@@ -48,6 +48,10 @@ class CancelApplyResponse(BaseModel):
 class ResumeApplicationResponse(BaseModel):
     application_id: str
     status: str
+
+
+class RegisterBrowserTokenBody(BaseModel):
+    token: str
 
 
 class TriggerConnectResponse(BaseModel):
@@ -151,6 +155,18 @@ async def resume_application(application_id: str) -> ResumeApplicationResponse:
         application_id=application_id,
         status="resuming",
     )
+
+
+@router.post(
+    "/applications/{application_id}/register-browser-token",
+    dependencies=[Depends(require_agent_service_token)],
+)
+async def register_application_browser_token(
+    application_id: str,
+    body: RegisterBrowserTokenBody,
+) -> dict[str, str]:
+    register_browser_token(body.token, application_id)
+    return {"application_id": application_id, "status": "registered"}
 
 
 @router.post(
