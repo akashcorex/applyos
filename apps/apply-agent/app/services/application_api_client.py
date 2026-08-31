@@ -35,6 +35,7 @@ class ApplicationApiClient:
         control_mode: str | None = None,
         human_intervention_required: bool | None = None,
         intervention_reason: str | None = None,
+        external_task_id: str | None = None,
     ) -> None:
         body: dict[str, Any] = {}
         if status is not None:
@@ -51,6 +52,8 @@ class ApplicationApiClient:
             body["humanInterventionRequired"] = human_intervention_required
         if intervention_reason is not None:
             body["interventionReason"] = intervention_reason
+        if external_task_id is not None:
+            body["externalTaskId"] = external_task_id
 
         if not body:
             return

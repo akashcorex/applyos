@@ -190,14 +190,15 @@ async def _run_apply(payload: JobPayload, task_id: str) -> ApplyResultEvent:
                     page=page,
                     worker_id=task_id,
                 )
-                await api_client.update_session(
-                    application_id,
-                    status="running",
-                    browser_session_id=session.browser_session_id,
-                    control_mode="agent_control",
-                    current_url=page.url,
-                    current_step="Browser ready",
-                )
+            await api_client.update_session(
+                application_id,
+                status="running",
+                browser_session_id=session.browser_session_id,
+                control_mode="agent_control",
+                current_url=page.url,
+                current_step="Browser ready",
+                external_task_id=task_id,
+            )
 
             runner = ApplicationRunner(
                 payload,

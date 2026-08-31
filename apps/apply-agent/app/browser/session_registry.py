@@ -113,6 +113,9 @@ class BrowserSessionRegistry:
         await self._persist_metadata(session)
         return True
 
+    def iter_sessions(self) -> list[BrowserSession]:
+        return list(self._sessions.values())
+
     async def release(self, application_id: str, *, close_browser: bool = False) -> None:
         async with self._lock:
             session = self._sessions.pop(application_id, None)

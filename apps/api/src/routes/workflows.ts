@@ -153,6 +153,10 @@ const SUCCESS_APPLICATION_STATUSES = new Set(['submitted', 'already_applied']);
 const IN_FLIGHT_APPLICATION_STATUSES = new Set([
   'queued',
   'running',
+  'starting',
+  'resuming',
+  'waiting_for_human',
+  'browser_disconnected',
 ]);
 const RETRYABLE_APPLICATION_STATUSES = new Set([
   'failed',
@@ -162,6 +166,8 @@ const RETRYABLE_APPLICATION_STATUSES = new Set([
   'skipped',
   'cancelled',
   'pending',
+  'waiting_for_human',
+  'browser_disconnected',
 ]);
 
 function parseJobDedupKey(workflowId: string, jobId: string): string | null {

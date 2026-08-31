@@ -71,6 +71,7 @@ class Settings(BaseSettings):
     hitl_mode: bool = True
     browser_session_ttl_seconds: int = 7200
     browser_session_human_wait_seconds: int = 1800
+    browser_session_sweep_interval_seconds: int = 60
 
     class Config:
         env_file = ".env"

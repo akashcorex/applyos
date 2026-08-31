@@ -213,6 +213,7 @@ applicationsRouter.patch('/internal/:applicationId/session', async (req, res) =>
     controlMode?: unknown;
     humanInterventionRequired?: unknown;
     interventionReason?: unknown;
+    externalTaskId?: unknown;
   };
 
   const now = new Date();
@@ -230,6 +231,9 @@ applicationsRouter.patch('/internal/:applicationId/session', async (req, res) =>
   }
   if (typeof body.interventionReason === 'string') {
     values.interventionReason = body.interventionReason;
+  }
+  if (hasString(body.externalTaskId)) {
+    values.externalTaskId = body.externalTaskId;
   }
 
   const [updated] = await db
