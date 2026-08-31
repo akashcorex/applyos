@@ -63,7 +63,11 @@ async def detect_captcha(page: Page) -> bool:
 
 
 async def detect_visible_captcha_challenge(page: Page) -> bool:
-    """Return True only when a human-solvable CAPTCHA UI is actually shown."""
+    """Return True only when a human-solvable CAPTCHA UI is actually shown.
+
+    Ignores Google's floating privacy badge and other non-interactive embeds
+    that ATS pages (especially Greenhouse) leave in the DOM permanently.
+    """
     try:
         visible = await page.evaluate(
             """() => {
@@ -81,18 +85,31 @@ async def detect_visible_captcha_challenge(page: Page) -> bool:
                 return r.width >= 20 && r.height >= 20;
               };
 
+              // Privacy badge only — not a solvable challenge.
+              if (document.querySelector('.grecaptcha-badge')) {
+                /* keep scanning; badge alone is not enough */
+              }
+
               for (const iframe of document.querySelectorAll(
                 "iframe[src*='recaptcha']"
               )) {
                 if (!isVisible(iframe)) continue;
+                if (iframe.closest('.grecaptcha-badge')) continue;
                 const src = iframe.src || '';
+                if (src.includes('badge')) continue;
                 const r = iframe.getBoundingClientRect();
-                // Challenge dialog
+                // Image/audio challenge dialog
                 if (src.includes('bframe') && r.width >= 50 && r.height >= 50) {
                   return true;
                 }
-                // Checkbox anchor (not the tiny badge)
-                if (src.includes('anchor') && r.width >= 100 && r.height >= 40) {
+                // Explicit checkbox widget (not floating badge)
+                const inWidget = Boolean(iframe.closest('.g-recaptcha, [data-sitekey]'));
+                if (
+                  inWidget &&
+                  src.includes('anchor') &&
+                  r.width >= 100 &&
+                  r.height >= 50
+                ) {
                   return true;
                 }
               }
@@ -106,7 +123,13 @@ async def detect_visible_captcha_challenge(page: Page) -> bool:
                 if (src.includes('frame=challenge') || src.includes('frame=enclave')) {
                   return true;
                 }
-                if (r.width >= 100 && r.height >= 40) return true;
+                if (
+                  iframe.closest('.h-captcha, #h-captcha') &&
+                  r.width >= 100 &&
+                  r.height >= 40
+                ) {
+                  return true;
+                }
               }
 
               for (const sel of [
@@ -117,10 +140,10 @@ async def detect_visible_captcha_challenge(page: Page) -> bool:
                 'iframe[title*="checkbox for hCaptcha"]',
               ]) {
                 const el = document.querySelector(sel);
-                if (el && isVisible(el)) {
-                  const r = el.getBoundingClientRect();
-                  if (r.width >= 40 && r.height >= 40) return true;
-                }
+                if (!el || !isVisible(el)) continue;
+                if (el.closest && el.closest('.grecaptcha-badge')) continue;
+                const r = el.getBoundingClientRect();
+                if (r.width >= 100 && r.height >= 50) return true;
               }
               return false;
             }"""

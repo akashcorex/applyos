@@ -180,9 +180,9 @@ class ApplicationRunner:
         )
         await self._log_event("AGENT_RESUMED", "Agent resumed after human intervention")
 
-    async def check_and_pause_for_blocker(self) -> None:
+    async def check_and_pause_for_blocker(self, *, include_captcha: bool = True) -> None:
         """Proactively detect page blockers and pause for human help."""
-        blocker = await detect_blocker(self.page)
+        blocker = await detect_blocker(self.page, include_captcha=include_captcha)
         if blocker is None:
             return
         await self._log_event(
@@ -213,15 +213,19 @@ class ApplicationRunner:
                 handler = await get_handler(external, self.page)
 
         await self._sync(current_step="Application page loaded")
-        await self.check_and_pause_for_blocker()
+        # Login walls only here — CAPTCHA widgets often exist before fields are filled.
+        await self.check_and_pause_for_blocker(include_captcha=False)
         return handler
 
     async def fill_and_submit(self, handler) -> FillResult:
         """Run fill/submit, pausing for human intervention when blockers occur."""
         while True:
-            await self.check_and_pause_for_blocker()
+            # Fill first; pause on CAPTCHA only after the form has been filled
+            # (or when submit surfaces a real challenge).
+            await self.check_and_pause_for_blocker(include_captcha=False)
             result = await self._attempt_fill(handler)
             if result.error == PENDING_SUBMIT_APPROVAL:
+                await self.check_and_pause_for_blocker(include_captcha=True)
                 await self._log_event(
                     "FIELD_FILLED",
                     "Application form filled — waiting for your approval to submit",

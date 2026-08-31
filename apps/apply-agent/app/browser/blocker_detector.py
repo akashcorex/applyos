@@ -31,8 +31,16 @@ class BlockerResult:
     message: str
 
 
-async def detect_blocker(page: Page) -> BlockerResult | None:
-    """Return a blocker if the page requires human intervention."""
+async def detect_blocker(
+    page: Page,
+    *,
+    include_captcha: bool = True,
+) -> BlockerResult | None:
+    """Return a blocker if the page requires human intervention.
+
+    ``include_captcha=False`` skips CAPTCHA/Cloudflare checks so the agent can
+    fill the form before pausing on an invisible or bottom-of-form widget.
+    """
     url = page.url
 
     if is_linkedin_login_url(url) or is_wellfound_login_url(url):
@@ -41,7 +49,7 @@ async def detect_blocker(page: Page) -> BlockerResult | None:
             message="Login page detected — sign in required before continuing",
         )
 
-    if await detect_turnstile(page):
+    if include_captcha and await detect_turnstile(page):
         return BlockerResult(
             type="CLOUDFLARE",
             message="Cloudflare verification is blocking this application",
@@ -49,7 +57,7 @@ async def detect_blocker(page: Page) -> BlockerResult | None:
 
     # Invisible reCAPTCHA badges/iframes are common on ATS pages and must not
     # pause HITL before the form is filled.
-    if await detect_visible_captcha_challenge(page):
+    if include_captcha and await detect_visible_captcha_challenge(page):
         return BlockerResult(
             type="CAPTCHA",
             message="CAPTCHA verification requires human interaction",
