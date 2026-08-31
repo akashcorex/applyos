@@ -211,6 +211,11 @@ export function AppSidebar({
       icon: LinearViewsIcon,
     },
     {
+      href: '/dashboard/applications',
+      label: 'Applications',
+      icon: LinearViewsIcon,
+    },
+    {
       href: '/dashboard/linkedin',
       label: 'Outreach',
       icon: LinearAgentIcon,
