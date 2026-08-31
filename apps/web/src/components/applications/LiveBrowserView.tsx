@@ -37,13 +37,45 @@ export function LiveBrowserView({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const retryRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const controlModeRef = useRef(controlMode);
   const [connected, setConnected] = useState(false);
+  const [hasFrame, setHasFrame] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    controlModeRef.current = controlMode;
+  }, [controlMode]);
+
+  const clearRetry = () => {
+    if (retryRef.current) {
+      clearTimeout(retryRef.current);
+      retryRef.current = null;
+    }
+  };
+
+  const closeSocket = () => {
+    const ws = wsRef.current;
+    if (!ws) return;
+    ws.onopen = null;
+    ws.onclose = null;
+    ws.onerror = null;
+    ws.onmessage = null;
+    try {
+      ws.close();
+    } catch {
+      // ignore
+    }
+    wsRef.current = null;
+  };
+
   const connect = useCallback(async () => {
+    clearRetry();
+    closeSocket();
+
     if (!browserSessionReady) {
       setError(null);
       setConnected(false);
+      setHasFrame(false);
       return;
     }
 
@@ -57,6 +89,7 @@ export function LiveBrowserView({
       if (!res.ok || !data.wsUrl) {
         const message = data.error || 'Browser session not ready';
         setError(message);
+        setConnected(false);
         if (res.status === 409 || message.includes('not ready')) {
           retryRef.current = setTimeout(() => void connect(), 2000);
         }
@@ -83,32 +116,54 @@ export function LiveBrowserView({
       };
       ws.onmessage = (event) => {
         const canvas = canvasRef.current;
-        if (!canvas || !(event.data instanceof ArrayBuffer)) return;
-        const blob = new Blob([event.data], { type: 'image/jpeg' });
-        const url = URL.createObjectURL(blob);
-        const img = new Image();
-        img.onload = () => {
-          const ctx = canvas.getContext('2d');
-          if (!ctx) return;
-          canvas.width = img.width;
-          canvas.height = img.height;
-          ctx.drawImage(img, 0, 0);
-          URL.revokeObjectURL(url);
-        };
-        img.src = url;
+        if (!canvas) return;
+
+        let buffer: ArrayBuffer | null = null;
+        if (event.data instanceof ArrayBuffer) {
+          buffer = event.data;
+        } else if (event.data instanceof Blob) {
+          void event.data.arrayBuffer().then((ab) => {
+            paintFrame(canvas, ab);
+          });
+          return;
+        }
+        if (!buffer) return;
+        paintFrame(canvas, buffer);
       };
     } catch {
       setError('Could not connect to live browser');
+      setConnected(false);
       retryRef.current = setTimeout(() => void connect(), 3000);
     }
   }, [applicationId, browserSessionReady]);
 
+  const paintFrame = (canvas: HTMLCanvasElement, buffer: ArrayBuffer) => {
+    const blob = new Blob([buffer], { type: 'image/jpeg' });
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    img.onload = () => {
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        URL.revokeObjectURL(url);
+        return;
+      }
+      if (canvas.width !== img.width || canvas.height !== img.height) {
+        canvas.width = img.width;
+        canvas.height = img.height;
+      }
+      ctx.drawImage(img, 0, 0);
+      URL.revokeObjectURL(url);
+      setHasFrame(true);
+    };
+    img.onerror = () => URL.revokeObjectURL(url);
+    img.src = url;
+  };
+
   useEffect(() => {
     void connect();
     return () => {
-      if (retryRef.current) clearTimeout(retryRef.current);
-      wsRef.current?.close();
-      wsRef.current = null;
+      clearRetry();
+      closeSocket();
     };
   }, [connect]);
 
@@ -116,10 +171,10 @@ export function LiveBrowserView({
     if (controlMode === 'human_control') {
       canvasRef.current?.focus();
     }
-  }, [controlMode]);
+  }, [controlMode, hasFrame]);
 
   const sendInput = (message: Record<string, unknown>) => {
-    if (controlMode !== 'human_control') return;
+    if (controlModeRef.current !== 'human_control') return;
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify(message));
     }
@@ -139,10 +194,14 @@ export function LiveBrowserView({
     });
   };
 
+  const interactive = controlMode === 'human_control' && hasFrame;
+
   return (
     <div className="relative flex h-full min-h-[420px] flex-col overflow-hidden rounded-lg border border-slate-200 bg-black dark:border-[#22242a]">
       <div className="flex items-center justify-between border-b border-slate-800 px-3 py-2 text-xs text-slate-300">
-        <span>{connected ? 'Live' : 'Connecting…'}</span>
+        <span>
+          {connected ? (hasFrame ? 'Live' : 'Connected — waiting for video…') : 'Connecting…'}
+        </span>
         <span>
           {controlMode === 'human_control'
             ? 'You have control — click to focus fields, then type'
@@ -154,29 +213,44 @@ export function LiveBrowserView({
           {error}
         </div>
       ) : (
-        <div className="relative flex-1 overflow-auto bg-[#111]">
+        <div className="relative flex-1 overflow-hidden bg-[#111]">
+          {!hasFrame ? (
+            <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center p-6 text-center text-sm text-slate-400">
+              {connected
+                ? 'Waiting for browser frames…'
+                : 'Connecting to live browser…'}
+            </div>
+          ) : null}
           <canvas
             ref={canvasRef}
-            tabIndex={controlMode === 'human_control' ? 0 : -1}
-            className="mx-auto block max-w-full cursor-crosshair outline-none"
+            tabIndex={interactive ? 0 : -1}
+            className={`mx-auto block max-h-full max-w-full outline-none ${
+              interactive ? 'cursor-crosshair' : 'cursor-default'
+            }`}
             onMouseDown={(event) => {
-              if (controlMode !== 'human_control') return;
+              if (!interactive) return;
               event.preventDefault();
-              handlePointerClick(event.clientX, event.clientY);
               canvasRef.current?.focus();
+              handlePointerClick(event.clientX, event.clientY);
             }}
             onKeyDown={(event) => {
-              if (controlMode !== 'human_control') return;
+              if (!interactive) return;
               event.preventDefault();
-              if (event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey) {
+              if (
+                event.key.length === 1 &&
+                !event.ctrlKey &&
+                !event.metaKey &&
+                !event.altKey
+              ) {
                 sendInput({ type: 'type', text: event.key });
                 return;
               }
               sendInput({ type: 'keydown', key: event.key });
             }}
             onWheel={(event) => {
-              if (controlMode !== 'human_control') return;
+              if (!interactive) return;
               event.preventDefault();
+              event.stopPropagation();
               sendInput({ type: 'scroll', deltaY: event.deltaY });
             }}
           />

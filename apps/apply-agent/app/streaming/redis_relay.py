@@ -34,6 +34,9 @@ def session_metadata_key(application_id: str) -> str:
     return f"{_SESSION_PREFIX}:{application_id}"
 
 
+_FRAME_HEARTBEAT_SECONDS = 1.0
+
+
 class WorkerStreamRelay:
     """Publishes screencast frames and consumes remote input in the Celery worker."""
 
@@ -44,6 +47,7 @@ class WorkerStreamRelay:
         self._tasks: list[asyncio.Task[None]] = []
         self._running = False
         self._control_mode = ControlMode.AGENT
+        self._last_frame: bytes | None = None
 
     async def start(self) -> None:
         if self._running:
@@ -53,6 +57,7 @@ class WorkerStreamRelay:
         await self._streamer.start()
         self._tasks = [
             asyncio.create_task(self._publish_frames()),
+            asyncio.create_task(self._frame_heartbeat()),
             asyncio.create_task(self._consume_input()),
         ]
         logger.info(
@@ -69,6 +74,7 @@ class WorkerStreamRelay:
         if self._streamer is not None:
             await self._streamer.stop()
             self._streamer = None
+        self._last_frame = None
 
     def set_control_mode(self, mode: ControlMode) -> None:
         self._control_mode = mode
@@ -82,6 +88,7 @@ class WorkerStreamRelay:
             async for frame in self._streamer.frames():
                 if not self._running:
                     break
+                self._last_frame = frame
                 try:
                     await r.publish(channel, frame)
                 except Exception:
@@ -89,6 +96,33 @@ class WorkerStreamRelay:
                         "Failed to publish screencast frame application_id=%s",
                         self.application_id,
                     )
+        finally:
+            await r.aclose()
+
+    async def _frame_heartbeat(self) -> None:
+        """Re-publish the last frame so late WebSocket clients are not stuck black.
+
+        CDP screencast only emits on visual change; Redis pub/sub has no backlog,
+        so a UI that connects during a static CAPTCHA page would otherwise see
+        nothing until the page paints again.
+        """
+        r = aioredis.from_url(settings.redis_url)
+        channel = screencast_channel(self.application_id)
+        try:
+            while self._running:
+                await asyncio.sleep(_FRAME_HEARTBEAT_SECONDS)
+                frame = self._last_frame
+                if not frame:
+                    continue
+                try:
+                    await r.publish(channel, frame)
+                except Exception:
+                    logger.exception(
+                        "Failed to heartbeat screencast frame application_id=%s",
+                        self.application_id,
+                    )
+        except asyncio.CancelledError:
+            raise
         finally:
             await r.aclose()
 
@@ -167,6 +201,37 @@ async def publish_control_mode(application_id: str, mode: ControlMode) -> None:
             payload = json.loads(raw)
             payload["controlMode"] = mode.value
             await r.set(key, json.dumps(payload), ex=settings.browser_session_ttl_seconds)
+    finally:
+        await r.aclose()
+
+    # Nudge a fresh frame into the stream when handing control to the human so
+    # the dashboard is not stuck on a stale/blank last paint.
+    if mode == ControlMode.HUMAN:
+        await force_screencast_frame(application_id)
+
+
+async def force_screencast_frame(application_id: str) -> None:
+    """Capture and publish one JPEG even if CDP screencast is idle."""
+    relay = _worker_relays.get(application_id)
+    if relay is None or relay.page.is_closed():
+        return
+    try:
+        frame = await relay.page.screenshot(type="jpeg", quality=80)
+    except Exception:
+        logger.exception(
+            "Failed to capture forced screencast frame application_id=%s",
+            application_id,
+        )
+        return
+    relay._last_frame = frame
+    r = aioredis.from_url(settings.redis_url)
+    try:
+        await r.publish(screencast_channel(application_id), frame)
+    except Exception:
+        logger.exception(
+            "Failed to publish forced screencast frame application_id=%s",
+            application_id,
+        )
     finally:
         await r.aclose()
 

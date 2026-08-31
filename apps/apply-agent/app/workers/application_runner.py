@@ -18,6 +18,7 @@ from app.models.hitl import HumanInterventionRequired, PENDING_SUBMIT_APPROVAL
 from app.models.job_payload import JobPayload
 from app.services.application_api_client import ApplicationApiClient
 from app.services.resume_signal import wait_for_resume
+from app.streaming.redis_relay import publish_control_mode
 
 if TYPE_CHECKING:
     from app.ats.base import FillResult
@@ -141,6 +142,9 @@ class ApplicationRunner:
         await session_registry.set_control_mode(
             self.application_id, ControlMode.HUMAN
         )
+        # Keep WorkerStreamRelay in sync — otherwise UI shows human control
+        # while relay_input still drops clicks/keys as agent_control.
+        await publish_control_mode(self.application_id, ControlMode.HUMAN)
         await self._sync(
             status="waiting_for_human",
             control_mode="human_control",
@@ -164,6 +168,7 @@ class ApplicationRunner:
                 )
 
         await session_registry.signal_resume(self.application_id)
+        await publish_control_mode(self.application_id, ControlMode.AGENT)
         await self._sync(
             status="resuming",
             control_mode="agent_control",

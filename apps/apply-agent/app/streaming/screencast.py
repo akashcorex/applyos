@@ -11,8 +11,8 @@ from playwright.async_api import Page
 
 logger = logging.getLogger(__name__)
 
-_DEFAULT_QUALITY = 75
-_DEFAULT_EVERY_NTH_FRAME = 2
+_DEFAULT_QUALITY = 80
+_DEFAULT_EVERY_NTH_FRAME = 1
 
 
 class ScreencastStreamer:
