@@ -32,6 +32,7 @@ from models import (
     TERMINAL_APPLY_STATUSES,
 )
 from services.apply_client import ApplyAgentClient
+from services.durable_workflow_client import DurableWorkflowClient
 from services.filter import filter_jobs
 from services.funding_client import FundingClient
 from services.job_client import JobAgentClient
@@ -224,6 +225,7 @@ async def apply_jobs_node(state: WorkflowState, config) -> dict:
     """Trigger apply-agent for each shortlisted job."""
     store: WorkflowStore = config["configurable"]["store"]
     apply_client: ApplyAgentClient = config["configurable"]["apply_client"]
+    durable_client = DurableWorkflowClient()
     request = state["request"]
     workflow_id = state["workflow_id"]
 
@@ -266,6 +268,9 @@ async def apply_jobs_node(state: WorkflowState, config) -> dict:
             idempotency_key = (
                 f"{request.user_profile.user_id}:{job.dedup_key}:{variant_id}"
             )
+        application_id = await durable_client.resolve_application_id(
+            workflow_id, job.dedup_key
+        )
         payload = JobPayload(
             job_id=job_id,
             job_url=application_url,
@@ -276,6 +281,7 @@ async def apply_jobs_node(state: WorkflowState, config) -> dict:
             user_profile=request.user_profile,
             resume_variant_id=variant_id,
             idempotency_key=idempotency_key,
+            application_id=application_id,
         )
 
         # Persist a placeholder before dispatch so a fast result cannot be dropped.

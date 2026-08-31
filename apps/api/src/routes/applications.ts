@@ -500,6 +500,261 @@ applicationsRouter.post(
   },
 );
 
+/** Resolve application id from workflow run + job dedup key. */
+applicationsRouter.get('/internal/resolve', async (req, res) => {
+  if (!internalRequestAllowed(req.header('x-agent-service-token'))) {
+    res.status(401).json({ error: 'Unauthorized internal request' });
+    return;
+  }
+
+  const workflowRunId =
+    typeof req.query.workflowRunId === 'string' ? req.query.workflowRunId : null;
+  const dedupKey =
+    typeof req.query.dedupKey === 'string' ? req.query.dedupKey : null;
+  if (!workflowRunId || !dedupKey) {
+    res.status(400).json({ error: 'workflowRunId and dedupKey are required' });
+    return;
+  }
+
+  const [job] = await db
+    .select({ id: workflowJobs.id })
+    .from(workflowJobs)
+    .where(
+      and(
+        eq(workflowJobs.workflowRunId, workflowRunId),
+        eq(workflowJobs.dedupKey, dedupKey),
+      ),
+    );
+  if (!job) {
+    res.status(404).json({ error: 'Workflow job not found' });
+    return;
+  }
+
+  const [application] = await db
+    .select({ id: applications.id })
+    .from(applications)
+    .where(eq(applications.workflowJobId, job.id));
+
+  if (!application) {
+    res.status(404).json({ error: 'Application not found' });
+    return;
+  }
+
+  res.status(200).json({ applicationId: application.id });
+});
+
+/** Resume agent after human intervention. */
+applicationsRouter.post('/internal/:applicationId/resume', async (req, res) => {
+  if (!internalRequestAllowed(req.header('x-agent-service-token'))) {
+    res.status(401).json({ error: 'Unauthorized internal request' });
+    return;
+  }
+
+  const { applicationId } = req.params;
+  const [application] = await db
+    .select()
+    .from(applications)
+    .where(eq(applications.id, applicationId));
+  if (!application) {
+    res.status(404).json({ error: 'Application not found' });
+    return;
+  }
+  if (application.status !== 'waiting_for_human') {
+    res.status(409).json({ error: 'Application is not waiting for human intervention' });
+    return;
+  }
+
+  const [openIntervention] = await db
+    .select()
+    .from(humanInterventions)
+    .where(
+      and(
+        eq(humanInterventions.applicationId, applicationId),
+        eq(humanInterventions.status, 'open'),
+      ),
+    )
+    .limit(1);
+
+  const now = new Date();
+  if (openIntervention) {
+    await db
+      .update(humanInterventions)
+      .set({ status: 'resolved', resolvedAt: now })
+      .where(eq(humanInterventions.id, openIntervention.id));
+  }
+
+  await db
+    .update(applications)
+    .set({
+      status: 'resuming',
+      controlMode: 'agent_control',
+      humanInterventionRequired: false,
+      interventionReason: null,
+      updatedAt: now,
+      lastActivityAt: now,
+    })
+    .where(eq(applications.id, applicationId));
+
+  const applyAgentUrl = process.env.APPLY_AGENT_URL ?? 'http://127.0.0.1:8003';
+  const agentToken = process.env.AGENT_SERVICE_TOKEN;
+  if (agentToken) {
+    try {
+      await fetch(
+        `${applyAgentUrl}/admin/applications/${encodeURIComponent(applicationId)}/resume`,
+        {
+          method: 'POST',
+          headers: { 'X-Agent-Service-Token': agentToken },
+        },
+      );
+    } catch {
+      res.status(502).json({ error: 'Failed to signal apply-agent resume' });
+      return;
+    }
+  }
+
+  res.status(200).json({ applicationId, status: 'resuming' });
+});
+
+/** Switch control to human for manual browser interaction. */
+applicationsRouter.post('/internal/:applicationId/take-control', async (req, res) => {
+  if (!internalRequestAllowed(req.header('x-agent-service-token'))) {
+    res.status(401).json({ error: 'Unauthorized internal request' });
+    return;
+  }
+
+  const { applicationId } = req.params;
+  const now = new Date();
+  const [updated] = await db
+    .update(applications)
+    .set({
+      controlMode: 'human_control',
+      updatedAt: now,
+      lastActivityAt: now,
+    })
+    .where(eq(applications.id, applicationId))
+    .returning();
+
+  if (!updated) {
+    res.status(404).json({ error: 'Application not found' });
+    return;
+  }
+
+  const applyAgentUrl = process.env.APPLY_AGENT_URL ?? 'http://127.0.0.1:8003';
+  const agentToken = process.env.AGENT_SERVICE_TOKEN;
+  if (agentToken) {
+    try {
+      await fetch(
+        `${applyAgentUrl}/admin/applications/${encodeURIComponent(applicationId)}/take-control`,
+        {
+          method: 'POST',
+          headers: { 'X-Agent-Service-Token': agentToken },
+        },
+      );
+    } catch {
+      // Postgres state is updated; apply-agent sync is best-effort.
+    }
+  }
+
+  res.status(200).json({ application: updated });
+});
+
+/** Release manual control back to agent without resuming automation. */
+applicationsRouter.post(
+  '/internal/:applicationId/release-control',
+  async (req, res) => {
+    if (!internalRequestAllowed(req.header('x-agent-service-token'))) {
+      res.status(401).json({ error: 'Unauthorized internal request' });
+      return;
+    }
+
+    const { applicationId } = req.params;
+    const now = new Date();
+    const [updated] = await db
+      .update(applications)
+      .set({
+        controlMode: 'agent_control',
+        updatedAt: now,
+        lastActivityAt: now,
+      })
+      .where(eq(applications.id, applicationId))
+      .returning();
+
+    if (!updated) {
+      res.status(404).json({ error: 'Application not found' });
+      return;
+    }
+
+    const applyAgentUrl = process.env.APPLY_AGENT_URL ?? 'http://127.0.0.1:8003';
+    const agentToken = process.env.AGENT_SERVICE_TOKEN;
+    if (agentToken) {
+      try {
+        await fetch(
+          `${applyAgentUrl}/admin/applications/${encodeURIComponent(applicationId)}/release-control`,
+          {
+            method: 'POST',
+            headers: { 'X-Agent-Service-Token': agentToken },
+          },
+        );
+      } catch {
+        // Best-effort sync.
+      }
+    }
+
+    res.status(200).json({ application: updated });
+  },
+);
+
+/** Stop an in-progress application session. */
+applicationsRouter.post('/internal/:applicationId/stop', async (req, res) => {
+  if (!internalRequestAllowed(req.header('x-agent-service-token'))) {
+    res.status(401).json({ error: 'Unauthorized internal request' });
+    return;
+  }
+
+  const { applicationId } = req.params;
+  const [application] = await db
+    .select()
+    .from(applications)
+    .where(eq(applications.id, applicationId));
+  if (!application) {
+    res.status(404).json({ error: 'Application not found' });
+    return;
+  }
+
+  const now = new Date();
+  await db
+    .update(applications)
+    .set({
+      status: 'cancelled',
+      controlMode: 'agent_control',
+      humanInterventionRequired: false,
+      completedAt: now,
+      updatedAt: now,
+      lastActivityAt: now,
+    })
+    .where(eq(applications.id, applicationId));
+
+  if (application.externalTaskId) {
+    const applyAgentUrl = process.env.APPLY_AGENT_URL ?? 'http://127.0.0.1:8003';
+    const agentToken = process.env.AGENT_SERVICE_TOKEN;
+    if (agentToken) {
+      try {
+        await fetch(
+          `${applyAgentUrl}/admin/tasks/${encodeURIComponent(application.externalTaskId)}/cancel`,
+          {
+            method: 'POST',
+            headers: { 'X-Agent-Service-Token': agentToken },
+          },
+        );
+      } catch {
+        // Best-effort cancellation; durable state already reflects stop.
+      }
+    }
+  }
+
+  res.status(200).json({ applicationId, status: 'cancelled' });
+});
+
 /** Batch-fetch open interventions for a set of application ids. */
 applicationsRouter.post('/internal/interventions/open', async (req, res) => {
   if (!internalRequestAllowed(req.header('x-agent-service-token'))) {
