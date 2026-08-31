@@ -27,7 +27,7 @@ from app.workers.celery_app import celery_app
 from app.workers.connect_worker import connect_contacts
 from app.browser.session_registry import ControlMode, session_registry
 from app.services.resume_signal import publish_resume
-from app.streaming.redis_relay import publish_control_mode
+from app.streaming.redis_relay import publish_control_mode, publish_show_browser
 from app.routers.applications import register_browser_token
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -173,12 +173,23 @@ async def register_application_browser_token(
 
 
 @router.post(
+    "/applications/{application_id}/show-browser",
+    dependencies=[Depends(require_agent_service_token)],
+)
+async def show_application_browser(application_id: str) -> dict[str, str]:
+    """Focus the headed Chrome window for shared-session human review."""
+    await publish_show_browser(application_id)
+    return {"application_id": application_id, "status": "show_browser_requested"}
+
+
+@router.post(
     "/applications/{application_id}/take-control",
     dependencies=[Depends(require_agent_service_token)],
 )
 async def take_application_control(application_id: str) -> dict[str, str]:
     await session_registry.set_control_mode(application_id, ControlMode.HUMAN)
     await publish_control_mode(application_id, ControlMode.HUMAN)
+    await publish_show_browser(application_id)
     return {"application_id": application_id, "control_mode": "human_control"}
 
 

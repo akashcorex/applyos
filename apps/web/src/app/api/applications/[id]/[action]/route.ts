@@ -53,6 +53,7 @@ export async function POST(
     'resume',
     'take-control',
     'release-control',
+    'show-browser',
     'stop',
   ]);
   if (!allowed.has(action)) {

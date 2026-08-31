@@ -10,7 +10,7 @@ from typing import Any
 import redis.asyncio as aioredis
 from playwright.async_api import Page
 
-from app.browser.session_registry import ControlMode
+from app.browser.session_registry import ControlMode, session_registry
 from app.config import settings
 from app.streaming.input_relay import relay_input
 from app.streaming.screencast import ScreencastStreamer
@@ -53,15 +53,23 @@ class WorkerStreamRelay:
         if self._running:
             return
         self._running = True
-        self._streamer = ScreencastStreamer(self.page)
-        await self._streamer.start()
-        self._tasks = [
-            asyncio.create_task(self._publish_frames()),
-            asyncio.create_task(self._frame_heartbeat()),
+        tasks: list[asyncio.Task[None]] = [
             asyncio.create_task(self._consume_input()),
         ]
+        if settings.hitl_debug_stream:
+            self._streamer = ScreencastStreamer(self.page)
+            await self._streamer.start()
+            tasks.extend(
+                [
+                    asyncio.create_task(self._publish_frames()),
+                    asyncio.create_task(self._frame_heartbeat()),
+                ]
+            )
+        self._tasks = tasks
         logger.info(
-            "Worker stream relay started application_id=%s", self.application_id
+            "Worker stream relay started application_id=%s debug_stream=%s",
+            self.application_id,
+            settings.hitl_debug_stream,
         )
 
     async def stop(self) -> None:
@@ -150,6 +158,16 @@ class WorkerStreamRelay:
                     elif mode == ControlMode.AGENT.value:
                         self._control_mode = ControlMode.AGENT
                     continue
+                if payload.get("type") == "show_browser":
+                    try:
+                        if not self.page.is_closed():
+                            await self.page.bring_to_front()
+                    except Exception:
+                        logger.exception(
+                            "show_browser failed application_id=%s",
+                            self.application_id,
+                        )
+                    continue
                 await relay_input(
                     self.page,
                     payload,
@@ -206,8 +224,22 @@ async def publish_control_mode(application_id: str, mode: ControlMode) -> None:
 
     # Nudge a fresh frame into the stream when handing control to the human so
     # the dashboard is not stuck on a stale/blank last paint.
-    if mode == ControlMode.HUMAN:
+    if mode == ControlMode.HUMAN and settings.hitl_debug_stream:
         await force_screencast_frame(application_id)
+
+
+async def publish_show_browser(application_id: str) -> bool:
+    """Ask the worker to focus the headed Chrome window for this application."""
+    focused = await session_registry.bring_to_front(application_id)
+    r = aioredis.from_url(settings.redis_url, decode_responses=True)
+    try:
+        await r.publish(
+            input_channel(application_id),
+            json.dumps({"type": "show_browser"}),
+        )
+    finally:
+        await r.aclose()
+    return focused
 
 
 async def force_screencast_frame(application_id: str) -> None:

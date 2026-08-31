@@ -69,6 +69,9 @@ class Settings(BaseSettings):
 
     # --- Human-in-the-loop ---
     hitl_mode: bool = True
+    # When false (default), dashboard does not rely on CDP screencast; the
+    # headed Chrome window is the human interaction surface.
+    hitl_debug_stream: bool = False
     browser_session_ttl_seconds: int = 7200
     browser_session_human_wait_seconds: int = 1800
     browser_session_sweep_interval_seconds: int = 60

@@ -134,6 +134,20 @@ class BrowserSessionRegistry:
         await self._persist_metadata(session)
         return True
 
+    async def bring_to_front(self, application_id: str) -> bool:
+        """Focus the headed Chrome window for a live application session."""
+        session = self._sessions.get(application_id)
+        if session is None or session.page.is_closed():
+            return False
+        try:
+            await session.page.bring_to_front()
+            return True
+        except Exception:
+            logger.exception(
+                "bring_to_front failed application_id=%s", application_id
+            )
+            return False
+
     def iter_sessions(self) -> list[BrowserSession]:
         return list(self._sessions.values())
 

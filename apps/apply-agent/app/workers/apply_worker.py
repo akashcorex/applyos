@@ -179,7 +179,9 @@ async def _run_apply(payload: JobPayload, task_id: str) -> ApplyResultEvent:
     browser = None
     context = None
     try:
-        headless = True if use_hitl else None
+        # Shared-session HITL needs a real headed Chrome window so the human
+        # can solve CAPTCHA/Cloudflare and review the filled form in-process.
+        headless = False if use_hitl else None
         async with launch_browser(headless=headless) as browser:
             storage_state = await load_session(user_id)
             had_linkedin_at_start = has_linkedin_cookies(storage_state)

@@ -145,6 +145,8 @@ class ApplicationRunner:
         # Keep WorkerStreamRelay in sync — otherwise UI shows human control
         # while relay_input still drops clicks/keys as agent_control.
         await publish_control_mode(self.application_id, ControlMode.HUMAN)
+        # Shared-session HITL: focus the headed Chrome window the human uses.
+        await session_registry.bring_to_front(self.application_id)
         await self._sync(
             status="waiting_for_human",
             control_mode="human_control",
@@ -227,7 +229,7 @@ class ApplicationRunner:
                 )
                 await self.request_human_intervention(
                     "SUBMIT_APPROVAL",
-                    "Review the filled application in the live browser, then approve submission.",
+                    "Review the filled application in the Chrome window, then approve submission.",
                 )
                 await self._sync(current_step="Submitting application")
                 result = await self._submit_only(handler, result.fields_filled)

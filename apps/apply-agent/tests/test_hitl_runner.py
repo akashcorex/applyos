@@ -1,6 +1,7 @@
 """Tests for HITL application runner helpers."""
 
 from app.workers.application_runner import _error_indicates_human_block
+from app.config import settings
 
 
 def test_captcha_error_detected() -> None:
@@ -17,3 +18,7 @@ def test_login_error_detected() -> None:
 
 def test_normal_error_not_blocker() -> None:
     assert _error_indicates_human_block("Field validation failed") is None
+
+
+def test_hitl_debug_stream_defaults_off() -> None:
+    assert settings.hitl_debug_stream is False

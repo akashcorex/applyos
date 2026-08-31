@@ -662,6 +662,43 @@ applicationsRouter.post('/internal/:applicationId/take-control', async (req, res
   res.status(200).json({ application: updated });
 });
 
+/** Focus the headed Chrome window for shared-session human review. */
+applicationsRouter.post('/internal/:applicationId/show-browser', async (req, res) => {
+  if (!internalRequestAllowed(req.header('x-agent-service-token'))) {
+    res.status(401).json({ error: 'Unauthorized internal request' });
+    return;
+  }
+
+  const { applicationId } = req.params;
+  const [application] = await db
+    .select({ id: applications.id })
+    .from(applications)
+    .where(eq(applications.id, applicationId));
+  if (!application) {
+    res.status(404).json({ error: 'Application not found' });
+    return;
+  }
+
+  const applyAgentUrl = process.env.APPLY_AGENT_URL ?? 'http://127.0.0.1:8003';
+  const agentToken = process.env.AGENT_SERVICE_TOKEN;
+  if (agentToken) {
+    try {
+      await fetch(
+        `${applyAgentUrl}/admin/applications/${encodeURIComponent(applicationId)}/show-browser`,
+        {
+          method: 'POST',
+          headers: { 'X-Agent-Service-Token': agentToken },
+        },
+      );
+    } catch {
+      res.status(502).json({ error: 'Failed to signal apply-agent show-browser' });
+      return;
+    }
+  }
+
+  res.status(200).json({ applicationId, status: 'show_browser_requested' });
+});
+
 /** Release manual control back to agent without resuming automation. */
 applicationsRouter.post(
   '/internal/:applicationId/release-control',
