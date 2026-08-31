@@ -9,6 +9,7 @@ from playwright.async_api import BrowserContext, Page
 
 from app.ats.detector import get_handler
 from app.ats.wellfound import WellfoundHandler
+from app.browser.blocker_detector import detect_blocker, verify_blocker_cleared
 from app.browser.session_registry import ControlMode, session_registry
 from app.config import settings
 from app.llm.answer_generator import generate_answers
@@ -133,7 +134,7 @@ class ApplicationRunner:
             message=message,
         )
         await self._log_event(
-            "BLOCKER_DETECTED",
+            "HUMAN_INTERVENTION",
             message,
             {"type": intervention_type},
         )
@@ -148,6 +149,12 @@ class ApplicationRunner:
                 f"Human intervention timed out: {message}",
             )
 
+        if not await verify_blocker_cleared(self.page, expected_type=intervention_type):
+            raise HumanInterventionRequired(
+                intervention_type,
+                f"Blocker still present after human intervention: {message}",
+            )
+
         await session_registry.signal_resume(self.application_id)
         await self._sync(
             status="resuming",
@@ -157,6 +164,18 @@ class ApplicationRunner:
             current_step="Resuming after human intervention",
         )
         await self._log_event("AGENT_RESUMED", "Agent resumed after human intervention")
+
+    async def check_and_pause_for_blocker(self) -> None:
+        """Proactively detect page blockers and pause for human help."""
+        blocker = await detect_blocker(self.page)
+        if blocker is None:
+            return
+        await self._log_event(
+            "BLOCKER_DETECTED",
+            blocker.message,
+            {"type": blocker.type},
+        )
+        await self.request_human_intervention(blocker.type, blocker.message)
 
     async def navigate_to_apply_page(self, job_url: str) -> object:
         await self._sync(status="running", current_step="Opening application page")
@@ -179,23 +198,35 @@ class ApplicationRunner:
                 handler = await get_handler(external, self.page)
 
         await self._sync(current_url=self.page.url, current_step="Application page loaded")
+        await self.check_and_pause_for_blocker()
         return handler
 
     async def fill_and_submit(self, handler) -> FillResult:
         """Run fill/submit, pausing for human intervention when blockers occur."""
         while True:
+            await self.check_and_pause_for_blocker()
             result = await self._attempt_fill(handler)
             if result.success:
+                await self._log_event(
+                    "APPLICATION_SUBMITTED",
+                    "Application form submitted",
+                    {"fields_filled": result.fields_filled},
+                )
                 return result
 
             blocker = _error_indicates_human_block(result.error)
             if blocker and settings.hitl_mode and self.application_id:
                 intervention_type, message = blocker
                 await self.request_human_intervention(intervention_type, message)
-                # Re-inspect page after human action before continuing.
                 handler = await get_handler(self.page.url, self.page)
                 continue
 
+            if result.error:
+                await self._log_event(
+                    "APPLICATION_FAILED",
+                    result.error,
+                    {"fields_filled": result.fields_filled},
+                )
             return result
 
     async def _attempt_fill(self, handler) -> FillResult:

@@ -683,7 +683,7 @@ async def ensure_captcha_cleared(
         Error string asking for a manual handoff if still blocked.
     """
     if allow_solver is None:
-        allow_solver = settings.captcha_solver_enabled
+        allow_solver = settings.captcha_solver_enabled and not settings.hitl_mode
     # Already have a usable hCaptcha token (Lever silent-pass or prior inject).
     if await get_hcaptcha_token(page):
         return None
