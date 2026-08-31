@@ -67,6 +67,11 @@ class Settings(BaseSettings):
     apply_locale: str = "en-IN"
     apply_timezone: str = "Asia/Kolkata"
 
+    # --- Human-in-the-loop ---
+    hitl_mode: bool = True
+    browser_session_ttl_seconds: int = 7200
+    browser_session_human_wait_seconds: int = 1800
+
     class Config:
         env_file = ".env"
 

@@ -25,7 +25,7 @@ from app.workers.apply_worker import apply_job
 from app.workers.cancellation import mark_apply_task_cancelled
 from app.workers.celery_app import celery_app
 from app.workers.connect_worker import connect_contacts
-from app.workers.discover_connect_worker import discover_and_connect
+from app.services.resume_signal import publish_resume
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 logger = logging.getLogger(__name__)
@@ -42,6 +42,11 @@ class TriggerApplyResponse(BaseModel):
 
 class CancelApplyResponse(BaseModel):
     task_id: str
+    status: str
+
+
+class ResumeApplicationResponse(BaseModel):
+    application_id: str
     status: str
 
 
@@ -132,6 +137,20 @@ async def cancel_apply_task(task_id: str) -> CancelApplyResponse:
         logger.exception("Could not broadcast Celery revoke for task_id=%s", task_id)
 
     return CancelApplyResponse(task_id=task_id, status="cancellation_requested")
+
+
+@router.post(
+    "/applications/{application_id}/resume",
+    response_model=ResumeApplicationResponse,
+    dependencies=[Depends(require_agent_service_token)],
+)
+async def resume_application(application_id: str) -> ResumeApplicationResponse:
+    """Signal a paused application worker to resume after human intervention."""
+    await publish_resume(application_id)
+    return ResumeApplicationResponse(
+        application_id=application_id,
+        status="resuming",
+    )
 
 
 @router.post(
