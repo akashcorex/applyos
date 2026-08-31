@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Loader2, X } from 'lucide-react';
 
 import { ApplicationActivityPanel } from '@/components/applications/ApplicationActivityPanel';
@@ -26,6 +26,7 @@ interface ApplicationEvent {
   description: string;
   createdAt?: string;
   created_at?: string;
+  metadata?: Record<string, unknown> | null;
 }
 
 interface HumanIntervention {
@@ -40,6 +41,24 @@ interface ApplicationModalProps {
   jobTitle?: string;
   companyName?: string;
   onClose: () => void;
+}
+
+const DEBUG_STREAM =
+  process.env.NEXT_PUBLIC_HITL_DEBUG_STREAM === 'true' ||
+  process.env.NEXT_PUBLIC_HITL_DEBUG_STREAM === '1';
+
+function fieldSummaryFromEvents(events: ApplicationEvent[]): string[] {
+  const lines: string[] = [];
+  for (const event of events) {
+    if (event.type === 'FIELD_FILLED' || event.type === 'HUMAN_INTERVENTION') {
+      lines.push(event.description);
+    }
+    const filled = event.metadata?.fields_filled;
+    if (typeof filled === 'number' && event.type === 'FIELD_FILLED') {
+      lines.push(`Fields filled: ${filled}`);
+    }
+  }
+  return lines.slice(0, 12);
 }
 
 export function ApplicationModal({
@@ -107,14 +126,21 @@ export function ApplicationModal({
     }
   };
 
+  const summaryLines = useMemo(
+    () => fieldSummaryFromEvents(events),
+    [events],
+  );
+
   const title =
     jobTitle && companyName
       ? `${companyName} — ${jobTitle}`
       : jobTitle || companyName || 'Application';
 
+  const waitingForHuman = application?.status === 'waiting_for_human';
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="flex max-h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-xl border border-slate-200 bg-background shadow-2xl dark:border-[#22242a]">
+      <div className="flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-xl border border-slate-200 bg-background shadow-2xl dark:border-[#22242a]">
         <div className="flex items-center justify-between border-b px-4 py-3">
           <div>
             <h2 className="text-lg font-semibold">{title}</h2>
@@ -139,7 +165,7 @@ export function ApplicationModal({
             <p className="mb-3 text-sm text-red-600">{error}</p>
           ) : null}
 
-          {(application?.status === 'waiting_for_human' || intervention) && (
+          {(waitingForHuman || intervention) && (
             <div className="mb-4">
               <HumanInterventionBanner
                 message={
@@ -150,25 +176,49 @@ export function ApplicationModal({
                 type={intervention?.type}
                 loading={loadingAction}
                 onResume={() => void runAction('resume')}
-                onTakeControl={() => void runAction('take-control')}
+                onShowBrowser={() => void runAction('show-browser')}
               />
             </div>
           )}
 
           <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
-            <LiveBrowserView
-              applicationId={applicationId}
-              controlMode={application?.controlMode ?? 'agent_control'}
-              browserSessionReady={Boolean(application?.browserSessionId)}
-            />
+            <div className="space-y-3">
+              <div className="rounded-lg border border-slate-200 p-4 dark:border-[#22242a]">
+                <p className="text-sm font-medium">Shared browser session</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  The agent filled this application in a headed Chrome window on
+                  the worker machine. Use <strong>Show browser</strong> to bring
+                  that window forward, review or clear blockers there, then
+                  approve.
+                </p>
+                {application?.currentUrl ? (
+                  <p className="mt-3 break-all text-xs text-muted-foreground">
+                    {application.currentUrl}
+                  </p>
+                ) : null}
+                {summaryLines.length > 0 ? (
+                  <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-muted-foreground">
+                    {summaryLines.map((line) => (
+                      <li key={line}>{line}</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="mt-3 text-sm text-muted-foreground">
+                    Activity details appear here as the agent progresses.
+                  </p>
+                )}
+              </div>
+
+              {DEBUG_STREAM ? (
+                <LiveBrowserView
+                  applicationId={applicationId}
+                  controlMode={application?.controlMode ?? 'agent_control'}
+                  browserSessionReady={Boolean(application?.browserSessionId)}
+                />
+              ) : null}
+            </div>
             <ApplicationActivityPanel events={events} />
           </div>
-
-          {application?.currentUrl ? (
-            <p className="mt-3 truncate text-xs text-muted-foreground">
-              {application.currentUrl}
-            </p>
-          ) : null}
         </div>
 
         <div className="flex items-center justify-between border-t px-4 py-3">
@@ -177,21 +227,13 @@ export function ApplicationModal({
               variant="outline"
               size="sm"
               disabled={loadingAction}
-              onClick={() => void runAction('take-control')}
+              onClick={() => void runAction('show-browser')}
             >
-              Take Control
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={loadingAction}
-              onClick={() => void runAction('release-control')}
-            >
-              Release Control
+              Show browser
             </Button>
           </div>
           <div className="flex gap-2">
-            {application?.status === 'waiting_for_human' ? (
+            {waitingForHuman ? (
               <Button
                 size="sm"
                 disabled={loadingAction}

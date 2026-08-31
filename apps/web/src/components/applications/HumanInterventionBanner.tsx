@@ -8,7 +8,7 @@ interface HumanInterventionBannerProps {
   message: string;
   type?: string;
   onResume: () => void;
-  onTakeControl: () => void;
+  onShowBrowser: () => void;
   loading?: boolean;
 }
 
@@ -16,7 +16,7 @@ export function HumanInterventionBanner({
   message,
   type,
   onResume,
-  onTakeControl,
+  onShowBrowser,
   loading = false,
 }: HumanInterventionBannerProps) {
   const isSubmitApproval = type === 'SUBMIT_APPROVAL';
@@ -28,7 +28,9 @@ export function HumanInterventionBanner({
         <div className="flex-1 space-y-2">
           <div>
             <p className="font-medium text-amber-900 dark:text-amber-200">
-              {isSubmitApproval ? 'Review before submitting' : 'Human action required'}
+              {isSubmitApproval
+                ? 'Review before submitting'
+                : 'Human action required'}
             </p>
             {type ? (
               <p className="text-xs uppercase tracking-wide text-amber-700/80">
@@ -41,12 +43,17 @@ export function HumanInterventionBanner({
           </div>
           <p className="text-sm text-muted-foreground">
             {isSubmitApproval
-              ? 'Watch the live browser above while the form is filled. Approve when you are ready to submit.'
-              : 'Complete the step in the live browser above, then continue with AI.'}
+              ? 'Open the Chrome window to review the filled form, then approve submission.'
+              : 'Complete the step in the Chrome window (same browser session), then continue.'}
           </p>
           <div className="flex flex-wrap gap-2">
-            <Button size="sm" onClick={onTakeControl} variant="outline" disabled={loading}>
-              Take Control
+            <Button
+              size="sm"
+              onClick={onShowBrowser}
+              variant="outline"
+              disabled={loading}
+            >
+              Show browser
             </Button>
             <Button size="sm" onClick={onResume} disabled={loading}>
               {isSubmitApproval ? 'Approve & Submit' : 'Continue with AI'}

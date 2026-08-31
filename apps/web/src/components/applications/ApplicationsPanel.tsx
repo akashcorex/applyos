@@ -90,7 +90,12 @@ export function ApplicationsPanel() {
                   <ApplicationStatusBadge status={application.status} />
                   <Button
                     size="sm"
-                    variant="outline"
+                    variant={
+                      category === 'attention' ||
+                      application.humanInterventionRequired
+                        ? 'default'
+                        : 'outline'
+                    }
                     onClick={() => {
                       setSelectedId(application.id);
                       setSelectedMeta({
@@ -99,7 +104,10 @@ export function ApplicationsPanel() {
                       });
                     }}
                   >
-                    Open
+                    {category === 'attention' ||
+                    application.humanInterventionRequired
+                      ? 'Review'
+                      : 'Open'}
                   </Button>
                 </div>
               </div>
