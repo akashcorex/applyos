@@ -46,3 +46,4 @@ class JobPayload(BaseModel):
     resume_variant_id: str | None = None
     idempotency_key: str | None = None
     application_id: str | None = None
+    auto_submit: bool = True

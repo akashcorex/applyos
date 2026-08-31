@@ -282,6 +282,7 @@ async def apply_jobs_node(state: WorkflowState, config) -> dict:
             resume_variant_id=variant_id,
             idempotency_key=idempotency_key,
             application_id=application_id,
+            auto_submit=request.auto_submit,
         )
 
         # Persist a placeholder before dispatch so a fast result cannot be dropped.

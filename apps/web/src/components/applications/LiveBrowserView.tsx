@@ -5,19 +5,27 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 interface LiveBrowserViewProps {
   applicationId: string;
   controlMode: string;
-  onControlModeChange?: (mode: string) => void;
+  browserSessionReady?: boolean;
 }
 
 export function LiveBrowserView({
   applicationId,
   controlMode,
+  browserSessionReady = true,
 }: LiveBrowserViewProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wsRef = useRef<WebSocket | null>(null);
+  const retryRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [connected, setConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const connect = useCallback(async () => {
+    if (!browserSessionReady) {
+      setError(null);
+      setConnected(false);
+      return;
+    }
+
     setError(null);
     try {
       const res = await fetch(
@@ -26,7 +34,11 @@ export function LiveBrowserView({
       );
       const data = (await res.json()) as { wsUrl?: string; error?: string };
       if (!res.ok || !data.wsUrl) {
-        setError(data.error || 'Browser session not ready');
+        const message = data.error || 'Browser session not ready';
+        setError(message);
+        if (res.status === 409 || message.includes('not ready')) {
+          retryRef.current = setTimeout(() => void connect(), 2000);
+        }
         return;
       }
 
@@ -34,9 +46,20 @@ export function LiveBrowserView({
       ws.binaryType = 'arraybuffer';
       wsRef.current = ws;
 
-      ws.onopen = () => setConnected(true);
-      ws.onclose = () => setConnected(false);
-      ws.onerror = () => setError('Live browser connection failed');
+      ws.onopen = () => {
+        setConnected(true);
+        setError(null);
+      };
+      ws.onclose = () => {
+        setConnected(false);
+        if (browserSessionReady) {
+          retryRef.current = setTimeout(() => void connect(), 3000);
+        }
+      };
+      ws.onerror = () => {
+        setError('Live browser connection failed');
+        setConnected(false);
+      };
       ws.onmessage = (event) => {
         const canvas = canvasRef.current;
         if (!canvas || !(event.data instanceof ArrayBuffer)) return;
@@ -55,12 +78,14 @@ export function LiveBrowserView({
       };
     } catch {
       setError('Could not connect to live browser');
+      retryRef.current = setTimeout(() => void connect(), 3000);
     }
-  }, [applicationId]);
+  }, [applicationId, browserSessionReady]);
 
   useEffect(() => {
     void connect();
     return () => {
+      if (retryRef.current) clearTimeout(retryRef.current);
       wsRef.current?.close();
       wsRef.current = null;
     };
@@ -81,7 +106,7 @@ export function LiveBrowserView({
           {controlMode === 'human_control' ? 'You have control' : 'AI is in control'}
         </span>
       </div>
-      {error ? (
+      {error && !connected ? (
         <div className="flex flex-1 items-center justify-center p-6 text-sm text-amber-400">
           {error}
         </div>

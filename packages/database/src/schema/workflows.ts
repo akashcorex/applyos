@@ -81,6 +81,7 @@ export const humanInterventionTypes = [
   'FILE_UPLOAD',
   'UNEXPECTED_PAGE',
   'AGENT_UNCERTAIN',
+  'SUBMIT_APPROVAL',
   'OTHER',
 ] as const;
 

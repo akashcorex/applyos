@@ -19,6 +19,10 @@ from app.browser.session_manager import (
     should_save_session,
 )
 from app.browser.session_registry import session_registry
+from app.streaming.redis_relay import (
+    start_worker_stream_relay,
+    stop_worker_stream_relay,
+)
 from app.config import settings
 from app.events.publisher import publish_apply_result
 from app.models.hitl import HumanInterventionRequired
@@ -175,7 +179,8 @@ async def _run_apply(payload: JobPayload, task_id: str) -> ApplyResultEvent:
     browser = None
     context = None
     try:
-        async with launch_browser() as browser:
+        headless = True if use_hitl else None
+        async with launch_browser(headless=headless) as browser:
             storage_state = await load_session(user_id)
             had_linkedin_at_start = has_linkedin_cookies(storage_state)
             had_wellfound_at_start = has_wellfound_cookies(storage_state)
@@ -190,15 +195,24 @@ async def _run_apply(payload: JobPayload, task_id: str) -> ApplyResultEvent:
                     page=page,
                     worker_id=task_id,
                 )
-            await api_client.update_session(
-                application_id,
-                status="running",
-                browser_session_id=session.browser_session_id,
-                control_mode="agent_control",
-                current_url=page.url,
-                current_step="Browser ready",
-                external_task_id=task_id,
-            )
+                await start_worker_stream_relay(application_id, page)
+                await api_client.update_session(
+                    application_id,
+                    status="running",
+                    browser_session_id=session.browser_session_id,
+                    control_mode="agent_control",
+                    current_url=page.url,
+                    current_step="Browser ready",
+                    external_task_id=task_id,
+                )
+            elif application_id:
+                await api_client.update_session(
+                    application_id,
+                    status="running",
+                    current_url=page.url,
+                    current_step="Browser ready",
+                    external_task_id=task_id,
+                )
 
             runner = ApplicationRunner(
                 payload,
@@ -314,6 +328,7 @@ async def _run_apply(payload: JobPayload, task_id: str) -> ApplyResultEvent:
         raise
     finally:
         if use_hitl and application_id:
+            await stop_worker_stream_relay(application_id)
             await session_registry.release(application_id)
 
 

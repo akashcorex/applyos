@@ -2,17 +2,13 @@
 
 from __future__ import annotations
 
-import asyncio
-import json
 import logging
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Header, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, Header, HTTPException, WebSocket
 
-from app.browser.session_registry import session_registry
 from app.config import settings
-from app.streaming.input_relay import relay_input
-from app.streaming.screencast import get_or_start_streamer, stop_streamer
+from app.streaming.redis_relay import relay_websocket_session, session_metadata_key
 
 logger = logging.getLogger(__name__)
 
@@ -45,62 +41,26 @@ async def browser_websocket(websocket: WebSocket, application_id: str) -> None:
         await websocket.close(code=4401)
         return
 
-    session = await session_registry.get(application_id)
-    if session is None:
+    import redis.asyncio as aioredis
+
+    r = aioredis.from_url(settings.redis_url, decode_responses=True)
+    try:
+        metadata = await r.get(session_metadata_key(application_id))
+    finally:
+        await r.aclose()
+
+    if not metadata:
         await websocket.close(code=4404)
         return
 
     await websocket.accept()
-    streamer = await get_or_start_streamer(application_id)
-    if streamer is None:
-        await websocket.close(code=4404)
-        return
-
-    async def send_frames() -> None:
-        try:
-            async for frame in streamer.frames():
-                await websocket.send_bytes(frame)
-        except WebSocketDisconnect:
-            pass
-        except Exception:
-            logger.exception(
-                "Screencast stream failed application_id=%s", application_id
-            )
-
-    async def receive_input() -> None:
-        try:
-            while True:
-                raw = await websocket.receive_text()
-                message = json.loads(raw)
-                current = await session_registry.get(application_id)
-                if current is None:
-                    break
-                await relay_input(
-                    current.page,
-                    message,
-                    control_mode=current.control_mode,
-                )
-        except WebSocketDisconnect:
-            pass
-        except json.JSONDecodeError:
-            logger.warning("Invalid JSON input from browser websocket")
-        except Exception:
-            logger.exception(
-                "Input relay failed application_id=%s", application_id
-            )
-
-    send_task = asyncio.create_task(send_frames())
-    recv_task = asyncio.create_task(receive_input())
-
     try:
-        await asyncio.wait(
-            {send_task, recv_task},
-            return_when=asyncio.FIRST_COMPLETED,
+        await relay_websocket_session(websocket, application_id)
+    except Exception:
+        logger.exception(
+            "Browser websocket relay failed application_id=%s", application_id
         )
     finally:
-        send_task.cancel()
-        recv_task.cancel()
-        await stop_streamer(application_id)
         try:
             await websocket.close()
         except Exception:

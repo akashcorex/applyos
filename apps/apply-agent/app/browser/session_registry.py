@@ -98,11 +98,32 @@ class BrowserSessionRegistry:
         mode: ControlMode,
     ) -> BrowserSession | None:
         session = self._sessions.get(application_id)
-        if session is None:
-            return None
-        session.control_mode = mode
-        await self._persist_metadata(session)
-        return session
+        if session is not None:
+            session.control_mode = mode
+            await self._persist_metadata(session)
+            return session
+        await self._update_remote_control_mode(application_id, mode)
+        return None
+
+    async def _update_remote_control_mode(
+        self,
+        application_id: str,
+        mode: ControlMode,
+    ) -> None:
+        r = aioredis.from_url(settings.redis_url, decode_responses=True)
+        try:
+            raw = await r.get(_redis_key(application_id))
+            if not raw:
+                return
+            payload = json.loads(raw)
+            payload["controlMode"] = mode.value
+            await r.set(
+                _redis_key(application_id),
+                json.dumps(payload),
+                ex=settings.browser_session_ttl_seconds,
+            )
+        finally:
+            await r.aclose()
 
     async def signal_resume(self, application_id: str) -> bool:
         session = self._sessions.get(application_id)

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+PENDING_SUBMIT_APPROVAL = "__PENDING_SUBMIT_APPROVAL__"
+
 
 class HumanInterventionRequired(Exception):
     """Raised when the agent must pause and hand control to the user."""

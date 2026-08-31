@@ -553,8 +553,10 @@ class GreenhouseHandler(ATSHandler):
         page: Page,
         cv_data: CVData,
         field_mapping: dict[str, str],
+        *,
+        auto_submit: bool = True,
     ) -> FillResult:
-        """Fill Greenhouse form fields and submit."""
+        """Fill Greenhouse form fields and optionally submit."""
         filled = 0
         initial_url = page.url
         fill_debug: list[dict[str, object]] = []
@@ -701,6 +703,56 @@ class GreenhouseHandler(ATSHandler):
                 )
                 await random_pause(1.0, 2.0)
 
+            if not auto_submit:
+                from app.models.hitl import PENDING_SUBMIT_APPROVAL
+
+                return FillResult(
+                    success=False,
+                    ats_type=self.ats_name,
+                    fields_filled=filled,
+                    error=PENDING_SUBMIT_APPROVAL,
+                )
+
+            return await self._submit_application(
+                page,
+                initial_url=initial_url,
+                field_mapping=field_mapping,
+                filled=filled,
+            )
+
+        except Exception as e:
+            logger.error("Greenhouse fill failed: %s", e)
+            return FillResult(
+                success=False,
+                ats_type=self.ats_name,
+                fields_filled=filled,
+                error=str(e),
+            )
+
+    async def submit_form(
+        self,
+        page: Page,
+        *,
+        fields_filled: int = 0,
+        field_mapping: dict[str, str] | None = None,
+    ) -> FillResult:
+        """Submit a Greenhouse form that was already filled."""
+        return await self._submit_application(
+            page,
+            initial_url=page.url,
+            field_mapping=field_mapping or {},
+            filled=fields_filled,
+        )
+
+    async def _submit_application(
+        self,
+        page: Page,
+        *,
+        initial_url: str,
+        field_mapping: dict[str, str],
+        filled: int,
+    ) -> FillResult:
+        try:
             submit_selector = (
                 "form button[type='submit'], "
                 "form input[type='submit'], "
@@ -785,9 +837,8 @@ class GreenhouseHandler(ATSHandler):
                 fields_filled=filled,
                 error="Submit did not reach a confirmation page",
             )
-
         except Exception as e:
-            logger.error("Greenhouse fill failed: %s", e)
+            logger.error("Greenhouse submit failed: %s", e)
             return FillResult(
                 success=False,
                 ats_type=self.ats_name,

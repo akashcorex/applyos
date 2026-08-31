@@ -17,6 +17,7 @@ interface ApplicationDetail {
   currentStep?: string | null;
   interventionReason?: string | null;
   humanInterventionRequired?: boolean | null;
+  browserSessionId?: string | null;
 }
 
 interface ApplicationEvent {
@@ -158,6 +159,7 @@ export function ApplicationModal({
             <LiveBrowserView
               applicationId={applicationId}
               controlMode={application?.controlMode ?? 'agent_control'}
+              browserSessionReady={Boolean(application?.browserSessionId)}
             />
             <ApplicationActivityPanel events={events} />
           </div>
@@ -197,6 +199,8 @@ export function ApplicationModal({
               >
                 {loadingAction ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
+                ) : intervention?.type === 'SUBMIT_APPROVAL' ? (
+                  'Approve & Submit'
                 ) : (
                   'Continue with AI'
                 )}

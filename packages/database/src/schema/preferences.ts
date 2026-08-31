@@ -23,6 +23,7 @@ export const userPreferences = pgTable('user_preferences', {
   emailOutreachEnabled: boolean('email_outreach_enabled')
     .notNull()
     .default(false),
+  autoSubmitEnabled: boolean('auto_submit_enabled').notNull().default(false),
   createdAt: timestamp('created_at', { withTimezone: true })
     .defaultNow()
     .notNull(),

@@ -14,7 +14,7 @@ from app.browser.session_registry import ControlMode, session_registry
 from app.config import settings
 from app.llm.answer_generator import generate_answers
 from app.llm.field_mapper import map_fields_with_llm
-from app.models.hitl import HumanInterventionRequired
+from app.models.hitl import HumanInterventionRequired, PENDING_SUBMIT_APPROVAL
 from app.models.job_payload import JobPayload
 from app.services.application_api_client import ApplicationApiClient
 from app.services.resume_signal import wait_for_resume
@@ -141,6 +141,13 @@ class ApplicationRunner:
         await session_registry.set_control_mode(
             self.application_id, ControlMode.HUMAN
         )
+        await self._sync(
+            status="waiting_for_human",
+            control_mode="human_control",
+            human_intervention_required=True,
+            intervention_reason=message,
+            current_step="Waiting for human action",
+        )
 
         resumed = await wait_for_resume(self.application_id)
         if not resumed:
@@ -149,11 +156,12 @@ class ApplicationRunner:
                 f"Human intervention timed out: {message}",
             )
 
-        if not await verify_blocker_cleared(self.page, expected_type=intervention_type):
-            raise HumanInterventionRequired(
-                intervention_type,
-                f"Blocker still present after human intervention: {message}",
-            )
+        if intervention_type != "SUBMIT_APPROVAL":
+            if not await verify_blocker_cleared(self.page, expected_type=intervention_type):
+                raise HumanInterventionRequired(
+                    intervention_type,
+                    f"Blocker still present after human intervention: {message}",
+                )
 
         await session_registry.signal_resume(self.application_id)
         await self._sync(
@@ -206,6 +214,18 @@ class ApplicationRunner:
         while True:
             await self.check_and_pause_for_blocker()
             result = await self._attempt_fill(handler)
+            if result.error == PENDING_SUBMIT_APPROVAL:
+                await self._log_event(
+                    "FIELD_FILLED",
+                    "Application form filled — waiting for your approval to submit",
+                    {"fields_filled": result.fields_filled},
+                )
+                await self.request_human_intervention(
+                    "SUBMIT_APPROVAL",
+                    "Review the filled application in the live browser, then approve submission.",
+                )
+                await self._sync(current_step="Submitting application")
+                result = await self._submit_only(handler, result.fields_filled)
             if result.success:
                 await self._log_event(
                     "APPLICATION_SUBMITTED",
@@ -273,6 +293,24 @@ class ApplicationRunner:
                 field_mapping[field.selector] = f"literal:{field.options[0]}"
 
         await self._sync(current_step="Filling application form")
+        auto_submit = self.payload.auto_submit
+        fill_kwargs: dict = {}
+        if hasattr(handler, "fill_and_submit"):
+            import inspect
+
+            params = inspect.signature(handler.fill_and_submit).parameters
+            if "auto_submit" in params:
+                fill_kwargs["auto_submit"] = auto_submit
         return await handler.fill_and_submit(
-            self.page, self.payload.cv_data, field_mapping
+            self.page, self.payload.cv_data, field_mapping, **fill_kwargs
+        )
+
+    async def _submit_only(self, handler, fields_filled: int) -> FillResult:
+        if hasattr(handler, "submit_form"):
+            return await handler.submit_form(self.page, fields_filled=fields_filled)
+        return FillResult(
+            success=False,
+            ats_type=getattr(handler, "ats_name", "unknown"),
+            fields_filled=fields_filled,
+            error="Submit approval is not supported for this application site yet",
         )

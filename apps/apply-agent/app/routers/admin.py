@@ -26,6 +26,9 @@ from app.workers.cancellation import mark_apply_task_cancelled
 from app.workers.celery_app import celery_app
 from app.workers.connect_worker import connect_contacts
 from app.browser.session_registry import ControlMode, session_registry
+from app.services.resume_signal import publish_resume
+from app.streaming.redis_relay import publish_control_mode
+from app.routers.applications import register_browser_token
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 logger = logging.getLogger(__name__)
@@ -174,11 +177,8 @@ async def register_application_browser_token(
     dependencies=[Depends(require_agent_service_token)],
 )
 async def take_application_control(application_id: str) -> dict[str, str]:
-    session = await session_registry.set_control_mode(
-        application_id, ControlMode.HUMAN
-    )
-    if session is None:
-        raise HTTPException(status_code=404, detail="Browser session not found")
+    await session_registry.set_control_mode(application_id, ControlMode.HUMAN)
+    await publish_control_mode(application_id, ControlMode.HUMAN)
     return {"application_id": application_id, "control_mode": "human_control"}
 
 
@@ -187,11 +187,8 @@ async def take_application_control(application_id: str) -> dict[str, str]:
     dependencies=[Depends(require_agent_service_token)],
 )
 async def release_application_control(application_id: str) -> dict[str, str]:
-    session = await session_registry.set_control_mode(
-        application_id, ControlMode.AGENT
-    )
-    if session is None:
-        raise HTTPException(status_code=404, detail="Browser session not found")
+    await session_registry.set_control_mode(application_id, ControlMode.AGENT)
+    await publish_control_mode(application_id, ControlMode.AGENT)
     return {"application_id": application_id, "control_mode": "agent_control"}
 
 
