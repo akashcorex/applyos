@@ -6,6 +6,7 @@ Every ATS module (workday.py, greenhouse.py, etc.) must subclass
 
 from __future__ import annotations
 
+import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any
@@ -13,6 +14,28 @@ from typing import Any
 from playwright.async_api import Page
 
 from app.models.job_payload import CVData
+
+_ID_SELECTOR_RE = re.compile(r"^[A-Za-z_-][\w-]*$")
+
+
+def css_id_selector(element_id: str) -> str:
+    """Return a valid CSS selector for an HTML ``id`` attribute value."""
+    if not element_id:
+        return ""
+    if element_id[0].isdigit() or not _ID_SELECTOR_RE.fullmatch(element_id):
+        escaped = element_id.replace("\\", "\\\\").replace('"', '\\"')
+        return f'[id="{escaped}"]'
+    return f"#{element_id}"
+
+
+def normalize_selector(selector: str) -> str:
+    """Fix invalid ``#id`` selectors such as ``#430`` (ids starting with digits)."""
+    if not selector.startswith("#") or len(selector) < 2:
+        return selector
+    element_id = selector[1:]
+    if not element_id or " " in element_id or "[" in element_id:
+        return selector
+    return css_id_selector(element_id)
 
 
 @dataclass

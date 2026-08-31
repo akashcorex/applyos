@@ -16,7 +16,14 @@ from pathlib import Path
 from playwright.async_api import Page
 from playwright.async_api import TimeoutError as PlaywrightTimeoutError
 
-from app.ats.base import ATSHandler, FillResult, FormField, resolve_mapped_value
+from app.ats.base import (
+    ATSHandler,
+    FillResult,
+    FormField,
+    css_id_selector,
+    normalize_selector,
+    resolve_mapped_value,
+)
 from app.browser.human_delay import human_click, human_type, random_pause
 from app.browser.resume_upload import prepare_resume_file
 from app.models.job_payload import CVData
@@ -60,7 +67,7 @@ class GreenhouseHandler(ATSHandler):
         if labelled_by:
             parts: list[str] = []
             for label_id in labelled_by.split():
-                label_el = await page.query_selector(f"#{label_id}")
+                label_el = await page.query_selector(css_id_selector(label_id))
                 if label_el:
                     text = (await label_el.inner_text()).strip()
                     if text:
@@ -123,7 +130,7 @@ class GreenhouseHandler(ATSHandler):
     async def _extract_combobox_options(
         self, page: Page, selector: str
     ) -> list[str] | None:
-        field_el = await page.query_selector(selector)
+        field_el = await page.query_selector(normalize_selector(selector))
         if field_el is None:
             return None
 
@@ -158,7 +165,7 @@ class GreenhouseHandler(ATSHandler):
                 pass
 
     async def _fill_combobox(self, page: Page, selector: str, value: str) -> bool:
-        field_el = await page.query_selector(selector)
+        field_el = await page.query_selector(normalize_selector(selector))
         if field_el is None:
             return False
 
@@ -427,7 +434,7 @@ class GreenhouseHandler(ATSHandler):
         for inp in inputs:
             field_id = await inp.get_attribute("id") or ""
             name = await inp.get_attribute("name") or field_id
-            selector = f"#{field_id}" if field_id else f"input[name='{name}']"
+            selector = css_id_selector(field_id) if field_id else f"input[name='{name}']"
             if selector in seen_selectors:
                 continue
             required = (
@@ -460,7 +467,7 @@ class GreenhouseHandler(ATSHandler):
                 or placeholder == "search"
             ):
                 continue
-            selector = f"#{field_id}" if field_id else f"input[name='{name}']"
+            selector = css_id_selector(field_id) if field_id else f"input[name='{name}']"
             if selector in seen_selectors:
                 continue
             required = (
@@ -489,7 +496,7 @@ class GreenhouseHandler(ATSHandler):
                 "g-recaptcha-response"
             ):
                 continue
-            selector = f"#{ta_id}" if ta_id else f"textarea[name='{ta_name}']"
+            selector = css_id_selector(ta_id) if ta_id else f"textarea[name='{ta_name}']"
             if selector in seen_selectors:
                 continue
             label_text = await self._get_label_text(page, ta)
@@ -507,7 +514,7 @@ class GreenhouseHandler(ATSHandler):
         for sel in selects:
             sel_id = await sel.get_attribute("id") or ""
             sel_name = await sel.get_attribute("name") or sel_id
-            selector = f"#{sel_id}" if sel_id else f"select[name='{sel_name}']"
+            selector = css_id_selector(sel_id) if sel_id else f"select[name='{sel_name}']"
             if selector in seen_selectors:
                 continue
             options = await sel.query_selector_all("option")
@@ -532,7 +539,7 @@ class GreenhouseHandler(ATSHandler):
         for fi in file_inputs:
             fi_id = await fi.get_attribute("id") or ""
             fi_name = await fi.get_attribute("name") or fi_id
-            selector = f"#{fi_id}" if fi_id else f"input[name='{fi_name}']"
+            selector = css_id_selector(fi_id) if fi_id else f"input[name='{fi_name}']"
             if selector in seen_selectors:
                 continue
             label_text = await self._get_label_text(page, fi)
@@ -562,7 +569,8 @@ class GreenhouseHandler(ATSHandler):
         fill_debug: list[dict[str, object]] = []
         try:
             async with prepare_resume_file(cv_data) as resume_path:
-                for selector, cv_key in field_mapping.items():
+                for raw_selector, cv_key in field_mapping.items():
+                    selector = normalize_selector(raw_selector)
                     value = resolve_mapped_value(cv_data, cv_key)
                     if value is None:
                         fill_debug.append(
