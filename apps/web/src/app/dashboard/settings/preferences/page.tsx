@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Card,
   CardContent,
@@ -16,12 +16,35 @@ export default function PreferencesSettingsPage() {
   const [dailyLimit, setDailyLimit] = useState('25');
   const [minScore, setMinScore] = useState('80');
   const [emailAlerts, setEmailAlerts] = useState(true);
+  const [autoSubmitEnabled, setAutoSubmitEnabled] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  function handleSave(e: React.FormEvent) {
+  useEffect(() => {
+    async function loadPreferences() {
+      try {
+        const res = await fetch('/api/preferences', { cache: 'no-store' });
+        if (!res.ok) return;
+        const data = (await res.json()) as { autoSubmitEnabled?: boolean };
+        setAutoSubmitEnabled(Boolean(data.autoSubmitEnabled));
+      } finally {
+        setLoading(false);
+      }
+    }
+    void loadPreferences();
+  }, []);
+
+  async function handleSave(e: React.FormEvent) {
     e.preventDefault();
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2500);
+    const res = await fetch('/api/preferences', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ autoSubmitEnabled }),
+    });
+    if (res.ok) {
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    }
   }
 
   return (
@@ -81,6 +104,25 @@ export default function PreferencesSettingsPage() {
                 />
                 <span className="text-[10px] text-slate-500 dark:text-[#8a8f9d] mt-1 block">
                   Jobs scoring below this threshold will be skipped.
+                </span>
+              </div>
+
+              <div className="pt-2">
+                <label className="flex items-center gap-2 text-slate-700 dark:text-slate-300 font-medium cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={autoSubmitEnabled}
+                    disabled={loading}
+                    onChange={(e) => setAutoSubmitEnabled(e.target.checked)}
+                    className="h-3.5 w-3.5 rounded border-slate-300 dark:border-[#26282e] bg-white dark:bg-[#141518] text-slate-900 dark:text-[#f1f3f9] focus:ring-slate-900 dark:focus:ring-[#f1f3f9]"
+                  />
+                  <span>
+                    Auto-submit applications without manual approval
+                  </span>
+                </label>
+                <span className="text-[10px] text-slate-500 dark:text-[#8a8f9d] mt-1 block ml-5">
+                  When off, you review the filled form in the live browser and
+                  approve before submission.
                 </span>
               </div>
 

@@ -25,7 +25,10 @@ from app.workers.apply_worker import apply_job
 from app.workers.cancellation import mark_apply_task_cancelled
 from app.workers.celery_app import celery_app
 from app.workers.connect_worker import connect_contacts
-from app.workers.discover_connect_worker import discover_and_connect
+from app.browser.session_registry import ControlMode, session_registry
+from app.services.resume_signal import publish_resume
+from app.streaming.redis_relay import publish_control_mode
+from app.routers.applications import register_browser_token
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 logger = logging.getLogger(__name__)
@@ -43,6 +46,15 @@ class TriggerApplyResponse(BaseModel):
 class CancelApplyResponse(BaseModel):
     task_id: str
     status: str
+
+
+class ResumeApplicationResponse(BaseModel):
+    application_id: str
+    status: str
+
+
+class RegisterBrowserTokenBody(BaseModel):
+    token: str
 
 
 class TriggerConnectResponse(BaseModel):
@@ -132,6 +144,52 @@ async def cancel_apply_task(task_id: str) -> CancelApplyResponse:
         logger.exception("Could not broadcast Celery revoke for task_id=%s", task_id)
 
     return CancelApplyResponse(task_id=task_id, status="cancellation_requested")
+
+
+@router.post(
+    "/applications/{application_id}/resume",
+    response_model=ResumeApplicationResponse,
+    dependencies=[Depends(require_agent_service_token)],
+)
+async def resume_application(application_id: str) -> ResumeApplicationResponse:
+    """Signal a paused application worker to resume after human intervention."""
+    await publish_resume(application_id)
+    return ResumeApplicationResponse(
+        application_id=application_id,
+        status="resuming",
+    )
+
+
+@router.post(
+    "/applications/{application_id}/register-browser-token",
+    dependencies=[Depends(require_agent_service_token)],
+)
+async def register_application_browser_token(
+    application_id: str,
+    body: RegisterBrowserTokenBody,
+) -> dict[str, str]:
+    register_browser_token(body.token, application_id)
+    return {"application_id": application_id, "status": "registered"}
+
+
+@router.post(
+    "/applications/{application_id}/take-control",
+    dependencies=[Depends(require_agent_service_token)],
+)
+async def take_application_control(application_id: str) -> dict[str, str]:
+    await session_registry.set_control_mode(application_id, ControlMode.HUMAN)
+    await publish_control_mode(application_id, ControlMode.HUMAN)
+    return {"application_id": application_id, "control_mode": "human_control"}
+
+
+@router.post(
+    "/applications/{application_id}/release-control",
+    dependencies=[Depends(require_agent_service_token)],
+)
+async def release_application_control(application_id: str) -> dict[str, str]:
+    await session_registry.set_control_mode(application_id, ControlMode.AGENT)
+    await publish_control_mode(application_id, ControlMode.AGENT)
+    return {"application_id": application_id, "control_mode": "agent_control"}
 
 
 @router.post(

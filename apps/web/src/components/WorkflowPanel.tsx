@@ -11,6 +11,7 @@ import {
   Square,
 } from 'lucide-react';
 
+import { ApplicationModal } from '@/components/applications/ApplicationModal';
 import { Button } from '@applyso/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@applyso/ui/card';
 import { Badge } from '@applyso/ui/badge';
@@ -59,6 +60,7 @@ interface ApplyTask {
   job_title: string;
   company_name: string;
   application_url: string;
+  application_id?: string | null;
   task_id: string | null;
   status: string;
   error_detail: string | null;
@@ -316,6 +318,13 @@ export function WorkflowPanel({
   const [lifecycleAction, setLifecycleAction] =
     useState<LifecycleAction | null>(null);
   const [lifecycleError, setLifecycleError] = useState<string | null>(null);
+  const [openApplicationId, setOpenApplicationId] = useState<string | null>(
+    null,
+  );
+  const [openApplicationMeta, setOpenApplicationMeta] = useState<{
+    jobTitle?: string;
+    companyName?: string;
+  }>({});
 
   function appendEvents(incoming: WorkflowEvent[]) {
     setEvents((current) => {
@@ -780,6 +789,22 @@ export function WorkflowPanel({
                                         ) : null}
                                       </div>
                                       <ApplyStatusBadge status={task.status} />
+                                      {task.application_id ? (
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          className="mt-1"
+                                          onClick={() => {
+                                            setOpenApplicationId(task.application_id!);
+                                            setOpenApplicationMeta({
+                                              jobTitle: task.job_title,
+                                              companyName: task.company_name,
+                                            });
+                                          }}
+                                        >
+                                          Open
+                                        </Button>
+                                      ) : null}
                                     </div>
                                     {task.linkedin_connect_status && (
                                       <div className="mt-1">
@@ -896,6 +921,14 @@ export function WorkflowPanel({
           </p>
         )}
       </CardContent>
+      {openApplicationId ? (
+        <ApplicationModal
+          applicationId={openApplicationId}
+          jobTitle={openApplicationMeta.jobTitle}
+          companyName={openApplicationMeta.companyName}
+          onClose={() => setOpenApplicationId(null)}
+        />
+      ) : null}
     </Card>
   );
 }

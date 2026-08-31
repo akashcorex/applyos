@@ -99,6 +99,7 @@ class StartWorkflowRequest(BaseModel):
     max_jobs_per_company: int = Field(default=10, ge=1, le=100)
     max_total_applies: int = Field(default=5, ge=0, le=50)
     auto_apply: bool = True
+    auto_submit: bool = False
     # Per-run opt-in. Post-apply LinkedIn invites never run unless the user enabled them.
     post_apply_linkedin_connect: bool = False
 
@@ -225,6 +226,8 @@ class JobPayload(BaseModel):
     user_profile: UserProfile
     resume_variant_id: str | None = None
     idempotency_key: str | None = None
+    application_id: str | None = None
+    auto_submit: bool = True
 
 
 class TriggerApplyResponse(BaseModel):

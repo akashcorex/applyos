@@ -258,8 +258,9 @@ export async function POST(request: Request) {
     const preferences = preferencesRes.ok
       ? ((await preferencesRes.json()) as {
           postApplyLinkedinConnectEnabled?: boolean;
+          autoSubmitEnabled?: boolean;
         })
-      : { postApplyLinkedinConnectEnabled: false };
+      : { postApplyLinkedinConnectEnabled: false, autoSubmitEnabled: false };
 
     const workflowPayload = {
       user_profile: {
@@ -290,6 +291,7 @@ export async function POST(request: Request) {
       max_jobs_per_company: 1,
       max_total_applies: eligibleJobs.length,
       auto_apply: true,
+      auto_submit: Boolean(preferences.autoSubmitEnabled),
       post_apply_linkedin_connect: Boolean(
         preferences.postApplyLinkedinConnectEnabled,
       ),

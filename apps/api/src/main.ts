@@ -7,6 +7,7 @@ import express from 'express';
 import { auth } from './auth';
 import { startFallowBeacon } from './fallow-beacon';
 import { earlyAccessRouter } from './routes/early-access';
+import { applicationsRouter } from './routes/applications';
 import { linkedinConnectsRouter } from './routes/linkedin-connects';
 import { outreachRouter } from './routes/outreach';
 import { preferencesRouter } from './routes/preferences';
@@ -34,6 +35,7 @@ app.get('/', (_req, res) => {
 });
 
 app.use('/v1/early-access', earlyAccessRouter);
+app.use('/v1/applications', applicationsRouter);
 app.use('/v1/linkedin-connects', linkedinConnectsRouter);
 app.use('/v1/preferences', preferencesRouter);
 app.use('/v1/outreach', outreachRouter);

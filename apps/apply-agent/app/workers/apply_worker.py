@@ -7,7 +7,7 @@ import logging
 
 from playwright.async_api import Page
 
-from app.ats.detector import get_handler
+from app.ats.wellfound import WellfoundHandler
 from app.browser.artifacts import capture_failure_artifacts
 from app.browser.engine import create_context, launch_browser, new_stealth_page
 from app.browser.resume_upload import prepare_resume_file
@@ -18,12 +18,18 @@ from app.browser.session_manager import (
     save_session,
     should_save_session,
 )
-from app.ats.wellfound import WellfoundHandler
+from app.browser.session_registry import session_registry
+from app.streaming.redis_relay import (
+    start_worker_stream_relay,
+    stop_worker_stream_relay,
+)
+from app.config import settings
 from app.events.publisher import publish_apply_result
-from app.llm.answer_generator import generate_answers
-from app.llm.field_mapper import map_fields_with_llm
+from app.models.hitl import HumanInterventionRequired
 from app.models.job_payload import JobPayload
 from app.models.result_event import ApplyResultEvent, ApplyStatus
+from app.services.application_api_client import ApplicationApiClient
+from app.workers.application_runner import ApplicationRunner
 from app.workers.cancellation import is_apply_task_cancelled
 from app.workers.celery_app import celery_app
 from app.workers.retry_policy import (
@@ -36,6 +42,11 @@ from app.workers.retry_policy import (
 logger = logging.getLogger(__name__)
 
 _CONTEXT_CLOSE_TIMEOUT_SECONDS = 15.0
+
+_MANUAL_ACTION_HINT = (
+    "Open the application URL in your browser to complete the required "
+    "manual step, then retry this application."
+)
 
 
 async def _publish_apply_result_safe(event: ApplyResultEvent) -> None:
@@ -63,11 +74,6 @@ async def _close_context(context) -> None:
     except Exception:
         logger.exception("Browser context close failed")
 
-_MANUAL_ACTION_HINT = (
-    "Open the application URL in your browser to complete the required "
-    "manual step, then retry this application."
-)
-
 
 class ApplyTaskCancelled(Exception):
     """Raised when an application task has been cancelled between safe steps."""
@@ -93,20 +99,6 @@ async def _raise_if_apply_task_cancelled(task_id: str) -> None:
         raise ApplyTaskCancelled(f"Application task {task_id} was cancelled")
 
 
-def _extract_screening_questions(fields, field_mapping: dict[str, str]) -> list[str]:
-    """Return textarea labels that look like screening questions."""
-    questions: list[str] = []
-    for field in fields:
-        if field.field_type != "textarea":
-            continue
-        if field.selector in field_mapping:
-            continue
-        label = field.label.strip()
-        if label and (label.endswith("?") or len(label) > 20):
-            questions.append(label)
-    return questions
-
-
 def _status_from_error(error: str | None) -> ApplyStatus:
     err = (error or "").upper()
     if any(token in err for token in ("CAPTCHA", "TURNSTILE", "CLOUDFLARE", "MANUAL ACTION")):
@@ -129,7 +121,11 @@ async def _failure_event(
     page_url, screenshot_path = await capture_failure_artifacts(page, payload.job_id)
     detail = error_detail
     if status in {ApplyStatus.captcha_blocked, ApplyStatus.login_required}:
-        detail = f"{error_detail.rstrip('.')}. {_MANUAL_ACTION_HINT}" if error_detail else _MANUAL_ACTION_HINT
+        detail = (
+            f"{error_detail.rstrip('.')}. {_MANUAL_ACTION_HINT}"
+            if error_detail
+            else _MANUAL_ACTION_HINT
+        )
     return ApplyResultEvent(
         job_id=payload.job_id,
         user_id=payload.user_profile.user_id,
@@ -147,6 +143,9 @@ async def _run_apply(payload: JobPayload, task_id: str) -> ApplyResultEvent:
     job_url = str(payload.job_url)
     page: Page | None = None
     submit_started = False
+    application_id = payload.application_id
+    api_client = ApplicationApiClient()
+    use_hitl = settings.hitl_mode and bool(application_id)
 
     async with prepare_resume_file(payload.cv_data) as resume_path:
         if resume_path is None:
@@ -164,135 +163,146 @@ async def _run_apply(payload: JobPayload, task_id: str) -> ApplyResultEvent:
             )
 
     await _raise_if_apply_task_cancelled(task_id)
+
+    if use_hitl:
+        await api_client.update_session(
+            application_id,
+            status="starting",
+            current_step="Launching browser",
+        )
+        await api_client.append_event(
+            application_id,
+            event_type="BROWSER_READY",
+            description="Starting browser session",
+        )
+
+    browser = None
+    context = None
     try:
-        async with launch_browser() as browser:
+        headless = True if use_hitl else None
+        async with launch_browser(headless=headless) as browser:
             storage_state = await load_session(user_id)
             had_linkedin_at_start = has_linkedin_cookies(storage_state)
             had_wellfound_at_start = has_wellfound_cookies(storage_state)
             context = await create_context(browser, storage_state=storage_state)
             page = await new_stealth_page(context)
 
-            try:
-                await _raise_if_apply_task_cancelled(task_id)
-                await page.goto(job_url, wait_until="domcontentloaded", timeout=45_000)
+            if use_hitl:
+                session = await session_registry.register(
+                    application_id,
+                    browser=browser,
+                    context=context,
+                    page=page,
+                    worker_id=task_id,
+                )
+                await start_worker_stream_relay(application_id, page)
+                await api_client.update_session(
+                    application_id,
+                    status="running",
+                    browser_session_id=session.browser_session_id,
+                    control_mode="agent_control",
+                    current_url=page.url,
+                    current_step="Browser ready",
+                    external_task_id=task_id,
+                )
+            elif application_id:
+                await api_client.update_session(
+                    application_id,
+                    status="running",
+                    current_url=page.url,
+                    current_step="Browser ready",
+                    external_task_id=task_id,
+                )
 
-                handler = await get_handler(job_url, page)
+            runner = ApplicationRunner(
+                payload,
+                task_id=task_id,
+                page=page,
+                context=context,
+                api_client=api_client,
+            )
 
-                # Wellfound often lists jobs that apply on an external ATS.
+            await _raise_if_apply_task_cancelled(task_id)
+            handler = await runner.navigate_to_apply_page(job_url)
+
+            fields = await handler.extract_fields(page)
+            uses_agentic_fill = getattr(handler, "uses_agentic_fill", False)
+
+            if not fields and not uses_agentic_fill:
+                err = "No application form fields found after opening apply page"
                 if isinstance(handler, WellfoundHandler):
-                    external = await handler.resolve_external_apply_url(page, job_url)
-                    if external:
-                        logger.info(
-                            "Wellfound: redirecting to external ATS: %s", external[:120]
-                        )
-                        await _raise_if_apply_task_cancelled(task_id)
-                        await page.goto(
-                            external, wait_until="domcontentloaded", timeout=45_000
-                        )
-                        handler = await get_handler(external, page)
-
-                fields = await handler.extract_fields(page)
-                uses_agentic_fill = getattr(handler, "uses_agentic_fill", False)
-
-                if not fields and not uses_agentic_fill:
-                    err = "No application form fields found after opening apply page"
-                    if isinstance(handler, WellfoundHandler):
-                        err = (
-                            "Wellfound apply failed — log in via "
-                            "scripts/bootstrap_wellfound_session.py or this job may "
-                            "use an external ATS we could not resolve"
-                        )
-                    status = (
-                        ApplyStatus.login_required
-                        if isinstance(handler, WellfoundHandler)
-                        else ApplyStatus.failed
+                    err = (
+                        "Wellfound apply failed — log in via "
+                        "scripts/bootstrap_wellfound_session.py or this job may "
+                        "use an external ATS we could not resolve"
                     )
-                    return await _return_apply_event(
-                        await _failure_event(
-                            payload,
-                            status=status,
-                            error_detail=err,
-                            ats_type=getattr(handler, "ats_name", None),
-                            page=page,
-                        )
-                    )
-
-                if uses_agentic_fill:
-                    await _raise_if_apply_task_cancelled(task_id)
-                    submit_started = True
-                    result = await handler.fill_and_submit(page, payload.cv_data, {})
-                else:
-                    form_html = await page.evaluate(
-                        "() => document.querySelector('form')?.outerHTML?.substring(0, 8000) || ''"
-                    )
-                    field_mapping = await map_fields_with_llm(
-                        fields, payload.cv_data, form_html
-                    )
-
-                    questions = _extract_screening_questions(fields, field_mapping)
-                    if questions:
-                        answers = await generate_answers(
-                            questions=questions,
-                            cv_data=payload.cv_data,
-                            user_profile=payload.user_profile,
-                            job_title=payload.job_title or "",
-                            company_name=payload.company_name,
-                            job_description=payload.job_description or "",
-                        )
-                        for field in fields:
-                            if field.label in answers:
-                                field_mapping[field.selector] = answers[field.label]
-
-                    for field in fields:
-                        if field.field_type not in ("select", "radio") or not field.required:
-                            continue
-                        if field.selector in field_mapping:
-                            continue
-                        if not field.options:
-                            continue
-                        if field.options == ["Yes", "No"]:
-                            label = field.label.lower()
-                            default = "No" if "sponsor" in label else "Yes"
-                            field_mapping[field.selector] = f"literal:{default}"
-                        else:
-                            field_mapping[field.selector] = f"literal:{field.options[0]}"
-
-                    await _raise_if_apply_task_cancelled(task_id)
-                    submit_started = True
-                    result = await handler.fill_and_submit(
-                        page, payload.cv_data, field_mapping
-                    )
-
-                current_state = await context.storage_state()
-                if should_save_session(
-                    current_state,
-                    had_linkedin_at_start=had_linkedin_at_start,
-                    had_wellfound_at_start=had_wellfound_at_start,
-                ):
-                    await save_session(user_id, context)
-
-                if result.success:
-                    return await _return_apply_event(
-                        ApplyResultEvent(
-                            job_id=payload.job_id,
-                            user_id=user_id,
-                            status=ApplyStatus.submitted,
-                            ats_type=result.ats_type,
-                        )
-                    )
-
+                status = (
+                    ApplyStatus.login_required
+                    if isinstance(handler, WellfoundHandler)
+                    else ApplyStatus.failed
+                )
                 return await _return_apply_event(
                     await _failure_event(
                         payload,
-                        status=_status_from_error(result.error),
-                        error_detail=result.error,
-                        ats_type=result.ats_type,
+                        status=status,
+                        error_detail=err,
+                        ats_type=getattr(handler, "ats_name", None),
                         page=page,
                     )
                 )
 
-            finally:
-                await _close_context(context)
+            await _raise_if_apply_task_cancelled(task_id)
+            submit_started = True
+            result = await runner.fill_and_submit(handler)
+
+            current_state = await context.storage_state()
+            if should_save_session(
+                current_state,
+                had_linkedin_at_start=had_linkedin_at_start,
+                had_wellfound_at_start=had_wellfound_at_start,
+            ):
+                await save_session(user_id, context)
+
+            if result.success:
+                if use_hitl:
+                    await api_client.update_session(
+                        application_id,
+                        status="submitted",
+                        current_step="Application submitted",
+                    )
+                    await api_client.append_event(
+                        application_id,
+                        event_type="APPLICATION_SUBMITTED",
+                        description="Application submitted successfully",
+                    )
+                return await _return_apply_event(
+                    ApplyResultEvent(
+                        job_id=payload.job_id,
+                        user_id=user_id,
+                        status=ApplyStatus.submitted,
+                        ats_type=result.ats_type,
+                    )
+                )
+
+            return await _return_apply_event(
+                await _failure_event(
+                    payload,
+                    status=_status_from_error(result.error),
+                    error_detail=result.error,
+                    ats_type=result.ats_type,
+                    page=page,
+                )
+            )
+
+    except HumanInterventionRequired as exc:
+        return await _return_apply_event(
+            await _failure_event(
+                payload,
+                status=_status_from_error(exc.message),
+                error_detail=exc.message,
+                page=page,
+            )
+        )
     except ApplyTaskCancelled:
         raise
     except Exception as exc:
@@ -316,6 +326,10 @@ async def _run_apply(payload: JobPayload, task_id: str) -> ApplyResultEvent:
                 )
             )
         raise
+    finally:
+        if use_hitl and application_id:
+            await stop_worker_stream_relay(application_id)
+            await session_registry.release(application_id)
 
 
 @celery_app.task(

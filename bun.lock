@@ -74,6 +74,7 @@
       "name": "@applyso/web",
       "version": "0.0.1",
       "dependencies": {
+        "@applyso/analytics": "workspace:*",
         "@applyso/database": "workspace:*",
         "@applyso/ui": "workspace:*",
         "@vercel/analytics": "^2.0.1",
@@ -92,6 +93,13 @@
         "@types/d3-scale": "^4.0.9",
         "@types/d3-shape": "^3.2.0",
         "tailwindcss-animate": "^1.0.7",
+      },
+    },
+    "packages/analytics": {
+      "name": "@applyso/analytics",
+      "version": "0.0.1",
+      "dependencies": {
+        "@applyso/database": "workspace:*",
       },
     },
     "packages/database": {
@@ -146,6 +154,8 @@
   },
   "packages": {
     "@alloc/quick-lru": ["@alloc/quick-lru@5.2.0", "", {}, "sha512-UrcABB+4bUrFABwbluTIBErXwvbsU/V7TZWfmbgJfbkwiBuziS9gxdODUyuiecfdGQ85jglMW6juS3+z5TsKLw=="],
+
+    "@applyso/analytics": ["@applyso/analytics@workspace:packages/analytics"],
 
     "@applyso/api": ["@applyso/api@workspace:apps/api"],
 

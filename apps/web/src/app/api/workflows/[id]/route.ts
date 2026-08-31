@@ -29,6 +29,7 @@ const APPLY_STATUS_RANK: Record<string, number> = {
 };
 
 interface DurableApplication {
+  id?: string;
   workflowJobId?: string | null;
   status?: string | null;
   errorDetail?: string | null;
@@ -146,6 +147,7 @@ export async function GET(
           );
           return {
             ...task,
+            application_id: extra?.id ?? task.application_id,
             job_title:
               (typeof task.job_title === 'string' && task.job_title) ||
               durableJob?.title ||

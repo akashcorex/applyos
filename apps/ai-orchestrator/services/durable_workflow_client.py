@@ -64,6 +64,36 @@ class DurableWorkflowClient:
             logger.warning("Could not load durable workflow %s: %s", workflow_id, exc)
             return None
 
+    async def resolve_application_id(
+        self,
+        workflow_run_id: str,
+        dedup_key: str,
+    ) -> str | None:
+        """Resolve the Postgres application id for a workflow job."""
+        if not self.enabled:
+            return None
+        try:
+            async with httpx.AsyncClient(timeout=settings.http_timeout_seconds) as client:
+                response = await client.get(
+                    f"{self._base_url}/v1/applications/internal/resolve",
+                    params={"workflowRunId": workflow_run_id, "dedupKey": dedup_key},
+                    headers={"X-Agent-Service-Token": self._token},
+                )
+                if response.status_code == 404:
+                    return None
+                response.raise_for_status()
+                data = response.json()
+                app_id = data.get("applicationId")
+                return str(app_id) if isinstance(app_id, str) else None
+        except httpx.HTTPError as exc:
+            logger.warning(
+                "Could not resolve application for workflow=%s dedup=%s: %s",
+                workflow_run_id,
+                dedup_key,
+                exc,
+            )
+            return None
+
     async def sync_status(
         self,
         workflow_id: str,
