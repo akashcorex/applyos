@@ -1882,6 +1882,7 @@ class WorkableHandler(ATSHandler):
         page: Page,
         cv_data: CVData,
         field_mapping: dict[str, str],
+        auto_submit: bool = True,
     ) -> FillResult:
         filled = 0
         try:
@@ -2071,6 +2072,72 @@ class WorkableHandler(ATSHandler):
                         error=captcha_error,
                     )
 
+            if not auto_submit:
+                from app.models.hitl import PENDING_SUBMIT_APPROVAL
+
+                return FillResult(
+                    success=False,
+                    ats_type=self.ats_name,
+                    fields_filled=filled,
+                    error=PENDING_SUBMIT_APPROVAL,
+                )
+
+            return await self._submit_application(page, fields_filled=filled)
+
+        except Exception as e:
+            logger.error("Workable fill failed: %s", e)
+            return FillResult(
+                success=False,
+                ats_type=self.ats_name,
+                fields_filled=filled,
+                error=str(e),
+            )
+
+    async def submit_form(
+        self,
+        page: Page,
+        *,
+        fields_filled: int = 0,
+        field_mapping: dict[str, str] | None = None,
+    ) -> FillResult:
+        """Submit a Workable form that was already filled."""
+        _ = field_mapping
+        return await self._submit_application(page, fields_filled=fields_filled)
+
+    async def _submit_application(
+        self,
+        page: Page,
+        *,
+        fields_filled: int,
+    ) -> FillResult:
+        filled = fields_filled
+        try:
+            submit_btn = await page.query_selector(_SUBMIT_SELECTOR)
+            if not submit_btn:
+                return FillResult(
+                    success=False,
+                    ats_type=self.ats_name,
+                    fields_filled=filled,
+                    error="Workable submit button not found",
+                )
+
+            await self._dismiss_overlays(page)
+
+            if await detect_turnstile(page):
+                captcha_error = await ensure_captcha_cleared(
+                    page, silent_timeout_ms=20_000
+                )
+                if captcha_error:
+                    logger.warning(
+                        "Workable: captcha blocked submit: %s", captcha_error
+                    )
+                    return FillResult(
+                        success=False,
+                        ats_type=self.ats_name,
+                        fields_filled=filled,
+                        error=captcha_error,
+                    )
+
             logger.info("Workable: clicking submit (%d fields filled)", filled)
 
             async def _click_submit_and_wait(api_timeout_ms: int = 20_000) -> bool:
@@ -2139,9 +2206,8 @@ class WorkableHandler(ATSHandler):
             return FillResult(
                 success=True, ats_type=self.ats_name, fields_filled=filled
             )
-
         except Exception as e:
-            logger.error("Workable fill failed: %s", e)
+            logger.error("Workable submit failed: %s", e)
             return FillResult(
                 success=False,
                 ats_type=self.ats_name,

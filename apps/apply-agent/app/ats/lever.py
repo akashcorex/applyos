@@ -527,6 +527,7 @@ class LeverHandler(ATSHandler):
         page: Page,
         cv_data: CVData,
         field_mapping: dict[str, str],
+        auto_submit: bool = True,
     ) -> FillResult:
         filled = 0
         try:
@@ -700,6 +701,62 @@ class LeverHandler(ATSHandler):
                         error=captcha_error,
                     )
 
+                if not auto_submit:
+                    from app.models.hitl import PENDING_SUBMIT_APPROVAL
+
+                    return FillResult(
+                        success=False,
+                        ats_type=self.ats_name,
+                        fields_filled=filled,
+                        error=PENDING_SUBMIT_APPROVAL,
+                    )
+
+                return await self._submit_application(
+                    page,
+                    initial_url=initial_url,
+                    filled=filled,
+                    field_mapping=field_mapping,
+                )
+
+        except Exception as e:
+            logger.error("Lever fill failed: %s", e)
+            await self._dump_debug(
+                page,
+                error=str(e),
+                fields_filled=filled,
+                mapping_size=len(field_mapping),
+            )
+            return FillResult(
+                success=False,
+                ats_type=self.ats_name,
+                fields_filled=filled,
+                error=str(e),
+            )
+
+    async def submit_form(
+        self,
+        page: Page,
+        *,
+        fields_filled: int = 0,
+        field_mapping: dict[str, str] | None = None,
+    ) -> FillResult:
+        """Submit a Lever form that was already filled."""
+        return await self._submit_application(
+            page,
+            initial_url=page.url,
+            filled=fields_filled,
+            field_mapping=field_mapping or {},
+        )
+
+    async def _submit_application(
+        self,
+        page: Page,
+        *,
+        initial_url: str,
+        filled: int,
+        field_mapping: dict[str, str],
+    ) -> FillResult:
+        try:
                 submit_btn = await page.query_selector(_SUBMIT_SELECTOR)
                 if not submit_btn:
                     err = "Lever submit button not found"
@@ -782,9 +839,8 @@ class LeverHandler(ATSHandler):
                 return FillResult(
                     success=True, ats_type=self.ats_name, fields_filled=filled
                 )
-
         except Exception as e:
-            logger.error("Lever fill failed: %s", e)
+            logger.error("Lever submit failed: %s", e)
             await self._dump_debug(
                 page,
                 error=str(e),

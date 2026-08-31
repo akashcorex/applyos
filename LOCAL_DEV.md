@@ -155,18 +155,23 @@ Open http://localhost:3000, sign in, and use **Auto-Apply** or the **Application
 
 Auto-apply uses **two apply-agent processes**:
 
-1. **FastAPI (`dev:apply-agent`)** — WebSocket live browser stream to the dashboard
-2. **Celery worker** — owns the headless Playwright browser and fills forms
+1. **FastAPI (`dev:apply-agent`)** — admin resume / show-browser bridge to the worker
+2. **Celery worker** — owns a **headed** Playwright Chrome window, fills the form once, and holds the same session while waiting for you
+
+Shared-session flow:
+
+1. Agent fills the application in headed Chrome
+2. On CAPTCHA / Cloudflare / submit approval → status `waiting_for_human` (Attention queue)
+3. Dashboard **Show browser** focuses that Chrome window — solve or review **there** (same cookies/DOM)
+4. **Continue** / **Approve & Submit** resumes the agent; agent submits without re-filling
 
 They communicate via **Redis pub/sub**:
 
-- `screencast:{applicationId}` — JPEG frames (worker → UI)
-- `screencast_input:{applicationId}` — clicks/keyboard (UI → worker)
+- `screencast_input:{applicationId}` — show-browser / control-mode commands (UI → worker)
 - `application:{applicationId}:resume` — user clicked Approve / Continue
+- Optional debug stream: set `HITL_DEBUG_STREAM=true` on apply-agent and `NEXT_PUBLIC_HITL_DEBUG_STREAM=true` on web
 
 Durable state (status, interventions, events) goes to **Postgres** through **apps/api**.
-
-If live browser shows “connection failed”, check that **both** apply-agent serve **and** the Celery worker are running.
 
 ---
 
@@ -176,7 +181,7 @@ Settings → **Agent Preferences** → **Auto-submit applications without manual
 
 | Setting | Behavior |
 | --- | --- |
-| Off (default) | Agent fills the form, pauses at `waiting_for_human`, you review the live stream and click **Approve & Submit** |
+| Off (default) | Agent fills the form, pauses at `waiting_for_human`, you review in the headed Chrome window and click **Approve & Submit** |
 | On | Agent fills and submits without pausing |
 
 ---
@@ -217,8 +222,9 @@ Apply worker: look for `celery@... ready` in the worker terminal.
 | --- | --- |
 | Jobs queue then vanish / `failed` immediately | Ensure API is running (`bun run dev:api`). Run migrations. |
 | Apply does nothing | Start Celery worker: `bunx turbo run worker --filter=apply-agent` |
-| Chrome window opens on desktop | Set `APPLY_HEADED=false` in `apps/apply-agent/.env`; restart worker |
-| Live browser connection failed | Restart apply-agent **and** worker; open modal after status is `running` |
+| Chrome window opens on desktop | Expected for HITL (shared session). For non-HITL headless, set `HITL_MODE=false` and `APPLY_HEADED=false` |
+| Show browser does nothing | Restart apply-agent **and** Celery worker; ensure the application is `waiting_for_human` with an active session |
+| Live browser connection failed | Live stream is debug-only (`HITL_DEBUG_STREAM` / `NEXT_PUBLIC_HITL_DEBUG_STREAM`). Prefer Show browser |
 | `AGENT_SERVICE_TOKEN` / 503 on auto-apply | Same token in `apps/web/.env.local`, `apps/api/.env`, orchestrator, apply-agent |
 | `db:migrate` fails with `url: undefined` | Pass `DATABASE_URL=postgresql://postgres:postgres@localhost:5432/outreach` |
 | Resume parse fails | Resume agent running; `OPENAI_API_KEY` + `ANTHROPIC_API_KEY` set |
