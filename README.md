@@ -50,6 +50,8 @@ AI-powered job application platform — a Turborepo monorepo with a Next.js fron
 
 ## Quick start
 
+See **[LOCAL_DEV.md](./LOCAL_DEV.md)** for the full local setup (Postgres, Redis, all services, HITL worker, env, smoke test).
+
 ```bash
 # Install JS deps
 bun install
