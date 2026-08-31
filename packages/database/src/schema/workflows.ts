@@ -1,5 +1,6 @@
 import { sql } from 'drizzle-orm';
 import {
+  boolean,
   index,
   integer,
   jsonb,
@@ -43,7 +44,11 @@ export type WorkflowJobStatus = (typeof workflowJobStatuses)[number];
 export const applicationStatuses = [
   'pending',
   'queued',
+  'starting',
   'running',
+  'waiting_for_human',
+  'resuming',
+  'browser_disconnected',
   'submitted',
   'failed',
   'captcha_blocked',
@@ -55,6 +60,61 @@ export const applicationStatuses = [
 ] as const;
 
 export type ApplicationStatus = (typeof applicationStatuses)[number];
+
+export const applicationControlModes = [
+  'agent_control',
+  'human_control',
+] as const;
+
+export type ApplicationControlMode =
+  (typeof applicationControlModes)[number];
+
+export const humanInterventionTypes = [
+  'CAPTCHA',
+  'CLOUDFLARE',
+  'RECAPTCHA',
+  'OTP',
+  'LOGIN',
+  'AUTHENTICATION',
+  'MISSING_INFORMATION',
+  'AMBIGUOUS_QUESTION',
+  'FILE_UPLOAD',
+  'UNEXPECTED_PAGE',
+  'AGENT_UNCERTAIN',
+  'OTHER',
+] as const;
+
+export type HumanInterventionType =
+  (typeof humanInterventionTypes)[number];
+
+export const humanInterventionStatuses = [
+  'open',
+  'resolved',
+  'cancelled',
+] as const;
+
+export type HumanInterventionStatus =
+  (typeof humanInterventionStatuses)[number];
+
+export const applicationEventTypes = [
+  'PAGE_OPENED',
+  'FIELD_DETECTED',
+  'FIELD_FILLED',
+  'FIELD_SKIPPED',
+  'FILE_UPLOADED',
+  'QUESTION_ANSWERED',
+  'NAVIGATION',
+  'BLOCKER_DETECTED',
+  'HUMAN_INTERVENTION',
+  'AGENT_RESUMED',
+  'APPLICATION_SUBMITTED',
+  'APPLICATION_FAILED',
+  'CONTROL_CHANGED',
+  'BROWSER_READY',
+  'BROWSER_DISCONNECTED',
+] as const;
+
+export type ApplicationEventType = (typeof applicationEventTypes)[number];
 
 export const applicationOutcomes = [
   'viewed',
@@ -86,6 +146,12 @@ export const workflowEventTypes = [
   'job.skipped',
   'application.queued',
   'application.status_changed',
+  'application.blocker_detected',
+  'application.activity',
+  'application.human_required',
+  'application.resumed',
+  'application.browser_ready',
+  'application.control_changed',
   'agent_task.status_changed',
   'workflow.error',
 ] as const;
@@ -216,6 +282,16 @@ export const applications = pgTable(
     /** Later hiring-loop signal used for matching, not only apply counts. */
     outcome: text('outcome'),
     result: jsonb('result'),
+    /** Persistent browser session for human-in-the-loop apply. */
+    browserSessionId: uuid('browser_session_id'),
+    currentUrl: text('current_url'),
+    currentStep: text('current_step'),
+    controlMode: text('control_mode').notNull().default('agent_control'),
+    humanInterventionRequired: boolean('human_intervention_required')
+      .notNull()
+      .default(false),
+    interventionReason: text('intervention_reason'),
+    lastActivityAt: timestamp('last_activity_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true })
       .defaultNow()
       .notNull(),
@@ -233,6 +309,68 @@ export const applications = pgTable(
     index('idx_applications_run_status').on(table.workflowRunId, table.status),
     index('idx_applications_resume_variant_id').on(table.resumeVariantId),
     uniqueIndex('uq_applications_external_task_id').on(table.externalTaskId),
+    index('idx_applications_browser_session_id').on(table.browserSessionId),
+    index('idx_applications_human_intervention').on(
+      table.userId,
+      table.humanInterventionRequired,
+    ),
+  ],
+);
+
+/** Human intervention request when the agent cannot safely continue. */
+export const humanInterventions = pgTable(
+  'human_interventions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    applicationId: uuid('application_id')
+      .notNull()
+      .references(() => applications.id, { onDelete: 'cascade' }),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    type: text('type').notNull(),
+    message: text('message').notNull(),
+    status: text('status').notNull().default('open'),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    resolvedAt: timestamp('resolved_at', { withTimezone: true }),
+  },
+  (table) => [
+    index('idx_human_interventions_application_id').on(table.applicationId),
+    index('idx_human_interventions_user_status').on(table.userId, table.status),
+  ],
+);
+
+/** Append-only activity log for a single application session. */
+export const applicationEvents = pgTable(
+  'application_events',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    applicationId: uuid('application_id')
+      .notNull()
+      .references(() => applications.id, { onDelete: 'cascade' }),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    type: text('type').notNull(),
+    description: text('description').notNull(),
+    metadata: jsonb('metadata')
+      .default(sql`'{}'::jsonb`)
+      .notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    index('idx_application_events_application_created_at').on(
+      table.applicationId,
+      table.createdAt,
+    ),
+    index('idx_application_events_user_created_at').on(
+      table.userId,
+      table.createdAt,
+    ),
   ],
 );
 
