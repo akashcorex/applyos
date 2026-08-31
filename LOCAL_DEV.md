@@ -160,9 +160,9 @@ Auto-apply uses **two apply-agent processes**:
 
 Shared-session flow:
 
-1. Agent fills the application in headed Chrome
+1. Agent fills the application in headed Chrome (**minimized** — stays in the background)
 2. On CAPTCHA / Cloudflare / submit approval → status `waiting_for_human` (Attention queue)
-3. Dashboard **Show browser** focuses that Chrome window — solve or review **there** (same cookies/DOM)
+3. Dashboard **Show browser** restores that Chrome window — solve or review **there** (same cookies/DOM)
 4. **Continue** / **Approve & Submit** resumes the agent; agent submits without re-filling
 
 They communicate via **Redis pub/sub**:
@@ -223,7 +223,8 @@ Apply worker: look for `celery@... ready` in the worker terminal.
 | Jobs queue then vanish / `failed` immediately | Ensure API is running (`bun run dev:api`). Run migrations. |
 | Apply does nothing | Start Celery worker: `bunx turbo run worker --filter=apply-agent` |
 | Chrome window opens on desktop | Expected for HITL (shared session). For non-HITL headless, set `HITL_MODE=false` and `APPLY_HEADED=false` |
-| Show browser does nothing | Restart apply-agent **and** Celery worker; ensure the application is `waiting_for_human` with an active session |
+| Show browser does nothing / failed | Restart **API** (`bun run dev:api` — must rebuild dist), apply-agent, and Celery worker. Session must still be `waiting_for_human` with an active worker. |
+| Many Chrome windows pop up when queueing jobs | Worker should minimize HITL browsers; restart Celery worker after pulling latest. Prefer reviewing one Attention item at a time. |
 | Live browser connection failed | Live stream is debug-only (`HITL_DEBUG_STREAM` / `NEXT_PUBLIC_HITL_DEBUG_STREAM`). Prefer Show browser |
 | `AGENT_SERVICE_TOKEN` / 503 on auto-apply | Same token in `apps/web/.env.local`, `apps/api/.env`, orchestrator, apply-agent |
 | `db:migrate` fails with `url: undefined` | Pass `DATABASE_URL=postgresql://postgres:postgres@localhost:5432/outreach` |

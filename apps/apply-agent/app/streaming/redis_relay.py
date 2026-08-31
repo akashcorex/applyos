@@ -160,8 +160,10 @@ class WorkerStreamRelay:
                     continue
                 if payload.get("type") == "show_browser":
                     try:
+                        from app.browser.window_control import reveal_browser_window
+
                         if not self.page.is_closed():
-                            await self.page.bring_to_front()
+                            await reveal_browser_window(self.page)
                     except Exception:
                         logger.exception(
                             "show_browser failed application_id=%s",

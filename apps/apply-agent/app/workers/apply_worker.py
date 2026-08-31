@@ -10,6 +10,7 @@ from playwright.async_api import Page
 from app.ats.wellfound import WellfoundHandler
 from app.browser.artifacts import capture_failure_artifacts
 from app.browser.engine import create_context, launch_browser, new_stealth_page
+from app.browser.window_control import minimize_browser_window
 from app.browser.resume_upload import prepare_resume_file
 from app.browser.session_manager import (
     has_linkedin_cookies,
@@ -179,10 +180,13 @@ async def _run_apply(payload: JobPayload, task_id: str) -> ApplyResultEvent:
     browser = None
     context = None
     try:
-        # Shared-session HITL needs a real headed Chrome window so the human
-        # can solve CAPTCHA/Cloudflare and review the filled form in-process.
+        # Shared-session HITL uses headed Chrome, but starts minimized so queued
+        # jobs work in the background until Show browser / intervention.
         headless = False if use_hitl else None
-        async with launch_browser(headless=headless) as browser:
+        async with launch_browser(
+            headless=headless,
+            start_minimized=use_hitl,
+        ) as browser:
             storage_state = await load_session(user_id)
             had_linkedin_at_start = has_linkedin_cookies(storage_state)
             had_wellfound_at_start = has_wellfound_cookies(storage_state)
@@ -190,6 +194,8 @@ async def _run_apply(payload: JobPayload, task_id: str) -> ApplyResultEvent:
             page = await new_stealth_page(context)
 
             if use_hitl:
+                # Keep Chrome in the dock/background until Show browser / HITL pause.
+                await minimize_browser_window(page)
                 session = await session_registry.register(
                     application_id,
                     browser=browser,

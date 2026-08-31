@@ -681,22 +681,39 @@ applicationsRouter.post('/internal/:applicationId/show-browser', async (req, res
 
   const applyAgentUrl = process.env.APPLY_AGENT_URL ?? 'http://127.0.0.1:8003';
   const agentToken = process.env.AGENT_SERVICE_TOKEN;
-  if (agentToken) {
-    try {
-      await fetch(
-        `${applyAgentUrl}/admin/applications/${encodeURIComponent(applicationId)}/show-browser`,
-        {
-          method: 'POST',
-          headers: { 'X-Agent-Service-Token': agentToken },
-        },
-      );
-    } catch {
-      res.status(502).json({ error: 'Failed to signal apply-agent show-browser' });
-      return;
-    }
+  if (!agentToken) {
+    res.status(503).json({ error: 'Application service is not configured' });
+    return;
   }
 
-  res.status(200).json({ applicationId, status: 'show_browser_requested' });
+  try {
+    const agentRes = await fetch(
+      `${applyAgentUrl}/admin/applications/${encodeURIComponent(applicationId)}/show-browser`,
+      {
+        method: 'POST',
+        headers: { 'X-Agent-Service-Token': agentToken },
+      },
+    );
+    const agentData = (await agentRes.json().catch(() => ({}))) as {
+      detail?: string;
+      error?: string;
+      status?: string;
+    };
+    if (!agentRes.ok) {
+      const message =
+        agentData.detail ||
+        agentData.error ||
+        'Failed to signal apply-agent show-browser';
+      res.status(agentRes.status).json({ error: message });
+      return;
+    }
+    res.status(200).json({
+      applicationId,
+      status: agentData.status ?? 'show_browser_requested',
+    });
+  } catch {
+    res.status(502).json({ error: 'Failed to signal apply-agent show-browser' });
+  }
 });
 
 /** Release manual control back to agent without resuming automation. */

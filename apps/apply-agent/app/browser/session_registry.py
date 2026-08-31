@@ -135,18 +135,31 @@ class BrowserSessionRegistry:
         return True
 
     async def bring_to_front(self, application_id: str) -> bool:
-        """Focus the headed Chrome window for a live application session."""
+        """Restore and focus the headed Chrome window for a live session."""
+        from app.browser.window_control import reveal_browser_window
+
         session = self._sessions.get(application_id)
         if session is None or session.page.is_closed():
             return False
         try:
-            await session.page.bring_to_front()
-            return True
+            return await reveal_browser_window(session.page)
         except Exception:
             logger.exception(
                 "bring_to_front failed application_id=%s", application_id
             )
             return False
+
+    async def has_live_session(self, application_id: str) -> bool:
+        session = self._sessions.get(application_id)
+        return session is not None and not session.page.is_closed()
+
+    async def session_metadata_exists(self, application_id: str) -> bool:
+        """True when Redis still has browser-session metadata for this apply."""
+        r = aioredis.from_url(settings.redis_url, decode_responses=True)
+        try:
+            return bool(await r.get(_redis_key(application_id)))
+        finally:
+            await r.aclose()
 
     def iter_sessions(self) -> list[BrowserSession]:
         return list(self._sessions.values())

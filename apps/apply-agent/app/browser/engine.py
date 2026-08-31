@@ -33,29 +33,38 @@ _FALLBACK_CHROME_UA = (
 @asynccontextmanager
 async def launch_browser(
     headless: bool | None = None,
+    *,
+    start_minimized: bool = False,
 ) -> AsyncGenerator[Browser, None]:
     """Launch a stealth browser.
 
     When ``APPLY_HEADED=true``, runs headed Chrome (best for Lever hCaptcha
     silent-pass and Turnstile visibility). Prefers installed Google Chrome via
     ``channel="chrome"``.
+
+    ``start_minimized`` keeps headed Chrome out of the way until HITL reveal
+    (also minimize via CDP after the first page opens).
     """
     global _last_launch_used_chrome_channel
 
     use_headless = (
         (not settings.apply_headed) if headless is None else headless
     )
+    launch_args = [
+        "--disable-blink-features=AutomationControlled",
+        "--no-sandbox",
+        "--disable-dev-shm-usage",
+        "--disable-infobars",
+        "--disable-background-timer-throttling",
+        "--disable-backgrounding-occluded-windows",
+        "--disable-renderer-backgrounding",
+    ]
+    if start_minimized and not use_headless:
+        launch_args.append("--start-minimized")
+
     launch_kwargs: dict = {
         "headless": use_headless,
-        "args": [
-            "--disable-blink-features=AutomationControlled",
-            "--no-sandbox",
-            "--disable-dev-shm-usage",
-            "--disable-infobars",
-            "--disable-background-timer-throttling",
-            "--disable-backgrounding-occluded-windows",
-            "--disable-renderer-backgrounding",
-        ],
+        "args": launch_args,
     }
     want_chrome = settings.apply_use_chrome_channel
     if want_chrome:

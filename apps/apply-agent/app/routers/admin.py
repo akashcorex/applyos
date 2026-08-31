@@ -178,6 +178,16 @@ async def register_application_browser_token(
 )
 async def show_application_browser(application_id: str) -> dict[str, str]:
     """Focus the headed Chrome window for shared-session human review."""
+    live = await session_registry.has_live_session(application_id)
+    known = live or await session_registry.session_metadata_exists(application_id)
+    if not known:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "No active browser session for this application. "
+                "It may have already finished, timed out, or the worker was restarted."
+            ),
+        )
     await publish_show_browser(application_id)
     return {"application_id": application_id, "status": "show_browser_requested"}
 
