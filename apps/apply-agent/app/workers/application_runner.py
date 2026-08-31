@@ -197,7 +197,7 @@ class ApplicationRunner:
                 )
                 handler = await get_handler(external, self.page)
 
-        await self._sync(current_url=self.page.url, current_step="Application page loaded")
+        await self._sync(current_step="Application page loaded")
         await self.check_and_pause_for_blocker()
         return handler
 
