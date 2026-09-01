@@ -26,6 +26,24 @@ class Settings(BaseSettings):
     tailor_llm_on_create: bool = False
     tailor_max_suggestions: int = 5
 
+    # --- Chroma Cloud (primary vector store) ---
+    # Dummy defaults — set real values via env / .env from Chroma dashboard
+    chroma_host: str = "api.trychroma.com"
+    chroma_api_key: str = ""
+    chroma_tenant: str = "your-chroma-tenant-id"
+    chroma_database: str = "your-chroma-database"
+    chroma_collection_prefix: str = "resumes"
+    # Shard per user: collection = "{prefix}_{sanitized_user_id}"
+    chroma_shard_by_user: bool = True
+    # Sparse embeddings (keyword) — uses CHROMA_API_KEY
+    chroma_sparse_enabled: bool = True
+    # Hybrid RRF weights: 0.7 dense / 0.3 sparse balances semantic + keyword
+    chroma_dense_weight: float = 0.7
+    chroma_sparse_weight: float = 0.3
+    chroma_rrf_k: int = 60
+    # 16 KiB per document limit enforced via chunking
+    chroma_max_doc_bytes: int = 16384
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 

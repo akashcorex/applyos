@@ -419,12 +419,12 @@ async def chat_resume(
     if state.rag_pipeline is None:
         raise HTTPException(
             status_code=503,
-            detail="RAG pipeline not available — configure OPENAI_API_KEY and pgvector",
+            detail="RAG pipeline not available — configure CHROMA_API_KEY (Chroma Cloud) or OPENAI_API_KEY+pgvector",
         )
 
-    await require_resume_owner(state.repository, resume_id, request)
+    record = await require_resume_owner(state.repository, resume_id, request)
 
-    result = await state.rag_pipeline.chat(resume_id, payload.message)
+    result = await state.rag_pipeline.chat(resume_id, payload.message, user_id=record.user_id)
     return ChatResponse(
         resume_id=resume_id,
         answer=result["answer"],
@@ -443,15 +443,17 @@ async def improve_resume(
     if state.rag_pipeline is None:
         raise HTTPException(
             status_code=503,
-            detail="RAG pipeline not available — configure OPENAI_API_KEY and pgvector",
+            detail="RAG pipeline not available — configure CHROMA_API_KEY (Chroma Cloud) or OPENAI_API_KEY+pgvector",
         )
 
-    await require_resume_owner(state.repository, resume_id, request)
+    record = await require_resume_owner(state.repository, resume_id, request)
 
     result = await state.rag_pipeline.improve(
         resume_id=resume_id,
         target_role=payload.target_role,
         job_description=payload.job_description,
+        profile_context=None,
+        user_id=record.user_id,
     )
     return ImproveResponse(
         resume_id=resume_id,

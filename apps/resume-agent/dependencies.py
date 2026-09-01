@@ -68,7 +68,11 @@ class AppState:
             init=self._init_connection,
         )
         async with self.pool.acquire() as conn:
-            await conn.execute("CREATE EXTENSION IF NOT EXISTS vector;")
+            # pgvector is optional now (Chroma Cloud is primary). Keep for legacy PGVector fallback.
+            try:
+                await conn.execute("CREATE EXTENSION IF NOT EXISTS vector;")
+            except Exception as exc:
+                logger.warning("pgvector extension not available (Chroma is primary): %s", exc)
             resumes_table = await conn.fetchval("SELECT to_regclass('public.resumes')")
             if resumes_table is None:
                 raise RuntimeError(
@@ -290,15 +294,46 @@ class AppState:
         self.http_client = httpx.AsyncClient(timeout=settings.http_timeout_seconds)
         self.matcher = JobMatcher(self.http_client, self.matching_repository)
 
+        # --- Chroma Cloud primary, PGVector fallback ---
         try:
-            from services.rag.embeddings import get_embeddings
-            from services.rag.vectorstore import get_vectorstore
             from services.rag.pipeline import ResumeRAGPipeline
 
-            embeddings = get_embeddings()
-            vectorstore = get_vectorstore(embeddings)
-            self.rag_pipeline = ResumeRAGPipeline(llm=llm, vectorstore=vectorstore)
-            logger.info("RAG pipeline initialised")
+            chroma_store = None
+            vectorstore = None
+
+            # Try Chroma first (requires CHROMA_API_KEY)
+            try:
+                from services.rag.chroma_store import ChromaResumeStore
+
+                cs = ChromaResumeStore()
+                if cs._client is not None:
+                    chroma_store = cs
+                    logger.info("Chroma Cloud store initialised")
+                else:
+                    logger.warning("Chroma client not available (CHROMA_API_KEY missing) — will try PGVector")
+            except Exception as exc:
+                logger.warning("Chroma store init failed, will try PGVector: %s", exc)
+
+            # Fallback PGVector (legacy) — optional if Chroma is configured
+            if chroma_store is None:
+                try:
+                    from services.rag.embeddings import get_embeddings
+                    from services.rag.vectorstore import get_vectorstore
+
+                    embeddings = get_embeddings()
+                    vectorstore = get_vectorstore(embeddings)
+                    logger.info("PGVector fallback initialised")
+                except Exception as exc:
+                    logger.warning("PGVector init failed: %s", exc)
+
+            if chroma_store is not None or vectorstore is not None:
+                self.rag_pipeline = ResumeRAGPipeline(
+                    llm=llm, vectorstore=vectorstore, chroma_store=chroma_store
+                )
+                logger.info("RAG pipeline initialised (chroma=%s pgvector=%s)", bool(chroma_store), bool(vectorstore))
+            else:
+                self.rag_pipeline = None
+                logger.warning("RAG pipeline not initialised — no vector store")
         except Exception as exc:
             logger.warning("RAG pipeline not initialised: %s", exc)
             self.rag_pipeline = None
