@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "sh -c 'next start -H 0.0.0.0 -p ${PORT:-3000}'"
   },
   "dependencies": {
     "@applyso/analytics": "workspace:*",

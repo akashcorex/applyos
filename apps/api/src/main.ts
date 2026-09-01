@@ -13,7 +13,7 @@ import { outreachRouter } from './routes/outreach';
 import { preferencesRouter } from './routes/preferences';
 import { workflowsRouter } from './routes/workflows';
 
-const host = process.env.HOST ?? 'localhost';
+const host = process.env.HOST ?? '0.0.0.0';
 const port = process.env.PORT ? Number(process.env.PORT) : 3333;
 const webUrl = process.env.WEB_URL ?? 'http://localhost:3000';
 

@@ -2,6 +2,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
+    host: str = "0.0.0.0"
+    port: int = 8001
     job_agent_url: str = "http://127.0.0.1:8002"
     apply_agent_url: str = "http://127.0.0.1:8003"
     resume_agent_url: str = "http://127.0.0.1:8005"

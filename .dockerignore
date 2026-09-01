@@ -1,0 +1,27 @@
+# Keep Docker context small — Railway builds from repo root (infra/Dockerfile.*)
+node_modules
+.venv
+.venv-*
+.uv-cache
+__pycache__
+.pytest_cache
+.ruff_cache
+.mypy_cache
+.turbo
+.next
+dist
+.nx
+.vercel
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+infra/railway
+.turbo/cache
+coverage
+.fallow
+apps/*/uploads
+apps/apply-agent/.apply-debug
+*.log
+.DS_Store
