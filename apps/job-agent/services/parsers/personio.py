@@ -1,3 +1,5 @@
+from xml.etree.ElementTree import Element
+
 import defusedxml.ElementTree as ET
 
 from models import RawJob
@@ -6,7 +8,7 @@ from services.parsers.base import fetch_text_with_retries
 PERSONIO_JOBS_URL = "https://{slug}.jobs.personio.de/xml"
 
 
-def _text(element: ET.Element | None) -> str | None:
+def _text(element: Element | None) -> str | None:
     if element is None or element.text is None:
         return None
     value = element.text.strip()

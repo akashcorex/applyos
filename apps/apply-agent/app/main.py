@@ -27,7 +27,10 @@ async def lifespan(app: FastAPI):
     """Startup: connect Redis, start queue dispatcher. Shutdown: reverse."""
     await app_state.startup()
     app.state.app_state = app_state
-    start_dispatcher()
+    if app_state.is_ready:
+        start_dispatcher()
+    else:
+        logger.warning("Skipping queue dispatcher because Redis is not ready")
     stop_event = asyncio.Event()
     sweeper_task = asyncio.create_task(run_session_sweeper(stop_event))
     logger.info("apply-agent started")

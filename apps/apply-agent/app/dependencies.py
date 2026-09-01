@@ -24,13 +24,24 @@ class AppState:
         return self._is_ready
 
     async def startup(self) -> None:
-        """Initialise shared resources."""
-        self.redis = aioredis.from_url(
+        """Initialise shared resources. Redis is optional so the API can boot."""
+        client = aioredis.from_url(
             settings.redis_url,
             decode_responses=True,
         )
-        # quick connectivity check
-        await self.redis.ping()
+        try:
+            await client.ping()
+        except Exception:
+            await client.aclose()
+            logger.warning(
+                "Redis unavailable at %s — starting without a broker",
+                settings.redis_url,
+            )
+            self.redis = None
+            self._is_ready = False
+            return
+
+        self.redis = client
         logger.info("Redis connected at %s", settings.redis_url)
         self._is_ready = True
 

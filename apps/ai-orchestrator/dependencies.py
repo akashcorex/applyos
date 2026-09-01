@@ -60,8 +60,18 @@ class AppState:
         return self.durable_worker.cancel(workflow_id)
 
     async def startup(self) -> None:
-        self.redis = redis.from_url(settings.redis_url, decode_responses=True)
-        await self.redis.ping()
+        client = redis.from_url(settings.redis_url, decode_responses=True)
+        try:
+            await client.ping()
+        except Exception:
+            await client.aclose()
+            logger.warning(
+                "Redis unavailable at %s — starting without workflow persistence",
+                settings.redis_url,
+            )
+            return
+
+        self.redis = client
         self.store = WorkflowStore(self.redis)
         self.durable_worker = DurableWorkflowWorker(self.redis, self.store)
         self.results_consumer = ResultsConsumer(

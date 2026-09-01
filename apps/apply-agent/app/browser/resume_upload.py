@@ -14,7 +14,16 @@ from playwright.async_api import Page
 from app.config import settings
 from app.models.job_payload import CVData
 
-_WORKSPACE_ROOT = Path(__file__).resolve().parents[4]
+def _workspace_root() -> Path:
+    here = Path(__file__).resolve()
+    for parent in here.parents:
+        if (parent / "apps" / "apply-agent").is_dir():
+            return parent
+    # Docker copies apply-agent to /app, so this file is /app/app/browser/...
+    return here.parents[2] if len(here.parents) >= 3 else here.parent
+
+
+_WORKSPACE_ROOT = _workspace_root()
 
 
 def _resolve_local_candidate(source: str) -> Path | None:
