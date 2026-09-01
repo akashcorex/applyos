@@ -5,6 +5,7 @@
 # compiled output
 dist
 tmp
+.tmp-railway-cli
 out-tsc
 
 # dependencies

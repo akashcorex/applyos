@@ -46,7 +46,8 @@
     "fallow:audit": "fallow audit",
     "fallow:health": "fallow health --score --hotspots --targets",
     "fallow:dead-code": "fallow dead-code",
-    "fallow:dupes": "fallow dupes"
+    "fallow:dupes": "fallow dupes",
+    "start": "node scripts/railway-start.mjs"
   },
   "dependencies": {
     "next": "~16.1.6",
