@@ -6,7 +6,8 @@
   "scripts": {
     "build": "node scripts/build.mjs",
     "build:production": "node scripts/build.mjs --production",
-    "serve": "node dist/main.js"
+    "serve": "node dist/main.js",
+    "start": "node dist/main.js"
   },
   "dependencies": {
     "@fallow-cli/beacon": "^0.5.1",

@@ -42,17 +42,21 @@ infra/
 
 For each service: **+ New → GitHub Repo** → select `applyos.in` → **Settings** →
 
-| Service | Root Directory | Dockerfile Path | Healthcheck |
-|---|---|---|---|
-| `web` | `/` (repo root) | `infra/Dockerfile.web` | `/` |
-| `api` | `/` | `infra/Dockerfile.api` | `/` |
-| `ai-orchestrator` | `/` | `infra/Dockerfile.ai-orchestrator` | `/health` |
-| `job-agent` | `/` | `infra/Dockerfile.job-agent` | `/health` |
-| `apply-agent` | `/` | `infra/Dockerfile.apply-agent` | `/health` |
-| `resume-agent` | `/` | `infra/Dockerfile.resume-agent` | `/health` |
-| `outreach-agent` | `/` | `infra/Dockerfile.outreach-agent` | `/health` |
+| Service | Root Directory | Dockerfile Path | Config as Code | Healthcheck |
+|---|---|---|---|---|
+| `web` | *empty* (`/`) | `infra/Dockerfile.web` | `apps/web/railway.json` | `/` |
+| `api` / `@applyso/api` | *empty* (`/`) | `infra/Dockerfile.api` | `apps/api/railway.json` | `/` |
+| `ai-orchestrator` | *empty* (`/`) | `infra/Dockerfile.ai-orchestrator` | `apps/ai-orchestrator/railway.json` | `/health` |
+| `job-agent` | *empty* (`/`) | `infra/Dockerfile.job-agent` | `apps/job-agent/railway.json` | `/health` |
+| `apply-agent` | *empty* (`/`) | `infra/Dockerfile.apply-agent` | `apps/apply-agent/railway.json` | `/health` |
+| `resume-agent` | *empty* (`/`) | `infra/Dockerfile.resume-agent` | `apps/resume-agent/railway.json` | `/health` |
+| `outreach-agent` | *empty* (`/`) | `infra/Dockerfile.outreach-agent` | `apps/outreach-agent/railway.json` | `/health` |
 
 > **Why Root Directory = `/`** for all? The repo is a Bun Turborepo. Node services need `packages/*` and `bun.lock` at root. Python Dockerfiles in `infra/` use `COPY apps/<name>/...` so they also need root context. Do **not** set Root to `apps/web`.
+
+Each app also has `apps/<service>/railway.json` (builder `DOCKERFILE`). Railway’s bun monorepo importer reads that file from the package directory — do not rely only on `infra/railway/*.json`.
+
+Leave **Root Directory empty** (`/`) on every service. The Dockerfiles copy from the repo root (`packages/*`, `bun.lock`). If Root is `apps/api`, the image build fails in a few seconds with “Failed to build an image”.
 
 Alternatively import `infra/railway/<service>.json` as template in **Settings → Config as Code**.
 
@@ -126,4 +130,15 @@ If you prefer Nixpacks, set **Builder = Nixpacks** and use:
 * Build Command: `bun install && bun run build:web` (web) / `bun install && bun run build:api` (api) / `uv sync --frozen` (python)
 * Start Command: `bun --filter @applyso/web start` / `node apps/api/dist/main.js` / `uv run uvicorn main:app --host 0.0.0.0 --port $PORT`
 
-Templates in `infra/railway/*.json` use Docker; switch `"builder": "nixpacks"` if needed.
+Templates in `infra/railway/*.json` and `apps/*/railway.json` use `"builder": "DOCKERFILE"` (Railway’s schema rejects lowercase `dockerfile`). Switch to `"RAILPACK"` only if you drop the Dockerfiles.
+
+## 9. “Failed to build an image” in ~7s
+
+That message with almost no build logs means Railway never found a usable Dockerfile (or rejected the builder name). It is not a Python/Bun dependency error.
+
+Check each service **Settings**:
+
+1. **Root Directory** is empty (not `apps/<name>`).
+2. **Builder** is Dockerfile, path `infra/Dockerfile.<service>`.
+3. Config as Code is `apps/<service>/railway.json` (or unset so the file in the package dir is picked up).
+4. If **Use Metal Build Environment** is on and logs stop at “scheduling build”, turn it off and redeploy.

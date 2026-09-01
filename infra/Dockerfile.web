@@ -9,8 +9,14 @@ WORKDIR /app
 # Copy workspace manifests first for layer caching
 COPY package.json bun.lock turbo.json tsconfig.base.json tsconfig.json ./
 COPY packages ./packages
-COPY apps/web ./apps/web
 COPY apps/api/package.json ./apps/api/package.json
+COPY apps/web/package.json ./apps/web/package.json
+COPY apps/ai-orchestrator/package.json ./apps/ai-orchestrator/package.json
+COPY apps/job-agent/package.json ./apps/job-agent/package.json
+COPY apps/apply-agent/package.json ./apps/apply-agent/package.json
+COPY apps/outreach-agent/package.json ./apps/outreach-agent/package.json
+COPY apps/resume-agent/package.json ./apps/resume-agent/package.json
+COPY apps/web ./apps/web
 
 RUN bun install --frozen-lockfile
 
