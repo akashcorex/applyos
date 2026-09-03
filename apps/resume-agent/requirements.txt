@@ -402,7 +402,7 @@ typing-inspection==0.4.2
     #   fastapi
     #   pydantic
     #   pydantic-settings
-tzdata==2026.2 ; sys_platform == 'win32'
+tzdata==2026.3 ; sys_platform == 'win32'
     # via psycopg
 urllib3==2.7.0
     # via
