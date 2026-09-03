@@ -10,10 +10,10 @@
     "start": "node dist/main.js"
   },
   "dependencies": {
-    "@fallow-cli/beacon": "^0.5.1",
+    "@fallow-cli/beacon": "^0.6.4",
     "@applyso/database": "workspace:*",
     "@applyso/validation": "workspace:*",
-    "better-auth": "^1.2.9",
+    "better-auth": "^1.7.2",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
