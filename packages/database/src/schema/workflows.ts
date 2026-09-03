@@ -66,8 +66,7 @@ export const applicationControlModes = [
   'human_control',
 ] as const;
 
-export type ApplicationControlMode =
-  (typeof applicationControlModes)[number];
+export type ApplicationControlMode = (typeof applicationControlModes)[number];
 
 export const humanInterventionTypes = [
   'CAPTCHA',
@@ -85,8 +84,7 @@ export const humanInterventionTypes = [
   'OTHER',
 ] as const;
 
-export type HumanInterventionType =
-  (typeof humanInterventionTypes)[number];
+export type HumanInterventionType = (typeof humanInterventionTypes)[number];
 
 export const humanInterventionStatuses = [
   'open',

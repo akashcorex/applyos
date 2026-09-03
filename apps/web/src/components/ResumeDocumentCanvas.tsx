@@ -10,14 +10,14 @@ interface DocumentContent {
   summary?: string | null;
   experience_years: number;
   skills: string[];
-  education: Array<{ degree: string; school: string; year?: number | null }>;
-  work_history: Array<{
+  education: { degree: string; school: string; year?: number | null }[];
+  work_history: {
     company: string;
     title: string;
     start_date?: string | null;
     end_date?: string | null;
     highlights?: string[];
-  }>;
+  }[];
   preferred_role?: string | null;
 }
 

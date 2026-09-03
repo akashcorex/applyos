@@ -1,7 +1,7 @@
 'use client';
 
-import { WorkflowPanel } from '@/components/WorkflowPanel';
 import { AgentStatusPanel } from '@/components/AgentStatusPanel';
+import { WorkflowPanel } from '@/components/WorkflowPanel';
 
 export default function WorkflowsPage() {
   return (

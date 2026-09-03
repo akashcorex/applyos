@@ -1,5 +1,6 @@
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
+
 import { db } from '@applyso/database';
 import * as schema from '@applyso/database';
 

@@ -1,8 +1,8 @@
 'use client';
 
-import { LandingHeader } from './LandingHeader';
 import { HeroSection } from './HeroSection';
 import { LandingFooter } from './LandingFooter';
+import { LandingHeader } from './LandingHeader';
 
 export function LandingPage() {
   return (

@@ -28,7 +28,9 @@ export function HumanInterventionBanner({
         <div className="flex-1 space-y-2">
           <div>
             <p className="font-medium text-amber-900 dark:text-amber-200">
-              {isSubmitApproval ? 'Review before submitting' : 'Human action required'}
+              {isSubmitApproval
+                ? 'Review before submitting'
+                : 'Human action required'}
             </p>
             {type ? (
               <p className="text-xs uppercase tracking-wide text-amber-700/80">
@@ -45,7 +47,12 @@ export function HumanInterventionBanner({
               : 'Complete the step in the live browser above, then continue with AI.'}
           </p>
           <div className="flex flex-wrap gap-2">
-            <Button size="sm" onClick={onTakeControl} variant="outline" disabled={loading}>
+            <Button
+              size="sm"
+              onClick={onTakeControl}
+              variant="outline"
+              disabled={loading}
+            >
               Take Control
             </Button>
             <Button size="sm" onClick={onResume} disabled={loading}>

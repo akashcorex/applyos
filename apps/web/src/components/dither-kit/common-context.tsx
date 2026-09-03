@@ -1,6 +1,7 @@
 'use client';
 
 import { createContext, use } from 'react';
+
 import type { Seed } from './palette';
 
 /** A single tooltip row — one series (cartesian/radar) or one slice (pie). */

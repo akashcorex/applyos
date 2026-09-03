@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+
 import {
   LogOut,
   ArrowLeft,
@@ -12,8 +13,9 @@ import {
   CreditCard,
 } from 'lucide-react';
 
-import { DitherAvatar } from '@/components/dither-kit/avatar';
 import { Button } from '@applyso/ui/button';
+
+import { DitherAvatar } from '@/components/dither-kit/avatar';
 
 interface AppSidebarProps {
   userName?: string | null;

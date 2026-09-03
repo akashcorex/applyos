@@ -42,16 +42,16 @@ Many Wellfound listings link out to Greenhouse/Lever/etc. — those are handled 
 
 ## Supported ATS handlers
 
-| ATS | Handler | Approach |
-|-----|---------|----------|
-| Greenhouse | `GreenhouseHandler` | Full support: React Select comboboxes, resume upload, phone normalization, validation error detection |
-| Lever | `LeverHandler` | Standard form filling |
-| Ashby | `AshbyHandler` | Standard form filling |
-| Workable | `WorkableHandler` | `/apply` + jobs.workable.com Apply now, resume upload, YES/NO radios, identity autofill, Cloudflare Turnstile (CapSolver / headed checkbox), thank-you confirmation |
-| Wellfound | `WellfoundHandler` | Native modal apply (note + screening Qs) when logged in; auto-redirects to external ATS (Greenhouse/Lever/etc.) when listed |
-| Workday | `WorkdayHandler` | Multi-step wizard forms with `data-automation-id` selectors |
-| LinkedIn Easy Apply | `EasyApplyHandler` | Multi-page modal flow with screening questions |
-| Generic (fallback) | `GenericHandler` | LLM-driven field mapping when no specialized handler matches |
+| ATS                 | Handler             | Approach                                                                                                                                                            |
+| ------------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Greenhouse          | `GreenhouseHandler` | Full support: React Select comboboxes, resume upload, phone normalization, validation error detection                                                               |
+| Lever               | `LeverHandler`      | Standard form filling                                                                                                                                               |
+| Ashby               | `AshbyHandler`      | Standard form filling                                                                                                                                               |
+| Workable            | `WorkableHandler`   | `/apply` + jobs.workable.com Apply now, resume upload, YES/NO radios, identity autofill, Cloudflare Turnstile (CapSolver / headed checkbox), thank-you confirmation |
+| Wellfound           | `WellfoundHandler`  | Native modal apply (note + screening Qs) when logged in; auto-redirects to external ATS (Greenhouse/Lever/etc.) when listed                                         |
+| Workday             | `WorkdayHandler`    | Multi-step wizard forms with `data-automation-id` selectors                                                                                                         |
+| LinkedIn Easy Apply | `EasyApplyHandler`  | Multi-page modal flow with screening questions                                                                                                                      |
+| Generic (fallback)  | `GenericHandler`    | LLM-driven field mapping when no specialized handler matches                                                                                                        |
 
 ## Request flow
 
@@ -89,6 +89,7 @@ Many Wellfound listings link out to Greenhouse/Lever/etc. — those are handled 
 The app reads environment values from `apps/apply-agent/.env`.
 
 Key settings:
+
 - `REDIS_URL` — default `redis://127.0.0.1:6379/0`
 - `ANTHROPIC_API_KEY` — Claude API key for LLM field mapping
 - `API_URL` — default `http://localhost:3333`

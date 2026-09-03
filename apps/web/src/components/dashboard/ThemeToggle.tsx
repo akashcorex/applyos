@@ -1,10 +1,13 @@
 'use client';
 
 import * as React from 'react';
+
 import { Moon, Sun } from 'lucide-react';
-import { useTheme } from '@/components/theme-provider';
-import { Button } from '@applyso/ui/button';
+
 import { analytics } from '@applyso/analytics';
+import { Button } from '@applyso/ui/button';
+
+import { useTheme } from '@/components/theme-provider';
 
 export function ThemeToggle() {
   const { setTheme, resolvedTheme } = useTheme();

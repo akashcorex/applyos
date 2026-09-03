@@ -40,10 +40,9 @@ export async function POST(
       },
     );
     const data = await res.json();
-    return Response.json(
-      res.ok ? withPreviewUrl(data, id, variantId) : data,
-      { status: res.status },
-    );
+    return Response.json(res.ok ? withPreviewUrl(data, id, variantId) : data, {
+      status: res.status,
+    });
   } catch {
     return Response.json(
       { error: 'Resume agent is unreachable' },

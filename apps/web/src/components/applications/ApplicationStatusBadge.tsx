@@ -30,8 +30,7 @@ const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
   },
   browser_disconnected: {
     label: 'Browser Disconnected',
-    className:
-      'bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20',
+    className: 'bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20',
   },
   submitted: {
     label: 'Applied',
@@ -40,8 +39,7 @@ const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
   },
   failed: {
     label: 'Failed',
-    className:
-      'bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20',
+    className: 'bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20',
   },
   captcha_blocked: {
     label: 'Attention Required',

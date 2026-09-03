@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+
 import {
   ChevronDown,
   ChevronRight,
@@ -11,11 +12,12 @@ import {
   Square,
 } from 'lucide-react';
 
-import { ApplicationModal } from '@/components/applications/ApplicationModal';
+import { analytics } from '@applyso/analytics';
+import { Badge } from '@applyso/ui/badge';
 import { Button } from '@applyso/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@applyso/ui/card';
-import { Badge } from '@applyso/ui/badge';
-import { analytics } from '@applyso/analytics';
+
+import { ApplicationModal } from '@/components/applications/ApplicationModal';
 
 type WorkflowStatus =
   | 'pending'
@@ -498,17 +500,27 @@ export function WorkflowPanel({
         return;
       }
       if (action === 'pause') {
-        analytics.track('workflow_paused', { current_step: detail?.status }, { feature: 'workflows' });
+        analytics.track(
+          'workflow_paused',
+          { current_step: detail?.status },
+          { feature: 'workflows' },
+        );
       } else if (action === 'resume') {
-        analytics.track('workflow_resumed', { current_step: detail?.status }, { feature: 'workflows' });
+        analytics.track(
+          'workflow_resumed',
+          { current_step: detail?.status },
+          { feature: 'workflows' },
+        );
       } else if (action === 'stop') {
         analytics.track(
           'workflow_cancelled',
           {
-            completed_count: detail?.apply_tasks?.filter((t) => t.status === 'completed').length ?? 0,
+            completed_count:
+              detail?.apply_tasks?.filter((t) => t.status === 'completed')
+                .length ?? 0,
             total_count: detail?.apply_tasks?.length ?? 0,
           },
-          { feature: 'workflows' }
+          { feature: 'workflows' },
         );
       }
       await Promise.all([fetchWorkflows(), refreshWorkflowDetail(id)]);
@@ -795,7 +807,9 @@ export function WorkflowPanel({
                                           variant="outline"
                                           className="mt-1"
                                           onClick={() => {
-                                            setOpenApplicationId(task.application_id!);
+                                            setOpenApplicationId(
+                                              task.application_id!,
+                                            );
                                             setOpenApplicationMeta({
                                               jobTitle: task.job_title,
                                               companyName: task.company_name,

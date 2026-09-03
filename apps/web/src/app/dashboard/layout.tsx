@@ -1,13 +1,15 @@
 'use client';
 
-import { useRouter, usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
-import { authClient } from '@/lib/auth-client';
+import { useRouter, usePathname } from 'next/navigation';
+
 import { analytics } from '@applyso/analytics';
+
 import { AppSidebar } from '@/components/dashboard/AppSidebar';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { DashboardSkeleton } from '@/components/dashboard/DashboardSkeleton';
+import { authClient } from '@/lib/auth-client';
 
 const sectionTitles: Record<string, string> = {
   '/dashboard': 'Overview',
@@ -38,7 +40,9 @@ export default function DashboardAppLayout({
       if (saved !== null) {
         setIsCollapsed(saved === 'true');
       }
-    } catch {}
+    } catch {
+      // localStorage may be unavailable (private mode); keep default
+    }
   }, []);
 
   function toggleCollapse() {
@@ -51,7 +55,9 @@ export default function DashboardAppLayout({
       );
       try {
         localStorage.setItem('applyos-sidebar-collapsed', String(next));
-      } catch {}
+      } catch {
+        // localStorage may be unavailable; sidebar state stays in memory
+      }
       return next;
     });
   }

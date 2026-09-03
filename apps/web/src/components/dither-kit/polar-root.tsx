@@ -6,13 +6,15 @@ import {
   isValidElement,
   type ReactNode,
 } from 'react';
-import type { ChartConfig, Margins } from './chart-context';
+
 import { CommonChartContext } from './common-context';
-import type { BloomInput } from './dither-paint';
 import { cn } from './lib';
 import { axisAtAngle, sliceAtAngle } from './polar';
 import { PolarChartContext, usePolarController } from './polar-context';
 import { useChartDimensions } from './use-chart-dimensions';
+
+import type { ChartConfig, Margins } from './chart-context';
+import type { BloomInput } from './dither-paint';
 
 // `object` rather than `Record<string, unknown>`: interfaces don't get an
 // implicit index signature, so interface-typed rows failed to satisfy the

@@ -3,10 +3,7 @@
   "build": {
     "builder": "DOCKERFILE",
     "dockerfilePath": "infra/Dockerfile.job-agent",
-    "watchPatterns": [
-      "apps/job-agent/**",
-      "infra/Dockerfile.job-agent"
-    ]
+    "watchPatterns": ["apps/job-agent/**", "infra/Dockerfile.job-agent"]
   },
   "deploy": {
     "startCommand": "sh -c 'uv run uvicorn main:app --host 0.0.0.0 --port ${PORT:-8002}'",

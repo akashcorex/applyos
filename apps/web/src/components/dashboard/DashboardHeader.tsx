@@ -1,11 +1,14 @@
 'use client';
 
 import Link from 'next/link';
+
 import { Bell, ChevronRight, Home, Menu, Search } from 'lucide-react';
-import { DitherButton } from '@/components/dither-kit/button';
+
 import { Button } from '@applyso/ui/button';
 import { Input } from '@applyso/ui/input';
+
 import { ThemeToggle } from '@/components/dashboard/ThemeToggle';
+import { DitherButton } from '@/components/dither-kit/button';
 
 interface DashboardHeaderProps {
   currentTitle?: string;

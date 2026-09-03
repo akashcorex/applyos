@@ -1,5 +1,4 @@
-const APPLY_AGENT_URL =
-  process.env.APPLY_AGENT_URL ?? 'http://127.0.0.1:8003';
+const APPLY_AGENT_URL = process.env.APPLY_AGENT_URL ?? 'http://127.0.0.1:8003';
 
 export interface LinkedInSessionStatus {
   user_id: string;
@@ -32,9 +31,6 @@ export async function GET(request: Request) {
     const data = (await res.json()) as LinkedInSessionStatus;
     return Response.json(data);
   } catch {
-    return Response.json(
-      { error: 'Apply agent unavailable' },
-      { status: 503 },
-    );
+    return Response.json({ error: 'Apply agent unavailable' }, { status: 503 });
   }
 }

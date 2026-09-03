@@ -1,6 +1,7 @@
 'use client';
 
 import { createContext, use } from 'react';
+
 import type { Seed } from './palette';
 
 export type SeriesContextValue = {

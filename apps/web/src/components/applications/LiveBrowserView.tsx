@@ -14,7 +14,12 @@ function mapClickToCanvasPixels(
   clientY: number,
 ) {
   const rect = canvas.getBoundingClientRect();
-  if (rect.width <= 0 || rect.height <= 0 || canvas.width <= 0 || canvas.height <= 0) {
+  if (
+    rect.width <= 0 ||
+    rect.height <= 0 ||
+    canvas.width <= 0 ||
+    canvas.height <= 0
+  ) {
     return null;
   }
 
@@ -200,7 +205,11 @@ export function LiveBrowserView({
     <div className="relative flex h-full min-h-[420px] flex-col overflow-hidden rounded-lg border border-slate-200 bg-black dark:border-[#22242a]">
       <div className="flex items-center justify-between border-b border-slate-800 px-3 py-2 text-xs text-slate-300">
         <span>
-          {connected ? (hasFrame ? 'Live' : 'Connected — waiting for video…') : 'Connecting…'}
+          {connected
+            ? hasFrame
+              ? 'Live'
+              : 'Connected — waiting for video…'
+            : 'Connecting…'}
         </span>
         <span>
           {controlMode === 'human_control'

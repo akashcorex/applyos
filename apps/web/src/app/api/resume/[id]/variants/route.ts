@@ -11,7 +11,7 @@ function agentHeaders(userId: string, extra?: Record<string, string>) {
 }
 
 function addPreviewUrls(
-  data: { variants?: Array<{ id: string; artifact_url?: string | null }> },
+  data: { variants?: { id: string; artifact_url?: string | null }[] },
   resumeId: string,
 ) {
   if (Array.isArray(data.variants)) {

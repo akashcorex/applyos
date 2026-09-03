@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
+
+import { type AnalyticsPayload } from '@applyso/analytics';
 import { analyticsEvents, analyticsIdentities, db } from '@applyso/database';
-import { AnalyticsPayload } from '@applyso/analytics';
 
 export async function POST(req: Request) {
   try {

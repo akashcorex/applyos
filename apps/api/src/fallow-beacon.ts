@@ -1,5 +1,6 @@
-import { config } from 'dotenv';
 import { resolve } from 'node:path';
+
+import { config } from 'dotenv';
 
 const DEFAULT_PROJECT_ID = 'akashcorex/outreach-autometer';
 const DEFAULT_ENDPOINT = 'https://api.fallow.cloud';

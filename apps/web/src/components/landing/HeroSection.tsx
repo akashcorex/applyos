@@ -1,8 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import { Button } from '@applyso/ui';
+
 import { ArrowRight, CheckCircle2, LogIn, UserPlus } from 'lucide-react';
+
+import { Button } from '@applyso/ui';
 
 export function HeroSection() {
   return (

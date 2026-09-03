@@ -1,6 +1,11 @@
 import { analyticsEvents, analyticsIdentities, db } from '@applyso/database';
+
 import { sanitizeProperties } from './sanitizer';
-import { AnalyticsEventMap, EventName, FeatureId } from './types';
+import {
+  type AnalyticsEventMap,
+  type EventName,
+  type FeatureId,
+} from './types';
 
 export interface ServerEventOptions<K extends EventName> {
   event: K;

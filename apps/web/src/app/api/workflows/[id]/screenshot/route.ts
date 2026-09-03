@@ -4,8 +4,7 @@ import {
   jobIdBelongsToWorkflow,
 } from '@/lib/workflow-authorization';
 
-const APPLY_AGENT_URL =
-  process.env.APPLY_AGENT_URL ?? 'http://127.0.0.1:8003';
+const APPLY_AGENT_URL = process.env.APPLY_AGENT_URL ?? 'http://127.0.0.1:8003';
 
 export async function GET(
   request: Request,

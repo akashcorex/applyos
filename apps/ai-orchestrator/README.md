@@ -47,6 +47,7 @@ POST /workflows (user request)
 The app reads environment values from `apps/ai-orchestrator/.env`.
 
 Key settings:
+
 - `JOB_AGENT_URL` — default `http://127.0.0.1:8002`
 - `APPLY_AGENT_URL` — default `http://127.0.0.1:8003`
 - `REDIS_URL` — default `redis://127.0.0.1:6379/0`

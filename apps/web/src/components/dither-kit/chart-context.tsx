@@ -1,10 +1,7 @@
 'use client';
 
-import type { ScaleLinear } from 'd3-scale';
 import { createContext, use, useCallback, useMemo, useState } from 'react';
-import type { CommonChart } from './common-context';
-import type { BloomInput } from './dither-paint';
-import type { DitherColor, Seed } from './palette';
+
 import { seedOfColor } from './palette';
 import {
   buildBandScale,
@@ -15,7 +12,12 @@ import {
   nearestIndex,
   type StackType,
 } from './scales';
+
+import type { CommonChart } from './common-context';
+import type { BloomInput } from './dither-paint';
+import type { DitherColor, Seed } from './palette';
 import type { Dimensions } from './use-chart-dimensions';
+import type { ScaleLinear } from 'd3-scale';
 
 /** Which chart root a part is composed under — drives the boundary guards. */
 export type ChartType = 'area' | 'bar' | 'line' | 'pie' | 'radar';

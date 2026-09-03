@@ -1,5 +1,5 @@
-import { agentServiceHeaders } from '@/lib/workflow-authorization';
 import { requireUserId } from '@/lib/require-user';
+import { agentServiceHeaders } from '@/lib/workflow-authorization';
 
 const API_URL = process.env.API_URL ?? 'http://localhost:3333';
 

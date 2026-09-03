@@ -45,7 +45,7 @@ AI-powered job application platform — a Turborepo monorepo with a Next.js fron
 | **Orchestrator** (`apps/ai-orchestrator`)  | Coordinates multi-agent workflows — state machine, job ingestion, apply dispatch    | [README](apps/ai-orchestrator/README.md) |
 | **Job Agent** (`apps/job-agent`)           | Job discovery — ATS detection, job scraping, funding data                           | [README](apps/job-agent/README.md)       |
 | **Apply Agent** (`apps/apply-agent`)       | Automated job application — browser automation, LLM field mapping, LinkedIn actions | [README](apps/apply-agent/README.md)     |
-| **Resume Agent** (`apps/resume-agent`)     | Resume ingestion, IR revisions, evidence-constrained tailoring, PDF compilation | [README](apps/resume-agent/README.md)   |
+| **Resume Agent** (`apps/resume-agent`)     | Resume ingestion, IR revisions, evidence-constrained tailoring, PDF compilation     | [README](apps/resume-agent/README.md)    |
 | **Outreach Agent** (`apps/outreach-agent`) | Outreach communications — emails, follow-ups, messaging (scaffold)                  | [README](apps/outreach-agent/README.md)  |
 
 ## Quick start

@@ -16,7 +16,9 @@ function validateEmail(raw: unknown): { email: string } | { error: string } {
   return { email: normalized };
 }
 
-async function registerEmail(email: string): Promise<
+async function registerEmail(
+  email: string,
+): Promise<
   | { ok: true; alreadyRegistered: boolean; email: string }
   | { ok: false; error: string }
 > {
@@ -55,7 +57,9 @@ earlyAccessRouter.post('/', async (req, res) => {
   }
 
   const status = result.alreadyRegistered ? 200 : 201;
-  const message = result.alreadyRegistered ? 'already registered' : 'registered';
+  const message = result.alreadyRegistered
+    ? 'already registered'
+    : 'registered';
   res.status(status).json({ message, email: result.email });
 });
 

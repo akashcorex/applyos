@@ -96,7 +96,7 @@ export async function GET(
     }
     const data = (await res.json()) as {
       status?: string;
-      apply_tasks?: Array<Record<string, unknown>>;
+      apply_tasks?: Record<string, unknown>[];
     };
 
     const headers = agentServiceHeaders();

@@ -1,13 +1,15 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+
 import { Loader2, X } from 'lucide-react';
 
+import { Button } from '@applyso/ui/button';
+
 import { ApplicationActivityPanel } from '@/components/applications/ApplicationActivityPanel';
+import { ApplicationStatusBadge } from '@/components/applications/ApplicationStatusBadge';
 import { HumanInterventionBanner } from '@/components/applications/HumanInterventionBanner';
 import { LiveBrowserView } from '@/components/applications/LiveBrowserView';
-import { ApplicationStatusBadge } from '@/components/applications/ApplicationStatusBadge';
-import { Button } from '@applyso/ui/button';
 
 interface ApplicationDetail {
   id: string;
@@ -48,7 +50,9 @@ export function ApplicationModal({
   companyName,
   onClose,
 }: ApplicationModalProps) {
-  const [application, setApplication] = useState<ApplicationDetail | null>(null);
+  const [application, setApplication] = useState<ApplicationDetail | null>(
+    null,
+  );
   const [events, setEvents] = useState<ApplicationEvent[]>([]);
   const [intervention, setIntervention] = useState<HumanIntervention | null>(
     null,
@@ -135,9 +139,7 @@ export function ApplicationModal({
         </div>
 
         <div className="flex-1 overflow-y-auto p-4">
-          {error ? (
-            <p className="mb-3 text-sm text-red-600">{error}</p>
-          ) : null}
+          {error ? <p className="mb-3 text-sm text-red-600">{error}</p> : null}
 
           {(application?.status === 'waiting_for_human' || intervention) && (
             <div className="mb-4">

@@ -1,6 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+
+import { Sliders, Bot, Check } from 'lucide-react';
+
+import { Button } from '@applyso/ui/button';
 import {
   Card,
   CardContent,
@@ -8,9 +12,7 @@ import {
   CardTitle,
   CardDescription,
 } from '@applyso/ui/card';
-import { Button } from '@applyso/ui/button';
 import { Input } from '@applyso/ui/input';
-import { Sliders, Bot, Check } from 'lucide-react';
 
 export default function PreferencesSettingsPage() {
   const [dailyLimit, setDailyLimit] = useState('25');
@@ -116,9 +118,7 @@ export default function PreferencesSettingsPage() {
                     onChange={(e) => setAutoSubmitEnabled(e.target.checked)}
                     className="h-3.5 w-3.5 rounded border-slate-300 dark:border-[#26282e] bg-white dark:bg-[#141518] text-slate-900 dark:text-[#f1f3f9] focus:ring-slate-900 dark:focus:ring-[#f1f3f9]"
                   />
-                  <span>
-                    Auto-submit applications without manual approval
-                  </span>
+                  <span>Auto-submit applications without manual approval</span>
                 </label>
                 <span className="text-[10px] text-slate-500 dark:text-[#8a8f9d] mt-1 block ml-5">
                   When off, you review the filled form in the live browser and

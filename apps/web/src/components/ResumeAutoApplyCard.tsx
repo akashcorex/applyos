@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef, useState } from 'react';
+
 import {
   Check,
   ExternalLink,
@@ -11,16 +12,17 @@ import {
   Send,
 } from 'lucide-react';
 
-import { authClient } from '@/lib/auth-client';
 import { analytics } from '@applyso/analytics';
+import { Badge } from '@applyso/ui/badge';
+import { Button } from '@applyso/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@applyso/ui/card';
+
 import {
   ResumeVariantEditor,
   type ResumeVariant,
   type TailorJobContext,
 } from '@/components/ResumeVariantEditor';
-import { Badge } from '@applyso/ui/badge';
-import { Button } from '@applyso/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@applyso/ui/card';
+import { authClient } from '@/lib/auth-client';
 
 interface ParsedResume {
   resume_id: string;

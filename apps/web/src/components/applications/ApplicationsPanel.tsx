@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from 'react';
 
-import { ApplicationModal } from '@/components/applications/ApplicationModal';
-import { ApplicationStatusBadge } from '@/components/applications/ApplicationStatusBadge';
 import { Button } from '@applyso/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@applyso/ui/card';
+
+import { ApplicationModal } from '@/components/applications/ApplicationModal';
+import { ApplicationStatusBadge } from '@/components/applications/ApplicationStatusBadge';
 
 interface ApplicationRow {
   id: string;
@@ -66,7 +67,9 @@ export function ApplicationsPanel() {
         </CardHeader>
         <CardContent className="space-y-3">
           {applications.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No applications yet.</p>
+            <p className="text-sm text-muted-foreground">
+              No applications yet.
+            </p>
           ) : (
             applications.map((application) => (
               <div

@@ -1,8 +1,10 @@
 'use client';
 
 import { useMemo } from 'react';
+
 import { Area } from './area';
 import { AreaChart } from './area-chart';
+
 import type { AreaVariant } from './chart-context';
 import type { BloomInput } from './dither-paint';
 import type { DitherColor } from './palette';

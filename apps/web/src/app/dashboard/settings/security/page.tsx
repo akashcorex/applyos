@@ -1,6 +1,10 @@
 'use client';
 
 import { useState } from 'react';
+
+import { Shield, Key, Check, Laptop } from 'lucide-react';
+
+import { Button } from '@applyso/ui/button';
 import {
   Card,
   CardContent,
@@ -8,9 +12,7 @@ import {
   CardTitle,
   CardDescription,
 } from '@applyso/ui/card';
-import { Button } from '@applyso/ui/button';
 import { Input } from '@applyso/ui/input';
-import { Shield, Key, Check, Laptop } from 'lucide-react';
 
 export default function SecuritySettingsPage() {
   const [currentPassword, setCurrentPassword] = useState('');

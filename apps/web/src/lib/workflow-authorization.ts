@@ -18,7 +18,9 @@ export function jobIdBelongsToWorkflow(
   workflowId: string,
   jobId: string,
 ): boolean {
-  return jobId.startsWith(`${workflowId}:`) && jobId.length > workflowId.length + 1;
+  return (
+    jobId.startsWith(`${workflowId}:`) && jobId.length > workflowId.length + 1
+  );
 }
 
 /**

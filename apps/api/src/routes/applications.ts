@@ -83,12 +83,7 @@ const ATTENTION_STATUSES = new Set([
   'login_required',
 ]);
 
-const RUNNING_STATUSES = new Set([
-  'queued',
-  'starting',
-  'running',
-  'resuming',
-]);
+const RUNNING_STATUSES = new Set(['queued', 'starting', 'running', 'resuming']);
 
 const COMPLETED_STATUSES = new Set([
   'submitted',
@@ -198,57 +193,65 @@ applicationsRouter.get('/internal/:applicationId/detail', async (req, res) => {
 });
 
 /** Update session fields from apply-agent during an active application. */
-applicationsRouter.patch('/internal/:applicationId/session', async (req, res) => {
-  if (!internalRequestAllowed(req.header('x-agent-service-token'))) {
-    res.status(401).json({ error: 'Unauthorized internal request' });
-    return;
-  }
+applicationsRouter.patch(
+  '/internal/:applicationId/session',
+  async (req, res) => {
+    if (!internalRequestAllowed(req.header('x-agent-service-token'))) {
+      res.status(401).json({ error: 'Unauthorized internal request' });
+      return;
+    }
 
-  const { applicationId } = req.params;
-  const body = req.body as {
-    status?: unknown;
-    browserSessionId?: unknown;
-    currentUrl?: unknown;
-    currentStep?: unknown;
-    controlMode?: unknown;
-    humanInterventionRequired?: unknown;
-    interventionReason?: unknown;
-    externalTaskId?: unknown;
-  };
+    const { applicationId } = req.params;
+    const body = req.body as {
+      status?: unknown;
+      browserSessionId?: unknown;
+      currentUrl?: unknown;
+      currentStep?: unknown;
+      controlMode?: unknown;
+      humanInterventionRequired?: unknown;
+      interventionReason?: unknown;
+      externalTaskId?: unknown;
+    };
 
-  const now = new Date();
-  const values: Record<string, unknown> = { updatedAt: now, lastActivityAt: now };
+    const now = new Date();
+    const values: Record<string, unknown> = {
+      updatedAt: now,
+      lastActivityAt: now,
+    };
 
-  if (isApplicationStatus(body.status)) values.status = body.status;
-  if (hasString(body.browserSessionId)) {
-    values.browserSessionId = body.browserSessionId;
-  }
-  if (typeof body.currentUrl === 'string') values.currentUrl = body.currentUrl;
-  if (typeof body.currentStep === 'string') values.currentStep = body.currentStep;
-  if (isControlMode(body.controlMode)) values.controlMode = body.controlMode;
-  if (typeof body.humanInterventionRequired === 'boolean') {
-    values.humanInterventionRequired = body.humanInterventionRequired;
-  }
-  if (typeof body.interventionReason === 'string') {
-    values.interventionReason = body.interventionReason;
-  }
-  if (hasString(body.externalTaskId)) {
-    values.externalTaskId = body.externalTaskId;
-  }
+    if (isApplicationStatus(body.status)) values.status = body.status;
+    if (hasString(body.browserSessionId)) {
+      values.browserSessionId = body.browserSessionId;
+    }
+    if (typeof body.currentUrl === 'string')
+      values.currentUrl = body.currentUrl;
+    if (typeof body.currentStep === 'string')
+      values.currentStep = body.currentStep;
+    if (isControlMode(body.controlMode)) values.controlMode = body.controlMode;
+    if (typeof body.humanInterventionRequired === 'boolean') {
+      values.humanInterventionRequired = body.humanInterventionRequired;
+    }
+    if (typeof body.interventionReason === 'string') {
+      values.interventionReason = body.interventionReason;
+    }
+    if (hasString(body.externalTaskId)) {
+      values.externalTaskId = body.externalTaskId;
+    }
 
-  const [updated] = await db
-    .update(applications)
-    .set(values)
-    .where(eq(applications.id, applicationId))
-    .returning();
+    const [updated] = await db
+      .update(applications)
+      .set(values)
+      .where(eq(applications.id, applicationId))
+      .returning();
 
-  if (!updated) {
-    res.status(404).json({ error: 'Application not found' });
-    return;
-  }
+    if (!updated) {
+      res.status(404).json({ error: 'Application not found' });
+      return;
+    }
 
-  res.status(200).json({ application: updated });
-});
+    res.status(200).json({ application: updated });
+  },
+);
 
 /** Create a human intervention record and flag the application. */
 applicationsRouter.post(
@@ -260,7 +263,11 @@ applicationsRouter.post(
     }
 
     const { applicationId } = req.params;
-    const body = req.body as { type?: unknown; message?: unknown; userId?: unknown };
+    const body = req.body as {
+      type?: unknown;
+      message?: unknown;
+      userId?: unknown;
+    };
 
     if (!isInterventionType(body.type) || !hasString(body.message)) {
       res.status(400).json({ error: 'Invalid intervention type or message' });
@@ -389,9 +396,7 @@ applicationsRouter.post('/internal/:applicationId/events', async (req, res) => {
       type: body.type,
       description: body.description,
       metadata:
-        body.metadata && typeof body.metadata === 'object'
-          ? body.metadata
-          : {},
+        body.metadata && typeof body.metadata === 'object' ? body.metadata : {},
     })
     .returning();
 
@@ -429,7 +434,8 @@ applicationsRouter.post(
 
     const token = randomUUID();
 
-    const applyAgentUrl = process.env.APPLY_AGENT_URL ?? 'http://127.0.0.1:8003';
+    const applyAgentUrl =
+      process.env.APPLY_AGENT_URL ?? 'http://127.0.0.1:8003';
     const agentToken = process.env.AGENT_SERVICE_TOKEN;
     if (agentToken) {
       try {
@@ -445,7 +451,9 @@ applicationsRouter.post(
           },
         );
       } catch {
-        res.status(502).json({ error: 'Failed to register browser token with apply-agent' });
+        res
+          .status(502)
+          .json({ error: 'Failed to register browser token with apply-agent' });
         return;
       }
     }
@@ -474,7 +482,8 @@ applicationsRouter.post(
       return;
     }
 
-    const applyAgentUrl = process.env.APPLY_AGENT_URL ?? 'http://127.0.0.1:8003';
+    const applyAgentUrl =
+      process.env.APPLY_AGENT_URL ?? 'http://127.0.0.1:8003';
     const agentToken = process.env.AGENT_SERVICE_TOKEN;
     if (!agentToken) {
       res.status(503).json({ error: 'Apply agent is not configured' });
@@ -512,7 +521,9 @@ applicationsRouter.get('/internal/resolve', async (req, res) => {
   }
 
   const workflowRunId =
-    typeof req.query.workflowRunId === 'string' ? req.query.workflowRunId : null;
+    typeof req.query.workflowRunId === 'string'
+      ? req.query.workflowRunId
+      : null;
   const dedupKey =
     typeof req.query.dedupKey === 'string' ? req.query.dedupKey : null;
   if (!workflowRunId || !dedupKey) {
@@ -564,7 +575,9 @@ applicationsRouter.post('/internal/:applicationId/resume', async (req, res) => {
     return;
   }
   if (application.status !== 'waiting_for_human') {
-    res.status(409).json({ error: 'Application is not waiting for human intervention' });
+    res
+      .status(409)
+      .json({ error: 'Application is not waiting for human intervention' });
     return;
   }
 
@@ -620,47 +633,51 @@ applicationsRouter.post('/internal/:applicationId/resume', async (req, res) => {
 });
 
 /** Switch control to human for manual browser interaction. */
-applicationsRouter.post('/internal/:applicationId/take-control', async (req, res) => {
-  if (!internalRequestAllowed(req.header('x-agent-service-token'))) {
-    res.status(401).json({ error: 'Unauthorized internal request' });
-    return;
-  }
-
-  const { applicationId } = req.params;
-  const now = new Date();
-  const [updated] = await db
-    .update(applications)
-    .set({
-      controlMode: 'human_control',
-      updatedAt: now,
-      lastActivityAt: now,
-    })
-    .where(eq(applications.id, applicationId))
-    .returning();
-
-  if (!updated) {
-    res.status(404).json({ error: 'Application not found' });
-    return;
-  }
-
-  const applyAgentUrl = process.env.APPLY_AGENT_URL ?? 'http://127.0.0.1:8003';
-  const agentToken = process.env.AGENT_SERVICE_TOKEN;
-  if (agentToken) {
-    try {
-      await fetch(
-        `${applyAgentUrl}/admin/applications/${encodeURIComponent(applicationId)}/take-control`,
-        {
-          method: 'POST',
-          headers: { 'X-Agent-Service-Token': agentToken },
-        },
-      );
-    } catch {
-      // Postgres state is updated; apply-agent sync is best-effort.
+applicationsRouter.post(
+  '/internal/:applicationId/take-control',
+  async (req, res) => {
+    if (!internalRequestAllowed(req.header('x-agent-service-token'))) {
+      res.status(401).json({ error: 'Unauthorized internal request' });
+      return;
     }
-  }
 
-  res.status(200).json({ application: updated });
-});
+    const { applicationId } = req.params;
+    const now = new Date();
+    const [updated] = await db
+      .update(applications)
+      .set({
+        controlMode: 'human_control',
+        updatedAt: now,
+        lastActivityAt: now,
+      })
+      .where(eq(applications.id, applicationId))
+      .returning();
+
+    if (!updated) {
+      res.status(404).json({ error: 'Application not found' });
+      return;
+    }
+
+    const applyAgentUrl =
+      process.env.APPLY_AGENT_URL ?? 'http://127.0.0.1:8003';
+    const agentToken = process.env.AGENT_SERVICE_TOKEN;
+    if (agentToken) {
+      try {
+        await fetch(
+          `${applyAgentUrl}/admin/applications/${encodeURIComponent(applicationId)}/take-control`,
+          {
+            method: 'POST',
+            headers: { 'X-Agent-Service-Token': agentToken },
+          },
+        );
+      } catch {
+        // Postgres state is updated; apply-agent sync is best-effort.
+      }
+    }
+
+    res.status(200).json({ application: updated });
+  },
+);
 
 /** Release manual control back to agent without resuming automation. */
 applicationsRouter.post(
@@ -688,7 +705,8 @@ applicationsRouter.post(
       return;
     }
 
-    const applyAgentUrl = process.env.APPLY_AGENT_URL ?? 'http://127.0.0.1:8003';
+    const applyAgentUrl =
+      process.env.APPLY_AGENT_URL ?? 'http://127.0.0.1:8003';
     const agentToken = process.env.AGENT_SERVICE_TOKEN;
     if (agentToken) {
       try {
@@ -739,7 +757,8 @@ applicationsRouter.post('/internal/:applicationId/stop', async (req, res) => {
     .where(eq(applications.id, applicationId));
 
   if (application.externalTaskId) {
-    const applyAgentUrl = process.env.APPLY_AGENT_URL ?? 'http://127.0.0.1:8003';
+    const applyAgentUrl =
+      process.env.APPLY_AGENT_URL ?? 'http://127.0.0.1:8003';
     const agentToken = process.env.AGENT_SERVICE_TOKEN;
     if (agentToken) {
       try {

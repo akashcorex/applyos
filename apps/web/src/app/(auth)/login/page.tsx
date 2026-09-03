@@ -1,12 +1,14 @@
 'use client';
 
+import { type FormEvent, useEffect, useState } from 'react';
+
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { FormEvent, useEffect, useState } from 'react';
+
 import { Linkedin, Loader2 } from 'lucide-react';
 
-import { appCallbackURL, authClient } from '@/lib/auth-client';
 import { AuthCardLayout } from '@/components/auth/AuthCardLayout';
+import { appCallbackURL, authClient } from '@/lib/auth-client';
 
 function GoogleIcon({ className = 'h-4 w-4' }: { className?: string }) {
   return (

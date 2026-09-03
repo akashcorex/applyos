@@ -1,14 +1,16 @@
 'use client';
 
 import { ArrowUpRight, TrendingUp, Eye, CheckCircle2, Zap } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@applyso/ui/card';
+
 import { Badge } from '@applyso/ui/badge';
-import { AreaChart } from '@/components/dither-kit/area-chart';
+import { Card, CardContent, CardHeader, CardTitle } from '@applyso/ui/card';
+
 import { Area } from '@/components/dither-kit/area';
-import { XAxis } from '@/components/dither-kit/x-axis';
-import { YAxis } from '@/components/dither-kit/y-axis';
+import { AreaChart } from '@/components/dither-kit/area-chart';
 import { Legend } from '@/components/dither-kit/legend';
 import { Tooltip } from '@/components/dither-kit/tooltip';
+import { XAxis } from '@/components/dither-kit/x-axis';
+import { YAxis } from '@/components/dither-kit/y-axis';
 
 const chartData = [
   { day: 'Dec 9', applications: 18, outreach: 8 },

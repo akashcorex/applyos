@@ -32,16 +32,16 @@ User uploads resume (PDF/DOCX)
 
 ## Tech stack
 
-| Layer | Technology |
-|-------|-----------|
-| Framework | FastAPI + Uvicorn |
-| PDF parsing | `pdfplumber` (tables), `PyPDF2` (text) |
-| DOCX parsing | `python-docx` |
-| LLM | Anthropic Claude (`claude-sonnet-4-6`) |
-| Validation | Pydantic v2 |
-| HTTP | `httpx` |
-| Settings | `pydantic-settings` |
-| Deps | `uv` (like ai-orchestrator/job-agent) |
+| Layer        | Technology                             |
+| ------------ | -------------------------------------- |
+| Framework    | FastAPI + Uvicorn                      |
+| PDF parsing  | `pdfplumber` (tables), `PyPDF2` (text) |
+| DOCX parsing | `python-docx`                          |
+| LLM          | Anthropic Claude (`claude-sonnet-4-6`) |
+| Validation   | Pydantic v2                            |
+| HTTP         | `httpx`                                |
+| Settings     | `pydantic-settings`                    |
+| Deps         | `uv` (like ai-orchestrator/job-agent)  |
 
 ## File structure
 
@@ -70,6 +70,7 @@ apps/resume-agent/
 ## API endpoints
 
 ### `POST /parse`
+
 Upload a resume file, extract structured data.
 
 ```
@@ -106,9 +107,11 @@ Response 200:
 ```
 
 ### `GET /resume/{id}`
+
 Retrieve a previously parsed resume.
 
 ### `GET /resume/{id}/match`
+
 Match parsed resume against current job listings.
 
 ```
@@ -131,9 +134,11 @@ Response 200:
   ]
 }
 ```
+
 This endpoint calls the job-agent `/search` with the extracted preferred_role, then re-ranks results by skill overlap.
 
 ### `GET /health`
+
 Standard health check.
 
 ## LLM extraction flow
@@ -206,13 +211,13 @@ This lives in `packages/database/src/schema/resume.ts` alongside the auth schema
 
 ## Integration with existing agents
 
-| Direction | What | How |
-|-----------|------|-----|
-| resume-agent → job-agent | Match parsed resume to jobs | Resume agent calls `POST /search` on job-agent with `preferred_role` from parsed resume. Re-rank results by skill overlap. |
-| resume-agent → api | Store resume in DB | Direct Postgres write via `@applyso/database` (or HTTP POST to API if we add a resume endpoint). |
-| web → resume-agent | Upload resume from UI | Next.js API route proxies `POST /api/resume/parse` → `POST /parse` on resume-agent. |
-| orchestrator → resume-agent | Get CVData for workflow | Orchestrator fetches parsed resume from DB or resume-agent to populate `CVData` in workflow payload. |
-| apply-agent → resume | Auto-fill forms | Already uses orchestrated `CVData`. No changes needed — resume-agent feeds CVData upstream. |
+| Direction                   | What                        | How                                                                                                                        |
+| --------------------------- | --------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| resume-agent → job-agent    | Match parsed resume to jobs | Resume agent calls `POST /search` on job-agent with `preferred_role` from parsed resume. Re-rank results by skill overlap. |
+| resume-agent → api          | Store resume in DB          | Direct Postgres write via `@applyso/database` (or HTTP POST to API if we add a resume endpoint).                           |
+| web → resume-agent          | Upload resume from UI       | Next.js API route proxies `POST /api/resume/parse` → `POST /parse` on resume-agent.                                        |
+| orchestrator → resume-agent | Get CVData for workflow     | Orchestrator fetches parsed resume from DB or resume-agent to populate `CVData` in workflow payload.                       |
+| apply-agent → resume        | Auto-fill forms             | Already uses orchestrated `CVData`. No changes needed — resume-agent feeds CVData upstream.                                |
 
 ## Web UI changes needed
 
@@ -254,17 +259,17 @@ JOB_AGENT_URL=http://127.0.0.1:8002
 
 ## Implementation order
 
-| Phase | Step | Effort |
-|-------|------|--------|
-| 1 | Scaffold `apps/resume-agent` with FastAPI + health endpoint | 30 min |
-| 2 | Add PDF/DOCX text extraction (`parser.py`) | 1 hr |
-| 3 | Add Claude-based structured extraction (`extractor.py`) | 1.5 hr |
-| 4 | Add `POST /parse` and `GET /resume/{id}` routes | 30 min |
-| 5 | Add DB schema (`packages/database/src/schema/resume.ts`) | 20 min |
-| 6 | Add `GET /resume/{id}/match` with job-agent integration | 1 hr |
-| 7 | Web UI: resume upload page, results display, match button | 2 hr |
-| 8 | Wire orchestrator to load CVData from parsed resume | 30 min |
-| 9 | Tests | 1 hr |
+| Phase | Step                                                        | Effort |
+| ----- | ----------------------------------------------------------- | ------ |
+| 1     | Scaffold `apps/resume-agent` with FastAPI + health endpoint | 30 min |
+| 2     | Add PDF/DOCX text extraction (`parser.py`)                  | 1 hr   |
+| 3     | Add Claude-based structured extraction (`extractor.py`)     | 1.5 hr |
+| 4     | Add `POST /parse` and `GET /resume/{id}` routes             | 30 min |
+| 5     | Add DB schema (`packages/database/src/schema/resume.ts`)    | 20 min |
+| 6     | Add `GET /resume/{id}/match` with job-agent integration     | 1 hr   |
+| 7     | Web UI: resume upload page, results display, match button   | 2 hr   |
+| 8     | Wire orchestrator to load CVData from parsed resume         | 30 min |
+| 9     | Tests                                                       | 1 hr   |
 
 **Total estimated: ~8 hours**
 

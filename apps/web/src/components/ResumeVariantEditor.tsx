@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+
 import {
   Check,
   Download,
@@ -10,10 +11,11 @@ import {
   X,
 } from 'lucide-react';
 
-import { ResumeDocumentCanvas } from '@/components/ResumeDocumentCanvas';
-import { Button } from '@applyso/ui/button';
-import { Badge } from '@applyso/ui/badge';
 import { analytics } from '@applyso/analytics';
+import { Badge } from '@applyso/ui/badge';
+import { Button } from '@applyso/ui/button';
+
+import { ResumeDocumentCanvas } from '@/components/ResumeDocumentCanvas';
 
 export interface VariantContent {
   full_name: string;
@@ -23,14 +25,14 @@ export interface VariantContent {
   summary?: string | null;
   experience_years: number;
   skills: string[];
-  education: Array<{ degree: string; school: string; year?: number | null }>;
-  work_history: Array<{
+  education: { degree: string; school: string; year?: number | null }[];
+  work_history: {
     company: string;
     title: string;
     start_date?: string | null;
     end_date?: string | null;
     highlights?: string[];
-  }>;
+  }[];
   preferred_role?: string | null;
 }
 
@@ -72,13 +74,13 @@ export interface ResumeVariant {
   } | null;
   updated_at?: string | null;
   diff?: {
-    semantic?: Array<{
+    semantic?: {
       node_id: string;
       field: string;
       before?: unknown;
       after?: unknown;
       reason?: string;
-    }>;
+    }[];
   };
 }
 

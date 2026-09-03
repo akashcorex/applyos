@@ -15,14 +15,14 @@ interface VariantContent {
   summary?: string | null;
   experience_years: number;
   skills: string[];
-  education: Array<{ degree: string; school: string; year?: number | null }>;
-  work_history: Array<{
+  education: { degree: string; school: string; year?: number | null }[];
+  work_history: {
     company: string;
     title: string;
     start_date?: string | null;
     end_date?: string | null;
     highlights?: string[];
-  }>;
+  }[];
   preferred_role?: string | null;
 }
 
@@ -132,12 +132,15 @@ export async function POST(request: Request) {
     const forbidden = await assertResumeOwner(resumeId, sessionUserId);
     if (forbidden) return forbidden;
 
-    let eligibleJobs: ApplyJobInput[] = clientJobs.filter((job) => {
-      if (!job.dedup_key || !job.application_url) return false;
-      if (typeof job.match_score !== 'number') return false;
-      const score = job.match_score <= 1 ? job.match_score * 100 : job.match_score;
-      return score >= minScore;
-    }).slice(0, maxApplies);
+    let eligibleJobs: ApplyJobInput[] = clientJobs
+      .filter((job) => {
+        if (!job.dedup_key || !job.application_url) return false;
+        if (typeof job.match_score !== 'number') return false;
+        const score =
+          job.match_score <= 1 ? job.match_score * 100 : job.match_score;
+        return score >= minScore;
+      })
+      .slice(0, maxApplies);
 
     if (eligibleJobs.length === 0) {
       const matchRes = await fetch(
@@ -185,7 +188,7 @@ export async function POST(request: Request) {
       ? await variantsRes.json()
       : { variants: [] };
 
-    const resolvedVariants: Map<string, ResumeVariant> = new Map();
+    const resolvedVariants = new Map<string, ResumeVariant>();
 
     for (const job of eligibleJobs) {
       if (!job.dedup_key) {

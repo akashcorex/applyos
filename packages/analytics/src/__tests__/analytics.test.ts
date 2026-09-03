@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test';
+
 import { sanitizeProperties, sanitizeText } from '../sanitizer';
 import { getOrCreateAnonymousId, getOrCreateSession } from '../session';
 

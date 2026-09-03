@@ -14,8 +14,8 @@ interface VariantContent {
   summary?: string | null;
   experience_years: number;
   skills: string[];
-  education: Array<Record<string, unknown>>;
-  work_history: Array<Record<string, unknown>>;
+  education: Record<string, unknown>[];
+  work_history: Record<string, unknown>[];
 }
 
 export async function POST(request: Request) {
@@ -78,12 +78,12 @@ export async function POST(request: Request) {
       : { variants: [] };
     const variant = resume_variant_id
       ? (
-          variantsData.variants as Array<{
+          variantsData.variants as {
             id?: string;
             status?: string;
             artifact_id?: string | null;
             content: VariantContent;
-          }>
+          }[]
         ).find((item) => item.id === resume_variant_id)
       : undefined;
     const useVariant = Boolean(

@@ -25,12 +25,12 @@ infra/
 
 ## 1. What was fixed for Railway
 
-* `apps/api/src/main.ts:16` `HOST` default `localhost` → `0.0.0.0`
-* `apps/*/config.py:5` / `apps/apply-agent/app/config.py:15` `host` `127.0.0.1` → `0.0.0.0`
-* `apps/ai-orchestrator/config.py:5` added `host`/`port` (was missing)
-* `apps/*/package.json:7` `serve` now `sh -c '... --host 0.0.0.0 --port ${PORT:-800x}'` (Railway injects `$PORT`)
-* `apps/web/package.json:8` `start` → `next start -H 0.0.0.0 -p ${PORT:-3000}`
-* `apps/web/next.config.js:9` supports `NEXT_STANDALONE=true` → `output: 'standalone'` for Docker
+- `apps/api/src/main.ts:16` `HOST` default `localhost` → `0.0.0.0`
+- `apps/*/config.py:5` / `apps/apply-agent/app/config.py:15` `host` `127.0.0.1` → `0.0.0.0`
+- `apps/ai-orchestrator/config.py:5` added `host`/`port` (was missing)
+- `apps/*/package.json:7` `serve` now `sh -c '... --host 0.0.0.0 --port ${PORT:-800x}'` (Railway injects `$PORT`)
+- `apps/web/package.json:8` `start` → `next start -H 0.0.0.0 -p ${PORT:-3000}`
+- `apps/web/next.config.js:9` supports `NEXT_STANDALONE=true` → `output: 'standalone'` for Docker
 
 ## 2. Create Railway Project
 
@@ -42,15 +42,15 @@ infra/
 
 For each service: **+ New → GitHub Repo** → select `applyos.in` → **Settings** →
 
-| Service | Root Directory | Dockerfile Path | Config as Code | Healthcheck |
-|---|---|---|---|---|
-| `web` | *empty* (`/`) | `infra/Dockerfile.web` | `apps/web/railway.json` | `/` |
-| `api` / `@applyso/api` | *empty* (`/`) | `infra/Dockerfile.api` | `apps/api/railway.json` | `/` |
-| `ai-orchestrator` | *empty* (`/`) | `infra/Dockerfile.ai-orchestrator` | `apps/ai-orchestrator/railway.json` | `/health` |
-| `job-agent` | *empty* (`/`) | `infra/Dockerfile.job-agent` | `apps/job-agent/railway.json` | `/health` |
-| `apply-agent` | *empty* (`/`) | `infra/Dockerfile.apply-agent` | `apps/apply-agent/railway.json` | `/health` |
-| `resume-agent` | *empty* (`/`) | `infra/Dockerfile.resume-agent` | `apps/resume-agent/railway.json` | `/health` |
-| `outreach-agent` | *empty* (`/`) | `infra/Dockerfile.outreach-agent` | `apps/outreach-agent/railway.json` | `/health` |
+| Service                | Root Directory | Dockerfile Path                    | Config as Code                      | Healthcheck |
+| ---------------------- | -------------- | ---------------------------------- | ----------------------------------- | ----------- |
+| `web`                  | _empty_ (`/`)  | `infra/Dockerfile.web`             | `apps/web/railway.json`             | `/`         |
+| `api` / `@applyso/api` | _empty_ (`/`)  | `infra/Dockerfile.api`             | `apps/api/railway.json`             | `/`         |
+| `ai-orchestrator`      | _empty_ (`/`)  | `infra/Dockerfile.ai-orchestrator` | `apps/ai-orchestrator/railway.json` | `/health`   |
+| `job-agent`            | _empty_ (`/`)  | `infra/Dockerfile.job-agent`       | `apps/job-agent/railway.json`       | `/health`   |
+| `apply-agent`          | _empty_ (`/`)  | `infra/Dockerfile.apply-agent`     | `apps/apply-agent/railway.json`     | `/health`   |
+| `resume-agent`         | _empty_ (`/`)  | `infra/Dockerfile.resume-agent`    | `apps/resume-agent/railway.json`    | `/health`   |
+| `outreach-agent`       | _empty_ (`/`)  | `infra/Dockerfile.outreach-agent`  | `apps/outreach-agent/railway.json`  | `/health`   |
 
 > **Why Root Directory = `/`** for all? The repo is a Bun Turborepo. Node services need `packages/*` and `bun.lock` at root. Python Dockerfiles in `infra/` use `COPY apps/<name>/...` so they also need root context. Do **not** set Root to `apps/web`.
 
@@ -67,13 +67,14 @@ Set **Networking → Generate Domain** for `web` and `api` only. Keep agents pri
 Copy `infra/railway/env.example` to each service's **Variables** tab.
 
 Critical shared var (must be identical):
+
 ```
 AGENT_SERVICE_TOKEN=openssl rand -hex 32
 ```
 
 Per-service overrides for private networking:
 
-* `ai-orchestrator`:
+- `ai-orchestrator`:
   ```
   JOB_AGENT_URL=http://job-agent.railway.internal:8002
   APPLY_AGENT_URL=http://apply-agent.railway.internal:8003
@@ -81,10 +82,10 @@ Per-service overrides for private networking:
   API_URL=http://api.railway.internal:3333
   REDIS_URL=${{Redis.REDIS_URL}}
   ```
-* `apply-agent`: `API_URL=http://api.railway.internal:3333`, `RESUME_AGENT_URL=http://resume-agent.railway.internal:8005`, `REDIS_URL`
-* `resume-agent`: `DATABASE_URL=${{Postgres.DATABASE_URL}}`, `JOB_AGENT_URL=http://job-agent.railway.internal:8002`
-* `web`: `NEXT_PUBLIC_API_URL=https://<api-domain>.up.railway.app`, `API_URL=http://api.railway.internal:3333`
-* `api`: `HOST=0.0.0.0`, `BETTER_AUTH_URL=https://<api-domain>.up.railway.app`, `WEB_URL=https://<web-domain>.up.railway.app`, `DATABASE_URL`
+- `apply-agent`: `API_URL=http://api.railway.internal:3333`, `RESUME_AGENT_URL=http://resume-agent.railway.internal:8005`, `REDIS_URL`
+- `resume-agent`: `DATABASE_URL=${{Postgres.DATABASE_URL}}`, `JOB_AGENT_URL=http://job-agent.railway.internal:8002`
+- `web`: `NEXT_PUBLIC_API_URL=https://<api-domain>.up.railway.app`, `API_URL=http://api.railway.internal:3333`
+- `api`: `HOST=0.0.0.0`, `BETTER_AUTH_URL=https://<api-domain>.up.railway.app`, `WEB_URL=https://<web-domain>.up.railway.app`, `DATABASE_URL`
 
 ## 5. DB Migration
 
@@ -98,8 +99,8 @@ railway run --service api bun run db:migrate
 
 ## 6. Deploy
 
-* Push to `main` → auto-deploy (if **Settings → Source → Auto Deploy** on)
-* Manual: `railway up --service web` etc. (requires `railway link`)
+- Push to `main` → auto-deploy (if **Settings → Source → Auto Deploy** on)
+- Manual: `railway up --service web` etc. (requires `railway link`)
 
 CLI:
 
@@ -127,8 +128,8 @@ docker build -f infra/Dockerfile.ai-orchestrator -t ai-orchestrator .
 
 If you prefer Nixpacks, set **Builder = Nixpacks** and use:
 
-* Build Command: `bun install && bun run build:web` (web) / `bun install && bun run build:api` (api) / `uv sync --frozen` (python)
-* Start Command: `bun --filter @applyso/web start` / `node apps/api/dist/main.js` / `uv run uvicorn main:app --host 0.0.0.0 --port $PORT`
+- Build Command: `bun install && bun run build:web` (web) / `bun install && bun run build:api` (api) / `uv sync --frozen` (python)
+- Start Command: `bun --filter @applyso/web start` / `node apps/api/dist/main.js` / `uv run uvicorn main:app --host 0.0.0.0 --port $PORT`
 
 Templates in `infra/railway/*.json` and `apps/*/railway.json` use `"builder": "DOCKERFILE"` (Railway’s schema rejects lowercase `dockerfile`). Switch to `"RAILPACK"` only if you drop the Dockerfiles.
 

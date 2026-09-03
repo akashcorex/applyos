@@ -1,9 +1,15 @@
 import './global.css';
 
-import type { Metadata } from 'next';
 import Script from 'next/script';
+
 import { Analytics } from '@vercel/analytics/next';
+
 import { Toaster } from '@applyso/ui';
+
+import { AnalyticsProvider } from '@/components/analytics/AnalyticsProvider';
+import { ThemeProvider } from '@/components/theme-provider';
+
+import type { Metadata } from 'next';
 
 const GA_MEASUREMENT_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID ?? '';
 
@@ -90,9 +96,6 @@ export const metadata: Metadata = {
     follow: true,
   },
 };
-
-import { ThemeProvider } from '@/components/theme-provider';
-import { AnalyticsProvider } from '@/components/analytics/AnalyticsProvider';
 
 export default function RootLayout({
   children,

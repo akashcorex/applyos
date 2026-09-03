@@ -26,6 +26,7 @@
         "eslint-plugin-react": "7.35.0",
         "eslint-plugin-react-hooks": "5.0.0",
         "fallow": "^2.96.0",
+        "globals": "^16.4.0",
         "postcss": "8.4.38",
         "prettier": "^3.8.1",
         "tailwindcss": "3.4.3",

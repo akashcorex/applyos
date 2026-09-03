@@ -32,6 +32,9 @@
     "test": {
       "cache": true
     },
+    "lint": {
+      "cache": true
+    },
     "generate": {
       "cache": false
     },

@@ -18,7 +18,10 @@ function validateEmail(raw: unknown): { email: string } | { error: string } {
 
 export async function registerEarlyAccessEmail(
   rawEmail: string,
-): Promise<{ ok: true; alreadyRegistered: boolean; email: string } | { ok: false; error: string }> {
+): Promise<
+  | { ok: true; alreadyRegistered: boolean; email: string }
+  | { ok: false; error: string }
+> {
   const validation = validateEmail(rawEmail);
   if ('error' in validation) {
     return { ok: false, error: validation.error };

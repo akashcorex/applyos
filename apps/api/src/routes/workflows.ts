@@ -311,10 +311,10 @@ workflowsRouter.post('/internal/start', async (req, res) => {
     applicationIdempotencyKey(userId, job.dedupKey, job.resumeVariantId),
   );
 
-  let existingRows: Array<{
+  let existingRows: {
     application: typeof applications.$inferSelect;
     workflowStatus: string | null;
-  }>;
+  }[];
   try {
     existingRows = await db
       .select({
@@ -341,13 +341,13 @@ workflowsRouter.post('/internal/start', async (req, res) => {
     existingRows.map((row) => [row.application.idempotencyKey, row]),
   );
 
-  const skipped: Array<{ dedupKey: string; reason: string }> = [];
+  const skipped: { dedupKey: string; reason: string }[] = [];
   const toCreate: ApplicationInput[] = [];
-  const toReuse: Array<{
+  const toReuse: {
     job: ApplicationInput;
     applicationId: string;
     agentTaskKey: string;
-  }> = [];
+  }[] = [];
 
   for (const job of selectedApplications) {
     const applicationKey = applicationIdempotencyKey(

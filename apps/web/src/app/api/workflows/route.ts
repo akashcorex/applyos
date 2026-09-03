@@ -59,7 +59,7 @@ export async function GET(request: Request) {
     if (!res.ok) {
       return Response.json({ workflows: [] }, { status: res.status });
     }
-    const data = (await res.json()) as { workflows?: Array<{ id?: string }> };
+    const data = (await res.json()) as { workflows?: { id?: string }[] };
     const summaries = data.workflows ?? [];
     const authorization = await Promise.all(
       summaries.map(async (summary) => {

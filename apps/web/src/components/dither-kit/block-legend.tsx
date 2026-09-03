@@ -1,8 +1,9 @@
 'use client';
 
-import type { ChartConfig } from './chart-context';
 import { cn } from './lib';
 import { rgb, seedOfColor } from './palette';
+
+import type { ChartConfig } from './chart-context';
 
 /**
  * An in-flow legend rendered as a sibling of the chart rather than an overlay.

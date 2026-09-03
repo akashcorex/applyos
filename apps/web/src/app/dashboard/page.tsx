@@ -1,14 +1,15 @@
 'use client';
 
 import { useState } from 'react';
+
 import { useRouter } from 'next/navigation';
 
+import { AgentStatusPanel } from '@/components/AgentStatusPanel';
+import { CompanyDiscoveryPanel } from '@/components/CompanyDiscoveryPanel';
 import { DashboardOverview } from '@/components/dashboard/DashboardOverview';
+import { LinkedInConnectCard } from '@/components/LinkedInConnectCard';
 import { ResumeAutoApplyCard } from '@/components/ResumeAutoApplyCard';
 import { WorkflowPanel } from '@/components/WorkflowPanel';
-import { AgentStatusPanel } from '@/components/AgentStatusPanel';
-import { LinkedInConnectCard } from '@/components/LinkedInConnectCard';
-import { CompanyDiscoveryPanel } from '@/components/CompanyDiscoveryPanel';
 
 export default function DashboardOverviewPage() {
   const router = useRouter();

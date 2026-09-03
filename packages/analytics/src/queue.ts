@@ -1,4 +1,4 @@
-import { AnalyticsPayload } from './types';
+import { type AnalyticsPayload } from './types';
 
 const FLUSH_INTERVAL_MS = 5000;
 const MAX_BATCH_SIZE = 15;
@@ -70,7 +70,7 @@ export class AnalyticsQueue {
         body,
         keepalive: true,
       });
-    } catch (err) {
+    } catch {
       // Re-queue events on temporary network glitch if buffer isn't overflowing
       if (this.buffer.length < 50) {
         this.buffer.unshift(...eventsToFlush);

@@ -6,11 +6,11 @@ import {
   touchSessionActivity,
 } from './session';
 import {
-  AnalyticsEventMap,
-  AnalyticsPayload,
-  EventContext,
-  EventName,
-  FeatureId,
+  type AnalyticsEventMap,
+  type AnalyticsPayload,
+  type EventContext,
+  type EventName,
+  type FeatureId,
 } from './types';
 
 export interface IAnalytics {
@@ -22,14 +22,14 @@ export interface IAnalytics {
       feature?: FeatureId;
       page?: string;
       component?: string;
-    }
+    },
   ): void;
   page(path: string, options?: { feature?: FeatureId; title?: string }): void;
   feature(feature: FeatureId): {
     track: <K extends EventName>(
       event: K,
       properties: AnalyticsEventMap[K],
-      component?: string
+      component?: string,
     ) => void;
   };
   flush(): Promise<void>;

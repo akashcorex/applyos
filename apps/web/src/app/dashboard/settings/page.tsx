@@ -1,8 +1,12 @@
 'use client';
 
-import Link from 'next/link';
 import { useState } from 'react';
-import { authClient } from '@/lib/auth-client';
+
+import Link from 'next/link';
+
+import { User, Check, Sparkles, LogOut, ArrowUpRight } from 'lucide-react';
+
+import { Button } from '@applyso/ui/button';
 import {
   Card,
   CardContent,
@@ -10,10 +14,10 @@ import {
   CardTitle,
   CardDescription,
 } from '@applyso/ui/card';
-import { Button } from '@applyso/ui/button';
 import { Input } from '@applyso/ui/input';
+
 import { DitherAvatar } from '@/components/dither-kit/avatar';
-import { User, Check, Sparkles, LogOut, ArrowUpRight } from 'lucide-react';
+import { authClient } from '@/lib/auth-client';
 
 export default function ProfilePage() {
   const { data: session } = authClient.useSession();

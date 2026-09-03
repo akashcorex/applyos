@@ -1,14 +1,17 @@
 'use client';
 
-import { usePathname } from 'next/navigation';
 import { createContext, useContext, useEffect, useRef } from 'react';
+
+import { usePathname } from 'next/navigation';
+
 import {
   analytics,
-  FeatureId,
-  IAnalytics,
+  type FeatureId,
+  type IAnalytics,
   isSensitiveElement,
   sanitizeText,
 } from '@applyso/analytics';
+
 import { authClient } from '@/lib/auth-client';
 
 const AnalyticsContext = createContext<IAnalytics>(analytics);
@@ -112,7 +115,9 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
             try {
               const url = new URL(href, window.location.origin);
               targetUrl = url.pathname;
-            } catch {}
+            } catch {
+              // Invalid URL; leave targetUrl undefined
+            }
           }
         }
 

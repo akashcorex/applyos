@@ -1,8 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import { Badge, Button } from '@applyso/ui';
+
 import { ArrowRight } from 'lucide-react';
+
+import { Badge, Button } from '@applyso/ui';
 
 export function LandingHeader() {
   return (

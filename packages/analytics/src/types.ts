@@ -177,7 +177,7 @@ export interface AnalyticsEventMap {
   linkedin_connect_toggled: {
     enabled: boolean;
   };
-  linkedin_sync_started: {};
+  linkedin_sync_started: Record<string, never>;
   linkedin_sync_completed: {
     connects_sent: number;
     duration_ms: number;
@@ -199,7 +199,7 @@ export interface AnalyticsEventMap {
     max_daily_apps?: number;
     min_match_score?: number;
   };
-  security_password_updated: {};
+  security_password_updated: Record<string, never>;
 
   // --- Layer 2: Feature: Auth & Identity ---
   sign_up_started: {
@@ -211,7 +211,7 @@ export interface AnalyticsEventMap {
   login_completed: {
     method: 'email' | 'google';
   };
-  logout_completed: {};
+  logout_completed: Record<string, never>;
 }
 
 export type EventName = keyof AnalyticsEventMap;

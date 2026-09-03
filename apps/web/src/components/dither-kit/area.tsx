@@ -1,6 +1,7 @@
 'use client';
 
 import { type ReactNode, useEffect } from 'react';
+
 import {
   type AreaVariant,
   type SeriesKind,

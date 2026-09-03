@@ -1,16 +1,18 @@
 'use client';
 
 import { useState } from 'react';
+
+import { Check } from 'lucide-react';
+
+import { analytics } from '@applyso/analytics';
+import { Badge } from '@applyso/ui/badge';
+import { Button } from '@applyso/ui/button';
 import {
   Card,
   CardContent,
   CardHeader,
   CardDescription,
 } from '@applyso/ui/card';
-import { Button } from '@applyso/ui/button';
-import { Badge } from '@applyso/ui/badge';
-import { Check } from 'lucide-react';
-import { analytics } from '@applyso/analytics';
 
 export default function BillingPlansPage() {
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>(

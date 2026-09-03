@@ -1,6 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+
 import { ResumeAutoApplyCard } from '@/components/ResumeAutoApplyCard';
 
 export default function AutoApplyPage() {

@@ -1,6 +1,7 @@
 'use client';
 
 import { createContext, use, useCallback, useMemo, useState } from 'react';
+
 import {
   type AreaVariant,
   type ChartConfig,
@@ -8,11 +9,12 @@ import {
   type Margins,
   useRevision,
 } from './chart-context';
+import { seedOfColor } from './palette';
+import { type PieSlice, pieSlices, type RadarAxis, radarAxes } from './polar';
+
 import type { CommonChart } from './common-context';
 import type { BloomInput } from './dither-paint';
 import type { Seed } from './palette';
-import { seedOfColor } from './palette';
-import { type PieSlice, pieSlices, type RadarAxis, radarAxes } from './polar';
 import type { Dimensions } from './use-chart-dimensions';
 
 type Row = Record<string, unknown>;

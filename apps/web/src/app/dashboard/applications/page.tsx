@@ -6,7 +6,8 @@ export default function ApplicationsPage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Applications</h1>
         <p className="text-sm text-muted-foreground">
-          Watch AI apply in real time and take over when human action is required.
+          Watch AI apply in real time and take over when human action is
+          required.
         </p>
       </div>
       <ApplicationsPanel />

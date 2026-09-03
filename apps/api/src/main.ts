@@ -6,8 +6,8 @@ import express from 'express';
 
 import { auth } from './auth';
 import { startFallowBeacon } from './fallow-beacon';
-import { earlyAccessRouter } from './routes/early-access';
 import { applicationsRouter } from './routes/applications';
+import { earlyAccessRouter } from './routes/early-access';
 import { linkedinConnectsRouter } from './routes/linkedin-connects';
 import { outreachRouter } from './routes/outreach';
 import { preferencesRouter } from './routes/preferences';

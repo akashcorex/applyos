@@ -1,11 +1,15 @@
 # Dependencies
 node_modules
+**/node_modules/**
 
 # Build output
 dist
+**/dist/**
 build
 .next
+**/.next/**
 .turbo
+**/.turbo/**
 .out
 *.tsbuildinfo
 
@@ -16,22 +20,43 @@ build
 
 # Python agents (handled by ruff/black)
 .venv
+**/.venv/**
 __pycache__
+**/__pycache__/**
 *.pyc
 .pytest_cache
+**/.pytest_cache/**
+.ruff_cache
+**/.ruff_cache/**
+.mypy_cache
+**/.mypy_cache/**
+
+# Caches / local tooling
+.uv-cache
+**/.uv-cache/**
+.tmp-railway-cli
+**/.tmp-railway-cli/**
+.fallow
+**/.fallow/**
 
 # Test & coverage artifacts
 coverage
+**/coverage/**
 .nyc_output
 .nx/cache
 .nx/workspace-data
-.fallow
 
 # Generated / third-party files
 bun.lock
+package-lock.json
+**/package-lock.json
 *.pdf
 *.lock
+uv.lock
+**/uv.lock
 next-env.d.ts
+**/snapshot.json
+tests/fixtures/**
 
 # Docs assets
 docs/generated

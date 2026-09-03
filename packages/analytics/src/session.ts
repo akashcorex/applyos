@@ -80,5 +80,7 @@ export function touchSessionActivity(): void {
   if (typeof window === 'undefined') return;
   try {
     localStorage.setItem(SESSION_ACTIVITY_KEY, String(Date.now()));
-  } catch {}
+  } catch {
+    // localStorage may be unavailable; session activity stays in memory
+  }
 }
