@@ -3,7 +3,7 @@
 # Build context: repo root (Railway Root Directory = /)
 # Set Dockerfile Path = infra/Dockerfile.web in Railway dashboard
 
-FROM oven/bun:1.3.12 AS base
+FROM oven/bun:1.4.0 AS base
 WORKDIR /app
 
 # Copy workspace manifests first for layer caching
@@ -25,7 +25,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 # ENV NEXT_STANDALONE=true
 RUN bun run build:web
 
-FROM oven/bun:1.3.12 AS runner
+FROM oven/bun:1.4.0 AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
