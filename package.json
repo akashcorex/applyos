@@ -44,6 +44,7 @@
     "format:check": "prettier --check .",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
+    "typecheck": "tsc -b && tsc --noEmit -p apps/api/tsconfig.app.json && tsc --noEmit -p packages/validation/tsconfig.json && tsc --noEmit -p packages/analytics/tsconfig.json",
     "fallow": "fallow",
     "fallow:audit": "fallow audit",
     "fallow:health": "fallow health --score --hotspots --targets",

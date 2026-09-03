@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
+from typing import Any
 
+import httpx
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile, status
 from fastapi.responses import FileResponse
 
@@ -98,28 +100,66 @@ def _to_response(
     )
 
 
-@router.post("/parse", response_model=ParseResponse, status_code=status.HTTP_200_OK)
-async def parse_resume(
-    request: Request,
-    file: UploadFile = File(..., description="PDF or DOCX resume"),
-    user_id: str = Form(..., min_length=1, max_length=128),
-) -> ParseResponse:
-    state = _state(request)
-    caller = user_id_from_request(request)
-    if caller is None:
-        raise HTTPException(status_code=401, detail="Unauthorized")
-    if caller != user_id:
-        raise HTTPException(status_code=403, detail="Forbidden")
-    parser: ResumeParser = state.parser or ResumeParser()
-    extractor: LLMExtractor = state.extractor or LLMExtractor()
+def _fail_code_for(exc: HTTPException) -> str:
+    detail = str(exc.detail)
+    if exc.status_code == 400:
+        return "EMPTY_FILE"
+    if exc.status_code == 415:
+        return "UNSUPPORTED_TYPE"
+    if exc.status_code == 422 and "No extractable" in detail:
+        return "NO_TEXT"
+    if exc.status_code == 422:
+        return "PARSE_FAILED"
+    if exc.status_code == 502:
+        return "EXTRACTION_FAILED"
+    return "PROCESSING_FAILED"
 
-    raw_bytes = await file.read()
+
+def _extraction_payload(record: ResumeRecord) -> dict[str, Any]:
+    return record.model_dump(
+        mode="json",
+        exclude={"profile_embedding", "raw_text", "profile_text_hash"},
+    )
+
+
+async def _callback_api(
+    resume_file_id: str,
+    *,
+    complete: dict[str, Any] | None = None,
+    fail: dict[str, Any] | None = None,
+) -> None:
+    token = settings.agent_service_token.strip()
+    if not token:
+        logger.error("AGENT_SERVICE_TOKEN missing; cannot callback API")
+        raise HTTPException(status_code=500, detail="Service token is not configured")
+    base = settings.api_url.rstrip("/")
+    path = "complete" if complete is not None else "fail"
+    url = f"{base}/v1/resumes/internal/{resume_file_id}/{path}"
+    payload = complete if complete is not None else (fail or {})
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        response = await client.post(
+            url,
+            json=payload,
+            headers={"X-Agent-Service-Token": token},
+        )
+        response.raise_for_status()
+
+
+async def _parse_and_extract(
+    *,
+    parser: ResumeParser,
+    extractor: LLMExtractor,
+    raw_bytes: bytes,
+    file_name: str | None,
+    content_type: str | None,
+    user_id: str,
+) -> tuple[ResumeRecord, Any, str]:
     if not raw_bytes:
         raise HTTPException(status_code=400, detail="Uploaded file is empty")
 
     try:
         parsed_document = parser.parse_document(
-            file.filename or "resume", raw_bytes, file.content_type
+            file_name or "resume", raw_bytes, content_type
         )
         raw_text = parsed_document.text
     except UnsupportedFileTypeError as exc:
@@ -131,18 +171,33 @@ async def parse_resume(
     if not raw_text.strip():
         raise HTTPException(status_code=422, detail="No extractable text found in file")
 
-    file_type = parser.detect_file_type(file.filename or "", file.content_type)
+    file_type = parser.detect_file_type(file_name or "", content_type)
     try:
         record = await extractor.extract(
             raw_text=raw_text,
             user_id=user_id,
-            file_name=file.filename,
+            file_name=file_name,
             file_type=file_type,
         )
     except Exception as exc:
         logger.error("LLM extraction error: %s", exc)
         raise HTTPException(status_code=502, detail=f"LLM extraction failed: {exc}") from exc
+    return record, parsed_document, file_type
 
+
+async def _persist_parsed_resume(
+    state: AppState,
+    *,
+    record: ResumeRecord,
+    raw_bytes: bytes,
+    user_id: str,
+    file_name: str | None,
+    file_type: str,
+    parsed_document: Any,
+    extractor: LLMExtractor,
+) -> tuple[str, str | None, str]:
+    if state.repository is None:
+        raise HTTPException(status_code=503, detail="resume-agent not initialised")
     try:
         resume_id = await state.repository.insert(record)
     except Exception as exc:
@@ -154,7 +209,7 @@ async def parse_resume(
             user_id=user_id,
             resume_id=resume_id,
             raw_bytes=raw_bytes,
-            file_name=file.filename,
+            file_name=file_name,
             file_type=file_type,
         )
         await state.repository.update_file_path(resume_id, file_path)
@@ -170,7 +225,7 @@ async def parse_resume(
             source_document_id = await state.revision_repository.create_source_document(
                 resume_id=resume_id,
                 user_id=user_id,
-                file_name=file.filename,
+                file_name=file_name,
                 file_type=file_type,
                 storage_key=f"local://resume-source/{resume_id}",
                 content_sha256=source_hash,
@@ -204,7 +259,7 @@ async def parse_resume(
                 resume_id=resume_id,
                 raw_text=record.raw_text,
                 user_id=user_id,
-                file_name=file.filename,
+                file_name=file_name,
                 source_document_hash=source_hash,
                 ir_revision_id=revision_id,
             )
@@ -228,12 +283,111 @@ async def parse_resume(
         except Exception as exc:
             logger.warning("Profile embedding cache failed (non-fatal): %s", exc)
 
+    return resume_id, revision_id, source_hash
+
+
+@router.post("/parse", response_model=ParseResponse, status_code=status.HTTP_200_OK)
+async def parse_resume(
+    request: Request,
+    file: UploadFile = File(..., description="PDF or DOCX resume"),
+    user_id: str = Form(..., min_length=1, max_length=128),
+) -> ParseResponse:
+    state = _state(request)
+    caller = user_id_from_request(request)
+    if caller is None:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    if caller != user_id:
+        raise HTTPException(status_code=403, detail="Forbidden")
+    parser: ResumeParser = state.parser or ResumeParser()
+    extractor: LLMExtractor = state.extractor or LLMExtractor()
+
+    raw_bytes = await file.read()
+    record, parsed_document, file_type = await _parse_and_extract(
+        parser=parser,
+        extractor=extractor,
+        raw_bytes=raw_bytes,
+        file_name=file.filename,
+        content_type=file.content_type,
+        user_id=user_id,
+    )
+    resume_id, revision_id, source_hash = await _persist_parsed_resume(
+        state,
+        record=record,
+        raw_bytes=raw_bytes,
+        user_id=user_id,
+        file_name=file.filename,
+        file_type=file_type,
+        parsed_document=parsed_document,
+        extractor=extractor,
+    )
     return _to_response(
         record,
         resume_id,
         ir_revision_id=revision_id,
         source_document_hash=source_hash,
     )
+
+
+@router.post("/internal/extract", status_code=status.HTTP_200_OK)
+async def internal_extract(
+    request: Request,
+    file: UploadFile = File(..., description="PDF or DOCX resume"),
+    resume_file_id: str = Form(..., min_length=1, max_length=128),
+    user_id: str = Form(..., min_length=1, max_length=128),
+) -> dict[str, Any]:
+    """Service-token extract path used by Express POST /v1/resumes/:id/process."""
+    require_service_token(request)
+    state = _state(request)
+    parser: ResumeParser = state.parser or ResumeParser()
+    extractor: LLMExtractor = state.extractor or LLMExtractor()
+    raw_bytes = await file.read()
+    try:
+        record, parsed_document, file_type = await _parse_and_extract(
+            parser=parser,
+            extractor=extractor,
+            raw_bytes=raw_bytes,
+            file_name=file.filename,
+            content_type=file.content_type,
+            user_id=user_id,
+        )
+        resume_id, _revision_id, _source_hash = await _persist_parsed_resume(
+            state,
+            record=record,
+            raw_bytes=raw_bytes,
+            user_id=user_id,
+            file_name=file.filename,
+            file_type=file_type,
+            parsed_document=parsed_document,
+            extractor=extractor,
+        )
+        await _callback_api(
+            resume_file_id,
+            complete={
+                "extraction": _extraction_payload(record),
+                "parserVersion": "resume-parser.v1",
+                "resumeId": resume_id,
+            },
+        )
+        return {"ok": True, "resume_id": resume_id}
+    except HTTPException as exc:
+        try:
+            await _callback_api(
+                resume_file_id,
+                fail={"code": _fail_code_for(exc), "message": str(exc.detail)},
+            )
+        except Exception as callback_exc:
+            logger.error("Failed to report extract failure: %s", callback_exc)
+        raise
+    except Exception as exc:
+        logger.error("Internal extract failed: %s", exc)
+        try:
+            await _callback_api(
+                resume_file_id,
+                fail={"code": "PROCESSING_FAILED", "message": str(exc)},
+            )
+        except Exception as callback_exc:
+            logger.error("Failed to report extract failure: %s", callback_exc)
+        raise HTTPException(status_code=500, detail="Internal extract failed") from exc
 
 
 @router.get("/resume/{resume_id}", response_model=ParseResponse)

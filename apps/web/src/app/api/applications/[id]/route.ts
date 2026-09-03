@@ -14,7 +14,7 @@ export async function GET(
 
   try {
     const res = await fetch(
-      `${process.env.API_URL ?? 'http://localhost:3333'}/v1/applications/internal/${encodeURIComponent(id)}/detail`,
+      `${process.env.API_URL ?? 'http://localhost:5000'}/v1/applications/internal/${encodeURIComponent(id)}/detail`,
       {
         headers,
         cache: 'no-store',

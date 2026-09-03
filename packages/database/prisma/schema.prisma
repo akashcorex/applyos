@@ -1,0 +1,712 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum AccountStatus {
+  ACTIVE
+  SUSPENDED
+  DELETED
+}
+
+enum ResumeStatus {
+  UPLOADED
+  PROCESSING
+  COMPLETED
+  FAILED
+  ARCHIVED
+}
+
+model User {
+  id            String        @id
+  name          String
+  email         String
+  emailVerified Boolean       @default(false)
+  image         String?
+  role          Role          @default(USER)
+  status        AccountStatus @default(ACTIVE)
+  lastLoginAt   DateTime?
+  banned        Boolean       @default(false)
+  banReason     String?
+  banExpires    DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  sessions      Session[]
+  accounts      Account[]
+  profile       Profile?
+  resumeFiles   ResumeFile[]
+  resumes       Resume[]
+  resumeVariants ResumeVariant[]
+  sourceDocuments ResumeSourceDocument[]
+  workflowRuns  WorkflowRun[]
+  workflowJobs  WorkflowJob[]
+  applications  Application[]
+  humanInterventions HumanIntervention[]
+  applicationEvents ApplicationEvent[]
+  agentTasks    AgentTask[]
+  workflowEvents WorkflowEvent[]
+  preferences   UserPreferences?
+  outreachEmails OutreachEmail[]
+  analyticsEvents AnalyticsEvent[]
+  analyticsIdentities AnalyticsIdentity[]
+
+  @@unique([email])
+  @@index([role])
+  @@index([status])
+  @@map("user")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([token])
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+model Profile {
+  id                  String    @id @default(cuid())
+  userId              String    @unique
+  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fullName            String?
+  headline            String?
+  email               String?
+  phone               String?
+  location            String?
+  professionalSummary String?
+  linkedinUrl         String?
+  githubUrl           String?
+  portfolioUrl        String?
+  skills              String[]  @default([])
+  education           Json      @default("[]")
+  experience          Json      @default("[]")
+  projects            Json      @default("[]")
+  certifications      Json      @default("[]")
+  achievements        Json      @default("[]")
+  isConfirmed         Boolean   @default(false)
+  confirmedAt         DateTime?
+  lastExtractedAt     DateTime?
+  extractionVersion   String?
+  sourceResumeFileId  String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  @@map("profiles")
+}
+
+model ResumeFile {
+  id                String       @id @default(cuid())
+  userId            String
+  user              User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fileName          String
+  storageKey        String
+  mimeType          String
+  fileSize          Int
+  status            ResumeStatus @default(UPLOADED)
+  version           Int          @default(1)
+  processedAt       DateTime?
+  failedAt          DateTime?
+  parserVersion     String?
+  extractionVersion String?
+  errorCode         String?
+  errorMessage      String?
+  idempotencyKey    String?
+  resumeId          String?      @unique @db.Uuid
+  resume            Resume?      @relation(fields: [resumeId], references: [id], onDelete: SetNull)
+  extractions       ResumeExtraction[]
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  @@index([userId])
+  @@index([userId, createdAt])
+  @@index([status])
+  @@unique([userId, idempotencyKey])
+  @@map("resume_files")
+}
+
+model ResumeExtraction {
+  id                String     @id @default(cuid())
+  resumeFileId      String
+  resumeFile        ResumeFile @relation(fields: [resumeFileId], references: [id], onDelete: Cascade)
+  userId            String
+  revisionNumber    Int
+  schemaVersion     String     @default("resume-extraction.v2")
+  parserVersion     String?
+  extractionVersion String?
+  status            ResumeStatus @default(PROCESSING)
+  payload           Json
+  errorCode         String?
+  errorMessage      String?
+  createdAt         DateTime   @default(now())
+
+  @@unique([resumeFileId, revisionNumber])
+  @@index([resumeFileId])
+  @@index([userId])
+  @@map("resume_extractions")
+}
+
+model Resume {
+  id                          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId                      String   @map("user_id")
+  user                        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fullName                    String   @map("full_name")
+  email                       String
+  phone                       String?
+  location                    String?
+  summary                     String?
+  experienceYears             Int      @default(0) @map("experience_years")
+  skills                      String[] @default([])
+  education                   Json     @default("[]")
+  workHistory                 Json     @default("[]") @map("work_history")
+  preferredRole               String?  @map("preferred_role")
+  preferredLocations          String[] @default([]) @map("preferred_locations")
+  rawText                     String?  @map("raw_text")
+  fileName                    String?  @map("file_name")
+  fileType                    String?  @map("file_type")
+  filePath                    String?  @map("file_path")
+  profileEmbedding            Json?    @map("profile_embedding") @db.JsonB
+  profileTextHash             String?  @map("profile_text_hash")
+  profileEmbeddingRevisionId  String?  @map("profile_embedding_revision_id")
+  embeddingModel              String?  @map("embedding_model")
+  embeddingIndexVersion       String?  @map("embedding_index_version")
+  lastMatchIntent             String?  @map("last_match_intent")
+  baseProfile                 Json?    @map("base_profile") @db.JsonB
+  createdAt                   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  resumeFile                  ResumeFile?
+  variants                    ResumeVariant[]
+  sourceDocuments             ResumeSourceDocument[]
+  irRevisions                 ResumeIrRevision[]
+  patches                     ResumeTailoringPatch[]
+  artifacts                   ResumeArtifact[]
+  variantVersions             VariantVersion[]
+  workflowRuns                WorkflowRun[]
+  applications                Application[]
+  matchSessions               MatchSession[]
+  matchInteractions           MatchInteraction[]
+
+  @@index([userId], map: "idx_resumes_user_id")
+  @@map("resumes")
+}
+
+model ResumeVariant {
+  id                   String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  resumeId             String    @map("resume_id") @db.Uuid
+  resume               Resume    @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+  userId               String    @map("user_id")
+  user                 User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dedupKey             String    @map("dedup_key")
+  jobTitle             String?   @map("job_title")
+  companyName          String?   @map("company_name")
+  jobDescription       String?   @map("job_description")
+  status               String    @default("draft")
+  content              Json      @db.JsonB
+  suggestions          Json      @default("[]") @db.JsonB
+  filePath             String?   @map("file_path")
+  sourceRevisionId     String?   @map("source_revision_id")
+  patchId              String?   @map("patch_id")
+  artifactId           String?   @map("artifact_id")
+  baselineMatchScore   Float?    @map("baseline_match_score") @db.Real
+  matchScore           Float?    @map("match_score") @db.Real
+  matchScoreUpdatedAt  DateTime? @map("match_score_updated_at") @db.Timestamptz(6)
+  matchScoreMeta       Json?     @map("match_score_meta") @db.JsonB
+  createdAt            DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  patches              ResumeTailoringPatch[]
+  artifacts            ResumeArtifact[]
+  versions             VariantVersion[]
+
+  @@index([resumeId], map: "idx_resume_variants_resume_id")
+  @@index([userId], map: "idx_resume_variants_user_id")
+  @@index([resumeId, dedupKey], map: "idx_resume_variants_dedup")
+  @@map("resume_variants")
+}
+
+model ResumeSourceDocument {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  resumeId      String   @map("resume_id") @db.Uuid
+  resume        Resume   @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+  userId        String   @map("user_id")
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fileName      String?  @map("file_name")
+  fileType      String   @map("file_type")
+  storageKey    String   @map("storage_key")
+  contentSha256 String   @map("content_sha256")
+  byteSize      Int      @map("byte_size")
+  parserVersion String   @map("parser_version")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  irRevisions   ResumeIrRevision[]
+
+  @@index([resumeId], map: "idx_resume_source_documents_resume_id")
+  @@index([contentSha256], map: "idx_resume_source_documents_hash")
+  @@map("resume_source_documents")
+}
+
+model ResumeIrRevision {
+  id                  String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  resumeId            String                @map("resume_id") @db.Uuid
+  resume              Resume                @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+  sourceDocumentId    String?               @map("source_document_id") @db.Uuid
+  sourceDocument      ResumeSourceDocument? @relation(fields: [sourceDocumentId], references: [id], onDelete: SetNull)
+  revisionNumber      Int                   @map("revision_number")
+  schemaVersion       String                @map("schema_version")
+  payload             Json                  @db.JsonB
+  sourceDocumentHash  String                @map("source_document_hash")
+  extractionModel     String?               @map("extraction_model")
+  promptVersion       String?               @map("prompt_version")
+  promptHash          String?               @map("prompt_hash")
+  validation          Json                  @default("{}") @db.JsonB
+  createdAt           DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  patches             ResumeTailoringPatch[]
+  artifacts           ResumeArtifact[]
+
+  @@unique([resumeId, revisionNumber])
+  @@index([resumeId], map: "idx_resume_ir_revisions_resume_id")
+  @@index([sourceDocumentHash], map: "idx_resume_ir_revisions_source_hash")
+  @@map("resume_ir_revisions")
+}
+
+model ResumeTailoringPatch {
+  id               String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  resumeId         String            @map("resume_id") @db.Uuid
+  resume           Resume            @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+  variantId        String?           @map("variant_id") @db.Uuid
+  variant          ResumeVariant?    @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  sourceRevisionId String            @map("source_revision_id") @db.Uuid
+  sourceRevision   ResumeIrRevision  @relation(fields: [sourceRevisionId], references: [id], onDelete: Cascade)
+  policyVersion    String            @map("policy_version")
+  payload          Json              @db.JsonB
+  diff             Json              @default("{}") @db.JsonB
+  status           String            @default("approved")
+  createdAt        DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  artifacts        ResumeArtifact[]
+
+  @@index([resumeId], map: "idx_resume_tailoring_patches_resume_id")
+  @@index([variantId], map: "idx_resume_tailoring_patches_variant_id")
+  @@map("resume_tailoring_patches")
+}
+
+model ResumeArtifact {
+  id               String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  artifactHash     String               @unique @map("artifact_hash")
+  resumeId         String               @map("resume_id") @db.Uuid
+  resume           Resume               @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+  variantId        String?              @map("variant_id") @db.Uuid
+  variant          ResumeVariant?       @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  sourceRevisionId String               @map("source_revision_id") @db.Uuid
+  sourceRevision   ResumeIrRevision     @relation(fields: [sourceRevisionId], references: [id], onDelete: Cascade)
+  patchId          String?              @map("patch_id") @db.Uuid
+  patch            ResumeTailoringPatch? @relation(fields: [patchId], references: [id], onDelete: SetNull)
+  storageKey       String               @map("storage_key")
+  mediaType        String               @default("application/pdf") @map("media_type")
+  compilerVersion  String               @map("compiler_version")
+  templateVersion  String               @map("template_version")
+  pageCount        Int?                 @map("page_count")
+  validation       Json                 @default("{}") @db.JsonB
+  diff             Json                 @default("{}") @db.JsonB
+  provenance       Json                 @default("{}") @db.JsonB
+  createdAt        DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([resumeId], map: "idx_resume_artifacts_resume_id")
+  @@index([variantId], map: "idx_resume_artifacts_variant_id")
+  @@index([sourceRevisionId], map: "idx_resume_artifacts_source_revision_id")
+  @@map("resume_artifacts")
+}
+
+model VariantVersion {
+  id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  variantId       String        @map("variant_id") @db.Uuid
+  variant         ResumeVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  resumeId        String        @map("resume_id") @db.Uuid
+  resume          Resume        @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+  contentSnapshot Json          @map("content_snapshot") @db.JsonB
+  changeReason    String        @default("save") @map("change_reason")
+  createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([variantId], map: "idx_variant_versions_variant_id")
+  @@map("variant_versions")
+}
+
+model WorkflowRun {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId         String    @map("user_id")
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  resumeId       String?   @map("resume_id") @db.Uuid
+  resume         Resume?   @relation(fields: [resumeId], references: [id], onDelete: SetNull)
+  status         String    @default("pending")
+  idempotencyKey String?   @map("idempotency_key")
+  request        Json      @db.JsonB
+  errorDetail    String?   @map("error_detail")
+  startedAt      DateTime? @map("started_at") @db.Timestamptz(6)
+  completedAt    DateTime? @map("completed_at") @db.Timestamptz(6)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  jobs           WorkflowJob[]
+  applications   Application[]
+  agentTasks     AgentTask[]
+  events         WorkflowEvent[]
+
+  @@unique([userId, idempotencyKey], map: "uq_workflow_runs_user_idempotency_key")
+  @@index([userId, createdAt], map: "idx_workflow_runs_user_created_at")
+  @@index([userId, status], map: "idx_workflow_runs_user_status")
+  @@map("workflow_runs")
+}
+
+model WorkflowJob {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workflowRunId  String    @map("workflow_run_id") @db.Uuid
+  workflowRun    WorkflowRun @relation(fields: [workflowRunId], references: [id], onDelete: Cascade)
+  userId         String    @map("user_id")
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dedupKey       String    @map("dedup_key")
+  externalId     String?   @map("external_id")
+  source         String?
+  title          String
+  companyName    String    @map("company_name")
+  department     String?
+  location       String?
+  locationType   String?   @map("location_type")
+  seniority      String?
+  applicationUrl String?   @map("application_url")
+  descriptionRaw String?   @map("description_raw")
+  status         String    @default("discovered")
+  matchScore     Float?    @map("match_score") @db.Real
+  rankPosition   Int?      @map("rank_position")
+  decisionReason String?   @map("decision_reason")
+  metadata       Json      @default("{}") @db.JsonB
+  discoveredAt   DateTime  @default(now()) @map("discovered_at") @db.Timestamptz(6)
+  matchedAt      DateTime? @map("matched_at") @db.Timestamptz(6)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  applications   Application[]
+
+  @@unique([workflowRunId, dedupKey], map: "uq_workflow_jobs_run_dedup_key")
+  @@index([userId, status], map: "idx_workflow_jobs_user_status")
+  @@index([workflowRunId, status], map: "idx_workflow_jobs_run_status")
+  @@index([externalId], map: "idx_workflow_jobs_external_id")
+  @@map("workflow_jobs")
+}
+
+model Application {
+  id                       String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workflowRunId            String    @map("workflow_run_id") @db.Uuid
+  workflowRun              WorkflowRun @relation(fields: [workflowRunId], references: [id], onDelete: Cascade)
+  workflowJobId            String?   @unique @map("workflow_job_id") @db.Uuid
+  workflowJob              WorkflowJob? @relation(fields: [workflowJobId], references: [id], onDelete: SetNull)
+  userId                   String    @map("user_id")
+  user                     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  resumeId                 String?   @map("resume_id") @db.Uuid
+  resume                   Resume?   @relation(fields: [resumeId], references: [id], onDelete: SetNull)
+  resumeVariantId          String?   @map("resume_variant_id") @db.Uuid
+  status                   String    @default("pending")
+  idempotencyKey           String    @map("idempotency_key")
+  externalTaskId           String?   @unique @map("external_task_id")
+  atsType                  String?   @map("ats_type")
+  applicationUrl           String?   @map("application_url")
+  pageUrl                  String?   @map("page_url")
+  screenshotPath           String?   @map("screenshot_path")
+  submittedAt              DateTime? @map("submitted_at") @db.Timestamptz(6)
+  completedAt              DateTime? @map("completed_at") @db.Timestamptz(6)
+  errorDetail              String?   @map("error_detail")
+  outcome                  String?
+  result                   Json?     @db.JsonB
+  browserSessionId         String?   @map("browser_session_id") @db.Uuid
+  currentUrl               String?   @map("current_url")
+  currentStep              String?   @map("current_step")
+  controlMode              String    @default("agent_control") @map("control_mode")
+  humanInterventionRequired Boolean  @default(false) @map("human_intervention_required")
+  interventionReason       String?   @map("intervention_reason")
+  lastActivityAt           DateTime? @map("last_activity_at") @db.Timestamptz(6)
+  createdAt                DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  interventions            HumanIntervention[]
+  events                   ApplicationEvent[]
+  agentTasks               AgentTask[]
+  workflowEvents           WorkflowEvent[]
+
+  @@unique([userId, idempotencyKey], map: "uq_applications_user_idempotency_key")
+  @@index([userId, status], map: "idx_applications_user_status")
+  @@index([workflowRunId, status], map: "idx_applications_run_status")
+  @@index([resumeVariantId], map: "idx_applications_resume_variant_id")
+  @@index([browserSessionId], map: "idx_applications_browser_session_id")
+  @@index([userId, humanInterventionRequired], map: "idx_applications_human_intervention")
+  @@map("applications")
+}
+
+model HumanIntervention {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  applicationId String    @map("application_id") @db.Uuid
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  userId        String    @map("user_id")
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type          String
+  message       String
+  status        String    @default("open")
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  resolvedAt    DateTime? @map("resolved_at") @db.Timestamptz(6)
+
+  @@index([applicationId], map: "idx_human_interventions_application_id")
+  @@index([userId, status], map: "idx_human_interventions_user_status")
+  @@map("human_interventions")
+}
+
+model ApplicationEvent {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  applicationId String    @map("application_id") @db.Uuid
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  userId        String    @map("user_id")
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type          String
+  description   String
+  metadata      Json      @default("{}") @db.JsonB
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([applicationId, createdAt], map: "idx_application_events_application_created_at")
+  @@index([userId, createdAt], map: "idx_application_events_user_created_at")
+  @@map("application_events")
+}
+
+model AgentTask {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workflowRunId  String    @map("workflow_run_id") @db.Uuid
+  workflowRun    WorkflowRun @relation(fields: [workflowRunId], references: [id], onDelete: Cascade)
+  applicationId  String?   @map("application_id") @db.Uuid
+  application    Application? @relation(fields: [applicationId], references: [id], onDelete: SetNull)
+  userId         String    @map("user_id")
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  agentName      String    @map("agent_name")
+  taskType       String    @map("task_type")
+  status         String    @default("pending")
+  idempotencyKey String    @map("idempotency_key")
+  externalTaskId String?   @unique @map("external_task_id")
+  payload        Json      @default("{}") @db.JsonB
+  result         Json?     @db.JsonB
+  errorDetail    String?   @map("error_detail")
+  attemptCount   Int       @default(0) @map("attempt_count")
+  availableAt    DateTime? @map("available_at") @db.Timestamptz(6)
+  startedAt      DateTime? @map("started_at") @db.Timestamptz(6)
+  completedAt    DateTime? @map("completed_at") @db.Timestamptz(6)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  events         WorkflowEvent[]
+
+  @@unique([userId, idempotencyKey], map: "uq_agent_tasks_user_idempotency_key")
+  @@index([status, availableAt], map: "idx_agent_tasks_dispatch")
+  @@index([workflowRunId, status], map: "idx_agent_tasks_run_status")
+  @@index([applicationId], map: "idx_agent_tasks_application_id")
+  @@map("agent_tasks")
+}
+
+model WorkflowEvent {
+  id             String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workflowRunId  String     @map("workflow_run_id") @db.Uuid
+  workflowRun    WorkflowRun @relation(fields: [workflowRunId], references: [id], onDelete: Cascade)
+  applicationId  String?    @map("application_id") @db.Uuid
+  application    Application? @relation(fields: [applicationId], references: [id], onDelete: SetNull)
+  agentTaskId    String?    @map("agent_task_id") @db.Uuid
+  agentTask      AgentTask? @relation(fields: [agentTaskId], references: [id], onDelete: SetNull)
+  userId         String     @map("user_id")
+  user           User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  eventType      String     @map("event_type")
+  idempotencyKey String?    @map("idempotency_key")
+  payload        Json       @default("{}") @db.JsonB
+  occurredAt     DateTime   @default(now()) @map("occurred_at") @db.Timestamptz(6)
+  createdAt      DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@unique([workflowRunId, idempotencyKey], map: "uq_workflow_events_run_idempotency_key")
+  @@index([workflowRunId, occurredAt], map: "idx_workflow_events_run_occurred_at")
+  @@index([userId, occurredAt], map: "idx_workflow_events_user_occurred_at")
+  @@index([applicationId], map: "idx_workflow_events_application_id")
+  @@index([agentTaskId], map: "idx_workflow_events_agent_task_id")
+  @@map("workflow_events")
+}
+
+model MatchSession {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId           String   @map("user_id")
+  resumeId         String   @map("resume_id") @db.Uuid
+  resume           Resume   @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+  queryRole        String   @map("query_role")
+  intentOverride   String?  @map("intent_override")
+  jobsScraped      Int      @default(0) @map("jobs_scraped")
+  jobsReturned     Int      @default(0) @map("jobs_returned")
+  companiesScraped Int      @default(0) @map("companies_scraped")
+  latencyMs        Int?     @map("latency_ms")
+  topResults       Json     @default("[]") @map("top_results") @db.JsonB
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  interactions     MatchInteraction[]
+
+  @@index([userId], map: "idx_match_sessions_user_id")
+  @@index([resumeId], map: "idx_match_sessions_resume_id")
+  @@index([createdAt], map: "idx_match_sessions_created_at")
+  @@map("match_sessions")
+}
+
+model MatchInteraction {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sessionId   String   @map("session_id") @db.Uuid
+  session     MatchSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  userId      String   @map("user_id")
+  resumeId    String   @map("resume_id") @db.Uuid
+  resume      Resume   @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+  dedupKey    String   @map("dedup_key")
+  jobTitle    String   @map("job_title")
+  companyName String   @map("company_name")
+  eventType   String   @map("event_type")
+  rankPosition Int?    @map("rank_position")
+  matchScore  Float?   @map("match_score") @db.Real
+  variantId   String?  @map("variant_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([sessionId], map: "idx_match_interactions_session_id")
+  @@index([userId], map: "idx_match_interactions_user_id")
+  @@index([dedupKey], map: "idx_match_interactions_dedup_key")
+  @@index([eventType], map: "idx_match_interactions_event_type")
+  @@map("match_interactions")
+}
+
+model UserPreferences {
+  userId                          String   @id @map("user_id")
+  user                            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  postApplyLinkedinConnectEnabled Boolean  @default(false) @map("post_apply_linkedin_connect_enabled")
+  emailOutreachEnabled            Boolean  @default(false) @map("email_outreach_enabled")
+  autoSubmitEnabled               Boolean  @default(false) @map("auto_submit_enabled")
+  createdAt                       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                       DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("user_preferences")
+}
+
+model OutreachEmail {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId        String    @map("user_id")
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  applicationId String?   @map("application_id") @db.Uuid
+  toAddress     String    @map("to_address")
+  subject       String
+  provider      String
+  status        String    @default("queued")
+  errorDetail   String?   @map("error_detail")
+  sentAt        DateTime? @map("sent_at") @db.Timestamptz(6)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([userId, createdAt], map: "idx_outreach_emails_user_created_at")
+  @@map("outreach_emails")
+}
+
+model AnalyticsEvent {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  eventId     String   @map("event_id")
+  eventName   String   @map("event_name")
+  feature     String?
+  userId      String?  @map("user_id")
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  anonymousId String   @map("anonymous_id")
+  sessionId   String   @map("session_id")
+  page        String?
+  component   String?
+  source      String
+  properties  Json     @default("{}") @db.JsonB
+  context     Json     @default("{}") @db.JsonB
+  environment String   @default("development")
+  timestamp   DateTime @default(now()) @db.Timestamptz(6)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([eventName, timestamp], map: "idx_analytics_events_event_name_time")
+  @@index([feature, timestamp], map: "idx_analytics_events_feature_time")
+  @@index([userId, timestamp], map: "idx_analytics_events_user_id_time")
+  @@index([sessionId], map: "idx_analytics_events_session_id")
+  @@index([anonymousId], map: "idx_analytics_events_anonymous_id")
+  @@map("analytics_events")
+}
+
+model AnalyticsIdentity {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String   @map("user_id")
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  anonymousId String   @map("anonymous_id")
+  firstSeenAt DateTime @default(now()) @map("first_seen_at") @db.Timestamptz(6)
+  linkedAt    DateTime @default(now()) @map("linked_at") @db.Timestamptz(6)
+
+  @@index([userId], map: "idx_analytics_identities_user_id")
+  @@index([anonymousId], map: "idx_analytics_identities_anonymous_id")
+  @@map("analytics_identities")
+}
+
+model EarlyAccessEmail {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email     String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("early_access_email")
+}
+
+model LinkedinConnect {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String    @map("user_id")
+  jobId       String    @map("job_id")
+  companyName String    @map("company_name")
+  profileUrl  String    @map("profile_url")
+  profileName String    @map("profile_name")
+  headline    String?
+  status      String    @default("queued")
+  errorDetail String?   @map("error_detail")
+  sentAt      DateTime? @map("sent_at") @db.Timestamptz(6)
+  acceptedAt  DateTime? @map("accepted_at") @db.Timestamptz(6)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([userId, jobId, profileUrl], map: "uq_linkedin_connects_user_job_profile")
+  @@index([userId], map: "idx_linkedin_connects_user_id")
+  @@index([jobId], map: "idx_linkedin_connects_job_id")
+  @@map("linkedin_connects")
+}

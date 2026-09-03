@@ -3,9 +3,9 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "serve": "sh -c 'python -m uvicorn app.main:app --reload --host 0.0.0.0 --port ${PORT:-8003}'",
-    "serve:prod": "sh -c 'python -m uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8003}'",
-    "start": "sh -c 'python -m uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8003}'",
+    "serve": "sh -c 'if command -v uv >/dev/null 2>&1; then uv run --with-requirements requirements.txt python -m uvicorn app.main:app --reload --host 0.0.0.0 --port ${PORT:-8003}; elif python3 -c \"import uvicorn\" >/dev/null 2>&1; then python3 -m uvicorn app.main:app --reload --host 0.0.0.0 --port ${PORT:-8003}; else echo \"apply-agent: install uv or python3+uvicorn\" >&2; exit 127; fi'",
+    "serve:prod": "sh -c 'if command -v uv >/dev/null 2>&1; then uv run --with-requirements requirements.txt python -m uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8003}; else python3 -m uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8003}; fi'",
+    "start": "sh -c 'if command -v uv >/dev/null 2>&1; then uv run --with-requirements requirements.txt python -m uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8003}; else python3 -m uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8003}; fi'",
     "worker": "celery -A app.workers.celery_app worker --loglevel=info --concurrency=2"
   }
 }

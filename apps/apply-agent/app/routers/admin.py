@@ -25,6 +25,7 @@ from app.workers.apply_worker import apply_job
 from app.workers.cancellation import mark_apply_task_cancelled
 from app.workers.celery_app import celery_app
 from app.workers.connect_worker import connect_contacts
+from app.workers.discover_connect_worker import discover_and_connect
 from app.browser.session_registry import ControlMode, session_registry
 from app.services.resume_signal import publish_resume
 from app.streaming.redis_relay import publish_control_mode

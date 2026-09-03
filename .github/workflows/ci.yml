@@ -1,0 +1,211 @@
+# CI — runs on every PR and on pushes to main.
+#
+# Pipeline (all jobs run in parallel; every job must stay green on main):
+#   JS/TS (Bun + Turborepo monorepo)
+#     lint-js     eslint — errors fail, warnings allowed (see eslint.config.mjs)
+#     format-js   prettier --check (fix locally with `bun run format`)
+#     typecheck   `bun run typecheck` — tsc project refs + per-project --noEmit
+#     test-js     `bun test` — validation contracts + API boundary tests
+#     build       Prisma generate + turbo build (API + validation)
+#   Python (uv-managed FastAPI agents)
+#     lint-python ruff check on the E4/E7/E9/F baseline (see ruff.toml)
+#     test-python pytest per agent via tests/run.py (matrix, no live services —
+#                 suites use fakes/mocks, so no Postgres/Redis needed)
+#
+# Weekly / on-demand jobs (audits, dependency updates) live in
+# security.yml and dependabot.yml — they are intentionally NOT PR gates.
+#
+# After merging, protect `main` (repo Settings → Branches): require all of the
+# status checks above before merging + require branches to be up to date.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint-js:
+    name: lint (eslint)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: oven-sh/setup-bun@v2
+        with:
+          # `latest`: the lockfile is produced by the current Bun toolchain,
+          # which is newer than the `packageManager` field. Do NOT omit this
+          # or setup-bun will install the stale pinned version instead.
+          bun-version: latest
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          # setup-node's auto-detected package-manager cache does not
+          # understand Bun workspaces; Bun's cache is handled explicitly below.
+          package-manager-cache: false
+      - name: Cache Bun install
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+      - run: bun install --frozen-lockfile
+      - run: bun run lint
+
+  format-js:
+    name: format (prettier)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          package-manager-cache: false
+      - name: Cache Bun install
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+      - run: bun install --frozen-lockfile
+      - run: bun run format:check
+
+  typecheck:
+    name: typecheck (tsc)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          package-manager-cache: false
+      - name: Cache Bun install
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+      - run: bun install --frozen-lockfile
+      # The Prisma client is gitignored, so it must be generated before any
+      # step that follows imports into @applyso/database (also validates the
+      # schema — `prisma generate` fails on an invalid schema.prisma).
+      - run: bun run db:generate
+      - run: bun run typecheck
+
+  test-js:
+    name: test (bun test)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          package-manager-cache: false
+      - name: Cache Bun install
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+      - run: bun install --frozen-lockfile
+      - run: bun run db:generate
+      - run: bun test
+
+  build:
+    name: build (turbo)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          package-manager-cache: false
+      - name: Cache Bun install
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+      - run: bun install --frozen-lockfile
+      - run: bun run db:generate
+      # NOTE: @applyso/web (`next build`) is intentionally NOT built here yet.
+      # The new @applyso/validation package is consumed as raw TS source with
+      # NodeNext-style `.js` relative imports, which Turbopack cannot resolve
+      # (34x "Module not found: Can't resolve './x.js'"). The web app is still
+      # covered by `tsc --noEmit` in the typecheck job. Proper fixes (ship a
+      # compiled dist from @applyso/validation, or align its import style with
+      # what Turbopack resolves) need an owner decision — track it and restore
+      # `bun run build:web` (or full `turbo run build`) to this job after.
+      - run: bunx turbo run build --filter=@applyso/api --filter=@applyso/validation
+
+  lint-python:
+    name: lint-python (ruff)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - uses: astral-sh/setup-uv@v10
+        with:
+          python-version: '3.12'
+          enable-cache: true
+      # Pinned so CI can't break on a new ruff release; bump deliberately.
+      # Rule baseline lives in ruff.toml (E4/E7/E9/F).
+      - run: uvx ruff@0.16.5 check apps tests scripts
+
+  test-python:
+    name: test-python (${{ matrix.app }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      # One agent's failure must not hide the others' results.
+      fail-fast: false
+      matrix:
+        app: [job-agent, ai-orchestrator, resume-agent, outreach-agent]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - uses: astral-sh/setup-uv@v10
+        with:
+          python-version: '3.12'
+          enable-cache: true
+      # tests/run.py syncs the app's venv (uv) and runs its pytest suite with
+      # the right PYTHONPATH. Suites are hermetic (fakes/mocks) — no live
+      # Postgres/Redis required. NOTE: apply-agent has no pyproject/uv.lock
+      # yet, so it is not covered — add it to tests/run.py + this matrix once
+      # it is packaged like the other agents.
+      - run: python3 tests/run.py ${{ matrix.app }}

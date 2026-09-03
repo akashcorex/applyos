@@ -9,7 +9,9 @@ import { analytics } from '@applyso/analytics';
 import { AppSidebar } from '@/components/dashboard/AppSidebar';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { DashboardSkeleton } from '@/components/dashboard/DashboardSkeleton';
+import { fetchMe } from '@/lib/admin-api';
 import { authClient } from '@/lib/auth-client';
+import { isAdminRole } from '@/lib/rbac';
 
 const sectionTitles: Record<string, string> = {
   '/dashboard': 'Overview',
@@ -17,6 +19,7 @@ const sectionTitles: Record<string, string> = {
   '/dashboard/discovery': 'Jobs',
   '/dashboard/workflows': 'Tracker',
   '/dashboard/linkedin': 'Outreach',
+  '/dashboard/admin': 'Admin',
   '/dashboard/settings': 'Profile',
   '/dashboard/settings/billing': 'Plans & Billing',
   '/dashboard/settings/security': 'Security',
@@ -33,6 +36,7 @@ export default function DashboardAppLayout({
   const { data: session, isPending } = authClient.useSession();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     try {
@@ -68,6 +72,16 @@ export default function DashboardAppLayout({
     }
   }, [isPending, session, router]);
 
+  useEffect(() => {
+    if (!session) {
+      setIsAdmin(false);
+      return;
+    }
+    void fetchMe()
+      .then((me) => setIsAdmin(isAdminRole(me.user.role)))
+      .catch(() => setIsAdmin(false));
+  }, [session]);
+
   async function handleSignOut() {
     try {
       await authClient.signOut();
@@ -86,7 +100,9 @@ export default function DashboardAppLayout({
     );
   }
 
-  const currentTitle = sectionTitles[pathname] ?? 'Dashboard';
+  const currentTitle = pathname.startsWith('/dashboard/admin')
+    ? 'Admin'
+    : (sectionTitles[pathname] ?? 'Dashboard');
 
   return (
     <div className="flex h-screen w-full bg-[#f0f2f5] dark:bg-[#09090A] text-slate-900 dark:text-[#f1f3f9] overflow-hidden font-sans antialiased transition-colors duration-150">
@@ -95,6 +111,7 @@ export default function DashboardAppLayout({
         <AppSidebar
           userName={session.user.name}
           userEmail={session.user.email}
+          isAdmin={isAdmin}
           onSignOut={handleSignOut}
           isCollapsed={isCollapsed}
           onToggleCollapse={toggleCollapse}
@@ -112,6 +129,7 @@ export default function DashboardAppLayout({
             <AppSidebar
               userName={session.user.name}
               userEmail={session.user.email}
+              isAdmin={isAdmin}
               onSignOut={handleSignOut}
               onNavigate={() => setSidebarOpen(false)}
               onToggleCollapse={() => setSidebarOpen(false)}

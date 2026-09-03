@@ -6,18 +6,21 @@
   "scripts": {
     "build": "node scripts/build.mjs",
     "build:production": "node scripts/build.mjs --production",
-    "serve": "node dist/main.js",
+    "serve": "node scripts/build.mjs && node dist/main.js",
     "start": "node dist/main.js"
   },
   "dependencies": {
     "@fallow-cli/beacon": "^0.5.1",
     "@applyso/database": "workspace:*",
+    "@applyso/validation": "workspace:*",
     "better-auth": "^1.2.9",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
-    "express": "^4.21.2"
+    "express": "^4.21.2",
+    "multer": "^2.3.0"
   },
   "devDependencies": {
-    "@types/cors": "^2.8.19"
+    "@types/cors": "^2.8.19",
+    "@types/multer": "^2.2.0"
   }
 }

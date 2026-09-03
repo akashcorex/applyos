@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import Link from 'next/link';
 
@@ -19,21 +19,108 @@ import { Input } from '@applyso/ui/input';
 import { DitherAvatar } from '@/components/dither-kit/avatar';
 import { authClient } from '@/lib/auth-client';
 
+interface ProfileRecord {
+  fullName?: string | null;
+  headline?: string | null;
+  location?: string | null;
+  linkedinUrl?: string | null;
+  isConfirmed?: boolean;
+}
+
 export default function ProfilePage() {
   const { data: session } = authClient.useSession();
-  const [name, setName] = useState(session?.user?.name ?? 'User');
-  const [headline, setHeadline] = useState('Senior Full Stack Engineer');
-  const [location, setLocation] = useState('San Francisco, CA / Remote');
-  const [linkedinUrl, setLinkedinUrl] = useState('https://linkedin.com/in/');
+  const [name, setName] = useState(session?.user?.name ?? '');
+  const [headline, setHeadline] = useState('');
+  const [location, setLocation] = useState('');
+  const [linkedinUrl, setLinkedinUrl] = useState('');
+  const [isConfirmed, setIsConfirmed] = useState(true);
+  const [hasProfile, setHasProfile] = useState(false);
   const [saved, setSaved] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const seedName = session?.user?.email ?? name ?? 'User';
 
-  function handleSave(e: React.FormEvent) {
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch('/api/profiles', { cache: 'no-store' });
+        const data = (await res.json().catch(() => null)) as {
+          profile?: ProfileRecord | null;
+          error?: string;
+        } | null;
+        if (!res.ok || cancelled) return;
+        const profile = data?.profile;
+        if (!profile) return;
+        setHasProfile(true);
+        setName(profile.fullName ?? session?.user?.name ?? '');
+        setHeadline(profile.headline ?? '');
+        setLocation(profile.location ?? '');
+        setLinkedinUrl(profile.linkedinUrl ?? '');
+        setIsConfirmed(profile.isConfirmed !== false);
+      } catch {
+        if (!cancelled) setError('Could not load profile');
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [session?.user?.name]);
+
+  async function handleSave(e: React.FormEvent) {
     e.preventDefault();
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2500);
+    setSaving(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/profiles', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fullName: name,
+          headline,
+          location,
+          linkedinUrl,
+        }),
+      });
+      const data = (await res.json().catch(() => null)) as {
+        profile?: ProfileRecord;
+        error?: string;
+      } | null;
+      if (!res.ok) {
+        setError(data?.error ?? 'Failed to save profile');
+        return;
+      }
+      setHasProfile(true);
+      setIsConfirmed(true);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    } catch {
+      setError('Failed to save profile');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleConfirm() {
+    setSaving(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/profiles/confirm', { method: 'POST' });
+      const data = (await res.json().catch(() => null)) as { error?: string } | null;
+      if (!res.ok) {
+        setError(data?.error ?? 'Failed to confirm profile');
+        return;
+      }
+      setIsConfirmed(true);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    } catch {
+      setError('Failed to confirm profile');
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function handleDirectSignOut() {
@@ -140,17 +227,45 @@ export default function ProfilePage() {
                 />
               </div>
 
-              <div className="pt-2 flex items-center justify-between">
-                <Button type="submit" size="sm" className="rounded-[6px]">
-                  {saved ? (
-                    <>
-                      <Check className="h-3.5 w-3.5 text-emerald-400" />
-                      <span>Changes Saved</span>
-                    </>
-                  ) : (
-                    <span>Save Profile</span>
-                  )}
-                </Button>
+              {error ? (
+                <p className="text-[11px] text-red-500">{error}</p>
+              ) : null}
+              {hasProfile && !isConfirmed ? (
+                <p className="text-[11px] text-amber-600 dark:text-amber-400">
+                  Extracted from your resume — review and confirm or save edits.
+                </p>
+              ) : null}
+
+              <div className="pt-2 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="submit"
+                    size="sm"
+                    disabled={saving}
+                    className="rounded-[6px]"
+                  >
+                    {saved ? (
+                      <>
+                        <Check className="h-3.5 w-3.5 text-emerald-400" />
+                        <span>Changes Saved</span>
+                      </>
+                    ) : (
+                      <span>{saving ? 'Saving…' : 'Save Profile'}</span>
+                    )}
+                  </Button>
+                  {hasProfile && !isConfirmed ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={saving}
+                      onClick={() => void handleConfirm()}
+                      className="rounded-[6px]"
+                    >
+                      Confirm extracted profile
+                    </Button>
+                  ) : null}
+                </div>
 
                 <Button
                   type="button"

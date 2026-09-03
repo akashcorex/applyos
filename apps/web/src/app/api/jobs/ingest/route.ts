@@ -1,8 +1,11 @@
-export async function POST(request: Request) {
-  try {
-    const body = await request.json();
-    const { atsType, atsSlug, companyName } = body;
+import { jobIngestSchema, parseJsonBody } from '@applyso/validation';
 
+export async function POST(request: Request) {
+  const parsed = await parseJsonBody(request, jobIngestSchema);
+  if (!parsed.ok) return parsed.response;
+  const { atsType, atsSlug, companyName } = parsed.data;
+
+  try {
     const res = await fetch(`http://127.0.0.1:8002/ingest/${atsType}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

@@ -1,0 +1,70 @@
+# Dependabot — weekly dependency update PRs.
+#
+# One entry per lockfile location: the Bun workspace root (dedicated `bun`
+# ecosystem — text-based bun.lock, not `npm`), each uv-managed Python agent
+# (per-app uv.lock), Docker images in infra, and the Actions pins used by
+# .github/workflows. JS minor/patch updates are grouped into a single PR to
+# limit noise; majors stay separate for careful review.
+#
+# NOTE: apps/apply-agent has no pyproject.toml/uv.lock yet, so it cannot be
+# covered here — package it like the other agents, then add an entry.
+
+version: 2
+updates:
+  - package-ecosystem: bun
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      minor-patch:
+        patterns:
+          - '*'
+        update-types:
+          - minor
+          - patch
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns:
+          - '*'
+
+  - package-ecosystem: docker
+    directory: /infra
+    schedule:
+      interval: weekly
+    groups:
+      docker:
+        patterns:
+          - '*'
+
+  - package-ecosystem: uv
+    directory: /apps/job-agent
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+
+  - package-ecosystem: uv
+    directory: /apps/ai-orchestrator
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+
+  - package-ecosystem: uv
+    directory: /apps/resume-agent
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+
+  - package-ecosystem: uv
+    directory: /apps/outreach-agent
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7

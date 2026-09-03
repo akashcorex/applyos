@@ -13,7 +13,7 @@
       "persistent": true
     },
     "serve": {
-      "dependsOn": ["build", "sync"],
+      "dependsOn": ["^build", "sync"],
       "cache": false,
       "persistent": true
     },

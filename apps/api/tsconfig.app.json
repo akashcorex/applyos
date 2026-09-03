@@ -4,13 +4,23 @@
     "outDir": "dist",
     "types": ["node"],
     "rootDir": "src",
-    "tsBuildInfoFile": "dist/tsconfig.app.tsbuildinfo"
+    "tsBuildInfoFile": "dist/tsconfig.app.tsbuildinfo",
+    // Leaf deployable bundled with esbuild — nothing consumes its .d.ts, so
+    // composite/declaration emit is disabled. This also keeps `tsc --noEmit`
+    // free of declaration-portability diagnostics (e.g. better-auth TS2742
+    // via its nested zod copy), which cannot be suppressed with comments.
+    "composite": false,
+    "emitDeclarationOnly": false,
+    "declarationMap": false
   },
   "include": ["src/**/*.ts"],
   "exclude": ["eslint.config.js", "eslint.config.cjs", "eslint.config.mjs"],
   "references": [
     {
       "path": "../../packages/database"
+    },
+    {
+      "path": "../../packages/validation"
     }
   ]
 }

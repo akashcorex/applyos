@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import time
 
 from app.browser.session_registry import session_registry
 from app.config import settings
@@ -18,7 +17,6 @@ async def sweep_stale_sessions() -> None:
     """Remove registry entries whose pages have been closed unexpectedly."""
     from app.routers.applications import _browser_tokens
 
-    now = time.monotonic()
     stale_application_ids: list[str] = []
 
     for application_id, session in [

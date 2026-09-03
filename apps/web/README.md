@@ -27,7 +27,7 @@
 
 ## API connectivity
 
-All auth operations are proxied to the Express API at `http://localhost:3333` (configurable via `NEXT_PUBLIC_API_URL`).
+All auth operations are proxied to the Express API at `http://localhost:5000` (configurable via `NEXT_PUBLIC_API_URL`).
 
 ## Run locally
 

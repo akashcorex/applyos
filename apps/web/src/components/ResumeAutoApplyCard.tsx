@@ -365,7 +365,9 @@ export function ResumeAutoApplyCard({
               ) : (
                 <FileUp className="h-4 w-4" />
               )}
-              {uploading ? 'Parsing resume...' : 'Upload resume (PDF or DOCX)'}
+              {uploading
+                ? 'Processing resume...'
+                : 'Upload resume (PDF or DOCX)'}
             </Button>
 
             {resume ? (

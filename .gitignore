@@ -67,6 +67,9 @@ apps/apply-agent/.apply-debug/
 # Resume-agent uploaded files
 apps/resume-agent/uploads/
 
+# API resume uploads (Phase 2)
+apps/api/uploads/
+
 .claude/worktrees
 .claude/settings.local.json
 
@@ -74,3 +77,6 @@ apps/resume-agent/uploads/
 .next
 out
 .fallow/
+
+# Prisma client output (regenerate with `bun run db:generate`)
+packages/database/src/generated/

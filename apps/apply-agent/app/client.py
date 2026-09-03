@@ -23,8 +23,13 @@ async def report_linkedin_connects(connects: list[dict[str, Any]]) -> None:
 
     url = f"{settings.api_url.rstrip('/')}/v1/linkedin-connects/bulk"
     try:
+        headers: dict[str, str] = {}
+        if settings.agent_service_token:
+            headers["X-Agent-Service-Token"] = settings.agent_service_token
         async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.post(url, json={"connects": connects})
+            response = await client.post(
+                url, json={"connects": connects}, headers=headers
+            )
             response.raise_for_status()
             logger.info(
                 "Reported %d linkedin connects to API (status=%s)",

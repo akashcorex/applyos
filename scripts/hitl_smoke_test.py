@@ -29,7 +29,7 @@ def load_dotenv(path: Path) -> None:
 
 load_dotenv(ROOT / "apps" / "api" / ".env")
 
-API_URL = os.environ.get("API_URL", "http://localhost:3333")
+API_URL = os.environ.get("API_URL", "http://localhost:5000")
 ORCHESTRATOR_URL = os.environ.get("ORCHESTRATOR_URL", "http://127.0.0.1:8001")
 APPLY_AGENT_URL = os.environ.get("APPLY_AGENT_URL", "http://127.0.0.1:8003")
 RESUME_AGENT_URL = os.environ.get("RESUME_AGENT_URL", "http://127.0.0.1:8005")

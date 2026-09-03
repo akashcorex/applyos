@@ -23,7 +23,9 @@
       "@applyso/analytics": ["../../packages/analytics/src/index.ts"],
       "@applyso/analytics/*": ["../../packages/analytics/src/*"],
       "@applyso/database": ["../../packages/database/src/index.ts"],
-      "@applyso/database/*": ["../../packages/database/src/*"]
+      "@applyso/database/*": ["../../packages/database/src/*"],
+      "@applyso/validation": ["../../packages/validation/src/index.ts"],
+      "@applyso/validation/*": ["../../packages/validation/src/*"]
     },
     "outDir": "dist",
     "rootDir": "src",
@@ -55,6 +57,9 @@
   "references": [
     {
       "path": "../../packages/database"
+    },
+    {
+      "path": "../../packages/validation"
     },
     {
       "path": "../../packages/analytics"

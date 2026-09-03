@@ -28,7 +28,6 @@ from __future__ import annotations
 import argparse
 import asyncio
 import logging
-import os
 import sys
 from pathlib import Path
 
@@ -74,7 +73,7 @@ async def migrate(dry_run: bool = True, limit: int | None = None):
     # Init Chroma store (will create Schema with Qwen + Splade)
     try:
         chroma = ChromaResumeStore()
-        client = chroma._require_client()
+        chroma._require_client()  # heartbeat check; raises if unreachable
         logger.info("Chroma client OK — heartbeat passed")
     except Exception as exc:
         logger.error("Chroma init failed: %s", exc)

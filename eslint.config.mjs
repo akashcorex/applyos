@@ -11,6 +11,7 @@ export default [
   {
     ignores: [
       '**/dist/**',
+      '**/src/generated/**',
       '**/out-tsc/**',
       '**/.next/**',
       '**/node_modules/**',

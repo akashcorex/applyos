@@ -1,9 +1,8 @@
-import json
 
 import httpx
 import pytest
 
-from models import CompanyTarget, DiscoveredJobRecord
+from models import CompanyTarget
 from services.job_client import JobAgentClient
 
 

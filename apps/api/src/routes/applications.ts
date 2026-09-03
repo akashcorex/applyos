@@ -1,31 +1,19 @@
-import { randomUUID, timingSafeEqual } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 
-import { and, asc, desc, eq, inArray } from 'drizzle-orm';
 import { Router } from 'express';
 
 import {
   applicationControlModes,
   applicationEventTypes,
-  applicationEvents,
   applicationStatuses,
-  applications,
-  db,
   humanInterventionStatuses,
   humanInterventionTypes,
-  humanInterventions,
-  workflowJobs,
+  prisma,
 } from '@applyso/database';
 
-export const applicationsRouter = Router();
+import { serviceRequestAllowed } from '../lib/service-token';
 
-function internalRequestAllowed(token: string | undefined): boolean {
-  const expected = process.env.AGENT_SERVICE_TOKEN;
-  if (!expected || !token) return false;
-  const expectedBuf = Buffer.from(expected);
-  const tokenBuf = Buffer.from(token);
-  if (expectedBuf.length !== tokenBuf.length) return false;
-  return timingSafeEqual(expectedBuf, tokenBuf);
-}
+export const applicationsRouter = Router();
 
 function hasString(value: unknown): value is string {
   return typeof value === 'string' && value.trim().length > 0;
@@ -107,7 +95,7 @@ function filterByCategory(
 
 /** List applications for a user with optional status category filter. */
 applicationsRouter.get('/internal/user/:userId', async (req, res) => {
-  if (!internalRequestAllowed(req.header('x-agent-service-token'))) {
+  if (!serviceRequestAllowed(req.header('x-agent-service-token'))) {
     res.status(401).json({ error: 'Unauthorized internal request' });
     return;
   }
@@ -121,68 +109,60 @@ applicationsRouter.get('/internal/user/:userId', async (req, res) => {
   const category =
     typeof req.query.category === 'string' ? req.query.category : 'all';
 
-  const rows = await db
-    .select({
-      application: applications,
-      jobTitle: workflowJobs.title,
-      companyName: workflowJobs.companyName,
-    })
-    .from(applications)
-    .leftJoin(workflowJobs, eq(applications.workflowJobId, workflowJobs.id))
-    .where(eq(applications.userId, userId))
-    .orderBy(desc(applications.updatedAt))
-    .limit(100);
+  const rows = await prisma.application.findMany({
+    where: { userId },
+    include: {
+      workflowJob: { select: { title: true, companyName: true } },
+    },
+    orderBy: { updatedAt: 'desc' },
+    take: 100,
+  });
 
-  const filtered = rows.filter((row) =>
-    filterByCategory(row.application.status, category),
-  );
+  const filtered = rows.filter((row) => filterByCategory(row.status, category));
 
   res.status(200).json({
     applications: filtered.map((row) => ({
-      ...row.application,
-      jobTitle: row.jobTitle,
-      companyName: row.companyName,
+      ...row,
+      workflowJob: undefined,
+      jobTitle: row.workflowJob?.title ?? null,
+      companyName: row.workflowJob?.companyName ?? null,
     })),
   });
 });
 
 /** Full application detail with open interventions and recent events. */
 applicationsRouter.get('/internal/:applicationId/detail', async (req, res) => {
-  if (!internalRequestAllowed(req.header('x-agent-service-token'))) {
+  if (!serviceRequestAllowed(req.header('x-agent-service-token'))) {
     res.status(401).json({ error: 'Unauthorized internal request' });
     return;
   }
 
   const { applicationId } = req.params;
-  const [application] = await db
-    .select()
-    .from(applications)
-    .where(eq(applications.id, applicationId));
+  const application = await prisma.application.findUnique({
+    where: { id: applicationId },
+  });
   if (!application) {
     res.status(404).json({ error: 'Application not found' });
     return;
   }
 
-  const [job] = application.workflowJobId
-    ? await db
-        .select()
-        .from(workflowJobs)
-        .where(eq(workflowJobs.id, application.workflowJobId))
-    : [];
+  const job = application.workflowJobId
+    ? await prisma.workflowJob.findUnique({
+        where: { id: application.workflowJobId },
+      })
+    : null;
 
-  const interventions = await db
-    .select()
-    .from(humanInterventions)
-    .where(eq(humanInterventions.applicationId, applicationId))
-    .orderBy(desc(humanInterventions.createdAt))
-    .limit(20);
+  const interventions = await prisma.humanIntervention.findMany({
+    where: { applicationId },
+    orderBy: { createdAt: 'desc' },
+    take: 20,
+  });
 
-  const events = await db
-    .select()
-    .from(applicationEvents)
-    .where(eq(applicationEvents.applicationId, applicationId))
-    .orderBy(asc(applicationEvents.createdAt))
-    .limit(200);
+  const events = await prisma.applicationEvent.findMany({
+    where: { applicationId },
+    orderBy: { createdAt: 'asc' },
+    take: 200,
+  });
 
   res.status(200).json({
     application,
@@ -196,7 +176,7 @@ applicationsRouter.get('/internal/:applicationId/detail', async (req, res) => {
 applicationsRouter.patch(
   '/internal/:applicationId/session',
   async (req, res) => {
-    if (!internalRequestAllowed(req.header('x-agent-service-token'))) {
+    if (!serviceRequestAllowed(req.header('x-agent-service-token'))) {
       res.status(401).json({ error: 'Unauthorized internal request' });
       return;
     }
@@ -214,42 +194,49 @@ applicationsRouter.patch(
     };
 
     const now = new Date();
-    const values: Record<string, unknown> = {
+    const data: {
+      updatedAt: Date;
+      lastActivityAt: Date;
+      status?: (typeof applicationStatuses)[number];
+      browserSessionId?: string;
+      currentUrl?: string;
+      currentStep?: string;
+      controlMode?: (typeof applicationControlModes)[number];
+      humanInterventionRequired?: boolean;
+      interventionReason?: string;
+      externalTaskId?: string;
+    } = {
       updatedAt: now,
       lastActivityAt: now,
     };
 
-    if (isApplicationStatus(body.status)) values.status = body.status;
+    if (isApplicationStatus(body.status)) data.status = body.status;
     if (hasString(body.browserSessionId)) {
-      values.browserSessionId = body.browserSessionId;
+      data.browserSessionId = body.browserSessionId;
     }
-    if (typeof body.currentUrl === 'string')
-      values.currentUrl = body.currentUrl;
+    if (typeof body.currentUrl === 'string') data.currentUrl = body.currentUrl;
     if (typeof body.currentStep === 'string')
-      values.currentStep = body.currentStep;
-    if (isControlMode(body.controlMode)) values.controlMode = body.controlMode;
+      data.currentStep = body.currentStep;
+    if (isControlMode(body.controlMode)) data.controlMode = body.controlMode;
     if (typeof body.humanInterventionRequired === 'boolean') {
-      values.humanInterventionRequired = body.humanInterventionRequired;
+      data.humanInterventionRequired = body.humanInterventionRequired;
     }
     if (typeof body.interventionReason === 'string') {
-      values.interventionReason = body.interventionReason;
+      data.interventionReason = body.interventionReason;
     }
     if (hasString(body.externalTaskId)) {
-      values.externalTaskId = body.externalTaskId;
+      data.externalTaskId = body.externalTaskId;
     }
 
-    const [updated] = await db
-      .update(applications)
-      .set(values)
-      .where(eq(applications.id, applicationId))
-      .returning();
-
-    if (!updated) {
+    try {
+      const updated = await prisma.application.update({
+        where: { id: applicationId },
+        data,
+      });
+      res.status(200).json({ application: updated });
+    } catch {
       res.status(404).json({ error: 'Application not found' });
-      return;
     }
-
-    res.status(200).json({ application: updated });
   },
 );
 
@@ -257,7 +244,7 @@ applicationsRouter.patch(
 applicationsRouter.post(
   '/internal/:applicationId/interventions',
   async (req, res) => {
-    if (!internalRequestAllowed(req.header('x-agent-service-token'))) {
+    if (!serviceRequestAllowed(req.header('x-agent-service-token'))) {
       res.status(401).json({ error: 'Unauthorized internal request' });
       return;
     }
@@ -274,38 +261,36 @@ applicationsRouter.post(
       return;
     }
 
-    const [application] = await db
-      .select()
-      .from(applications)
-      .where(eq(applications.id, applicationId));
+    const application = await prisma.application.findUnique({
+      where: { id: applicationId },
+    });
     if (!application) {
       res.status(404).json({ error: 'Application not found' });
       return;
     }
 
     const now = new Date();
-    const [intervention] = await db
-      .insert(humanInterventions)
-      .values({
+    const intervention = await prisma.humanIntervention.create({
+      data: {
         applicationId,
         userId: application.userId,
         type: body.type,
         message: body.message,
         status: 'open',
-      })
-      .returning();
+      },
+    });
 
-    await db
-      .update(applications)
-      .set({
+    await prisma.application.update({
+      where: { id: applicationId },
+      data: {
         status: 'waiting_for_human',
         controlMode: 'human_control',
         humanInterventionRequired: true,
         interventionReason: body.message,
         updatedAt: now,
         lastActivityAt: now,
-      })
-      .where(eq(applications.id, applicationId));
+      },
+    });
 
     res.status(201).json({ intervention });
   },
@@ -315,7 +300,7 @@ applicationsRouter.post(
 applicationsRouter.patch(
   '/internal/interventions/:interventionId',
   async (req, res) => {
-    if (!internalRequestAllowed(req.header('x-agent-service-token'))) {
+    if (!serviceRequestAllowed(req.header('x-agent-service-token'))) {
       res.status(401).json({ error: 'Unauthorized internal request' });
       return;
     }
@@ -328,32 +313,32 @@ applicationsRouter.patch(
     }
 
     const now = new Date();
-    const [intervention] = await db
-      .update(humanInterventions)
-      .set({
-        status: body.status,
-        resolvedAt: body.status === 'resolved' ? now : undefined,
-      })
-      .where(eq(humanInterventions.id, interventionId))
-      .returning();
-
-    if (!intervention) {
+    let intervention;
+    try {
+      intervention = await prisma.humanIntervention.update({
+        where: { id: interventionId },
+        data: {
+          status: body.status,
+          resolvedAt: body.status === 'resolved' ? now : undefined,
+        },
+      });
+    } catch {
       res.status(404).json({ error: 'Intervention not found' });
       return;
     }
 
     if (body.status === 'resolved') {
-      await db
-        .update(applications)
-        .set({
+      await prisma.application.update({
+        where: { id: intervention.applicationId },
+        data: {
           status: 'resuming',
           controlMode: 'agent_control',
           humanInterventionRequired: false,
           interventionReason: null,
           updatedAt: now,
           lastActivityAt: now,
-        })
-        .where(eq(applications.id, intervention.applicationId));
+        },
+      });
     }
 
     res.status(200).json({ intervention });
@@ -362,7 +347,7 @@ applicationsRouter.patch(
 
 /** Append an activity event to an application session. */
 applicationsRouter.post('/internal/:applicationId/events', async (req, res) => {
-  if (!internalRequestAllowed(req.header('x-agent-service-token'))) {
+  if (!serviceRequestAllowed(req.header('x-agent-service-token'))) {
     res.status(401).json({ error: 'Unauthorized internal request' });
     return;
   }
@@ -379,31 +364,32 @@ applicationsRouter.post('/internal/:applicationId/events', async (req, res) => {
     return;
   }
 
-  const [application] = await db
-    .select({ userId: applications.userId })
-    .from(applications)
-    .where(eq(applications.id, applicationId));
+  const application = await prisma.application.findUnique({
+    where: { id: applicationId },
+    select: { userId: true },
+  });
   if (!application) {
     res.status(404).json({ error: 'Application not found' });
     return;
   }
 
-  const [event] = await db
-    .insert(applicationEvents)
-    .values({
+  const event = await prisma.applicationEvent.create({
+    data: {
       applicationId,
       userId: application.userId,
       type: body.type,
       description: body.description,
       metadata:
-        body.metadata && typeof body.metadata === 'object' ? body.metadata : {},
-    })
-    .returning();
+        body.metadata && typeof body.metadata === 'object'
+          ? (body.metadata as never)
+          : {},
+    },
+  });
 
-  await db
-    .update(applications)
-    .set({ lastActivityAt: new Date(), updatedAt: new Date() })
-    .where(eq(applications.id, applicationId));
+  await prisma.application.update({
+    where: { id: applicationId },
+    data: { lastActivityAt: new Date(), updatedAt: new Date() },
+  });
 
   res.status(201).json({ event });
 });
@@ -412,16 +398,15 @@ applicationsRouter.post('/internal/:applicationId/events', async (req, res) => {
 applicationsRouter.post(
   '/internal/:applicationId/browser-token',
   async (req, res) => {
-    if (!internalRequestAllowed(req.header('x-agent-service-token'))) {
+    if (!serviceRequestAllowed(req.header('x-agent-service-token'))) {
       res.status(401).json({ error: 'Unauthorized internal request' });
       return;
     }
 
     const { applicationId } = req.params;
-    const [application] = await db
-      .select()
-      .from(applications)
-      .where(eq(applications.id, applicationId));
+    const application = await prisma.application.findUnique({
+      where: { id: applicationId },
+    });
     if (!application) {
       res.status(404).json({ error: 'Application not found' });
       return;
@@ -471,7 +456,7 @@ applicationsRouter.post(
 applicationsRouter.post(
   '/internal/:applicationId/register-browser-token',
   async (req, res) => {
-    if (!internalRequestAllowed(req.header('x-agent-service-token'))) {
+    if (!serviceRequestAllowed(req.header('x-agent-service-token'))) {
       res.status(401).json({ error: 'Unauthorized internal request' });
       return;
     }
@@ -515,7 +500,7 @@ applicationsRouter.post(
 
 /** Resolve application id from workflow run + job dedup key. */
 applicationsRouter.get('/internal/resolve', async (req, res) => {
-  if (!internalRequestAllowed(req.header('x-agent-service-token'))) {
+  if (!serviceRequestAllowed(req.header('x-agent-service-token'))) {
     res.status(401).json({ error: 'Unauthorized internal request' });
     return;
   }
@@ -531,24 +516,19 @@ applicationsRouter.get('/internal/resolve', async (req, res) => {
     return;
   }
 
-  const [job] = await db
-    .select({ id: workflowJobs.id })
-    .from(workflowJobs)
-    .where(
-      and(
-        eq(workflowJobs.workflowRunId, workflowRunId),
-        eq(workflowJobs.dedupKey, dedupKey),
-      ),
-    );
+  const job = await prisma.workflowJob.findUnique({
+    where: { workflowRunId_dedupKey: { workflowRunId, dedupKey } },
+    select: { id: true },
+  });
   if (!job) {
     res.status(404).json({ error: 'Workflow job not found' });
     return;
   }
 
-  const [application] = await db
-    .select({ id: applications.id })
-    .from(applications)
-    .where(eq(applications.workflowJobId, job.id));
+  const application = await prisma.application.findUnique({
+    where: { workflowJobId: job.id },
+    select: { id: true },
+  });
 
   if (!application) {
     res.status(404).json({ error: 'Application not found' });
@@ -560,16 +540,15 @@ applicationsRouter.get('/internal/resolve', async (req, res) => {
 
 /** Resume agent after human intervention. */
 applicationsRouter.post('/internal/:applicationId/resume', async (req, res) => {
-  if (!internalRequestAllowed(req.header('x-agent-service-token'))) {
+  if (!serviceRequestAllowed(req.header('x-agent-service-token'))) {
     res.status(401).json({ error: 'Unauthorized internal request' });
     return;
   }
 
   const { applicationId } = req.params;
-  const [application] = await db
-    .select()
-    .from(applications)
-    .where(eq(applications.id, applicationId));
+  const application = await prisma.application.findUnique({
+    where: { id: applicationId },
+  });
   if (!application) {
     res.status(404).json({ error: 'Application not found' });
     return;
@@ -581,36 +560,29 @@ applicationsRouter.post('/internal/:applicationId/resume', async (req, res) => {
     return;
   }
 
-  const [openIntervention] = await db
-    .select()
-    .from(humanInterventions)
-    .where(
-      and(
-        eq(humanInterventions.applicationId, applicationId),
-        eq(humanInterventions.status, 'open'),
-      ),
-    )
-    .limit(1);
+  const openIntervention = await prisma.humanIntervention.findFirst({
+    where: { applicationId, status: 'open' },
+  });
 
   const now = new Date();
   if (openIntervention) {
-    await db
-      .update(humanInterventions)
-      .set({ status: 'resolved', resolvedAt: now })
-      .where(eq(humanInterventions.id, openIntervention.id));
+    await prisma.humanIntervention.update({
+      where: { id: openIntervention.id },
+      data: { status: 'resolved', resolvedAt: now },
+    });
   }
 
-  await db
-    .update(applications)
-    .set({
+  await prisma.application.update({
+    where: { id: applicationId },
+    data: {
       status: 'resuming',
       controlMode: 'agent_control',
       humanInterventionRequired: false,
       interventionReason: null,
       updatedAt: now,
       lastActivityAt: now,
-    })
-    .where(eq(applications.id, applicationId));
+    },
+  });
 
   const applyAgentUrl = process.env.APPLY_AGENT_URL ?? 'http://127.0.0.1:8003';
   const agentToken = process.env.AGENT_SERVICE_TOKEN;
@@ -636,46 +608,44 @@ applicationsRouter.post('/internal/:applicationId/resume', async (req, res) => {
 applicationsRouter.post(
   '/internal/:applicationId/take-control',
   async (req, res) => {
-    if (!internalRequestAllowed(req.header('x-agent-service-token'))) {
+    if (!serviceRequestAllowed(req.header('x-agent-service-token'))) {
       res.status(401).json({ error: 'Unauthorized internal request' });
       return;
     }
 
     const { applicationId } = req.params;
     const now = new Date();
-    const [updated] = await db
-      .update(applications)
-      .set({
-        controlMode: 'human_control',
-        updatedAt: now,
-        lastActivityAt: now,
-      })
-      .where(eq(applications.id, applicationId))
-      .returning();
+    try {
+      const updated = await prisma.application.update({
+        where: { id: applicationId },
+        data: {
+          controlMode: 'human_control',
+          updatedAt: now,
+          lastActivityAt: now,
+        },
+      });
 
-    if (!updated) {
-      res.status(404).json({ error: 'Application not found' });
-      return;
-    }
-
-    const applyAgentUrl =
-      process.env.APPLY_AGENT_URL ?? 'http://127.0.0.1:8003';
-    const agentToken = process.env.AGENT_SERVICE_TOKEN;
-    if (agentToken) {
-      try {
-        await fetch(
-          `${applyAgentUrl}/admin/applications/${encodeURIComponent(applicationId)}/take-control`,
-          {
-            method: 'POST',
-            headers: { 'X-Agent-Service-Token': agentToken },
-          },
-        );
-      } catch {
-        // Postgres state is updated; apply-agent sync is best-effort.
+      const applyAgentUrl =
+        process.env.APPLY_AGENT_URL ?? 'http://127.0.0.1:8003';
+      const agentToken = process.env.AGENT_SERVICE_TOKEN;
+      if (agentToken) {
+        try {
+          await fetch(
+            `${applyAgentUrl}/admin/applications/${encodeURIComponent(applicationId)}/take-control`,
+            {
+              method: 'POST',
+              headers: { 'X-Agent-Service-Token': agentToken },
+            },
+          );
+        } catch {
+          // Postgres state is updated; apply-agent sync is best-effort.
+        }
       }
-    }
 
-    res.status(200).json({ application: updated });
+      res.status(200).json({ application: updated });
+    } catch {
+      res.status(404).json({ error: 'Application not found' });
+    }
   },
 );
 
@@ -683,78 +653,75 @@ applicationsRouter.post(
 applicationsRouter.post(
   '/internal/:applicationId/release-control',
   async (req, res) => {
-    if (!internalRequestAllowed(req.header('x-agent-service-token'))) {
+    if (!serviceRequestAllowed(req.header('x-agent-service-token'))) {
       res.status(401).json({ error: 'Unauthorized internal request' });
       return;
     }
 
     const { applicationId } = req.params;
     const now = new Date();
-    const [updated] = await db
-      .update(applications)
-      .set({
-        controlMode: 'agent_control',
-        updatedAt: now,
-        lastActivityAt: now,
-      })
-      .where(eq(applications.id, applicationId))
-      .returning();
+    try {
+      const updated = await prisma.application.update({
+        where: { id: applicationId },
+        data: {
+          controlMode: 'agent_control',
+          updatedAt: now,
+          lastActivityAt: now,
+        },
+      });
 
-    if (!updated) {
-      res.status(404).json({ error: 'Application not found' });
-      return;
-    }
-
-    const applyAgentUrl =
-      process.env.APPLY_AGENT_URL ?? 'http://127.0.0.1:8003';
-    const agentToken = process.env.AGENT_SERVICE_TOKEN;
-    if (agentToken) {
-      try {
-        await fetch(
-          `${applyAgentUrl}/admin/applications/${encodeURIComponent(applicationId)}/release-control`,
-          {
-            method: 'POST',
-            headers: { 'X-Agent-Service-Token': agentToken },
-          },
-        );
-      } catch {
-        // Best-effort sync.
+      const applyAgentUrl =
+        process.env.APPLY_AGENT_URL ?? 'http://127.0.0.1:8003';
+      const agentToken = process.env.AGENT_SERVICE_TOKEN;
+      if (agentToken) {
+        try {
+          await fetch(
+            `${applyAgentUrl}/admin/applications/${encodeURIComponent(applicationId)}/release-control`,
+            {
+              method: 'POST',
+              headers: { 'X-Agent-Service-Token': agentToken },
+            },
+          );
+        } catch {
+          // Best-effort sync.
+        }
       }
-    }
 
-    res.status(200).json({ application: updated });
+      res.status(200).json({ application: updated });
+    } catch {
+      res.status(404).json({ error: 'Application not found' });
+    }
   },
 );
 
 /** Stop an in-progress application session. */
 applicationsRouter.post('/internal/:applicationId/stop', async (req, res) => {
-  if (!internalRequestAllowed(req.header('x-agent-service-token'))) {
+  if (!serviceRequestAllowed(req.header('x-agent-service-token'))) {
     res.status(401).json({ error: 'Unauthorized internal request' });
     return;
   }
 
   const { applicationId } = req.params;
-  const [application] = await db
-    .select()
-    .from(applications)
-    .where(eq(applications.id, applicationId));
+  const application = await prisma.application.findUnique({
+    where: { id: applicationId },
+  });
   if (!application) {
     res.status(404).json({ error: 'Application not found' });
     return;
   }
 
   const now = new Date();
-  await db
-    .update(applications)
-    .set({
+  await prisma.application.update({
+    where: { id: applicationId },
+    data: {
       status: 'cancelled',
       controlMode: 'agent_control',
       humanInterventionRequired: false,
       completedAt: now,
       updatedAt: now,
       lastActivityAt: now,
-    })
-    .where(eq(applications.id, applicationId));
+    },
+  });
 
   if (application.externalTaskId) {
     const applyAgentUrl =
@@ -780,7 +747,7 @@ applicationsRouter.post('/internal/:applicationId/stop', async (req, res) => {
 
 /** Batch-fetch open interventions for a set of application ids. */
 applicationsRouter.post('/internal/interventions/open', async (req, res) => {
-  if (!internalRequestAllowed(req.header('x-agent-service-token'))) {
+  if (!serviceRequestAllowed(req.header('x-agent-service-token'))) {
     res.status(401).json({ error: 'Unauthorized internal request' });
     return;
   }
@@ -799,15 +766,9 @@ applicationsRouter.post('/internal/interventions/open', async (req, res) => {
     return;
   }
 
-  const interventions = await db
-    .select()
-    .from(humanInterventions)
-    .where(
-      and(
-        inArray(humanInterventions.applicationId, ids),
-        eq(humanInterventions.status, 'open'),
-      ),
-    );
+  const interventions = await prisma.humanIntervention.findMany({
+    where: { applicationId: { in: ids }, status: 'open' },
+  });
 
   res.status(200).json({ interventions });
 });

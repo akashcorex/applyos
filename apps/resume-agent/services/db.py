@@ -1,8 +1,8 @@
 """asyncpg-backed CRUD for the `resumes` table.
 
-The table itself is owned by the Drizzle schema in
-`packages/database/src/schema/resume.ts`; this module only reads/writes
-rows at runtime.
+The table itself is owned by the Prisma schema in
+`packages/database/prisma/schema.prisma` (model `Resume`); this module only
+reads/writes rows at runtime over asyncpg.
 """
 
 from __future__ import annotations

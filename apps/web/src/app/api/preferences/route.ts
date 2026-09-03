@@ -1,7 +1,7 @@
 import { requireUserId } from '@/lib/require-user';
 import { agentServiceHeaders } from '@/lib/workflow-authorization';
 
-const API_URL = process.env.API_URL ?? 'http://localhost:3333';
+const API_URL = process.env.API_URL ?? 'http://localhost:5000';
 
 export async function GET(request: Request) {
   const userOrErr = await requireUserId(request);

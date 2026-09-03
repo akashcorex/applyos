@@ -1,3 +1,5 @@
+import { outreachSendSchema, parseJsonBody } from '@applyso/validation';
+
 import { requireUserId } from '@/lib/require-user';
 import { agentServiceHeaders } from '@/lib/workflow-authorization';
 
@@ -16,12 +18,14 @@ export async function POST(request: Request) {
     );
   }
 
+  const parsed = await parseJsonBody(request, outreachSendSchema);
+  if (!parsed.ok) return parsed.response;
+
   try {
-    const body = (await request.json()) as Record<string, unknown>;
     const res = await fetch(`${OUTREACH_AGENT_URL}/outreach/send`, {
       method: 'POST',
       headers: { ...headers, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...body, user_id: userOrErr }),
+      body: JSON.stringify({ ...parsed.data, user_id: userOrErr }),
       signal: AbortSignal.timeout(20000),
     });
     const data = await res.json().catch(() => ({}));

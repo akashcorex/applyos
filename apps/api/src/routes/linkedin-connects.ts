@@ -1,11 +1,8 @@
-import { and, eq } from 'drizzle-orm';
 import { Router } from 'express';
 
-import {
-  db,
-  linkedinConnects,
-  linkedinConnectStatuses,
-} from '@applyso/database';
+import { linkedinConnectStatuses, prisma } from '@applyso/database';
+
+import { requireServiceToken } from '../lib/service-token';
 
 type ConnectStatus = (typeof linkedinConnectStatuses)[number];
 
@@ -56,6 +53,8 @@ function parseBulkItem(raw: unknown): BulkConnectItem | null {
 
 export const linkedinConnectsRouter = Router();
 
+linkedinConnectsRouter.use(requireServiceToken);
+
 /**
  * POST /v1/linkedin-connects/bulk
  * Upsert connection invite rows reported by apply-agent.
@@ -88,9 +87,15 @@ linkedinConnectsRouter.post('/bulk', async (req, res) => {
           ? now
           : null;
 
-    const [row] = await db
-      .insert(linkedinConnects)
-      .values({
+    const row = await prisma.linkedinConnect.upsert({
+      where: {
+        userId_jobId_profileUrl: {
+          userId: item.userId,
+          jobId: item.jobId,
+          profileUrl: item.profileUrl,
+        },
+      },
+      create: {
         userId: item.userId,
         jobId: item.jobId,
         companyName: item.companyName,
@@ -100,25 +105,16 @@ linkedinConnectsRouter.post('/bulk', async (req, res) => {
         status: item.status,
         errorDetail: item.errorDetail ?? null,
         sentAt,
-        updatedAt: now,
-      })
-      .onConflictDoUpdate({
-        target: [
-          linkedinConnects.userId,
-          linkedinConnects.jobId,
-          linkedinConnects.profileUrl,
-        ],
-        set: {
-          companyName: item.companyName,
-          profileName: item.profileName,
-          headline: item.headline ?? null,
-          status: item.status,
-          errorDetail: item.errorDetail ?? null,
-          sentAt,
-          updatedAt: now,
-        },
-      })
-      .returning();
+      },
+      update: {
+        companyName: item.companyName,
+        profileName: item.profileName,
+        headline: item.headline ?? null,
+        status: item.status,
+        errorDetail: item.errorDetail ?? null,
+        sentAt,
+      },
+    });
 
     results.push(row);
   }
@@ -138,20 +134,9 @@ linkedinConnectsRouter.get('/', async (req, res) => {
     return;
   }
 
-  const rows = jobId
-    ? await db
-        .select()
-        .from(linkedinConnects)
-        .where(
-          and(
-            eq(linkedinConnects.userId, userId),
-            eq(linkedinConnects.jobId, jobId),
-          ),
-        )
-    : await db
-        .select()
-        .from(linkedinConnects)
-        .where(eq(linkedinConnects.userId, userId));
+  const rows = await prisma.linkedinConnect.findMany({
+    where: jobId ? { userId, jobId } : { userId },
+  });
 
   res.status(200).json({ connects: rows, count: rows.length });
 });

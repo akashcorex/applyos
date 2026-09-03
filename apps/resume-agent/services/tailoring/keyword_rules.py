@@ -8,7 +8,6 @@ from models import CreateVariantRequest, VariantContent
 from services.skills import (
     match_skills_in_text,
     normalize_skill,
-    normalize_skills,
     skill_key,
 )
 from services.tailoring.suggestions import enrich_suggestion

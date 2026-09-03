@@ -20,6 +20,7 @@ import { DitherAvatar } from '@/components/dither-kit/avatar';
 interface AppSidebarProps {
   userName?: string | null;
   userEmail?: string | null;
+  isAdmin?: boolean;
   onSignOut: () => void;
   onNavigate?: () => void;
   isCollapsed?: boolean;
@@ -187,6 +188,7 @@ function LinearSettingsIcon({ className = 'w-4 h-4' }: { className?: string }) {
 export function AppSidebar({
   userName = 'User',
   userEmail = 'user@applyos.in',
+  isAdmin = false,
   onSignOut,
   onNavigate,
   isCollapsed = false,
@@ -222,6 +224,9 @@ export function AppSidebar({
       label: 'Outreach',
       icon: LinearAgentIcon,
     },
+    ...(isAdmin
+      ? [{ href: '/dashboard/admin', label: 'Admin', icon: Shield }]
+      : []),
   ];
 
   const settingsNavItems = [

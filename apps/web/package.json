@@ -4,7 +4,7 @@
   "private": true,
   "description": "applyso — Next.js web app for job discovery and one-click autonomous applications.",
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -p 3000",
     "build": "next build",
     "start": "sh -c 'next start -H 0.0.0.0 -p ${PORT:-3000}'"
   },
@@ -12,6 +12,7 @@
     "@applyso/analytics": "workspace:*",
     "@applyso/database": "workspace:*",
     "@applyso/ui": "workspace:*",
+    "@applyso/validation": "workspace:*",
     "@vercel/analytics": "^2.0.1",
     "better-auth": "^1.2.9",
     "clsx": "^2.1.1",

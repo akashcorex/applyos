@@ -1,0 +1,67 @@
+# Security audits — scheduled (weekly) + on-demand, intentionally NOT PR gates.
+#
+# Rationale: `bun audit` / `pip-audit` already report pre-existing
+# vulnerabilities, so gating PRs on them would block all development until the
+# backlog is triaged. Instead this workflow goes red on schedule to create
+# visibility; fix findings with `bun audit fix` / dependency bumps, then
+# re-run. Consider promoting these to required PR checks once the backlog is
+# clean.
+#
+# Secret scanning is NOT done here — enable GitHub's native protection instead
+# (repo Settings → Code security: secret scanning + push protection), which
+# covers the full history without CI configuration.
+
+name: Security audit
+
+on:
+  schedule:
+    # Mondays 09:00 UTC.
+    - cron: '0 9 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit-js:
+    name: audit-js (bun audit)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Cache Bun install
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+      - run: bun install --frozen-lockfile
+      - run: bun audit
+
+  audit-python:
+    name: audit-python (${{ matrix.app }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [job-agent, ai-orchestrator, resume-agent, outreach-agent]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - uses: astral-sh/setup-uv@v10
+        with:
+          python-version: '3.12'
+          enable-cache: true
+      # --with installs pip-audit ephemerally (no lockfile changes); it audits
+      # the app's synced environment, including dev dependencies.
+      - working-directory: apps/${{ matrix.app }}
+        run: uv sync --extra dev
+      - working-directory: apps/${{ matrix.app }}
+        run: uv run --with pip-audit pip-audit

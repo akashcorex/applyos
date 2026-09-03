@@ -1,18 +1,8 @@
-import { timingSafeEqual } from 'node:crypto';
-
-import { eq } from 'drizzle-orm';
 import { Router } from 'express';
 
-import { db, userPreferences } from '@applyso/database';
+import { prisma } from '@applyso/database';
 
-function internalRequestAllowed(token: string | undefined): boolean {
-  const expected = process.env.AGENT_SERVICE_TOKEN;
-  if (!expected || !token) return false;
-  const expectedBuf = Buffer.from(expected);
-  const tokenBuf = Buffer.from(token);
-  if (expectedBuf.length !== tokenBuf.length) return false;
-  return timingSafeEqual(expectedBuf, tokenBuf);
-}
+import { serviceRequestAllowed } from '../lib/service-token';
 
 function hasString(value: unknown): value is string {
   return typeof value === 'string' && value.trim().length > 0;
@@ -27,7 +17,7 @@ const defaultPreferences = {
 export const preferencesRouter = Router();
 
 preferencesRouter.get('/internal/:userId', async (req, res) => {
-  if (!internalRequestAllowed(req.header('x-agent-service-token'))) {
+  if (!serviceRequestAllowed(req.header('x-agent-service-token'))) {
     res.status(401).json({ error: 'Unauthorized internal request' });
     return;
   }
@@ -37,10 +27,9 @@ preferencesRouter.get('/internal/:userId', async (req, res) => {
   }
 
   try {
-    const [row] = await db
-      .select()
-      .from(userPreferences)
-      .where(eq(userPreferences.userId, req.params.userId));
+    const row = await prisma.userPreferences.findUnique({
+      where: { userId: req.params.userId },
+    });
 
     res.status(200).json({
       userId: req.params.userId,
@@ -56,7 +45,7 @@ preferencesRouter.get('/internal/:userId', async (req, res) => {
 });
 
 preferencesRouter.put('/internal/:userId', async (req, res) => {
-  if (!internalRequestAllowed(req.header('x-agent-service-token'))) {
+  if (!serviceRequestAllowed(req.header('x-agent-service-token'))) {
     res.status(401).json({ error: 'Unauthorized internal request' });
     return;
   }
@@ -70,12 +59,10 @@ preferencesRouter.put('/internal/:userId', async (req, res) => {
     emailOutreachEnabled?: unknown;
     autoSubmitEnabled?: unknown;
   };
-  const now = new Date();
   try {
-    const [existing] = await db
-      .select()
-      .from(userPreferences)
-      .where(eq(userPreferences.userId, req.params.userId));
+    const existing = await prisma.userPreferences.findUnique({
+      where: { userId: req.params.userId },
+    });
 
     const nextLinkedin =
       body.postApplyLinkedinConnectEnabled === undefined
@@ -90,35 +77,27 @@ preferencesRouter.put('/internal/:userId', async (req, res) => {
         ? (existing?.autoSubmitEnabled ?? false)
         : body.autoSubmitEnabled === true;
 
-    const values = {
-      userId: req.params.userId,
-      postApplyLinkedinConnectEnabled: nextLinkedin,
-      emailOutreachEnabled: nextEmail,
-      autoSubmitEnabled: nextAutoSubmit,
-      updatedAt: now,
-    };
-
-    const [row] = await db
-      .insert(userPreferences)
-      .values(values)
-      .onConflictDoUpdate({
-        target: userPreferences.userId,
-        set: {
-          postApplyLinkedinConnectEnabled:
-            values.postApplyLinkedinConnectEnabled,
-          emailOutreachEnabled: values.emailOutreachEnabled,
-          autoSubmitEnabled: values.autoSubmitEnabled,
-          updatedAt: now,
-        },
-      })
-      .returning();
+    const row = await prisma.userPreferences.upsert({
+      where: { userId: req.params.userId },
+      create: {
+        userId: req.params.userId,
+        postApplyLinkedinConnectEnabled: nextLinkedin,
+        emailOutreachEnabled: nextEmail,
+        autoSubmitEnabled: nextAutoSubmit,
+      },
+      update: {
+        postApplyLinkedinConnectEnabled: nextLinkedin,
+        emailOutreachEnabled: nextEmail,
+        autoSubmitEnabled: nextAutoSubmit,
+      },
+    });
 
     res.status(200).json(row);
   } catch (error) {
     console.error('[preferences] failed to save user preferences:', error);
     res.status(503).json({
       error:
-        'Preferences table is missing. Run bun run db:migrate against the API database.',
+        'Preferences table is missing. Run prisma migrate deploy against the API database.',
     });
   }
 });

@@ -7,6 +7,8 @@ import { useRouter } from 'next/navigation';
 
 import { Linkedin, Loader2 } from 'lucide-react';
 
+import { signupSchema, validateAction } from '@applyso/validation';
+
 import { AuthCardLayout } from '@/components/auth/AuthCardLayout';
 import { appCallbackURL, authClient } from '@/lib/auth-client';
 
@@ -58,13 +60,19 @@ export default function SignupPage() {
 
   async function handleSignup(event: FormEvent) {
     event.preventDefault();
+    // Client-side fast feedback with the same contract the backend enforces.
+    const validated = validateAction(signupSchema, { name, email, password });
+    if (!validated.ok) {
+      setError(validated.error);
+      return;
+    }
     setLoading(true);
     setError(null);
 
     const { error: signUpError } = await authClient.signUp.email({
-      name,
-      email,
-      password,
+      name: validated.data.name,
+      email: validated.data.email,
+      password: validated.data.password,
       callbackURL: '/dashboard',
     });
 

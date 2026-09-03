@@ -1,4 +1,4 @@
-import { analyticsEvents, analyticsIdentities, db } from '@applyso/database';
+import { prisma } from '@applyso/database';
 
 import { sanitizeProperties } from './sanitizer';
 import {
@@ -31,22 +31,29 @@ export async function trackServerEvent<K extends EventName>(
       options.properties as Record<string, unknown>,
     );
 
-    await db.insert(analyticsEvents).values({
-      eventId: crypto.randomUUID(),
-      eventName: options.event,
-      feature: options.feature,
-      userId: options.userId ?? null,
-      anonymousId: options.anonymousId || 'server_anonymous',
-      sessionId: options.sessionId || 'server_session',
-      page: options.page,
-      component: options.component,
-      source: 'server',
-      properties: sanitizedProps,
-      context: options.context || { platform: 'node' },
-      environment:
-        options.environment ||
-        (process.env.NODE_ENV === 'production' ? 'production' : 'development'),
-      timestamp: new Date(),
+    await prisma.analyticsEvent.create({
+      data: {
+        eventId: crypto.randomUUID(),
+        eventName: options.event,
+        feature: options.feature,
+        userId: options.userId ?? null,
+        anonymousId: options.anonymousId || 'server_anonymous',
+        sessionId: options.sessionId || 'server_session',
+        page: options.page,
+        component: options.component,
+        source: 'server',
+        properties: sanitizedProps as Record<string, never>,
+        context: (options.context || { platform: 'node' }) as Record<
+          string,
+          never
+        >,
+        environment:
+          options.environment ||
+          (process.env.NODE_ENV === 'production'
+            ? 'production'
+            : 'development'),
+        timestamp: new Date(),
+      },
     });
   } catch (err) {
     console.error('[Analytics] Failed to write server event:', err);
@@ -63,11 +70,13 @@ export async function linkAnonymousIdentity(
   if (!userId || !anonymousId || anonymousId === 'server_anonymous') return;
 
   try {
-    await db.insert(analyticsIdentities).values({
-      userId,
-      anonymousId,
-      firstSeenAt: new Date(),
-      linkedAt: new Date(),
+    await prisma.analyticsIdentity.create({
+      data: {
+        userId,
+        anonymousId,
+        firstSeenAt: new Date(),
+        linkedAt: new Date(),
+      },
     });
   } catch (err) {
     console.error('[Analytics] Failed to link anonymous identity:', err);

@@ -1,6 +1,6 @@
 # api
 
-`api` is the Express backend server (port 3333). It handles authentication, serves as the gateway between the frontend and the database, and will coordinate with the AI agent microservices.
+`api` is the Express backend server (port 5000). It handles authentication, serves as the gateway between the frontend and the database, and will coordinate with the AI agent microservices.
 
 **Status: early stage** — auth is fully wired. Agent coordination endpoints are pending implementation.
 
@@ -47,7 +47,7 @@ From the repository root:
 bun run dev:api
 ```
 
-The API will be available at `http://localhost:3333`.
+The API will be available at `http://localhost:5000`.
 
 ## Local config
 
@@ -56,7 +56,8 @@ The app reads environment values from `apps/api/.env`.
 Key settings:
 
 - `DATABASE_URL` — PostgreSQL connection string
-- `AUTH_SECRET` — better-auth secret key
+- `BETTER_AUTH_SECRET` — better-auth secret key
+- `BETTER_AUTH_URL` — public API origin (OAuth callback base, default `http://localhost:5000`)
 - `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` — Google OAuth credentials
 - `LINKEDIN_CLIENT_ID` / `LINKEDIN_CLIENT_SECRET` — LinkedIn OAuth credentials
 - `WEB_URL` — frontend origin for CORS (default `http://localhost:3000`)

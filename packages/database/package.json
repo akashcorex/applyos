@@ -2,26 +2,32 @@
   "name": "@applyso/database",
   "version": "0.0.0",
   "private": true,
-  "description": "Shared Postgres schema (Drizzle) and client used by applyso services.",
+  "description": "Shared Postgres schema and Prisma client (Prisma is the only ORM) used by applyso services.",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./prisma": "./src/prisma.ts"
   },
   "scripts": {
-    "generate": "drizzle-kit generate",
-    "migrate": "drizzle-kit migrate",
-    "push": "drizzle-kit push",
-    "studio": "drizzle-kit studio"
+    "generate": "prisma generate",
+    "migrate": "prisma migrate deploy",
+    "push": "prisma db push",
+    "studio": "prisma studio",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate deploy",
+    "prisma:migrate:dev": "prisma migrate dev",
+    "prisma:validate": "prisma validate",
+    "prisma:studio": "prisma studio"
   },
   "dependencies": {
+    "@prisma/adapter-pg": "^6.0.0",
+    "@prisma/client": "^6.0.0",
     "dotenv": "^17.4.2",
-    "drizzle-orm": "^1.0.0-rc.4",
-    "pg": "^8.22.0",
-    "postgres": "^3.4.9"
+    "pg": "^8.22.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
     "@types/pg": "^8.20.3",
-    "drizzle-kit": "^1.0.0-rc.4",
+    "prisma": "^6.0.0",
     "tsx": "^4.23.4"
   }
 }

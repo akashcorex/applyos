@@ -1,10 +1,13 @@
 import { NextResponse } from 'next/server';
 
 import { type AnalyticsPayload } from '@applyso/analytics';
-import { analyticsEvents, analyticsIdentities, db } from '@applyso/database';
 
 export async function POST(req: Request) {
+  if (!process.env.DATABASE_URL) {
+    return NextResponse.json({ success: false, error: 'Analytics not configured' });
+  }
   try {
+    const { prisma } = await import('@applyso/database');
     const body = await req.json();
     const events: AnalyticsPayload[] = body?.events;
 
@@ -22,14 +25,14 @@ export async function POST(req: Request) {
       page: e.page || null,
       component: e.component || null,
       source: e.source || 'client',
-      properties: e.properties || {},
-      context: e.context || {},
+      properties: (e.properties || {}) as Record<string, never>,
+      context: (e.context || {}) as Record<string, never>,
       environment: e.environment || 'development',
       timestamp: e.timestamp ? new Date(e.timestamp) : new Date(),
     }));
 
     // Batch insert into analytics_events
-    await db.insert(analyticsEvents).values(records);
+    await prisma.analyticsEvent.createMany({ data: records });
 
     // Identify stitching for any events with both userId and anonymousId
     const identityPairs = events
@@ -51,15 +54,14 @@ export async function POST(req: Request) {
 
       for (const pair of uniqueIdentities) {
         try {
-          await db
-            .insert(analyticsIdentities)
-            .values({
+          await prisma.analyticsIdentity.create({
+            data: {
               userId: pair.userId,
               anonymousId: pair.anonymousId,
               firstSeenAt: new Date(),
               linkedAt: new Date(),
-            })
-            .onConflictDoNothing();
+            },
+          });
         } catch {
           // Ignore unique conflict or foreign key transient errors
         }

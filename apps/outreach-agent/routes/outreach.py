@@ -6,7 +6,7 @@ import logging
 import secrets
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Request
 
 from config import settings
 from dependencies import AppState

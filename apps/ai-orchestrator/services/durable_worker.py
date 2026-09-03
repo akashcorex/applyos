@@ -16,7 +16,7 @@ from typing import Any, Literal
 
 import redis.asyncio as redis
 
-from models import StartRunRequest, StartWorkflowRequest, WorkflowStatus
+from models import StartRunRequest, WorkflowStatus
 from services.workflow_store import WorkflowStore
 
 logger = logging.getLogger(__name__)

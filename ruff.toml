@@ -1,0 +1,17 @@
+# Baseline Python lint, enforced in CI (`ruff check apps tests scripts`).
+#
+# Deliberately scoped to pyflakes + pycodestyle-errors (E4/E7/E9/F):
+# zero tolerance for undefined names, unused imports/variables, and
+# syntax-level breakage. Broader rule sets (BLE/SIM/TRY/I, ...) and
+# `ruff format --check` are follow-ups — enabling them today would flag
+# hundreds of pre-existing style nits. Adopt incrementally:
+#   1. `ruff check --select I --fix` + `ruff format` (one-time churn)
+#   2. widen `select` rule by rule.
+target-version = "py312"
+
+[lint]
+select = ["E4", "E7", "E9", "F"]
+
+[lint.per-file-ignores]
+# Standalone bootstrap scripts mutate sys.path before importing the app.
+"apps/apply-agent/scripts/*.py" = ["E402"]

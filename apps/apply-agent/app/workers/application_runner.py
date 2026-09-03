@@ -202,7 +202,7 @@ class ApplicationRunner:
                 logger.info("Wellfound: redirecting to external ATS: %s", external[:120])
                 await self._log_event(
                     "NAVIGATION",
-                    f"Redirected to external ATS",
+                    "Redirected to external ATS",
                     {"url": external},
                 )
                 await self.page.goto(

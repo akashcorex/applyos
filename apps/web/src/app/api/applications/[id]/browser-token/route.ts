@@ -1,7 +1,7 @@
 import { authorizeApplicationOwner } from '@/lib/application-authorization';
 import { agentServiceHeaders } from '@/lib/workflow-authorization';
 
-const API_URL = process.env.API_URL ?? 'http://localhost:3333';
+const API_URL = process.env.API_URL ?? 'http://localhost:5000';
 const APPLY_AGENT_URL = process.env.APPLY_AGENT_URL ?? 'http://127.0.0.1:8003';
 
 export async function POST(

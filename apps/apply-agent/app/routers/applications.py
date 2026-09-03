@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Header, HTTPException, WebSocket
+from fastapi import APIRouter, Header, HTTPException, WebSocket
 
 from app.config import settings
 from app.streaming.redis_relay import relay_websocket_session, session_metadata_key

@@ -53,7 +53,7 @@ def test_detect_file_type_rejects_unknown() -> None:
 
 def test_parse_docx_extracts_paragraphs_and_tables() -> None:
     parser = ResumeParser()
-    text = parser.parse("jane.docx", _make_docx_bytes(), file_type := None)
+    text = parser.parse("jane.docx", _make_docx_bytes(), None)
     assert "Jane Doe" in text
     assert "jane@example.com" in text
     assert "Stripe" in text

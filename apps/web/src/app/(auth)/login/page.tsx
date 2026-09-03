@@ -7,6 +7,8 @@ import { useRouter } from 'next/navigation';
 
 import { Linkedin, Loader2 } from 'lucide-react';
 
+import { loginSchema, validateAction } from '@applyso/validation';
+
 import { AuthCardLayout } from '@/components/auth/AuthCardLayout';
 import { appCallbackURL, authClient } from '@/lib/auth-client';
 
@@ -58,12 +60,17 @@ export default function LoginPage() {
 
   async function handleEmailLogin(event: FormEvent) {
     event.preventDefault();
+    const validated = validateAction(loginSchema, { email, password });
+    if (!validated.ok) {
+      setError(validated.error);
+      return;
+    }
     setLoading(true);
     setError(null);
 
     const { error: signInError } = await authClient.signIn.email({
-      email,
-      password,
+      email: validated.data.email,
+      password: validated.data.password,
       callbackURL: '/dashboard',
     });
 

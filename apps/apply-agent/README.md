@@ -92,7 +92,7 @@ Key settings:
 
 - `REDIS_URL` — default `redis://127.0.0.1:6379/0`
 - `ANTHROPIC_API_KEY` — Claude API key for LLM field mapping
-- `API_URL` — default `http://localhost:3333`
+- `API_URL` — default `http://localhost:5000`
 - `AGENT_SERVICE_TOKEN` — high-entropy token shared only with trusted backend services; required for cancellation and compiled resume artifact downloads
 - `RESUME_AGENT_URL` — base URL used to download compiled resume artifacts
 - `APPLY_CANCELLATION_TTL_SECONDS` — default `86400`; retains cancellation markers long enough to block delayed task retries

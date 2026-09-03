@@ -21,8 +21,6 @@ from services.matching import (
     MatchFeedbackService,
     MatchingRepository,
     MatchSessionService,
-    cached_embedding_valid,
-    compute_profile_embedding,
 )
 from services.parser import ResumeParser
 from services.revisions import RevisionRepository
@@ -76,7 +74,7 @@ class AppState:
             resumes_table = await conn.fetchval("SELECT to_regclass('public.resumes')")
             if resumes_table is None:
                 raise RuntimeError(
-                    "Table 'resumes' does not exist. Apply the Drizzle schema "
+                    "Table 'resumes' does not exist. Apply the Prisma schema "
                     "with `bun run db:push` (local) or `bun run db:migrate` "
                     "before starting resume-agent."
                 )

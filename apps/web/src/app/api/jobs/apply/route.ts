@@ -1,3 +1,5 @@
+import { jobApplySchema, parseJsonBody } from '@applyso/validation';
+
 import { assertResumeOwner, requireUserId } from '@/lib/require-user';
 import { agentServiceHeaders } from '@/lib/workflow-authorization';
 
@@ -31,7 +33,9 @@ export async function POST(request: Request) {
   }
 
   try {
-    const body = await request.json();
+    const parsed = await parseJsonBody(request, jobApplySchema);
+    if (!parsed.ok) return parsed.response;
+    const body = parsed.data;
     const {
       company_name,
       ats_type,

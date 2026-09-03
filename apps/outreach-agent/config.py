@@ -7,7 +7,7 @@ class Settings(BaseSettings):
     anthropic_api_key: str = ""
     llm_model: str = "claude-sonnet-4-6"
     llm_max_tokens: int = 2048
-    api_url: str = "http://localhost:3333"
+    api_url: str = "http://localhost:5000"
     agent_service_token: str = ""
     resend_api_key: str = ""
     smtp_host: str = ""

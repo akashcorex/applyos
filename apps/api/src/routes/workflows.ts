@@ -1,46 +1,33 @@
-import { randomUUID, timingSafeEqual } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 
-import { and, asc, eq, gt, inArray } from 'drizzle-orm';
 import { Router } from 'express';
 
 import {
-  agentTasks,
   applicationOutcomes,
   applicationStatuses,
-  applications,
-  db,
+  prisma,
   workflowEventTypes,
-  workflowEvents,
-  workflowJobs,
   workflowRunStatuses,
-  workflowRuns,
 } from '@applyso/database';
 
 import {
   agentTaskIdempotencyKey,
   applicationIdempotencyKey,
 } from '../lib/idempotency';
+import { serviceRequestAllowed } from '../lib/service-token';
 
 export { agentTaskIdempotencyKey, applicationIdempotencyKey };
-
-function internalRequestAllowed(token: string | undefined): boolean {
-  const expected = process.env.AGENT_SERVICE_TOKEN;
-  if (!expected || !token) return false;
-  const expectedBuf = Buffer.from(expected);
-  const tokenBuf = Buffer.from(token);
-  if (expectedBuf.length !== tokenBuf.length) return false;
-  return timingSafeEqual(expectedBuf, tokenBuf);
-}
 
 function isUniqueViolation(error: unknown): boolean {
   if (!error || typeof error !== 'object') return false;
   const code = (error as { code?: unknown }).code;
-  if (code === '23505') return true;
+  if (code === 'P2002' || code === '23505') return true;
   const cause = (error as { cause?: unknown }).cause;
   if (
     cause &&
     typeof cause === 'object' &&
-    (cause as { code?: unknown }).code === '23505'
+    ((cause as { code?: unknown }).code === '23505' ||
+      (cause as { code?: unknown }).code === 'P2002')
   ) {
     return true;
   }
@@ -204,67 +191,55 @@ async function updateApplication(
   const dedupKey = parseJobDedupKey(workflowId, update.jobId);
   if (!dedupKey) return;
 
-  const [job] = await db
-    .select({ id: workflowJobs.id })
-    .from(workflowJobs)
-    .where(
-      and(
-        eq(workflowJobs.workflowRunId, workflowId),
-        eq(workflowJobs.dedupKey, dedupKey),
-      ),
-    );
+  const job = await prisma.workflowJob.findUnique({
+    where: { workflowRunId_dedupKey: { workflowRunId: workflowId, dedupKey } },
+    select: { id: true },
+  });
   if (!job) return;
 
   const now = new Date();
-  await db
-    .update(workflowJobs)
-    .set({
+  await prisma.workflowJob.update({
+    where: { id: job.id },
+    data: {
       status: update.status === 'queued' ? 'application_queued' : undefined,
-      updatedAt: now,
-    })
-    .where(eq(workflowJobs.id, job.id));
+    },
+  });
 
-  const applicationValues = {
-    status: update.status,
-    externalTaskId: update.taskId ?? undefined,
-    errorDetail: update.errorDetail ?? null,
-    pageUrl: update.pageUrl ?? undefined,
-    screenshotPath: update.screenshotPath ?? undefined,
-    result: update.result ?? undefined,
-    submittedAt: update.status === 'submitted' ? now : undefined,
-    completedAt: terminalApplication(update.status)
-      ? now
-      : update.status === 'queued'
-        ? null
-        : undefined,
-    updatedAt: now,
-  };
-  await db
-    .update(applications)
-    .set(applicationValues)
-    .where(eq(applications.workflowJobId, job.id));
+  await prisma.application.updateMany({
+    where: { workflowJobId: job.id },
+    data: {
+      status: update.status,
+      externalTaskId: update.taskId ?? undefined,
+      errorDetail: update.errorDetail ?? null,
+      pageUrl: update.pageUrl ?? undefined,
+      screenshotPath: update.screenshotPath ?? undefined,
+      result: (update.result ?? undefined) as never,
+      submittedAt: update.status === 'submitted' ? now : undefined,
+      completedAt: terminalApplication(update.status)
+        ? now
+        : update.status === 'queued'
+          ? null
+          : undefined,
+      updatedAt: now,
+    },
+  });
 
   if (update.taskId) {
-    const [application] = await db
-      .select({ id: applications.id })
-      .from(applications)
-      .where(eq(applications.workflowJobId, job.id));
+    const application = await prisma.application.findUnique({
+      where: { workflowJobId: job.id },
+      select: { id: true },
+    });
     if (application) {
-      await db
-        .update(agentTasks)
-        .set({
+      await prisma.agentTask.updateMany({
+        where: { workflowRunId: workflowId, applicationId: application.id },
+        data: {
           externalTaskId: update.taskId,
           status: update.status === 'queued' ? 'queued' : undefined,
           errorDetail: update.status === 'queued' ? null : undefined,
           completedAt: update.status === 'queued' ? null : undefined,
           updatedAt: now,
-        })
-        .where(
-          and(
-            eq(agentTasks.workflowRunId, workflowId),
-            eq(agentTasks.applicationId, application.id),
-          ),
-        );
+        },
+      });
     }
   }
 }
@@ -276,7 +251,7 @@ export const workflowsRouter = Router();
  * the session and resume/variant ownership before calling this endpoint.
  */
 workflowsRouter.post('/internal/start', async (req, res) => {
-  if (!internalRequestAllowed(req.header('x-agent-service-token'))) {
+  if (!serviceRequestAllowed(req.header('x-agent-service-token'))) {
     res.status(401).json({ error: 'Unauthorized internal workflow request' });
     return;
   }
@@ -312,33 +287,35 @@ workflowsRouter.post('/internal/start', async (req, res) => {
   );
 
   let existingRows: {
-    application: typeof applications.$inferSelect;
-    workflowStatus: string | null;
+    idempotencyKey: string;
+    status: string;
+    workflowRun: { status: string } | null;
   }[];
   try {
-    existingRows = await db
-      .select({
-        application: applications,
-        workflowStatus: workflowRuns.status,
-      })
-      .from(applications)
-      .innerJoin(workflowRuns, eq(applications.workflowRunId, workflowRuns.id))
-      .where(
-        and(
-          eq(applications.userId, userId),
-          inArray(applications.idempotencyKey, idempotencyKeys),
-        ),
-      );
+    existingRows = await prisma.application.findMany({
+      where: { userId, idempotencyKey: { in: idempotencyKeys } },
+      select: {
+        idempotencyKey: true,
+        status: true,
+        workflowRun: { select: { status: true } },
+      },
+    });
   } catch (error) {
     console.error('[workflows] failed to load existing applications:', error);
     res.status(500).json({
       error:
-        'Workflow tables are missing or the database is unavailable. Run bun run db:migrate against the API database.',
+        'Workflow tables are missing or the database is unavailable. Run prisma migrate deploy against the API database.',
     });
     return;
   }
   const existingByKey = new Map(
-    existingRows.map((row) => [row.application.idempotencyKey, row]),
+    existingRows.map((row) => [
+      row.idempotencyKey,
+      {
+        application: { idempotencyKey: row.idempotencyKey, status: row.status },
+        workflowStatus: row.workflowRun?.status ?? null,
+      },
+    ]),
   );
 
   const skipped: { dedupKey: string; reason: string }[] = [];
@@ -348,6 +325,16 @@ workflowsRouter.post('/internal/start', async (req, res) => {
     applicationId: string;
     agentTaskKey: string;
   }[] = [];
+
+  // Reuse lookups need application ids for retryable rows.
+  const retryableIds = new Map<string, string>();
+  if (existingByKey.size > 0) {
+    const fullRows = await prisma.application.findMany({
+      where: { userId, idempotencyKey: { in: [...existingByKey.keys()] } },
+      select: { id: true, idempotencyKey: true },
+    });
+    for (const row of fullRows) retryableIds.set(row.idempotencyKey, row.id);
+  }
 
   for (const job of selectedApplications) {
     const applicationKey = applicationIdempotencyKey(
@@ -362,9 +349,11 @@ workflowsRouter.post('/internal/start', async (req, res) => {
     }
 
     const status = existing.application.status;
-    const runIsActive = !terminalWorkflow(
-      existing.workflowStatus as (typeof workflowRunStatuses)[number],
-    );
+    const runIsActive = existing.workflowStatus
+      ? !terminalWorkflow(
+          existing.workflowStatus as (typeof workflowRunStatuses)[number],
+        )
+      : false;
     if (SUCCESS_APPLICATION_STATUSES.has(status)) {
       skipped.push({ dedupKey: job.dedupKey, reason: 'already_applied' });
       continue;
@@ -377,9 +366,14 @@ workflowsRouter.post('/internal/start', async (req, res) => {
       continue;
     }
     if (RETRYABLE_APPLICATION_STATUSES.has(status)) {
+      const applicationId = retryableIds.get(applicationKey);
+      if (!applicationId) {
+        toCreate.push(job);
+        continue;
+      }
       toReuse.push({
         job,
-        applicationId: existing.application.id,
+        applicationId,
         agentTaskKey: agentTaskIdempotencyKey(applicationKey),
       });
       continue;
@@ -399,21 +393,21 @@ workflowsRouter.post('/internal/start', async (req, res) => {
   const now = new Date();
 
   try {
-    await db.transaction(async (tx) => {
-      await tx.insert(workflowRuns).values({
-        id: workflowId,
-        userId,
-        resumeId: body.resumeId!,
-        status: 'pending',
-        request: body.request ?? {},
-        startedAt: now,
-        updatedAt: now,
+    await prisma.$transaction(async (tx) => {
+      await tx.workflowRun.create({
+        data: {
+          id: workflowId,
+          userId,
+          resumeId: body.resumeId!,
+          status: 'pending',
+          request: (body.request ?? {}) as never,
+          startedAt: now,
+        },
       });
 
       for (const job of toCreate) {
-        const [workflowJob] = await tx
-          .insert(workflowJobs)
-          .values({
+        const workflowJob = await tx.workflowJob.create({
+          data: {
             workflowRunId: workflowId,
             userId,
             dedupKey: job.dedupKey,
@@ -428,18 +422,17 @@ workflowsRouter.post('/internal/start', async (req, res) => {
             status: 'matched',
             matchScore: job.matchScore,
             matchedAt: now,
-            updatedAt: now,
-          })
-          .returning({ id: workflowJobs.id });
+          },
+          select: { id: true },
+        });
 
         const applicationKey = applicationIdempotencyKey(
           userId,
           job.dedupKey,
           job.resumeVariantId,
         );
-        const [application] = await tx
-          .insert(applications)
-          .values({
+        const application = await tx.application.create({
+          data: {
             workflowRunId: workflowId,
             workflowJobId: workflowJob.id,
             userId,
@@ -449,27 +442,27 @@ workflowsRouter.post('/internal/start', async (req, res) => {
             idempotencyKey: applicationKey,
             atsType: job.source,
             applicationUrl: job.applicationUrl,
-            updatedAt: now,
-          })
-          .returning({ id: applications.id });
+          },
+          select: { id: true },
+        });
 
-        await tx.insert(agentTasks).values({
-          workflowRunId: workflowId,
-          applicationId: application.id,
-          userId,
-          agentName: 'apply-agent',
-          taskType: 'submit_application',
-          status: 'pending',
-          idempotencyKey: agentTaskIdempotencyKey(applicationKey),
-          payload: { dedupKey: job.dedupKey },
-          updatedAt: now,
+        await tx.agentTask.create({
+          data: {
+            workflowRunId: workflowId,
+            applicationId: application.id,
+            userId,
+            agentName: 'apply-agent',
+            taskType: 'submit_application',
+            status: 'pending',
+            idempotencyKey: agentTaskIdempotencyKey(applicationKey),
+            payload: { dedupKey: job.dedupKey },
+          },
         });
       }
 
       for (const item of toReuse) {
-        const [workflowJob] = await tx
-          .insert(workflowJobs)
-          .values({
+        const workflowJob = await tx.workflowJob.create({
+          data: {
             workflowRunId: workflowId,
             userId,
             dedupKey: item.job.dedupKey,
@@ -484,13 +477,13 @@ workflowsRouter.post('/internal/start', async (req, res) => {
             status: 'matched',
             matchScore: item.job.matchScore,
             matchedAt: now,
-            updatedAt: now,
-          })
-          .returning({ id: workflowJobs.id });
+          },
+          select: { id: true },
+        });
 
-        await tx
-          .update(applications)
-          .set({
+        await tx.application.update({
+          where: { id: item.applicationId },
+          data: {
             workflowRunId: workflowId,
             workflowJobId: workflowJob.id,
             resumeId: body.resumeId!,
@@ -501,40 +494,35 @@ workflowsRouter.post('/internal/start', async (req, res) => {
             screenshotPath: null,
             completedAt: null,
             submittedAt: null,
-            updatedAt: now,
-          })
-          .where(eq(applications.id, item.applicationId));
+          },
+        });
 
-        await tx
-          .update(agentTasks)
-          .set({
+        await tx.agentTask.updateMany({
+          where: { userId, idempotencyKey: item.agentTaskKey },
+          data: {
             workflowRunId: workflowId,
             applicationId: item.applicationId,
             status: 'pending',
             externalTaskId: null,
             errorDetail: null,
             completedAt: null,
-            updatedAt: now,
             payload: { dedupKey: item.job.dedupKey },
-          })
-          .where(
-            and(
-              eq(agentTasks.userId, userId),
-              eq(agentTasks.idempotencyKey, item.agentTaskKey),
-            ),
-          );
+          },
+        });
       }
 
-      await tx.insert(workflowEvents).values({
-        workflowRunId: workflowId,
-        userId,
-        eventType: 'workflow.created',
-        idempotencyKey: 'created',
-        payload: {
-          selectedJobCount: toCreate.length + toReuse.length,
-          skipped,
+      await tx.workflowEvent.create({
+        data: {
+          workflowRunId: workflowId,
+          userId,
+          eventType: 'workflow.created',
+          idempotencyKey: 'created',
+          payload: {
+            selectedJobCount: toCreate.length + toReuse.length,
+            skipped,
+          },
+          occurredAt: now,
         },
-        occurredAt: now,
       });
     });
 
@@ -567,28 +555,25 @@ workflowsRouter.post('/internal/start', async (req, res) => {
 
 /** Trusted read used by server-side ownership checks in the web application. */
 workflowsRouter.get('/internal/:workflowId', async (req, res) => {
-  if (!internalRequestAllowed(req.header('x-agent-service-token'))) {
+  if (!serviceRequestAllowed(req.header('x-agent-service-token'))) {
     res.status(401).json({ error: 'Unauthorized internal workflow request' });
     return;
   }
 
-  const [workflow] = await db
-    .select()
-    .from(workflowRuns)
-    .where(eq(workflowRuns.id, req.params.workflowId));
+  const workflow = await prisma.workflowRun.findUnique({
+    where: { id: req.params.workflowId },
+  });
   if (!workflow) {
     res.status(404).json({ error: 'Workflow not found' });
     return;
   }
 
-  const jobs = await db
-    .select()
-    .from(workflowJobs)
-    .where(eq(workflowJobs.workflowRunId, workflow.id));
-  const applicationRows = await db
-    .select()
-    .from(applications)
-    .where(eq(applications.workflowRunId, workflow.id));
+  const jobs = await prisma.workflowJob.findMany({
+    where: { workflowRunId: workflow.id },
+  });
+  const applicationRows = await prisma.application.findMany({
+    where: { workflowRunId: workflow.id },
+  });
 
   res.status(200).json({ workflow, jobs, applications: applicationRows });
 });
@@ -597,30 +582,27 @@ workflowsRouter.get('/internal/:workflowId', async (req, res) => {
 workflowsRouter.get(
   '/internal/applications/:applicationId',
   async (req, res) => {
-    if (!internalRequestAllowed(req.header('x-agent-service-token'))) {
+    if (!serviceRequestAllowed(req.header('x-agent-service-token'))) {
       res.status(401).json({ error: 'Unauthorized internal workflow request' });
       return;
     }
 
-    const [application] = await db
-      .select()
-      .from(applications)
-      .where(eq(applications.id, req.params.applicationId));
+    const application = await prisma.application.findUnique({
+      where: { id: req.params.applicationId },
+    });
     if (!application) {
       res.status(404).json({ error: 'Application not found' });
       return;
     }
 
-    const [workflowJob] = application.workflowJobId
-      ? await db
-          .select()
-          .from(workflowJobs)
-          .where(eq(workflowJobs.id, application.workflowJobId))
-      : [];
-    const [workflow] = await db
-      .select()
-      .from(workflowRuns)
-      .where(eq(workflowRuns.id, application.workflowRunId));
+    const workflowJob = application.workflowJobId
+      ? await prisma.workflowJob.findUnique({
+          where: { id: application.workflowJobId },
+        })
+      : null;
+    const workflow = await prisma.workflowRun.findUnique({
+      where: { id: application.workflowRunId },
+    });
     if (!workflowJob || !workflow) {
       res
         .status(409)
@@ -634,7 +616,7 @@ workflowsRouter.get(
 
 /** Trusted durable event reader. `after` is an exclusive ISO timestamp cursor. */
 workflowsRouter.get('/internal/:workflowId/events', async (req, res) => {
-  if (!internalRequestAllowed(req.header('x-agent-service-token'))) {
+  if (!serviceRequestAllowed(req.header('x-agent-service-token'))) {
     res.status(401).json({ error: 'Unauthorized internal workflow request' });
     return;
   }
@@ -646,25 +628,20 @@ workflowsRouter.get('/internal/:workflowId/events', async (req, res) => {
     return;
   }
 
-  const conditions = after
-    ? and(
-        eq(workflowEvents.workflowRunId, req.params.workflowId),
-        gt(workflowEvents.occurredAt, after),
-      )
-    : eq(workflowEvents.workflowRunId, req.params.workflowId);
-  const events = await db
-    .select()
-    .from(workflowEvents)
-    .where(conditions)
-    .orderBy(asc(workflowEvents.occurredAt))
-    .limit(100);
+  const events = await prisma.workflowEvent.findMany({
+    where: after
+      ? { workflowRunId: req.params.workflowId, occurredAt: { gt: after } }
+      : { workflowRunId: req.params.workflowId },
+    orderBy: { occurredAt: 'asc' },
+    take: 100,
+  });
 
   res.status(200).json({ events });
 });
 
 /** Trusted orchestrator callback for workflow and application state changes. */
 workflowsRouter.post('/internal/:workflowId/status', async (req, res) => {
-  if (!internalRequestAllowed(req.header('x-agent-service-token'))) {
+  if (!serviceRequestAllowed(req.header('x-agent-service-token'))) {
     res.status(401).json({ error: 'Unauthorized internal workflow request' });
     return;
   }
@@ -695,49 +672,72 @@ workflowsRouter.post('/internal/:workflowId/status', async (req, res) => {
   const eventType = isEventType(body.eventType)
     ? body.eventType
     : 'workflow.status_changed';
+  // Hoist narrowed values: TS drops property narrowing inside closures.
+  const nextStatus = body.status;
+  const errorDetail = hasString(body.errorDetail)
+    ? body.errorDetail
+    : undefined;
   const now = new Date();
 
   try {
-    const [workflow] = await db
-      .select({ userId: workflowRuns.userId })
-      .from(workflowRuns)
-      .where(eq(workflowRuns.id, workflowId));
+    const workflow = await prisma.workflowRun.findUnique({
+      where: { id: workflowId },
+      select: { userId: true },
+    });
     if (!workflow) {
       res.status(404).json({ error: 'Workflow not found' });
       return;
     }
 
-    await db.transaction(async (tx) => {
-      await tx
-        .update(workflowRuns)
-        .set({
-          status: body.status,
-          errorDetail: hasString(body.errorDetail)
-            ? body.errorDetail
-            : undefined,
-          completedAt: terminalWorkflow(body.status) ? now : undefined,
-          updatedAt: now,
-        })
-        .where(eq(workflowRuns.id, workflowId));
+    await prisma.$transaction(async (tx) => {
+      await tx.workflowRun.update({
+        where: { id: workflowId },
+        data: {
+          status: nextStatus,
+          errorDetail,
+          completedAt: terminalWorkflow(nextStatus) ? now : undefined,
+        },
+      });
 
       for (const update of updates) {
         await updateApplication(workflowId, update);
       }
 
-      await tx
-        .insert(workflowEvents)
-        .values({
-          workflowRunId: workflowId,
-          userId: workflow.userId,
-          eventType,
-          idempotencyKey: hasString(body.eventKey) ? body.eventKey : null,
-          payload: body.payload ?? {
-            status: body.status,
-            applications: updates,
+      const idempotencyKey = hasString(body.eventKey) ? body.eventKey : null;
+      if (idempotencyKey) {
+        try {
+          await tx.workflowEvent.create({
+            data: {
+              workflowRunId: workflowId,
+              userId: workflow.userId,
+              eventType,
+              idempotencyKey,
+              payload: (body.payload ?? {
+                status: body.status,
+                applications: updates,
+              }) as never,
+              occurredAt: now,
+            },
+          });
+        } catch (error) {
+          if (!isUniqueViolation(error)) throw error;
+          // Duplicate orchestrator callback — safe to ignore.
+        }
+      } else {
+        await tx.workflowEvent.create({
+          data: {
+            workflowRunId: workflowId,
+            userId: workflow.userId,
+            eventType,
+            idempotencyKey: null,
+            payload: (body.payload ?? {
+              status: body.status,
+              applications: updates,
+            }) as never,
+            occurredAt: now,
           },
-          occurredAt: now,
-        })
-        .onConflictDoNothing();
+        });
+      }
     });
 
     res.status(200).json({ ok: true });
@@ -751,7 +751,7 @@ workflowsRouter.post('/internal/:workflowId/status', async (req, res) => {
 workflowsRouter.patch(
   '/internal/:workflowId/applications/outcome',
   async (req, res) => {
-    if (!internalRequestAllowed(req.header('x-agent-service-token'))) {
+    if (!serviceRequestAllowed(req.header('x-agent-service-token'))) {
       res.status(401).json({ error: 'Unauthorized internal workflow request' });
       return;
     }
@@ -769,25 +769,24 @@ workflowsRouter.patch(
       return;
     }
 
-    const [job] = await db
-      .select({ id: workflowJobs.id })
-      .from(workflowJobs)
-      .where(
-        and(
-          eq(workflowJobs.workflowRunId, req.params.workflowId),
-          eq(workflowJobs.dedupKey, dedupKey),
-        ),
-      );
+    const job = await prisma.workflowJob.findUnique({
+      where: {
+        workflowRunId_dedupKey: {
+          workflowRunId: req.params.workflowId,
+          dedupKey,
+        },
+      },
+      select: { id: true },
+    });
     if (!job) {
       res.status(404).json({ error: 'Application not found' });
       return;
     }
 
-    const now = new Date();
-    await db
-      .update(applications)
-      .set({ outcome, updatedAt: now })
-      .where(eq(applications.workflowJobId, job.id));
+    await prisma.application.updateMany({
+      where: { workflowJobId: job.id },
+      data: { outcome },
+    });
 
     res.status(200).json({ ok: true, outcome });
   },

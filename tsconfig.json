@@ -6,9 +6,10 @@
     {
       "path": "./apps/web"
     },
-    {
-      "path": "./apps/api"
-    },
+    // NOTE: apps/api is intentionally NOT a project reference — it is a leaf
+    // deployable (esbuild bundle, composite disabled in tsconfig.app.json) and
+    // `tsc -b` requires referenced projects to be composite. The API is
+    // typechecked via `bun run typecheck` (tsc --noEmit, see package.json).
     {
       "path": "./packages/database"
     }

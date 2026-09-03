@@ -2,7 +2,11 @@ const path = require('path');
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  transpilePackages: ['@applyso/database', '@applyso/ui'],
+  transpilePackages: [
+    '@applyso/database',
+    '@applyso/ui',
+    '@applyso/validation',
+  ],
   // Railway Docker uses `output: 'standalone'` for minimal image.
   // Enable only when `NEXT_STANDALONE=true` to keep local dev fast.
   ...(process.env.NEXT_STANDALONE === 'true' ? { output: 'standalone' } : {}),

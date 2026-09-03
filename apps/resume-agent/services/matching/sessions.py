@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from models import MatchedJob, MatchResponse
+from models import MatchResponse
 
 if TYPE_CHECKING:
     from services.matching.repository import MatchingRepository

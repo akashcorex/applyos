@@ -4,7 +4,7 @@ const RESUME_AGENT_URL =
   process.env.RESUME_AGENT_URL ?? 'http://127.0.0.1:8005';
 const ORCHESTRATOR_URL =
   process.env.ORCHESTRATOR_URL ?? 'http://127.0.0.1:8001';
-const API_URL = process.env.API_URL ?? 'http://localhost:3333';
+const API_URL = process.env.API_URL ?? 'http://localhost:5000';
 const AGENT_SERVICE_TOKEN = process.env.AGENT_SERVICE_TOKEN;
 
 interface VariantContent {
@@ -431,7 +431,7 @@ export async function POST(request: Request) {
     const cause = (error as { cause?: { code?: string } } | null)?.cause;
     const message =
       cause?.code === 'ECONNREFUSED'
-        ? `Could not reach ${API_URL}. Restart the API after setting AGENT_SERVICE_TOKEN, and use API_URL=http://localhost:3333.`
+        ? `Could not reach ${API_URL}. Restart the API after setting AGENT_SERVICE_TOKEN, and use API_URL=http://localhost:5000.`
         : error instanceof Error && error.name === 'TimeoutError'
           ? 'Auto-apply timed out waiting for a backend service'
           : error instanceof Error

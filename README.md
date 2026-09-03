@@ -10,7 +10,7 @@ AI-powered job application platform — a Turborepo monorepo with a Next.js fron
                     └──────┬───────┘
                            │ HTTP
                     ┌──────▼───────┐
-                    │  API Server  │  Express (port 3333)
+                    │  API Server  │  Express (port 5000)
                     └──────┬───────┘
                            │ orchestrates
           ┌────────────────┼────────────────┐
@@ -63,7 +63,7 @@ cd apps/<agent> && pip install -r requirements.txt
 
 # Run an app
 bun run dev:web       # http://localhost:3000
-bun run dev:api       # http://localhost:3333
+bun run dev:api       # http://localhost:5000
 bun run dev:job-agent # http://127.0.0.1:8002
 ```
 
@@ -109,10 +109,12 @@ All are workspace-linked — import via `@applyso/<name>` after adding to your a
 Set the same high-entropy `AGENT_SERVICE_TOKEN` in `apps/web/.env.local`,
 `apps/api/.env`, `apps/ai-orchestrator/.env`, `apps/resume-agent/.env`, and
 `apps/apply-agent/.env`. It is used only for trusted server-to-server workflow
-persistence and compiled artifact downloads; do not expose it through a
-`NEXT_PUBLIC_` variable. The web service may also set `API_URL` and the
-orchestrator may set `API_URL` when these services do not use their local
-port defaults.
+persistence, resume extraction callbacks, LinkedIn connect writes, and
+compiled artifact downloads; do not expose it through a `NEXT_PUBLIC_`
+variable. The web service may also set `API_URL` and the orchestrator /
+resume-agent may set `API_URL` when these services do not use their local
+port defaults. The API should set `RESUME_AGENT_URL` (default
+`http://127.0.0.1:8005`) so `POST /v1/resumes/upload` can dispatch extract.
 
 Apply the durable workflow migration before starting the services:
 

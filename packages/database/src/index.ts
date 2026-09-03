@@ -1,2 +1,2 @@
-export { db } from './client';
-export * from './schema';
+export { prisma } from './prisma';
+export * from './enums';
