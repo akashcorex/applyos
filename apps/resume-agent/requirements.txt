@@ -363,7 +363,7 @@ tiktoken==0.13.0
     # via langchain-openai
 tokenizers==0.23.1
     # via chromadb
-tqdm==4.68.3
+tqdm==4.70.0
     # via
     #   chromadb
     #   huggingface-hub
