@@ -15,7 +15,7 @@
     "@applyso/validation": "workspace:*",
     "better-auth": "^1.7.2",
     "cors": "^2.8.5",
-    "dotenv": "^16.4.7",
+    "dotenv": "^17.4.2",
     "express": "^4.21.2",
     "multer": "^2.3.0"
   },
