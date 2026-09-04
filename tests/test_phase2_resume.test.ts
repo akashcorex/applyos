@@ -342,11 +342,11 @@ describe('Phase 2 Prisma-only architecture (schema contract)', () => {
       'model UserPreferences ',
       'model OutreachEmail ',
       'model AnalyticsEvent ',
-      'model EarlyAccessEmail ',
       'model LinkedinConnect ',
     ]) {
       expect(schema).toContain(model);
     }
+    expect(schema).not.toContain('model EarlyAccessEmail ');
   });
 
   it('15c. Profile enrichment + lifecycle columns exist', () => {

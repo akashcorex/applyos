@@ -19,6 +19,8 @@ COPY apps/resume-agent/package.json ./apps/resume-agent/package.json
 COPY apps/web ./apps/web
 
 RUN bun install --frozen-lockfile
+# Prisma client is gitignored; generate it before Next.js traces @applyso/database.
+RUN bun run db:generate
 
 ENV NEXT_TELEMETRY_DISABLED=1
 # Uncomment to use standalone output (requires NEXT_STANDALONE=true in next.config.js:9)

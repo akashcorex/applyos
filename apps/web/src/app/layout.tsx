@@ -64,7 +64,6 @@ export const metadata: Metadata = {
     'AI job applications',
     'auto apply',
     'job outreach',
-    'early access',
   ],
   authors: [{ name: 'ApplyOS' }],
   creator: 'ApplyOS',

@@ -4,9 +4,9 @@
   "envMode": "loose",
   "tasks": {
     "build": {
-      "dependsOn": ["^build"],
+      "dependsOn": ["^build", "^generate", "generate"],
       "outputs": ["dist/**", ".next/**", "!.next/cache/**"],
-      "env": ["EARLY_ACCESS_MODE", "DATABASE_URL"]
+      "env": ["DATABASE_URL"]
     },
     "dev": {
       "cache": false,
@@ -36,7 +36,9 @@
       "cache": true
     },
     "generate": {
-      "cache": false
+      "cache": true,
+      "outputs": ["src/generated/**"],
+      "env": ["DATABASE_URL"]
     },
     "migrate": {
       "cache": false

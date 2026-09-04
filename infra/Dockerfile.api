@@ -18,6 +18,8 @@ COPY apps/resume-agent/package.json ./apps/resume-agent/package.json
 COPY apps/api ./apps/api
 
 RUN bun install --frozen-lockfile
+# Prisma client is gitignored; generate it before the API bundle imports it.
+RUN bun run db:generate
 RUN bun run build:api
 
 FROM oven/bun:1.4.1 AS runner

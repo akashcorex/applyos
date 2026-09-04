@@ -180,13 +180,6 @@ async function main() {
   const adminAsUser = await req('/v1/admin/users', { cookie });
   check('GET /v1/admin/users as USER → 403', adminAsUser.status === 403);
 
-  const earlyAccess = await req('/v1/early-access/count');
-  check(
-    'GET /v1/early-access/count',
-    earlyAccess.status === 200,
-    String(earlyAccess.status),
-  );
-
   const signOut = await req('/api/auth/sign-out', {
     method: 'POST',
     cookie,

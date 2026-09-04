@@ -5,7 +5,6 @@ import {
   interventionCreateSchema,
 } from './applications';
 import { billingPaymentMethodSchema } from './billing';
-import { earlyAccessSubscribeSchema } from './early-access';
 import { jobApplySchema, jobIngestSchema, jobSearchSchema } from './jobs';
 import { linkedinConnectBulkSchema } from './linkedin';
 import { outreachEmailCreateSchema, outreachSendSchema } from './outreach';
@@ -28,7 +27,6 @@ import {
  * `bun --filter @applyso/validation snapshot-json-schema`
  */
 export const contractSchemas = {
-  earlyAccessSubscribe: earlyAccessSubscribeSchema,
   profileInput: profileInputSchema,
   resumeCreate: resumeCreateSchema,
   resumeUpdate: resumeUpdateSchema,

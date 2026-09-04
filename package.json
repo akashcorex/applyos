@@ -27,7 +27,7 @@
     "build:web": "turbo run build --filter=@applyso/web",
     "build:api": "turbo run build --filter=@applyso/api",
     "build:apps": "turbo run build --filter=@applyso/web --filter=@applyso/api",
-    "db:generate": "turbo run generate --filter=@applyso/database",
+    "db:generate": "DATABASE_URL=${DATABASE_URL:-postgresql://postgres:postgres@127.0.0.1:5432/outreach} turbo run generate --filter=@applyso/database",
     "db:migrate": "turbo run migrate --filter=@applyso/database",
     "db:push": "turbo run push --filter=@applyso/database",
     "db:studio": "turbo run studio --filter=@applyso/database",

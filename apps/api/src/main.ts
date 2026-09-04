@@ -9,7 +9,6 @@ import { auth } from './auth';
 import { startFallowBeacon } from './fallow-beacon';
 import { adminRouter } from './routes/admin';
 import { applicationsRouter } from './routes/applications';
-import { earlyAccessRouter } from './routes/early-access';
 import { linkedinConnectsRouter } from './routes/linkedin-connects';
 import { meRouter } from './routes/me';
 import { outreachRouter } from './routes/outreach';
@@ -39,7 +38,6 @@ app.get('/', (_req, res) => {
   res.send({ message: 'Hello API' });
 });
 
-app.use('/v1/early-access', earlyAccessRouter);
 app.use('/v1/me', meRouter);
 app.use('/v1/profiles', profilesRouter);
 app.use('/v1/resumes', resumesInternalRouter);

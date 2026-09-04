@@ -20,7 +20,6 @@ export { z };
 export * from './primitives';
 export * from './enums';
 export * from './auth';
-export * from './early-access';
 export * from './profile';
 export * from './resume';
 export * from './preferences';

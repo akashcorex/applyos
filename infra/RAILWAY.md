@@ -44,7 +44,7 @@ For each service: **+ New → GitHub Repo** → select `applyos.in` → **Settin
 
 | Service                | Root Directory | Dockerfile Path                    | Config as Code                      | Healthcheck |
 | ---------------------- | -------------- | ---------------------------------- | ----------------------------------- | ----------- |
-| `web`                  | _empty_ (`/`)  | `infra/Dockerfile.web`             | `apps/web/railway.json`             | `/`         |
+| `web`                  | Prefer **Vercel** (`applyos-ai`). Keep this Railway service only as a fallback. | `infra/Dockerfile.web`             | `apps/web/railway.json`             | `/`         |
 | `api` / `@applyso/api` | _empty_ (`/`)  | `infra/Dockerfile.api`             | `apps/api/railway.json`             | `/`         |
 | `ai-orchestrator`      | _empty_ (`/`)  | `infra/Dockerfile.ai-orchestrator` | `apps/ai-orchestrator/railway.json` | `/health`   |
 | `job-agent`            | _empty_ (`/`)  | `infra/Dockerfile.job-agent`       | `apps/job-agent/railway.json`       | `/health`   |
@@ -84,8 +84,8 @@ Per-service overrides for private networking:
   ```
 - `apply-agent`: `API_URL=http://api.railway.internal:3333`, `RESUME_AGENT_URL=http://resume-agent.railway.internal:8005`, `REDIS_URL`
 - `resume-agent`: `DATABASE_URL=${{Postgres.DATABASE_URL}}`, `JOB_AGENT_URL=http://job-agent.railway.internal:8002`
-- `web`: `NEXT_PUBLIC_API_URL=https://<api-domain>.up.railway.app`, `API_URL=http://api.railway.internal:3333`
-- `api`: `HOST=0.0.0.0`, `BETTER_AUTH_URL=https://<api-domain>.up.railway.app`, `WEB_URL=https://<web-domain>.up.railway.app`, `DATABASE_URL`
+- Vercel `web`: `NEXT_PUBLIC_API_URL=https://<api-domain>.up.railway.app`, `API_URL=https://<api-domain>.up.railway.app`, `NEXT_PUBLIC_WEB_URL=https://www.applyos.in`
+- `api`: `HOST=0.0.0.0`, `BETTER_AUTH_URL=https://<api-domain>.up.railway.app`, `WEB_URL=https://www.applyos.in`, `DATABASE_URL`
 
 ## 5. DB Migration
 

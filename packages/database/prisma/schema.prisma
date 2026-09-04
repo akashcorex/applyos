@@ -683,14 +683,6 @@ model AnalyticsIdentity {
   @@map("analytics_identities")
 }
 
-model EarlyAccessEmail {
-  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  email     String   @unique
-  createdAt DateTime @default(now()) @map("created_at")
-
-  @@map("early_access_email")
-}
-
 model LinkedinConnect {
   id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId      String    @map("user_id")
@@ -719,8 +711,6 @@ model AuditLog {
   targetUserId String?  @map("target_user_id")
   meta         Json?    @db.JsonB
   createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-
-  // Deliberately no FKs: append-only audit rows must survive user deletion.
 
   @@index([actorId], map: "idx_audit_logs_actor_id")
   @@index([targetUserId], map: "idx_audit_logs_target_user_id")
