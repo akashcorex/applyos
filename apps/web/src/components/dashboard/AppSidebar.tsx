@@ -1,5 +1,7 @@
 'use client';
 
+import { useEffect, useState } from 'react';
+
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
@@ -16,6 +18,7 @@ import {
 import { Button } from '@applyso/ui/button';
 
 import { DitherAvatar } from '@/components/dither-kit/avatar';
+import { fetchBillingMe, planLabel, statusLabel, type BillingMe } from '@/lib/billing';
 
 interface AppSidebarProps {
   userName?: string | null;
@@ -196,6 +199,11 @@ export function AppSidebar({
 }: AppSidebarProps) {
   const pathname = usePathname();
   const isSettingsMode = pathname.startsWith('/dashboard/settings');
+  const [billing, setBilling] = useState<BillingMe | null>(null);
+
+  useEffect(() => {
+    void fetchBillingMe().then(setBilling);
+  }, []);
 
   const workspaceNavItems = [
     { href: '/dashboard', label: 'Overview', icon: LinearInboxIcon },
@@ -397,14 +405,16 @@ export function AppSidebar({
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-900 dark:text-[#f1f3f9]">
                     <Sparkles className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400" />
-                    <span>Pro Plan</span>
+                    <span>{planLabel(billing?.plan ?? 'free')} Plan</span>
                   </div>
                   <span className="px-1.5 py-0.5 text-[9px] font-mono font-semibold rounded-[4px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                    ACTIVE
+                    {statusLabel(billing?.status ?? 'free')}
                   </span>
                 </div>
                 <p className="text-[11px] text-slate-500 dark:text-[#8a8f9d] leading-snug">
-                  Unlimited AI auto-apply pipelines & daily outreach enabled.
+                  {billing
+                    ? `${billing.cycle.remaining} of ${billing.cycle.limit} submitted applications left this cycle.`
+                    : 'Loading plan and usage…'}
                 </p>
                 <Link
                   href="/dashboard/settings/billing"

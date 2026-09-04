@@ -4,7 +4,7 @@ import {
   applicationEventCreateSchema,
   interventionCreateSchema,
 } from './applications';
-import { billingPaymentMethodSchema } from './billing';
+import { billingCheckoutSchema } from './billing';
 import { jobApplySchema, jobIngestSchema, jobSearchSchema } from './jobs';
 import { linkedinConnectBulkSchema } from './linkedin';
 import { outreachEmailCreateSchema, outreachSendSchema } from './outreach';
@@ -41,7 +41,7 @@ export const contractSchemas = {
   jobIngest: jobIngestSchema,
   jobSearch: jobSearchSchema,
   jobApply: jobApplySchema,
-  billingPaymentMethod: billingPaymentMethodSchema,
+  billingCheckout: billingCheckoutSchema,
 } as const;
 
 export type ContractName = keyof typeof contractSchemas;

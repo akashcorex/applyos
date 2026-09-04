@@ -1,246 +1,395 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
+
+import { useSearchParams } from 'next/navigation';
 
 import { Check } from 'lucide-react';
 
 import { analytics } from '@applyso/analytics';
+import {
+  ADD_ON_PACK_BONUS,
+  PLAN_APPLICATION_QUOTAS,
+  PLAN_INTERVAL_SAVINGS,
+  PLAN_PRICES_INR,
+  billingIntervals,
+  billingPlans,
+  monthlyEquivalentInr,
+  type BillingInterval,
+  type BillingPlan,
+} from '@applyso/validation';
 import { Badge } from '@applyso/ui/badge';
 import { Button } from '@applyso/ui/button';
 import {
   Card,
   CardContent,
-  CardHeader,
   CardDescription,
+  CardHeader,
 } from '@applyso/ui/card';
+import { Input } from '@applyso/ui/input';
 
-export default function BillingPlansPage() {
-  const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>(
-    'monthly',
-  );
+import {
+  fetchBillingMe,
+  planLabel,
+  startCheckout,
+  startPortal,
+  statusLabel,
+  type BillingMe,
+} from '@/lib/billing';
 
-  const plans = [
-    {
-      id: 'starter',
-      name: 'Starter',
-      price: '$0',
-      period: 'forever',
-      description: 'Essential toolkit for casual job seekers.',
-      features: [
-        '5 auto-applications / day',
-        'Basic ATS keyword match',
-        'Standard execution queue',
-        'Community email support',
-      ],
-      current: false,
-      cta: 'Current Plan',
-    },
-    {
-      id: 'pro',
-      name: 'Pro Autonomous',
-      price: billingCycle === 'monthly' ? '$29' : '$24',
-      period: 'per month',
-      description:
-        'Maximum job matching velocity & automated recruiter outreach.',
-      features: [
-        'Unlimited auto-applications',
-        'Real-time ATS resume tailoring',
-        'Automated LinkedIn outreach & messaging',
-        'Parallel queue execution & fast-track',
-        'Dedicated agent safety jitter & anti-detection',
-        '24/7 priority support',
-      ],
-      current: true,
-      popular: true,
-      cta: 'Active Plan',
-    },
-  ];
+function formatInr(amount: number): string {
+  return `₹${amount.toLocaleString('en-IN')}`;
+}
+
+const PLAN_COPY: Record<
+  BillingPlan,
+  { description: string; features: string[] }
+> = {
+  starter: {
+    description: 'For focused searches that still need real submissions.',
+    features: [
+      `${PLAN_APPLICATION_QUOTAS.starter} submitted applications / 30 days`,
+      'Hosted checkout — card stays with Dodo',
+      'Cancel any time',
+    ],
+  },
+  pro: {
+    description: 'Higher volume for active job searches.',
+    features: [
+      `${PLAN_APPLICATION_QUOTAS.pro} submitted applications / 30 days`,
+      'Hosted checkout — card stays with Dodo',
+      'Cancel any time',
+    ],
+  },
+  power: {
+    description: 'Maximum throughput when you are applying at scale.',
+    features: [
+      `${PLAN_APPLICATION_QUOTAS.power} submitted applications / 30 days`,
+      'Hosted checkout — card stays with Dodo',
+      'Cancel any time',
+    ],
+  },
+};
+
+function BillingPlansPage() {
+  const searchParams = useSearchParams();
+  const [interval, setInterval] = useState<BillingInterval>('monthly');
+  const [couponCode, setCouponCode] = useState('');
+  const [billing, setBilling] = useState<BillingMe | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  useEffect(() => {
+    const status = searchParams.get('status');
+    if (status === 'success') {
+      setNotice('Payment received. Your plan updates as soon as Dodo confirms it.');
+    } else if (status === 'cancelled') {
+      setNotice('Checkout cancelled. No charge was made.');
+    }
+    void fetchBillingMe().then(setBilling);
+  }, [searchParams]);
+
+  const atQuota = useMemo(() => {
+    if (!billing) return false;
+    return billing.cycle.remaining === 0;
+  }, [billing]);
+
+  async function checkoutPlan(plan: BillingPlan) {
+    setBusy(`${plan}:${interval}`);
+    setError(null);
+    analytics.track(
+      'plan_upgrade_clicked',
+      { target_plan: plan, billing_cycle: interval },
+      { feature: 'settings_billing' },
+    );
+    const result = await startCheckout({
+      plan,
+      interval,
+      couponCode: couponCode.trim() || undefined,
+    });
+    if (result.checkoutUrl) {
+      window.location.href = result.checkoutUrl;
+      return;
+    }
+    setError(result.error ?? 'Failed to start checkout');
+    setBusy(null);
+  }
+
+  async function checkoutAddOn(pack: 'plus_50' | 'plus_150') {
+    setBusy(pack);
+    setError(null);
+    const result = await startCheckout({
+      addOnPack: pack,
+      couponCode: couponCode.trim() || undefined,
+    });
+    if (result.checkoutUrl) {
+      window.location.href = result.checkoutUrl;
+      return;
+    }
+    setError(result.error ?? 'Failed to start checkout');
+    setBusy(null);
+  }
+
+  async function openPortal() {
+    setBusy('portal');
+    setError(null);
+    const result = await startPortal();
+    if (result.portalUrl) {
+      window.location.href = result.portalUrl;
+      return;
+    }
+    setError(result.error ?? 'Failed to open portal');
+    setBusy(null);
+  }
 
   return (
     <div className="w-full max-w-[1240px] mx-auto space-y-6 animate-fadeIn text-slate-900 dark:text-[#f1f3f9]">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-xl font-semibold text-slate-900 dark:text-[#f1f3f9] tracking-tight">
-            Plans & Billing
+            Pay for the applications. Not the tool.
           </h1>
           <p className="text-xs text-slate-500 dark:text-[#8a8f9d] mt-0.5">
-            Manage your subscription tier, usage quotas, and billing
-            preferences.
+            Every paid tier is the full product. Only volume differs. Quota
+            resets every 30 days.
           </p>
         </div>
 
-        {/* Monthly / Yearly Toggle */}
         <div className="flex items-center self-start sm:self-auto p-1 rounded-[8px] bg-slate-100 dark:bg-[#141518] border border-slate-200 dark:border-[#22242a]">
-          <button
-            type="button"
-            onClick={() => setBillingCycle('monthly')}
-            className={`px-3 py-1 text-xs font-medium rounded-[6px] transition-colors ${
-              billingCycle === 'monthly'
-                ? 'bg-white dark:bg-[#22242a] text-slate-900 dark:text-white shadow-sm'
-                : 'text-slate-500 dark:text-[#8a8f9d] hover:text-slate-900 dark:hover:text-[#f1f3f9]'
-            }`}
-          >
-            Monthly
-          </button>
-          <button
-            type="button"
-            onClick={() => setBillingCycle('yearly')}
-            className={`px-3 py-1 text-xs font-medium rounded-[6px] transition-colors flex items-center gap-1.5 ${
-              billingCycle === 'yearly'
-                ? 'bg-white dark:bg-[#22242a] text-slate-900 dark:text-white shadow-sm'
-                : 'text-slate-500 dark:text-[#8a8f9d] hover:text-slate-900 dark:hover:text-[#f1f3f9]'
-            }`}
-          >
-            <span>Annual</span>
-            <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono font-semibold">
-              SAVE 20%
-            </span>
-          </button>
+          {billingIntervals.map((option) => (
+            <button
+              key={option}
+              type="button"
+              onClick={() => setInterval(option)}
+              className={`px-3 py-1 text-xs font-medium rounded-[6px] transition-colors capitalize ${
+                interval === option
+                  ? 'bg-white dark:bg-[#22242a] text-slate-900 dark:text-white shadow-sm'
+                  : 'text-slate-500 dark:text-[#8a8f9d] hover:text-slate-900 dark:hover:text-[#f1f3f9]'
+              }`}
+            >
+              {option}
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* Usage Overview Banner */}
+      {notice ? (
+        <p className="text-xs text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/20 rounded-[8px] px-3 py-2">
+          {notice}
+        </p>
+      ) : null}
+      {error ? (
+        <p className="text-xs text-red-600 dark:text-red-400">{error}</p>
+      ) : null}
+
       <div className="grid gap-4 sm:grid-cols-3">
         <Card className="rounded-[12px]">
           <CardContent className="p-4 space-y-1">
             <span className="text-[11px] font-semibold text-slate-500 dark:text-[#8a8f9d] uppercase tracking-wider font-mono">
-              Applications This Cycle
+              Applications this cycle
             </span>
             <div className="flex items-baseline gap-2">
               <span className="text-2xl font-bold text-slate-900 dark:text-[#f1f3f9]">
-                142
+                {billing?.cycle.submitted ?? '—'}
+              </span>
+              <span className="text-xs text-slate-500 dark:text-[#8a8f9d] font-medium">
+                / {billing?.cycle.limit ?? 25}
+              </span>
+            </div>
+            <p className="text-[10px] text-slate-500 dark:text-[#8a8f9d]">
+              {billing
+                ? `${billing.cycle.remaining} remaining · submitted applications only`
+                : 'Loading usage…'}
+            </p>
+          </CardContent>
+        </Card>
+        <Card className="rounded-[12px]">
+          <CardContent className="p-4 space-y-1">
+            <span className="text-[11px] font-semibold text-slate-500 dark:text-[#8a8f9d] uppercase tracking-wider font-mono">
+              Current plan
+            </span>
+            <div className="flex items-baseline gap-2">
+              <span className="text-2xl font-bold text-slate-900 dark:text-[#f1f3f9]">
+                {billing ? planLabel(billing.plan) : '—'}
               </span>
               <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">
-                / Unlimited
+                {billing ? statusLabel(billing.status) : ''}
               </span>
             </div>
             <p className="text-[10px] text-slate-500 dark:text-[#8a8f9d]">
-              No submission limits enforced
+              {billing?.interval
+                ? `${billing.interval} · 25 free apps included before you pay`
+                : '25 free submitted applications. No card required.'}
             </p>
           </CardContent>
         </Card>
-
         <Card className="rounded-[12px]">
-          <CardContent className="p-4 space-y-1">
+          <CardContent className="p-4 space-y-3">
             <span className="text-[11px] font-semibold text-slate-500 dark:text-[#8a8f9d] uppercase tracking-wider font-mono">
-              Tailored Resume Variants
+              Coupon
             </span>
-            <div className="flex items-baseline gap-2">
-              <span className="text-2xl font-bold text-slate-900 dark:text-[#f1f3f9]">
-                38
-              </span>
-              <span className="text-xs text-slate-500 dark:text-[#8a8f9d]">
-                generated
-              </span>
-            </div>
+            <Input
+              value={couponCode}
+              onChange={(event) => setCouponCode(event.target.value)}
+              placeholder="Optional code"
+              className="h-8 text-xs"
+            />
             <p className="text-[10px] text-slate-500 dark:text-[#8a8f9d]">
-              High ATS score optimization
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="rounded-[12px]">
-          <CardContent className="p-4 space-y-1">
-            <span className="text-[11px] font-semibold text-slate-500 dark:text-[#8a8f9d] uppercase tracking-wider font-mono">
-              LinkedIn Outreach Connects
-            </span>
-            <div className="flex items-baseline gap-2">
-              <span className="text-2xl font-bold text-slate-900 dark:text-[#f1f3f9]">
-                56
-              </span>
-              <span className="text-xs text-slate-500 dark:text-[#8a8f9d]">
-                recruiter messages
-              </span>
-            </div>
-            <p className="text-[10px] text-slate-500 dark:text-[#8a8f9d]">
-              Safety jitter actively applied
+              Applied at Dodo checkout. You can also type a code there.
             </p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Plan Cards Grid */}
-      <div className="grid gap-6 md:grid-cols-2">
-        {plans.map((plan) => (
-          <Card
-            key={plan.id}
-            className={`rounded-[12px] transition-all ${
-              plan.current
-                ? 'border-indigo-500/60 bg-indigo-50/20 dark:bg-[#181a22] shadow-lg shadow-indigo-500/5 ring-1 ring-indigo-500/30'
-                : 'border-slate-200 dark:border-[#282a32] bg-white dark:bg-[#16171b]'
-            }`}
-          >
-            <CardHeader className="pb-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="text-base font-semibold text-slate-900 dark:text-[#f1f3f9]">
-                    {plan.name}
-                  </span>
-                  {plan.popular ? (
-                    <Badge
-                      variant="secondary"
-                      className="text-[10px] bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border-indigo-500/20"
-                    >
-                      CURRENT
-                    </Badge>
+      <div className="grid gap-6 md:grid-cols-3">
+        {billingPlans.map((plan) => {
+          const price = PLAN_PRICES_INR[plan][interval];
+          const save =
+            interval === 'monthly'
+              ? null
+              : PLAN_INTERVAL_SAVINGS[plan][interval];
+          const current =
+            billing?.plan === plan &&
+            billing.interval === interval &&
+            billing.status === 'active';
+          const popular = plan === 'pro';
+          return (
+            <Card
+              key={plan}
+              className={`rounded-[12px] transition-all ${
+                popular
+                  ? 'border-indigo-500/60 bg-indigo-50/20 dark:bg-[#181a22] shadow-lg shadow-indigo-500/5 ring-1 ring-indigo-500/30'
+                  : 'border-slate-200 dark:border-[#282a32] bg-white dark:bg-[#16171b]'
+              }`}
+            >
+              <CardHeader className="pb-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-base font-semibold text-slate-900 dark:text-[#f1f3f9]">
+                      {planLabel(plan)}
+                    </span>
+                    {popular ? (
+                      <Badge
+                        variant="secondary"
+                        className="text-[10px] bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border-indigo-500/20"
+                      >
+                        Most popular
+                      </Badge>
+                    ) : null}
+                  </div>
+                  {current ? (
+                    <span className="flex h-2 w-2 rounded-full bg-emerald-500 status-glow-emerald" />
                   ) : null}
                 </div>
-                {plan.current ? (
-                  <span className="flex h-2 w-2 rounded-full bg-emerald-500 status-glow-emerald" />
+                <CardDescription className="text-xs text-slate-500 dark:text-[#8a8f9d]">
+                  {PLAN_COPY[plan].description}
+                </CardDescription>
+                <div className="pt-3 flex items-baseline gap-1.5">
+                  <span className="text-3xl font-bold text-slate-900 dark:text-[#f1f3f9] tracking-tight">
+                    {formatInr(price)}
+                  </span>
+                  <span className="text-xs text-slate-500 dark:text-[#8a8f9d]">
+                    / {interval}
+                  </span>
+                </div>
+                {interval !== 'monthly' ? (
+                  <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
+                    {formatInr(monthlyEquivalentInr(plan, interval))}/mo
+                    {save ? ` · save ${save}%` : ''}
+                  </p>
                 ) : null}
-              </div>
-              <CardDescription className="text-xs text-slate-500 dark:text-[#8a8f9d]">
-                {plan.description}
-              </CardDescription>
-
-              <div className="pt-3 flex items-baseline gap-1.5">
-                <span className="text-3xl font-bold text-slate-900 dark:text-[#f1f3f9] tracking-tight">
-                  {plan.price}
-                </span>
-                <span className="text-xs text-slate-500 dark:text-[#8a8f9d]">
-                  {plan.period}
-                </span>
-              </div>
-            </CardHeader>
-
-            <CardContent className="space-y-5">
-              <div className="space-y-2 border-t border-slate-200 dark:border-[#22242a] pt-4">
-                <span className="text-[11px] font-semibold text-slate-500 dark:text-[#8a8f9d] uppercase tracking-wider font-mono block">
-                  Included Features
-                </span>
-                <ul className="space-y-2 text-xs text-slate-700 dark:text-[#d1d5db]">
-                  {plan.features.map((feature, idx) => (
-                    <li key={idx} className="flex items-center gap-2">
+              </CardHeader>
+              <CardContent className="space-y-5">
+                <ul className="space-y-2 text-xs text-slate-700 dark:text-[#d1d5db] border-t border-slate-200 dark:border-[#22242a] pt-4">
+                  {PLAN_COPY[plan].features.map((feature) => (
+                    <li key={feature} className="flex items-center gap-2">
                       <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
                       <span>{feature}</span>
                     </li>
                   ))}
                 </ul>
-              </div>
-
-              <Button
-                disabled={plan.current}
-                onClick={() => {
-                  if (!plan.current) {
-                    analytics.track(
-                      'plan_upgrade_clicked',
-                      { target_plan: plan.id, billing_cycle: billingCycle },
-                      { feature: 'settings_billing' },
-                    );
-                  }
-                }}
-                className={`w-full rounded-[6px] text-xs font-semibold ${
-                  plan.current
-                    ? 'bg-slate-100 dark:bg-[#22242a] text-slate-500 dark:text-[#8a8f9d] border border-slate-200 dark:border-[#2e313a] cursor-default'
-                    : 'bg-slate-900 text-white hover:bg-slate-800 dark:bg-white dark:text-black dark:hover:bg-slate-200'
-                }`}
-              >
-                {plan.cta}
-              </Button>
-            </CardContent>
-          </Card>
-        ))}
+                <Button
+                  disabled={current || busy !== null}
+                  onClick={() => void checkoutPlan(plan)}
+                  className={`w-full rounded-[6px] text-xs font-semibold ${
+                    current
+                      ? 'bg-slate-100 dark:bg-[#22242a] text-slate-500 dark:text-[#8a8f9d] border border-slate-200 dark:border-[#2e313a] cursor-default'
+                      : 'bg-slate-900 text-white hover:bg-slate-800 dark:bg-white dark:text-black dark:hover:bg-slate-200'
+                  }`}
+                >
+                  {current
+                    ? 'Current plan'
+                    : busy === `${plan}:${interval}`
+                      ? 'Redirecting…'
+                      : 'Get started'}
+                </Button>
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
+
+      {atQuota ? (
+        <Card className="rounded-[12px] border-amber-500/40">
+          <CardHeader>
+            <span className="text-sm font-semibold">Buy extra applications</span>
+            <CardDescription className="text-xs">
+              Add-on packs apply to your current 30-day cycle. Cards stay on
+              Dodo hosted checkout.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-wrap gap-3">
+            <Button
+              disabled={busy !== null}
+              variant="outline"
+              className="rounded-[6px] text-xs"
+              onClick={() => void checkoutAddOn('plus_50')}
+            >
+              {busy === 'plus_50'
+                ? 'Redirecting…'
+                : `+${ADD_ON_PACK_BONUS.plus_50} applications`}
+            </Button>
+            <Button
+              disabled={busy !== null}
+              variant="outline"
+              className="rounded-[6px] text-xs"
+              onClick={() => void checkoutAddOn('plus_150')}
+            >
+              {busy === 'plus_150'
+                ? 'Redirecting…'
+                : `+${ADD_ON_PACK_BONUS.plus_150} applications`}
+            </Button>
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {billing?.hasCustomerPortal ? (
+        <div className="flex justify-end">
+          <Button
+            type="button"
+            variant="outline"
+            disabled={busy !== null}
+            onClick={() => void openPortal()}
+            className="rounded-[6px] text-xs"
+          >
+            {busy === 'portal' ? 'Opening…' : 'Manage payment & cancel'}
+          </Button>
+        </div>
+      ) : null}
+
+      <p className="text-[11px] text-center text-slate-500 dark:text-[#8a8f9d]">
+        Cancel any time. 25 free submitted applications. You pay only for jobs
+        actually submitted.
+      </p>
     </div>
+  );
+}
+
+export default function BillingPage() {
+  return (
+    <Suspense fallback={null}>
+      <BillingPlansPage />
+    </Suspense>
   );
 }

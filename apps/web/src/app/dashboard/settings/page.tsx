@@ -18,6 +18,7 @@ import { Input } from '@applyso/ui/input';
 
 import { DitherAvatar } from '@/components/dither-kit/avatar';
 import { authClient } from '@/lib/auth-client';
+import { fetchBillingMe, planLabel, statusLabel, type BillingMe } from '@/lib/billing';
 
 interface ProfileRecord {
   fullName?: string | null;
@@ -39,8 +40,13 @@ export default function ProfilePage() {
   const [signingOut, setSigningOut] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [billing, setBilling] = useState<BillingMe | null>(null);
 
   const seedName = session?.user?.email ?? name ?? 'User';
+
+  useEffect(() => {
+    void fetchBillingMe().then(setBilling);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -317,14 +323,15 @@ export default function ProfilePage() {
                   <span>Account Plan</span>
                 </div>
                 <span className="px-1.5 py-0.5 text-[9px] font-mono font-semibold rounded-[4px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                  ACTIVE_PRO
+                  {statusLabel(billing?.status ?? 'free')}
                 </span>
               </div>
             </CardHeader>
             <CardContent className="space-y-3 text-xs text-slate-500 dark:text-[#8a8f9d]">
               <p className="text-[11px] leading-relaxed">
-                Autonomous application queue & unlimited resume tailoring
-                active.
+                {billing
+                  ? `${planLabel(billing.plan)} · ${billing.cycle.remaining} of ${billing.cycle.limit} submitted applications remaining this cycle.`
+                  : 'Loading plan and usage…'}
               </p>
               <Link
                 href="/dashboard/settings/billing"

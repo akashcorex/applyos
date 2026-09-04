@@ -59,6 +59,9 @@ model User {
   outreachEmails OutreachEmail[]
   analyticsEvents AnalyticsEvent[]
   analyticsIdentities AnalyticsIdentity[]
+  billingCustomer BillingCustomer?
+  subscriptions   Subscription[]
+  usageCycles     UsageCycle[]
 
   @@unique([email])
   @@index([role])
@@ -716,4 +719,60 @@ model AuditLog {
   @@index([targetUserId], map: "idx_audit_logs_target_user_id")
   @@index([createdAt], map: "idx_audit_logs_created_at")
   @@map("audit_logs")
+}
+
+model BillingCustomer {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId         String   @unique @map("user_id")
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dodoCustomerId String   @unique @map("dodo_customer_id")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("billing_customers")
+}
+
+model Subscription {
+  id                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId             String   @map("user_id")
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dodoSubscriptionId String   @unique @map("dodo_subscription_id")
+  plan               String
+  interval           String
+  status             String
+  currentPeriodStart DateTime @map("current_period_start") @db.Timestamptz(6)
+  currentPeriodEnd   DateTime @map("current_period_end") @db.Timestamptz(6)
+  cancelAtPeriodEnd  Boolean  @default(false) @map("cancel_at_period_end")
+  dodoProductId      String   @map("dodo_product_id")
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([userId], map: "idx_subscriptions_user_id")
+  @@index([userId, status], map: "idx_subscriptions_user_status")
+  @@map("subscriptions")
+}
+
+model UsageCycle {
+  id                   String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId               String   @map("user_id")
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cycleStart           DateTime @map("cycle_start") @db.Timestamptz(6)
+  cycleEnd             DateTime @map("cycle_end") @db.Timestamptz(6)
+  includedApplications Int      @map("included_applications")
+  bonusApplications    Int      @default(0) @map("bonus_applications")
+  submittedCount       Int      @default(0) @map("submitted_count")
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([userId, cycleStart, cycleEnd], map: "idx_usage_cycles_user_window")
+  @@map("usage_cycles")
+}
+
+model ProcessedWebhook {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  dodoEventId String   @unique @map("dodo_event_id")
+  eventType   String   @map("event_type")
+  processedAt DateTime @default(now()) @map("processed_at") @db.Timestamptz(6)
+
+  @@map("processed_webhooks")
 }

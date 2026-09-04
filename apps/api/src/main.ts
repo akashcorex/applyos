@@ -9,6 +9,7 @@ import { auth } from './auth';
 import { startFallowBeacon } from './fallow-beacon';
 import { adminRouter } from './routes/admin';
 import { applicationsRouter } from './routes/applications';
+import { billingRouter, billingWebhookHandler } from './routes/billing';
 import { linkedinConnectsRouter } from './routes/linkedin-connects';
 import { meRouter } from './routes/me';
 import { outreachRouter } from './routes/outreach';
@@ -32,6 +33,14 @@ app.use(
 
 app.all('/api/auth/*', toNodeHandler(auth));
 
+app.post(
+  '/v1/billing/webhook',
+  express.raw({ type: 'application/json' }),
+  (req, res, next) => {
+    void billingWebhookHandler(req, res).catch(next);
+  },
+);
+
 app.use(express.json());
 
 app.get('/', (_req, res) => {
@@ -48,6 +57,7 @@ app.use('/v1/linkedin-connects', linkedinConnectsRouter);
 app.use('/v1/preferences', preferencesRouter);
 app.use('/v1/outreach', outreachRouter);
 app.use('/v1/workflows', workflowsRouter);
+app.use('/v1/billing', billingRouter);
 
 app.listen(port, host, () => {
   console.log(`[ ready ] http://${host}:${port}`);

@@ -17,6 +17,10 @@ import {
   workflowRunStatuses as dbWorkflowRunStatuses,
   linkedinConnectStatuses as dbLinkedinConnectStatuses,
   outreachEmailStatuses as dbOutreachEmailStatuses,
+  billingPlans as dbBillingPlans,
+  billingIntervals as dbBillingIntervals,
+  billingAddOnPacks as dbBillingAddOnPacks,
+  billingSubscriptionStatuses as dbBillingSubscriptionStatuses,
 } from '@applyso/database';
 
 import {
@@ -31,6 +35,10 @@ import {
   workflowEventTypes,
   workflowJobStatuses,
   workflowRunStatuses,
+  billingPlans,
+  billingIntervals,
+  billingAddOnPacks,
+  billingSubscriptionStatuses,
 } from './enums.js';
 
 const pairs = {
@@ -48,6 +56,13 @@ const pairs = {
   workflowEventTypes: [workflowEventTypes, dbWorkflowEventTypes],
   linkedinConnectStatuses: [linkedinConnectStatuses, dbLinkedinConnectStatuses],
   outreachEmailStatuses: [outreachEmailStatuses, dbOutreachEmailStatuses],
+  billingPlans: [billingPlans, dbBillingPlans],
+  billingIntervals: [billingIntervals, dbBillingIntervals],
+  billingAddOnPacks: [billingAddOnPacks, dbBillingAddOnPacks],
+  billingSubscriptionStatuses: [
+    billingSubscriptionStatuses,
+    dbBillingSubscriptionStatuses,
+  ],
 } as const;
 
 describe('enum drift vs @applyso/database', () => {

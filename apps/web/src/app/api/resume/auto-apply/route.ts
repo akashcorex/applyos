@@ -332,7 +332,10 @@ export async function POST(request: Request) {
     const durableData = await durableRes.json().catch(() => ({}));
     if (!durableRes.ok || typeof durableData.workflowId !== 'string') {
       return Response.json(
-        { error: durableData.error || 'Failed to create durable workflow' },
+        {
+          ...durableData,
+          error: durableData.error || 'Failed to create durable workflow',
+        },
         { status: durableRes.status || 502 },
       );
     }

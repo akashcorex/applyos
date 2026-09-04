@@ -62,6 +62,9 @@ function scoreLabel(score: number): string {
 
 function errorMessage(data: unknown, fallback: string): string {
   if (!data || typeof data !== 'object') return fallback;
+  if ((data as { reason?: unknown }).reason === 'quota_exceeded') {
+    return 'Application quota exceeded. Buy extra applications on Plans & Billing.';
+  }
   const detail = (data as { detail?: unknown; error?: unknown }).detail;
   const error = (data as { error?: unknown }).error;
   if (typeof detail === 'string') return detail;

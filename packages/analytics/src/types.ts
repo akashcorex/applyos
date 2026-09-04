@@ -192,7 +192,7 @@ export interface AnalyticsEventMap {
   };
   plan_upgrade_clicked: {
     target_plan: string;
-    billing_cycle: 'monthly' | 'yearly';
+    billing_cycle: 'monthly' | 'quarterly' | 'annual';
   };
   preferences_updated: {
     auto_apply_enabled?: boolean;

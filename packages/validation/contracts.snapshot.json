@@ -801,42 +801,39 @@
       ],
       "additionalProperties": false
     },
-    "billingPaymentMethod": {
+    "billingCheckout": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "type": "object",
       "properties": {
-        "cardNumber": {
+        "plan": {
           "type": "string",
-          "format": "credit_card",
-          "pattern": "^\\d(?:[ -]?\\d){11,18}$"
+          "enum": [
+            "starter",
+            "pro",
+            "power"
+          ]
         },
-        "cardholderName": {
+        "interval": {
+          "type": "string",
+          "enum": [
+            "monthly",
+            "quarterly",
+            "annual"
+          ]
+        },
+        "couponCode": {
           "type": "string",
           "minLength": 1,
-          "maxLength": 120
+          "maxLength": 64
         },
-        "expiryMonth": {
-          "type": "integer",
-          "minimum": 1,
-          "maximum": 12
-        },
-        "expiryYear": {
-          "type": "integer",
-          "minimum": 2026,
-          "maximum": 2046
-        },
-        "cvc": {
+        "addOnPack": {
           "type": "string",
-          "pattern": "^\\d{3,4}$"
+          "enum": [
+            "plus_50",
+            "plus_150"
+          ]
         }
       },
-      "required": [
-        "cardNumber",
-        "cardholderName",
-        "expiryMonth",
-        "expiryYear",
-        "cvc"
-      ],
       "additionalProperties": false
     }
   }

@@ -152,6 +152,20 @@ export const linkedinConnectStatuses = [
 
 export const outreachEmailStatuses = ['queued', 'sent', 'failed'] as const;
 
+export const billingPlans = ['starter', 'pro', 'power'] as const;
+
+export const billingIntervals = ['monthly', 'quarterly', 'annual'] as const;
+
+export const billingAddOnPacks = ['plus_50', 'plus_150'] as const;
+
+export const billingSubscriptionStatuses = [
+  'active',
+  'on_hold',
+  'cancelled',
+  'expired',
+  'failed',
+] as const;
+
 /** Zod enum counterparts — import these in schemas, not the raw tuples. */
 export const resumeStatusSchema = z.enum(resumeStatuses);
 export const workflowRunStatusSchema = z.enum(workflowRunStatuses);
@@ -166,6 +180,12 @@ export const agentTaskStatusSchema = z.enum(agentTaskStatuses);
 export const workflowEventTypeSchema = z.enum(workflowEventTypes);
 export const linkedinConnectStatusSchema = z.enum(linkedinConnectStatuses);
 export const outreachEmailStatusSchema = z.enum(outreachEmailStatuses);
+export const billingPlanSchema = z.enum(billingPlans);
+export const billingIntervalSchema = z.enum(billingIntervals);
+export const billingAddOnPackSchema = z.enum(billingAddOnPacks);
+export const billingSubscriptionStatusSchema = z.enum(
+  billingSubscriptionStatuses,
+);
 
 export type ResumeStatus = (typeof resumeStatuses)[number];
 export type WorkflowRunStatus = (typeof workflowRunStatuses)[number];
@@ -181,3 +201,8 @@ export type AgentTaskStatus = (typeof agentTaskStatuses)[number];
 export type WorkflowEventType = (typeof workflowEventTypes)[number];
 export type LinkedinConnectStatus = (typeof linkedinConnectStatuses)[number];
 export type OutreachEmailStatus = (typeof outreachEmailStatuses)[number];
+export type BillingPlan = (typeof billingPlans)[number];
+export type BillingInterval = (typeof billingIntervals)[number];
+export type BillingAddOnPack = (typeof billingAddOnPacks)[number];
+export type BillingSubscriptionStatus =
+  (typeof billingSubscriptionStatuses)[number];

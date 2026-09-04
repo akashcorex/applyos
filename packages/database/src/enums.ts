@@ -179,3 +179,26 @@ export type LinkedinConnectStatus = (typeof linkedinConnectStatuses)[number];
 export const outreachEmailStatuses = ['queued', 'sent', 'failed'] as const;
 
 export type OutreachEmailStatus = (typeof outreachEmailStatuses)[number];
+
+export const billingPlans = ['starter', 'pro', 'power'] as const;
+
+export type BillingPlan = (typeof billingPlans)[number];
+
+export const billingIntervals = ['monthly', 'quarterly', 'annual'] as const;
+
+export type BillingInterval = (typeof billingIntervals)[number];
+
+export const billingAddOnPacks = ['plus_50', 'plus_150'] as const;
+
+export type BillingAddOnPack = (typeof billingAddOnPacks)[number];
+
+export const billingSubscriptionStatuses = [
+  'active',
+  'on_hold',
+  'cancelled',
+  'expired',
+  'failed',
+] as const;
+
+export type BillingSubscriptionStatus =
+  (typeof billingSubscriptionStatuses)[number];

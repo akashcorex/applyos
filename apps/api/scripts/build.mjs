@@ -23,6 +23,7 @@ await build({
     '@prisma/adapter-pg',
     'pg',
     '@fallow-cli/beacon',
+    'dodopayments',
   ],
   logLevel: 'info',
 });

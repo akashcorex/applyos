@@ -14,6 +14,12 @@ import {
   agentTaskIdempotencyKey,
   applicationIdempotencyKey,
 } from '../lib/idempotency';
+import {
+  incrementSubmittedCount,
+  QuotaExceededError,
+  quotaExceededBody,
+  assertCanStartApplications,
+} from '../lib/quota';
 import { serviceRequestAllowed } from '../lib/service-token';
 
 export { agentTaskIdempotencyKey, applicationIdempotencyKey };
@@ -197,6 +203,12 @@ async function updateApplication(
   });
   if (!job) return;
 
+  const existing = await prisma.application.findFirst({
+    where: { workflowJobId: job.id },
+    select: { userId: true, status: true },
+  });
+  if (!existing) return;
+
   const now = new Date();
   await prisma.workflowJob.update({
     where: { id: job.id },
@@ -223,6 +235,10 @@ async function updateApplication(
       updatedAt: now,
     },
   });
+
+  if (update.status === 'submitted' && existing.status !== 'submitted') {
+    await incrementSubmittedCount(existing.userId);
+  }
 
   if (update.taskId) {
     const application = await prisma.application.findUnique({
@@ -387,6 +403,16 @@ workflowsRouter.post('/internal/start', async (req, res) => {
       skipped,
     });
     return;
+  }
+
+  try {
+    await assertCanStartApplications(userId, toCreate.length);
+  } catch (error) {
+    if (error instanceof QuotaExceededError) {
+      res.status(402).json(quotaExceededBody());
+      return;
+    }
+    throw error;
   }
 
   const workflowId = randomUUID();
