@@ -233,6 +233,8 @@ export default function ProfilePage() {
               {hasProfile && !isConfirmed ? (
                 <p className="text-[11px] text-amber-600 dark:text-amber-400">
                   Extracted from your resume — review and confirm or save edits.
+                  Until you confirm, uploading a new resume will refresh these
+                  details.
                 </p>
               ) : null}
 

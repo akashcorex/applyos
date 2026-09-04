@@ -33,16 +33,9 @@ export async function POST(request: Request) {
 
     const formData = await request.formData();
     const file = formData.get('file');
-    const userId = formData.get('user_id');
 
     if (!(file instanceof File)) {
       return Response.json({ error: 'file is required' }, { status: 400 });
-    }
-    if (typeof userId !== 'string' || !userId.trim()) {
-      return Response.json({ error: 'user_id is required' }, { status: 400 });
-    }
-    if (userId !== userOrErr) {
-      return Response.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     const upstream = new FormData();

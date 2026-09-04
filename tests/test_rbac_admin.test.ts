@@ -34,6 +34,12 @@ const prismaMock = {
     count: mock(async () => 1),
     update: mock(async () => users[0]),
   },
+  session: {
+    deleteMany: mock(async () => ({ count: 1 })),
+  },
+  auditLog: {
+    create: mock(async () => ({})),
+  },
 };
 
 mock.module('@applyso/database', () => ({
@@ -65,10 +71,14 @@ beforeEach(() => {
   prismaMock.user.findMany.mockReset();
   prismaMock.user.count.mockReset();
   prismaMock.user.update.mockReset();
+  prismaMock.session.deleteMany.mockReset();
+  prismaMock.auditLog.create.mockReset();
   prismaMock.user.findUnique.mockResolvedValue(users[0]);
   prismaMock.user.findMany.mockResolvedValue(users);
   prismaMock.user.count.mockResolvedValue(1);
   prismaMock.user.update.mockResolvedValue(users[0]);
+  prismaMock.session.deleteMany.mockResolvedValue({ count: 1 });
+  prismaMock.auditLog.create.mockResolvedValue({});
 });
 
 describe('RBAC: /v1/admin is ADMIN-only', () => {
@@ -87,7 +97,7 @@ describe('RBAC: /v1/admin is ADMIN-only', () => {
     const res = await fetch(`${base}/v1/admin/users`);
     expect(res.status).toBe(403);
     const body = (await res.json()) as { error: string };
-    expect(body.error).toMatch(/admin/i);
+    expect(body.error).toMatch(/forbidden/i);
   });
 
   it('403 for a suspended ADMIN', async () => {
@@ -140,6 +150,7 @@ describe('RBAC: /v1/admin is ADMIN-only', () => {
     prismaMock.user.findUnique.mockResolvedValue({
       id: 'user-a',
       role: 'USER',
+      status: 'ACTIVE',
     });
     const res = await fetch(`${base}/v1/admin/users/user-a`, {
       method: 'PATCH',
@@ -148,5 +159,70 @@ describe('RBAC: /v1/admin is ADMIN-only', () => {
     });
     expect(res.status).toBe(200);
     expect(prismaMock.user.update.mock.calls.length).toBe(1);
+    const updateData = prismaMock.user.update.mock.calls[0][0] as {
+      data: Record<string, unknown>;
+    };
+    expect(updateData.data.status).toBe('SUSPENDED');
+    expect(updateData.data.banned).toBe(true);
+  });
+
+  it('suspend revokes the target user sessions and writes an audit log', async () => {
+    sessionUser = {
+      id: 'admin-1',
+      email: 'admin@example.com',
+      role: 'ADMIN',
+      status: 'ACTIVE',
+    };
+    prismaMock.user.findUnique.mockResolvedValue({
+      id: 'user-a',
+      role: 'USER',
+      status: 'ACTIVE',
+    });
+    const res = await fetch(`${base}/v1/admin/users/user-a`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'SUSPENDED' }),
+    });
+    expect(res.status).toBe(200);
+    expect(prismaMock.session.deleteMany.mock.calls.length).toBe(1);
+    expect(prismaMock.auditLog.create.mock.calls.length).toBe(1);
+  });
+
+  it('ADMIN cannot change own role or status', async () => {
+    sessionUser = {
+      id: 'admin-1',
+      email: 'admin@example.com',
+      role: 'ADMIN',
+      status: 'ACTIVE',
+    };
+    const res = await fetch(`${base}/v1/admin/users/admin-1`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'SUSPENDED' }),
+    });
+    expect(res.status).toBe(403);
+    expect(prismaMock.user.update.mock.calls.length).toBe(0);
+  });
+
+  it('cannot demote the last admin', async () => {
+    sessionUser = {
+      id: 'admin-2',
+      email: 'admin2@example.com',
+      role: 'ADMIN',
+      status: 'ACTIVE',
+    };
+    prismaMock.user.findUnique.mockResolvedValue({
+      id: 'admin-1',
+      role: 'ADMIN',
+      status: 'ACTIVE',
+    });
+    prismaMock.user.count.mockResolvedValue(1);
+    const res = await fetch(`${base}/v1/admin/users/admin-1`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ role: 'USER' }),
+    });
+    expect(res.status).toBe(409);
+    expect(prismaMock.user.update.mock.calls.length).toBe(0);
   });
 });

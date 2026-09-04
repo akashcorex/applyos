@@ -31,8 +31,9 @@ function toAccountStatus(value: unknown, banned?: boolean): string {
   return 'ACTIVE';
 }
 
-let sessionUserOverride: (() => Promise<SessionUser | null> | SessionUser | null) | null =
-  null;
+let sessionUserOverride:
+  | (() => Promise<SessionUser | null> | SessionUser | null)
+  | null = null;
 
 /** Test-only seam so HTTP tests can inject a session without Better Auth. */
 export function setSessionUserOverride(
@@ -56,32 +57,25 @@ export async function getSessionUser(
     const u = session.user as unknown as Record<string, unknown>;
     if (typeof u.id !== 'string') return null;
     // Identity comes from the session; authorization comes from the DB row.
-    try {
-      const row = await prisma.user.findUnique({
-        where: { id: u.id },
-        select: {
-          id: true,
-          email: true,
-          role: true,
-          status: true,
-          banned: true,
-        },
-      });
-      if (!row) return null;
-      return {
-        id: row.id,
-        email: row.email,
-        role: toRole(row.role),
-        status: toAccountStatus(row.status, row.banned),
-      };
-    } catch {
-      return {
-        id: u.id,
-        email: typeof u.email === 'string' ? u.email : '',
-        role: toRole(u.role),
-        status: toAccountStatus(u.status),
-      };
-    }
+    // Fail closed: if the DB row cannot be read, deny instead of trusting
+    // session-embedded role/status.
+    const row = await prisma.user.findUnique({
+      where: { id: u.id },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        status: true,
+        banned: true,
+      },
+    });
+    if (!row) return null;
+    return {
+      id: row.id,
+      email: row.email,
+      role: toRole(row.role),
+      status: toAccountStatus(row.status, row.banned),
+    };
   } catch {
     return null;
   }

@@ -51,6 +51,9 @@ export async function POST(request: Request) {
 }
 
 export async function GET(request: Request) {
+  const userOrErr = await requireUserId(request);
+  if (userOrErr instanceof Response) return userOrErr;
+
   try {
     const res = await fetch(`${ORCHESTRATOR_URL}/workflows`, {
       signal: AbortSignal.timeout(10000),

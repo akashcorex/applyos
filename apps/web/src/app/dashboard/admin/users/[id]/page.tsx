@@ -22,9 +22,11 @@ import {
   type AdminUser,
   fetchAdminUser,
 } from '@/lib/admin-api';
+import { useAdminGuard } from '@/lib/use-admin-guard';
 
 export default function AdminUserDetailPage() {
   const params = useParams<{ id: string }>();
+  const guard = useAdminGuard();
   const [user, setUser] = useState<AdminUser | null>(null);
   const [profile, setProfile] = useState<Record<string, unknown> | null>(null);
   const [resumes, setResumes] = useState<AdminResume[]>([]);
@@ -49,7 +51,7 @@ export default function AdminUserDetailPage() {
     };
   }, [params.id]);
 
-  if (!user && !error) {
+  if (guard !== 'ok' || (!user && !error)) {
     return (
       <div className="flex items-center justify-center py-24 text-slate-500">
         <Loader2 className="h-5 w-5 animate-spin mr-2" />
@@ -81,7 +83,9 @@ export default function AdminUserDetailPage() {
           <Card>
             <CardHeader>
               <CardTitle>{user.name}</CardTitle>
-              <CardDescription className="font-mono">{user.email}</CardDescription>
+              <CardDescription className="font-mono">
+                {user.email}
+              </CardDescription>
             </CardHeader>
             <CardContent className="flex flex-wrap gap-2 text-xs">
               <Badge>{user.role}</Badge>

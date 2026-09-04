@@ -140,7 +140,6 @@ export function ResumeAutoApplyCard({
     try {
       const formData = new FormData();
       formData.append('file', file);
-      formData.append('user_id', userId);
 
       const res = await fetch('/api/resume/parse', {
         method: 'POST',

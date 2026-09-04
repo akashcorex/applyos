@@ -1,3 +1,5 @@
+import { requireUserId } from '@/lib/require-user';
+
 const APPLY_AGENT_URL = process.env.APPLY_AGENT_URL ?? 'http://127.0.0.1:8003';
 
 export interface LinkedInSessionStatus {
@@ -8,16 +10,12 @@ export interface LinkedInSessionStatus {
 }
 
 export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const userId = searchParams.get('userId');
-
-  if (!userId) {
-    return Response.json({ error: 'userId is required' }, { status: 400 });
-  }
+  const userOrErr = await requireUserId(request);
+  if (userOrErr instanceof Response) return userOrErr;
 
   try {
     const res = await fetch(
-      `${APPLY_AGENT_URL}/admin/linkedin/session/${encodeURIComponent(userId)}`,
+      `${APPLY_AGENT_URL}/admin/linkedin/session/${encodeURIComponent(userOrErr)}`,
       { signal: AbortSignal.timeout(5000) },
     );
 

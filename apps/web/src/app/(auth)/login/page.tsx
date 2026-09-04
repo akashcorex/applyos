@@ -165,7 +165,7 @@ export default function LoginPage() {
           />
         </div>
 
-        {/* Options Row: Remember Me & Forgot Password */}
+        {/* Options Row: Remember Me */}
         <div className="flex items-center justify-between text-xs pt-1 pb-1">
           <label className="flex items-center gap-2 text-slate-600 font-semibold cursor-pointer select-none">
             <input
@@ -176,13 +176,6 @@ export default function LoginPage() {
             />
             <span>Remember me</span>
           </label>
-
-          <Link
-            href="#"
-            className="text-slate-500 hover:text-slate-900 font-semibold transition-colors"
-          >
-            Forgot Password
-          </Link>
         </div>
 
         {/* Error Alert */}

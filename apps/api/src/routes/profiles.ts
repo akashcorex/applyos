@@ -48,8 +48,9 @@ profilesRouter.get('/me', async (req, res) => {
 // PUT /v1/profiles/me — create or update own profile (upsert by userId).
 // Accepts Phase 1 scalar fields plus Phase 2 enriched sections (skills,
 // education, experience, projects, certifications, achievements, headline,
-// email). A user save marks the profile confirmed (canonical for future
-// job matching etc.).
+// email). Saving never confirms: confirmation is an explicit review step
+// (POST /me/confirm). Unconfirmed profiles stay updatable by new resume
+// extractions; confirmed ones are canonical and never overwritten.
 profilesRouter.put('/me', async (req, res) => {
   const me = authUserOf(req);
   const body = (req.body ?? {}) as Record<string, unknown>;
@@ -76,13 +77,11 @@ profilesRouter.put('/me', async (req, res) => {
     create: {
       userId: me.id,
       ...data,
-      isConfirmed: true,
-      confirmedAt: new Date(),
     },
-    update: { ...data, isConfirmed: true, confirmedAt: new Date() },
+    update: { ...data },
   });
   await trackProfileEvent(
-    existing ? 'profile_updated' : 'profile_confirmed',
+    existing ? 'profile_updated' : 'profile_created',
     me.id,
   );
   res.status(200).json({ profile });

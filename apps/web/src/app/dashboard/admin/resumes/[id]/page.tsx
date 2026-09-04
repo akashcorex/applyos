@@ -17,13 +17,19 @@ import {
   CardTitle,
 } from '@applyso/ui/card';
 
-import { type AdminResume, type AdminUser, fetchAdminResume } from '@/lib/admin-api';
+import {
+  type AdminResume,
+  type AdminUser,
+  fetchAdminResume,
+} from '@/lib/admin-api';
+import { useAdminGuard } from '@/lib/use-admin-guard';
 
 export default function AdminResumeDetailPage() {
   const params = useParams<{ id: string }>();
-  const [resume, setResume] = useState<(AdminResume & { user?: AdminUser }) | null>(
-    null,
-  );
+  const guard = useAdminGuard();
+  const [resume, setResume] = useState<
+    (AdminResume & { user?: AdminUser }) | null
+  >(null);
   const [extractions, setExtractions] = useState<unknown[]>([]);
   const [error, setError] = useState<string | null>(null);
 
@@ -47,7 +53,7 @@ export default function AdminResumeDetailPage() {
     };
   }, [params.id]);
 
-  if (!resume && !error) {
+  if (guard !== 'ok' || (!resume && !error)) {
     return (
       <div className="flex items-center justify-center py-24 text-slate-500">
         <Loader2 className="h-5 w-5 animate-spin mr-2" />
@@ -101,7 +107,9 @@ export default function AdminResumeDetailPage() {
             </CardHeader>
             <CardContent>
               {extractions.length === 0 ? (
-                <p className="text-xs text-slate-500">No extraction revisions.</p>
+                <p className="text-xs text-slate-500">
+                  No extraction revisions.
+                </p>
               ) : (
                 <pre className="text-[11px] overflow-x-auto rounded-md bg-slate-50 dark:bg-[#141518] p-3">
                   {JSON.stringify(extractions, null, 2)}

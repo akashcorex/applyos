@@ -5,6 +5,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 enum Role {
@@ -709,4 +710,20 @@ model LinkedinConnect {
   @@index([userId], map: "idx_linkedin_connects_user_id")
   @@index([jobId], map: "idx_linkedin_connects_job_id")
   @@map("linkedin_connects")
+}
+
+model AuditLog {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  actorId      String   @map("actor_id")
+  action       String
+  targetUserId String?  @map("target_user_id")
+  meta         Json?    @db.JsonB
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  // Deliberately no FKs: append-only audit rows must survive user deletion.
+
+  @@index([actorId], map: "idx_audit_logs_actor_id")
+  @@index([targetUserId], map: "idx_audit_logs_target_user_id")
+  @@index([createdAt], map: "idx_audit_logs_created_at")
+  @@map("audit_logs")
 }

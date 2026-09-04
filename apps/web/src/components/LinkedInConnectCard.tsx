@@ -56,13 +56,9 @@ export function LinkedInConnectCard() {
       return;
     }
 
-    const stableUserId: string = userId;
-
     async function fetchAutomationSession() {
       try {
-        const res = await fetch(
-          `/api/linkedin-session?userId=${encodeURIComponent(stableUserId)}`,
-        );
+        const res = await fetch('/api/linkedin-session');
         if (!res.ok) {
           setAutomationError(true);
           setAutomation(null);
