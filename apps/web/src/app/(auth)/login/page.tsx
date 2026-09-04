@@ -5,11 +5,12 @@ import { type FormEvent, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
-import { Linkedin, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 
 import { loginSchema, validateAction } from '@applyso/validation';
 
 import { AuthCardLayout } from '@/components/auth/AuthCardLayout';
+import { LinkedinIcon } from '@/components/icons/LinkedinIcon';
 import { appCallbackURL, authClient } from '@/lib/auth-client';
 
 function GoogleIcon({ className = 'h-4 w-4' }: { className?: string }) {
@@ -223,7 +224,7 @@ export default function LoginPage() {
             disabled={loading}
             className="w-full bg-white border border-slate-200 hover:bg-slate-50 text-slate-800 font-semibold text-xs py-2 rounded-md shadow-sm transition-all duration-150 tactile-btn flex items-center justify-center gap-2"
           >
-            <Linkedin className="h-4 w-4 text-[#0A66C2]" />
+            <LinkedinIcon className="h-4 w-4 text-[#0A66C2]" />
             <span>LinkedIn</span>
           </button>
         </div>
