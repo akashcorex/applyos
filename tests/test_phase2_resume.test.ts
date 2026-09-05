@@ -309,7 +309,7 @@ describe('Phase 2 Prisma-only architecture (schema contract)', () => {
     'database',
     'prisma',
     'migrations',
-    '20260904000000_phase2_prisma_only',
+    '01_init',
     'migration.sql',
   );
   const migration = readFileSync(migrationPath, 'utf8');
@@ -357,21 +357,17 @@ describe('Phase 2 Prisma-only architecture (schema contract)', () => {
     expect(schema).toMatch(/model ResumeFile[\s\S]*?idempotencyKey/);
   });
 
-  it('16. migration is additive (creates, never drops)', () => {
+  it('16. baseline migration creates tables and never drops', () => {
     expect(existsSync(migrationPath)).toBe(true);
-    expect(migration).toContain(
-      'CREATE TABLE IF NOT EXISTS "resume_extractions"',
-    );
-    expect(migration).toContain('CREATE TABLE IF NOT EXISTS "resumes"');
+    expect(migration).toContain('CREATE TABLE "resume_extractions"');
+    expect(migration).toContain('CREATE TABLE "resumes"');
     expect(migration).not.toMatch(/DROP TABLE/i);
-    const createResumes = migration.indexOf(
-      'CREATE TABLE IF NOT EXISTS "resumes"',
-    );
+    const createResumes = migration.indexOf('CREATE TABLE "resumes"');
     const fk = migration.indexOf('resume_files_resumeId_fkey');
     expect(createResumes).toBeGreaterThan(-1);
     expect(fk).toBeGreaterThan(createResumes);
     expect(migration).toMatch(
-      /CREATE TABLE IF NOT EXISTS "resume_extractions"[\s\S]*DEFAULT 'PROCESSING'/,
+      /CREATE TABLE "resume_extractions"[\s\S]*DEFAULT 'PROCESSING'/,
     );
   });
 
