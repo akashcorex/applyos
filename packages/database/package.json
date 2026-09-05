@@ -2,13 +2,14 @@
   "name": "@applyso/database",
   "version": "0.0.0",
   "private": true,
+  "type": "module",
   "description": "Shared Postgres schema and Prisma client (Prisma is the only ORM) used by applyso services.",
   "exports": {
     ".": "./src/index.ts",
     "./prisma": "./src/prisma.ts"
   },
   "scripts": {
-    "generate": "prisma generate --schema prisma/schema.prisma",
+    "generate": "prisma generate",
     "migrate": "prisma migrate deploy",
     "push": "prisma db push",
     "studio": "prisma studio",
@@ -19,15 +20,15 @@
     "prisma:studio": "prisma studio"
   },
   "dependencies": {
-    "@prisma/adapter-pg": "^6.0.0",
-    "@prisma/client": "^6.0.0",
+    "@prisma/adapter-pg": "^7.10.0",
+    "@prisma/client": "^7.10.0",
     "dotenv": "^17.4.2",
     "pg": "^8.23.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
     "@types/pg": "^8.23.1",
-    "prisma": "^6.0.0",
+    "prisma": "^7.10.0",
     "tsx": "^4.23.13"
   }
 }

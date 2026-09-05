@@ -43,7 +43,15 @@ app.post(
 
 app.use(express.json());
 
-app.get('/', (_req, res) => {
+app.get('/', (req, res) => {
+  const error = typeof req.query.error === 'string' ? req.query.error : null;
+  if (error) {
+    const web = process.env.WEB_URL ?? 'http://localhost:3000';
+    const next = new URL('/login', web);
+    next.searchParams.set('error', error);
+    res.redirect(302, next.toString());
+    return;
+  }
   res.send({ message: 'Hello API' });
 });
 

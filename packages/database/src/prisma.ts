@@ -11,7 +11,16 @@ function createPrismaClient(): PrismaClient {
   if (!connectionString) {
     throw new Error('DATABASE_URL is not set');
   }
-  const adapter = new PrismaPg({ connectionString });
+
+  // Prisma 7 uses node-pg. Neon and other managed Postgres hosts require TLS;
+  // rejectUnauthorized: false matches the v6 engine's previous default.
+  const needsTls = /sslmode=require|neon\.tech|ssl=true/i.test(
+    connectionString,
+  );
+  const adapter = new PrismaPg({
+    connectionString,
+    ...(needsTls ? { ssl: { rejectUnauthorized: false } } : {}),
+  });
   return new PrismaClient({ adapter });
 }
 

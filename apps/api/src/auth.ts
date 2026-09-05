@@ -86,6 +86,9 @@ export const auth = betterAuth({
     }),
   ],
   trustedOrigins: webOrigins(),
+  onAPIError: {
+    errorURL: `${process.env.WEB_URL ?? 'http://localhost:3000'}/login`,
+  },
 });
 
 export type Session = typeof auth.$Infer.Session;

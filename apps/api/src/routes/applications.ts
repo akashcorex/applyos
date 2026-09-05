@@ -118,10 +118,12 @@ applicationsRouter.get('/internal/user/:userId', async (req, res) => {
     take: 100,
   });
 
-  const filtered = rows.filter((row) => filterByCategory(row.status, category));
+  const filtered = rows.filter((row: (typeof rows)[number]) =>
+    filterByCategory(row.status, category),
+  );
 
   res.status(200).json({
-    applications: filtered.map((row) => ({
+    applications: filtered.map((row: (typeof rows)[number]) => ({
       ...row,
       workflowJob: undefined,
       jobTitle: row.workflowJob?.title ?? null,

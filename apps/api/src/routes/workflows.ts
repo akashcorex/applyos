@@ -419,7 +419,7 @@ workflowsRouter.post('/internal/start', async (req, res) => {
   const now = new Date();
 
   try {
-    await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx: typeof prisma) => {
       await tx.workflowRun.create({
         data: {
           id: workflowId,
@@ -715,7 +715,7 @@ workflowsRouter.post('/internal/:workflowId/status', async (req, res) => {
       return;
     }
 
-    await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx: typeof prisma) => {
       await tx.workflowRun.update({
         where: { id: workflowId },
         data: {
