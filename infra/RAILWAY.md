@@ -91,7 +91,9 @@ Per-service overrides for private networking:
 
 ## 5. DB Migration
 
-Once Postgres is up, run from local or Railway shell:
+The API image runs `prisma migrate deploy` on every start (`apps/api/scripts/start.sh`) before `node apps/api/dist/main.js`. Railway injects `DATABASE_URL` at deploy time — do not set it in the Dockerfile.
+
+Manual fallback (local or one-off):
 
 ```bash
 DATABASE_URL=<railway-postgres-url> bun run db:migrate
@@ -121,7 +123,7 @@ docker build -f infra/Dockerfile.web -t applyos-web .
 docker run -p 3000:3000 -e PORT=3000 applyos-web
 
 docker build -f infra/Dockerfile.api -t applyos-api .
-docker run -p 3333:3333 -e PORT=3333 -e HOST=0.0.0.0 applyos-api
+docker run -p 3333:3333 -e PORT=3333 -e HOST=0.0.0.0 -e DATABASE_URL="$DATABASE_URL" applyos-api
 
 docker build -f infra/Dockerfile.ai-orchestrator -t ai-orchestrator .
 ```

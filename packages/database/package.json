@@ -9,7 +9,7 @@
     "./prisma": "./src/prisma.ts"
   },
   "scripts": {
-    "generate": "prisma generate",
+    "generate": "DATABASE_URL=${DATABASE_URL:-postgresql://postgres:postgres@127.0.0.1:5432/outreach} prisma generate",
     "migrate": "prisma migrate deploy",
     "push": "prisma db push",
     "studio": "prisma studio",
@@ -23,12 +23,12 @@
     "@prisma/adapter-pg": "^7.10.0",
     "@prisma/client": "^7.10.0",
     "dotenv": "^17.4.2",
-    "pg": "^8.23.0"
+    "pg": "^8.23.0",
+    "prisma": "^7.10.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
     "@types/pg": "^8.23.1",
-    "prisma": "^7.10.0",
     "tsx": "^4.23.13"
   }
 }

@@ -1,14 +1,11 @@
 # syntax=docker/dockerfile:1
-# Railway Dockerfile for Next.js web (Turborepo + Bun)
-# Build context: repo root (Railway Root Directory = /)
-# Set Dockerfile Path = infra/Dockerfile.web in Railway dashboard
+# Next.js web — workspace-filtered install + standalone output.
+# Build context: repo root. Dockerfile Path = infra/Dockerfile.web
 
-FROM oven/bun:1.4.1 AS base
+FROM oven/bun:1.4.1 AS deps
 WORKDIR /app
 
-# Copy workspace manifests first for layer caching
 COPY package.json bun.lock turbo.json tsconfig.base.json tsconfig.json ./
-COPY packages ./packages
 COPY apps/api/package.json ./apps/api/package.json
 COPY apps/web/package.json ./apps/web/package.json
 COPY apps/ai-orchestrator/package.json ./apps/ai-orchestrator/package.json
@@ -16,33 +13,53 @@ COPY apps/job-agent/package.json ./apps/job-agent/package.json
 COPY apps/apply-agent/package.json ./apps/apply-agent/package.json
 COPY apps/outreach-agent/package.json ./apps/outreach-agent/package.json
 COPY apps/resume-agent/package.json ./apps/resume-agent/package.json
+COPY packages/database/package.json ./packages/database/package.json
+COPY packages/validation/package.json ./packages/validation/package.json
+COPY packages/ui/package.json ./packages/ui/package.json
+COPY packages/analytics/package.json ./packages/analytics/package.json
+COPY packages/queue/package.json ./packages/queue/package.json
+COPY packages/logger/package.json ./packages/logger/package.json
+COPY packages/types/package.json ./packages/types/package.json
+COPY packages/sdk/package.json ./packages/sdk/package.json
+
+RUN bun install --frozen-lockfile \
+    --filter=@applyso/web \
+    --filter=@applyso/database \
+    --filter=@applyso/ui \
+    --filter=@applyso/validation \
+    --filter=@applyso/analytics
+
+FROM deps AS build
+COPY packages/database ./packages/database
+COPY packages/validation ./packages/validation
+COPY packages/ui ./packages/ui
+COPY packages/analytics ./packages/analytics
 COPY apps/web ./apps/web
 
-RUN bun install --frozen-lockfile
-# Prisma client is gitignored; generate it before Next.js traces @applyso/database.
-RUN bun run db:generate
-
+ENV DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/outreach
 ENV NEXT_TELEMETRY_DISABLED=1
-# Uncomment to use standalone output (requires NEXT_STANDALONE=true in next.config.js:9)
-# ENV NEXT_STANDALONE=true
-RUN bun run build:web
+ENV NEXT_STANDALONE=true
+RUN bun run --filter=@applyso/database generate \
+ && bun run --filter=@applyso/web build
 
-FROM oven/bun:1.4.1 AS runner
+FROM node:20-bookworm-slim AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV HOSTNAME=0.0.0.0
+ENV PORT=3000
 
-COPY --from=base /app/package.json ./package.json
-COPY --from=base /app/bun.lock ./bun.lock
-COPY --from=base /app/node_modules ./node_modules
-COPY --from=base /app/packages ./packages
-COPY --from=base /app/apps/web ./apps/web
-COPY --from=base /app/turbo.json ./turbo.json
-COPY --from=base /app/tsconfig.base.json ./tsconfig.base.json
-COPY --from=base /app/tsconfig.json ./tsconfig.json
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends ca-certificates \
+ && rm -rf /var/lib/apt/lists/* \
+ && adduser --system --group --uid 1001 nextjs
 
+COPY --from=build --chown=nextjs:nextjs /app/apps/web/.next/standalone ./
+COPY --from=build --chown=nextjs:nextjs /app/apps/web/.next/static ./apps/web/.next/static
+COPY --from=build --chown=nextjs:nextjs /app/apps/web/public ./apps/web/public
+
+USER nextjs
 EXPOSE 3000
-# Railway injects PORT; next start handles PORT + HOSTNAME via apps/web/package.json:8
-HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 CMD bun --filter @applyso/web exec -- curl -f http://localhost:${PORT:-3000}/ || exit 1
-CMD ["sh", "-c", "bun --filter @applyso/web start"]
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||3000)+'/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+CMD ["node", "apps/web/server.js"]

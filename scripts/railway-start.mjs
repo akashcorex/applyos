@@ -8,10 +8,10 @@ const port = process.env.PORT;
 const name = process.env.RAILWAY_SERVICE_NAME ?? '';
 
 const commands = {
-  '@applyso/api': ['node', 'apps/api/dist/main.js'],
-  api: ['node', 'apps/api/dist/main.js'],
-  '@applyso/web': ['bun', '--filter', '@applyso/web', 'start'],
-  web: ['bun', '--filter', '@applyso/web', 'start'],
+  '@applyso/api': ['sh', '/app/apps/api/scripts/start.sh'],
+  api: ['sh', '/app/apps/api/scripts/start.sh'],
+  '@applyso/web': ['node', 'apps/web/server.js'],
+  web: ['node', 'apps/web/server.js'],
   'apply-agent': [
     'python',
     '-m',
@@ -23,8 +23,6 @@ const commands = {
     port || '8003',
   ],
   'job-agent': [
-    'uv',
-    'run',
     'uvicorn',
     'main:app',
     '--host',
@@ -33,8 +31,6 @@ const commands = {
     port || '8002',
   ],
   'outreach-agent': [
-    'uv',
-    'run',
     'uvicorn',
     'main:app',
     '--host',
@@ -43,8 +39,6 @@ const commands = {
     port || '8004',
   ],
   'ai-orchestrator': [
-    'uv',
-    'run',
     'uvicorn',
     'main:app',
     '--host',
@@ -53,8 +47,6 @@ const commands = {
     port || '8001',
   ],
   'resume-agent': [
-    'uv',
-    'run',
     'uvicorn',
     'main:app',
     '--host',

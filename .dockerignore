@@ -25,3 +25,19 @@ apps/*/uploads
 apps/apply-agent/.apply-debug
 *.log
 .DS_Store
+
+# Tests, docs, editor — not needed in any image
+tests
+**/tests
+**/*_test.py
+**/*.test.ts
+**/*.spec.ts
+**/*.md
+.github
+.cursor
+.vscode
+.idea
+docs
+out
+*.canvas.tsx
+**/.python-version

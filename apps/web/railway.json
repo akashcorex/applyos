@@ -12,7 +12,7 @@
     ]
   },
   "deploy": {
-    "startCommand": "bun --filter @applyso/web start",
+    "startCommand": "node apps/web/server.js",
     "healthcheckPath": "/",
     "healthcheckTimeout": 100,
     "restartPolicyType": "ON_FAILURE",

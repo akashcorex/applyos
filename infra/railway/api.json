@@ -11,7 +11,7 @@
     ]
   },
   "deploy": {
-    "startCommand": "node apps/api/dist/main.js",
+    "startCommand": "/app/apps/api/scripts/start.sh",
     "healthcheckPath": "/",
     "healthcheckTimeout": 100,
     "restartPolicyType": "ON_FAILURE",
