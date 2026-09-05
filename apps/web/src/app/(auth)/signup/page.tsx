@@ -91,20 +91,30 @@ export default function SignupPage() {
     setLoading(true);
     setError(null);
 
-    await authClient.signIn.social({
+    const { error: socialError } = await authClient.signIn.social({
       provider: 'linkedin',
       callbackURL: appCallbackURL('/dashboard'),
     });
+
+    if (socialError) {
+      setLoading(false);
+      setError(socialError.message ?? 'LinkedIn sign-in failed');
+    }
   }
 
   async function handleGoogleLogin() {
     setLoading(true);
     setError(null);
 
-    await authClient.signIn.social({
+    const { error: socialError } = await authClient.signIn.social({
       provider: 'google',
       callbackURL: appCallbackURL('/dashboard'),
     });
+
+    if (socialError) {
+      setLoading(false);
+      setError(socialError.message ?? 'Google sign-in failed');
+    }
   }
 
   return (

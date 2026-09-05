@@ -4,8 +4,8 @@
     "builder": "DOCKERFILE",
     "dockerfilePath": "infra/Dockerfile.ai-orchestrator",
     "watchPatterns": [
-      "apps/ai-orchestrator/**",
-      "infra/Dockerfile.ai-orchestrator"
+      "/apps/ai-orchestrator/**",
+      "/infra/Dockerfile.ai-orchestrator"
     ]
   },
   "deploy": {

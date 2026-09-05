@@ -4,12 +4,11 @@
     "builder": "DOCKERFILE",
     "dockerfilePath": "infra/Dockerfile.web",
     "watchPatterns": [
-      "apps/web/**",
-      "packages/**",
-      "package.json",
-      "bun.lock",
-      "turbo.json",
-      "infra/Dockerfile.web"
+      "/apps/web/**",
+      "/packages/ui/**",
+      "/packages/validation/**",
+      "/packages/analytics/**",
+      "/infra/Dockerfile.web"
     ]
   },
   "deploy": {

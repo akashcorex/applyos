@@ -4,6 +4,8 @@ import { admin } from 'better-auth/plugins';
 
 import { prisma } from '@applyso/database';
 
+import { webOrigins } from './lib/web-origins';
+
 // Phase 1: Prisma is the primary adapter. Better Auth core tables
 // (user/session/account/verification) are shared with the legacy Drizzle
 // schema by table name, so existing rows are preserved.
@@ -83,7 +85,7 @@ export const auth = betterAuth({
       adminRoles: ['ADMIN'],
     }),
   ],
-  trustedOrigins: [process.env.WEB_URL ?? 'http://localhost:3000'],
+  trustedOrigins: webOrigins(),
 });
 
 export type Session = typeof auth.$Infer.Session;

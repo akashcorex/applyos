@@ -60,6 +60,8 @@ Leave **Root Directory empty** (`/`) on every service. The Dockerfiles copy from
 
 Alternatively import `infra/railway/<service>.json` as template in **Settings → Config as Code**.
 
+Watch paths are scoped so a change in `apps/web` does **not** rebuild Railway agents. Each service only watches its own folder (API also watches `packages/database` and `packages/validation`). Confirm **Settings → Source → Config as Code** is `apps/<service>/railway.json` and Watch Paths is not empty. Patterns are repo-root anchored (`/apps/api/**`).
+
 Set **Networking → Generate Domain** for `web` and `api` only. Keep agents private (`*.railway.internal`) for cheaper/faster internal calls.
 
 ## 4. Env Vars

@@ -4,8 +4,8 @@
     "builder": "DOCKERFILE",
     "dockerfilePath": "infra/Dockerfile.outreach-agent",
     "watchPatterns": [
-      "apps/outreach-agent/**",
-      "infra/Dockerfile.outreach-agent"
+      "/apps/outreach-agent/**",
+      "/infra/Dockerfile.outreach-agent"
     ]
   },
   "deploy": {

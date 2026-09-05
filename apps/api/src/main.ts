@@ -7,6 +7,7 @@ import express from 'express';
 
 import { auth } from './auth';
 import { startFallowBeacon } from './fallow-beacon';
+import { webOrigins } from './lib/web-origins';
 import { adminRouter } from './routes/admin';
 import { applicationsRouter } from './routes/applications';
 import { billingRouter, billingWebhookHandler } from './routes/billing';
@@ -20,13 +21,12 @@ import { workflowsRouter } from './routes/workflows';
 
 const host = process.env.HOST ?? '0.0.0.0';
 const port = process.env.PORT ? Number(process.env.PORT) : 5000;
-const webUrl = process.env.WEB_URL ?? 'http://localhost:3000';
 
 const app = express();
 
 app.use(
   cors({
-    origin: webUrl,
+    origin: webOrigins(),
     credentials: true,
   }),
 );

@@ -3,7 +3,10 @@
   "build": {
     "builder": "DOCKERFILE",
     "dockerfilePath": "infra/Dockerfile.resume-agent",
-    "watchPatterns": ["apps/resume-agent/**", "infra/Dockerfile.resume-agent"]
+    "watchPatterns": [
+      "/apps/resume-agent/**",
+      "/infra/Dockerfile.resume-agent"
+    ]
   },
   "deploy": {
     "startCommand": "sh -c 'uv run uvicorn main:app --host 0.0.0.0 --port ${PORT:-8005}'",
