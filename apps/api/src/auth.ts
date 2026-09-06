@@ -4,17 +4,34 @@ import { admin } from 'better-auth/plugins';
 
 import { prisma } from '@applyso/database';
 
-import { webOrigins } from './lib/web-origins';
+import { cookieParentDomain, publicAuthUrl, webOrigins } from './lib/web-origins';
 
 // Phase 1: Prisma is the primary adapter. Better Auth core tables
 // (user/session/account/verification) are shared with the legacy Drizzle
 // schema by table name, so existing rows are preserved.
+const authUrl = publicAuthUrl();
+const cookieDomain = cookieParentDomain();
+const isHttps = authUrl.startsWith('https://');
+
 export const auth = betterAuth({
   database: prismaAdapter(prisma, {
     provider: 'postgresql',
   }),
-  baseURL: process.env.BETTER_AUTH_URL ?? 'http://localhost:5000',
+  // Public origin the browser uses (the Next.js web host). /api/auth/* is
+  // proxied there so session cookies are first-party, not on Railway.
+  baseURL: authUrl,
   secret: process.env.BETTER_AUTH_SECRET,
+  advanced: {
+    useSecureCookies: isHttps,
+    defaultCookieAttributes: {
+      sameSite: 'lax',
+      secure: isHttps,
+      path: '/',
+    },
+    ...(cookieDomain
+      ? { crossSubDomainCookies: { enabled: true, domain: cookieDomain } }
+      : {}),
+  },
   emailAndPassword: {
     enabled: true,
   },

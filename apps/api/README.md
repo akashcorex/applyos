@@ -57,8 +57,8 @@ Key settings:
 
 - `DATABASE_URL` — PostgreSQL connection string
 - `BETTER_AUTH_SECRET` — better-auth secret key
-- `BETTER_AUTH_URL` — public API origin (OAuth callback base, default `http://localhost:5000`)
+- `BETTER_AUTH_URL` — public auth origin (must be the web host; defaults to `WEB_URL`)
 - `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` — Google OAuth credentials
 - `LINKEDIN_CLIENT_ID` / `LINKEDIN_CLIENT_SECRET` — LinkedIn OAuth credentials
-- `WEB_URL` — frontend origin for CORS (default `http://localhost:3000`)
+- `WEB_URL` — frontend origin for CORS + OAuth callback (default `http://localhost:3000`)
 - `BEACON_API_KEY` — (optional) Fallow runtime coverage beacon

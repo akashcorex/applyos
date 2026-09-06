@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from 'next/server';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000';
+import { serverApiUrl } from '@/lib/server-api-url';
 
 interface MeResponse {
   user: { role: string };
@@ -12,16 +12,12 @@ interface MeResponse {
   };
 }
 
-// Session lives in a cookie scoped to the API host; the browser sends it to
-// the web origin too (same host in dev, same site in prod), so the proxy can
-// validate server-side instead of trusting client-side redirects.
-// Deliberately uncached: role/status must never be stale here (a suspended
-// or demoted user must be blocked on their next request). Revisit only if
-// the per-navigation roundtrip measurably hurts latency.
+// Session cookies are first-party on the web origin (set via /api/auth/*).
+// Forward them to the API; do not assume they were issued on the API host.
 async function fetchMe(cookie: string | null): Promise<MeResponse | null> {
   if (!cookie) return null;
   try {
-    const res = await fetch(`${API_URL}/v1/me`, {
+    const res = await fetch(`${serverApiUrl()}/v1/me`, {
       headers: { cookie },
       cache: 'no-store',
       signal: AbortSignal.timeout(8000),

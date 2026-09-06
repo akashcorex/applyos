@@ -1,5 +1,3 @@
-const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000';
-
 export type AdminRole = 'USER' | 'ADMIN';
 export type AccountStatus = 'ACTIVE' | 'SUSPENDED' | 'DELETED';
 export type ResumeStatus =
@@ -42,9 +40,9 @@ export interface AdminResume {
 }
 
 async function adminFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${API}${path}`, {
+  const res = await fetch(path, {
     ...init,
-    credentials: 'include',
+    credentials: 'same-origin',
     headers: {
       'Content-Type': 'application/json',
       ...(init?.headers ?? {}),
@@ -59,7 +57,7 @@ async function adminFetch<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export function fetchMe() {
-  return adminFetch<{ user: AdminUser }>('/v1/me');
+  return adminFetch<{ user: AdminUser }>('/api/me');
 }
 
 export function fetchAdminUsers(args?: {
@@ -74,7 +72,7 @@ export function fetchAdminUsers(args?: {
   if (args?.role) q.set('role', args.role);
   if (args?.status) q.set('status', args.status);
   return adminFetch<{ total: number; users: AdminUser[] }>(
-    `/v1/admin/users?${q}`,
+    `/api/admin/users?${q}`,
   );
 }
 
@@ -83,7 +81,7 @@ export function fetchAdminUser(id: string) {
     user: AdminUser;
     profile: Record<string, unknown> | null;
     resumes: AdminResume[];
-  }>(`/v1/admin/users/${encodeURIComponent(id)}`);
+  }>(`/api/admin/users/${encodeURIComponent(id)}`);
 }
 
 export function fetchAdminResumes(args?: {
@@ -96,7 +94,7 @@ export function fetchAdminResumes(args?: {
   q.set('offset', String(args?.offset ?? 0));
   if (args?.status) q.set('status', args.status);
   return adminFetch<{ total: number; resumes: AdminResume[] }>(
-    `/v1/admin/resumes?${q}`,
+    `/api/admin/resumes?${q}`,
   );
 }
 
@@ -105,7 +103,7 @@ export function fetchAdminResume(id: string) {
     resume: AdminResume & { user: AdminUser };
     extractions: unknown[];
     profile: Record<string, unknown> | null;
-  }>(`/v1/admin/resumes/${encodeURIComponent(id)}`);
+  }>(`/api/admin/resumes/${encodeURIComponent(id)}`);
 }
 
 export function patchAdminUser(
@@ -113,7 +111,7 @@ export function patchAdminUser(
   data: { role?: AdminRole; status?: AccountStatus },
 ) {
   return adminFetch<{ user: AdminUser }>(
-    `/v1/admin/users/${encodeURIComponent(id)}`,
+    `/api/admin/users/${encodeURIComponent(id)}`,
     { method: 'PATCH', body: JSON.stringify(data) },
   );
 }

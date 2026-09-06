@@ -27,7 +27,7 @@
 
 ## API connectivity
 
-All auth operations are proxied to the Express API at `http://localhost:5000` (configurable via `NEXT_PUBLIC_API_URL`).
+Auth is same-origin (`/api/auth/*` on the web host) and proxied to the Express API (`API_URL`). Session cookies are first-party.
 
 ## Run locally
 
