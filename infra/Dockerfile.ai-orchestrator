@@ -1,6 +1,5 @@
 # syntax=docker/dockerfile:1
-# ai-orchestrator — uv build, venv-only runner (no uv/curl in the final image).
-# Build context: repo root. Dockerfile Path = infra/Dockerfile.ai-orchestrator
+# ai-orchestrator: uv build, venv-only runner.
 
 FROM ghcr.io/astral-sh/uv:0.7.13 AS uv
 

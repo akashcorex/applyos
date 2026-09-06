@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from 'next/server';
 
+import { rewriteLocation, rewriteSetCookie } from '@/lib/rewrite-auth-headers';
 import { serverApiUrl } from '@/lib/server-api-url';
 
 const HOP_BY_HOP = new Set([
@@ -15,46 +16,12 @@ const HOP_BY_HOP = new Set([
   'content-length',
 ]);
 
-function rewriteSetCookie(cookie: string, req: NextRequest): string {
-  let apiHost = '';
+function apiHost(): string {
   try {
-    apiHost = new URL(serverApiUrl()).hostname;
+    return new URL(serverApiUrl()).hostname;
   } catch {
-    apiHost = '';
+    return '';
   }
-
-  // Keep parent-domain cookies (apex + www). Drop Domain only when Better Auth
-  // scoped it to the Railway API host — the browser would ignore that anyway.
-  let next = cookie.replace(/;\s*Domain=([^;]*)/gi, (_match, domain: string) => {
-    const host = domain.trim().replace(/^\./, '');
-    if (
-      host === apiHost ||
-      host.endsWith('.railway.app') ||
-      host.endsWith('.up.railway.app')
-    ) {
-      return '';
-    }
-    return `; Domain=${domain.trim()}`;
-  });
-  if (req.nextUrl.protocol === 'https:' && !/;\s*Secure(?:;|$)/i.test(next)) {
-    next += '; Secure';
-  }
-  return next;
-}
-
-function rewriteLocation(location: string, req: NextRequest): string {
-  try {
-    const api = new URL(serverApiUrl());
-    const loc = new URL(location, req.nextUrl.origin);
-    if (loc.host === api.host) {
-      loc.protocol = req.nextUrl.protocol;
-      loc.host = req.nextUrl.host;
-      return loc.toString();
-    }
-  } catch {
-    // keep original
-  }
-  return location;
 }
 
 async function proxyAuth(
@@ -102,12 +69,26 @@ async function proxyAuth(
       ? upstream.headers.getSetCookie()
       : [];
   for (const cookie of setCookies) {
-    out.append('set-cookie', rewriteSetCookie(cookie, req));
+    out.append(
+      'set-cookie',
+      rewriteSetCookie(cookie, req.nextUrl.protocol, apiHost()),
+    );
   }
 
   const location = upstream.headers.get('location');
   if (location) {
-    out.set('location', rewriteLocation(location, req));
+    out.set(
+      'location',
+      rewriteLocation(
+        location,
+        {
+          origin: req.nextUrl.origin,
+          protocol: req.nextUrl.protocol,
+          host: req.nextUrl.host,
+        },
+        apiHost(),
+      ),
+    );
   }
 
   return new NextResponse(upstream.body, {

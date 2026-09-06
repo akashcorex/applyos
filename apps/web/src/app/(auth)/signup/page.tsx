@@ -56,7 +56,6 @@ export default function SignupPage() {
 
   async function handleSignup(event: FormEvent) {
     event.preventDefault();
-    // Client-side fast feedback with the same contract the backend enforces.
     const validated = validateAction(signupSchema, { name, email, password });
     if (!validated.ok) {
       setError(validated.error);
@@ -69,7 +68,7 @@ export default function SignupPage() {
       name: validated.data.name,
       email: validated.data.email,
       password: validated.data.password,
-      callbackURL: '/dashboard',
+      callbackURL: appCallbackURL('/dashboard'),
     });
 
     setLoading(false);

@@ -7,7 +7,7 @@ import express from 'express';
 
 import { auth } from './auth';
 import { startFallowBeacon } from './fallow-beacon';
-import { webOrigins } from './lib/web-origins';
+import { authCookieConfigError, webLoginUrl, webOrigins } from './lib/web-origins';
 import { adminRouter } from './routes/admin';
 import { applicationsRouter } from './routes/applications';
 import { billingRouter, billingWebhookHandler } from './routes/billing';
@@ -47,8 +47,7 @@ app.use(express.json());
 app.get('/', (req, res) => {
   const error = typeof req.query.error === 'string' ? req.query.error : null;
   if (error) {
-    const web = process.env.WEB_URL ?? 'http://localhost:3000';
-    const next = new URL('/login', web);
+    const next = new URL(webLoginUrl());
     next.searchParams.set('error', error);
     res.redirect(302, next.toString());
     return;
@@ -67,6 +66,13 @@ app.use('/v1/preferences', preferencesRouter);
 app.use('/v1/outreach', outreachRouter);
 app.use('/v1/workflows', workflowsRouter);
 app.use('/v1/billing', billingRouter);
+
+if (process.env.NODE_ENV === 'production') {
+  const cookieError = authCookieConfigError();
+  if (cookieError) {
+    console.error(`[api] ${cookieError}`);
+  }
+}
 
 app.listen(port, host, () => {
   console.log(`[ ready ] http://${host}:${port}`);

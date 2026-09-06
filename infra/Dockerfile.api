@@ -1,7 +1,5 @@
 # syntax=docker/dockerfile:1
-# Express API — prune workspace install, generate Prisma, bundle, slim runner.
-# Migrations run at container start (apps/api/scripts/start.sh).
-# Build context: repo root. Dockerfile Path = infra/Dockerfile.api
+# API: filtered install → generate → production prune → node slim + migrate on start.
 
 FROM oven/bun:1.4.1 AS deps
 WORKDIR /app
@@ -33,13 +31,10 @@ COPY packages/database ./packages/database
 COPY packages/validation ./packages/validation
 COPY apps/api ./apps/api
 
-# prisma generate loads prisma.config.ts and requires DATABASE_URL even though
-# it never connects. Runner does not inherit this; Railway injects the real URL.
 ENV DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/outreach
 RUN bun run --filter=@applyso/database generate \
  && bun run --filter=@applyso/api build:production
 
-# Drop compile-only tooling. prisma CLI stays (production dep) for migrate deploy.
 RUN bun install --frozen-lockfile --production \
     --filter=@applyso/api \
     --filter=@applyso/database \
@@ -75,6 +70,6 @@ RUN chmod +x /app/apps/api/scripts/start.sh
 
 USER api
 EXPOSE 3333
-HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=5s --start-period=90s --retries=3 \
   CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||3333)+'/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 CMD ["/app/apps/api/scripts/start.sh"]

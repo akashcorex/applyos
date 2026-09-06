@@ -67,12 +67,6 @@ export default function DashboardAppLayout({
   }
 
   useEffect(() => {
-    if (!isPending && !session) {
-      router.replace('/login');
-    }
-  }, [isPending, session, router]);
-
-  useEffect(() => {
     if (!session) {
       setIsAdmin(false);
       return;
@@ -92,10 +86,25 @@ export default function DashboardAppLayout({
     }
   }
 
-  if (isPending || !session) {
+  if (isPending) {
     return (
       <main className="min-h-screen bg-[#f0f2f5] dark:bg-[#09090A] p-6 flex items-center justify-center text-slate-900 dark:text-[#f1f3f9] transition-colors duration-150">
         <DashboardSkeleton />
+      </main>
+    );
+  }
+
+  if (!session) {
+    return (
+      <main className="min-h-screen bg-[#f0f2f5] dark:bg-[#09090A] p-6 flex flex-col items-center justify-center gap-3 text-slate-900 dark:text-[#f1f3f9]">
+        <p className="text-sm font-medium">Could not load your session.</p>
+        <button
+          type="button"
+          onClick={() => window.location.reload()}
+          className="rounded-md bg-slate-950 px-3 py-1.5 text-xs font-semibold text-white"
+        >
+          Retry
+        </button>
       </main>
     );
   }

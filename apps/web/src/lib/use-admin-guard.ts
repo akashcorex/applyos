@@ -33,7 +33,7 @@ export function useAdminGuard(): AdminGuardState {
       .catch(() => {
         if (cancelled) return;
         setState('denied');
-        router.replace('/login');
+        router.replace('/dashboard');
       });
     return () => {
       cancelled = true;

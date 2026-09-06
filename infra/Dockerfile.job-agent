@@ -1,6 +1,5 @@
 # syntax=docker/dockerfile:1
-# job-agent — Python deps + Chromium in builder; runtime only has venv + browser + libs.
-# Build context: repo root. Dockerfile Path = infra/Dockerfile.job-agent
+# job-agent: uv build + Chromium, slim runner.
 
 FROM ghcr.io/astral-sh/uv:0.7.13 AS uv
 
@@ -33,7 +32,6 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 COPY --from=builder /app /app
 COPY --from=builder /ms-playwright /ms-playwright
 
-# System libs for Chromium only — browsers were already downloaded in builder.
 RUN /app/.venv/bin/playwright install-deps chromium \
  && rm -rf /var/lib/apt/lists/* /root/.cache
 

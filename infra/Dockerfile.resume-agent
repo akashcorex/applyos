@@ -1,6 +1,5 @@
 # syntax=docker/dockerfile:1
-# resume-agent — compile deps in builder, slim runtime (no compiler/uv/curl).
-# Build context: repo root. Dockerfile Path = infra/Dockerfile.resume-agent
+# resume-agent: compile in builder, venv-only runner.
 
 FROM ghcr.io/astral-sh/uv:0.7.13 AS uv
 

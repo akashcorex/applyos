@@ -1,33 +1,7 @@
 import { type NextRequest, NextResponse } from 'next/server';
 
+import { lookupMe } from '@/lib/proxy-session';
 import { serverApiUrl } from '@/lib/server-api-url';
-
-interface MeResponse {
-  user: { role: string };
-  onboarding?: {
-    hasResume: boolean;
-    hasProfile: boolean;
-    profileConfirmed: boolean;
-    onboardingComplete: boolean;
-  };
-}
-
-// Session cookies are first-party on the web origin (set via /api/auth/*).
-// Forward them to the API; do not assume they were issued on the API host.
-async function fetchMe(cookie: string | null): Promise<MeResponse | null> {
-  if (!cookie) return null;
-  try {
-    const res = await fetch(`${serverApiUrl()}/v1/me`, {
-      headers: { cookie },
-      cache: 'no-store',
-      signal: AbortSignal.timeout(8000),
-    });
-    if (!res.ok) return null;
-    return (await res.json()) as MeResponse;
-  } catch {
-    return null;
-  }
-}
 
 function redirectTo(req: NextRequest, path: string): NextResponse {
   const url = req.nextUrl.clone();
@@ -48,25 +22,27 @@ export default async function proxy(req: NextRequest) {
     return NextResponse.next();
   }
 
-  const me = await fetchMe(req.headers.get('cookie'));
+  const session = await lookupMe(req.headers.get('cookie'), serverApiUrl());
 
   if (isDashboard) {
-    if (!me) return redirectTo(req, '/login');
-    if (!me.onboarding?.onboardingComplete)
+    if (session.status === 'unavailable') return NextResponse.next();
+    if (session.status !== 'authenticated') return redirectTo(req, '/login');
+    if (!session.me.onboarding?.onboardingComplete)
       return redirectTo(req, '/onboarding');
-    if (pathname.startsWith('/dashboard/admin') && me.user.role !== 'ADMIN') {
+    if (pathname.startsWith('/dashboard/admin') && session.me.user.role !== 'ADMIN') {
       return redirectTo(req, '/dashboard');
     }
     return NextResponse.next();
   }
 
   if (isOnboarding) {
-    if (!me) return redirectTo(req, '/login');
-    if (me.onboarding?.onboardingComplete) return redirectTo(req, '/dashboard');
+    if (session.status === 'unavailable') return NextResponse.next();
+    if (session.status !== 'authenticated') return redirectTo(req, '/login');
+    if (session.me.onboarding?.onboardingComplete) return redirectTo(req, '/dashboard');
     return NextResponse.next();
   }
 
-  if (me) return redirectTo(req, '/dashboard');
+  if (session.status === 'authenticated') return redirectTo(req, '/dashboard');
   return NextResponse.next();
 }
 

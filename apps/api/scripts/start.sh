@@ -1,5 +1,4 @@
 #!/bin/sh
-# Runtime entrypoint for the API image: apply pending migrations, then start.
 set -eu
 
 if [ -z "${DATABASE_URL:-}" ]; then

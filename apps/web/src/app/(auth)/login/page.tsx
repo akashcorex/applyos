@@ -67,7 +67,8 @@ export default function LoginPage() {
     const { error: signInError } = await authClient.signIn.email({
       email: validated.data.email,
       password: validated.data.password,
-      callbackURL: '/dashboard',
+      rememberMe,
+      callbackURL: appCallbackURL('/dashboard'),
     });
 
     setLoading(false);

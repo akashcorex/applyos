@@ -1,6 +1,5 @@
 # syntax=docker/dockerfile:1
-# Next.js web — workspace-filtered install + standalone output.
-# Build context: repo root. Dockerfile Path = infra/Dockerfile.web
+# Web: filtered install → standalone Next.js on node slim.
 
 FROM oven/bun:1.4.1 AS deps
 WORKDIR /app

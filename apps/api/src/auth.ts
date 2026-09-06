@@ -4,11 +4,13 @@ import { admin } from 'better-auth/plugins';
 
 import { prisma } from '@applyso/database';
 
-import { cookieParentDomain, publicAuthUrl, webOrigins } from './lib/web-origins';
+import {
+  cookieParentDomain,
+  publicAuthUrl,
+  webLoginUrl,
+  webOrigins,
+} from './lib/web-origins';
 
-// Phase 1: Prisma is the primary adapter. Better Auth core tables
-// (user/session/account/verification) are shared with the legacy Drizzle
-// schema by table name, so existing rows are preserved.
 const authUrl = publicAuthUrl();
 const cookieDomain = cookieParentDomain();
 const isHttps = authUrl.startsWith('https://');
@@ -17,8 +19,6 @@ export const auth = betterAuth({
   database: prismaAdapter(prisma, {
     provider: 'postgresql',
   }),
-  // Must match Google/LinkedIn authorized redirect:
-  // ${BETTER_AUTH_URL}/api/auth/callback/google  (e.g. https://api.applyos.in)
   baseURL: authUrl,
   secret: process.env.BETTER_AUTH_SECRET,
   advanced: {
@@ -90,7 +90,7 @@ export const auth = betterAuth({
               data: { lastLoginAt: new Date() },
             });
           } catch {
-            // lastLoginAt is best-effort; never block sign-in.
+            /* ignore */
           }
         },
       },
@@ -104,7 +104,7 @@ export const auth = betterAuth({
   ],
   trustedOrigins: webOrigins(),
   onAPIError: {
-    errorURL: `${process.env.WEB_URL ?? 'http://localhost:3000'}/login`,
+    errorURL: webLoginUrl(),
   },
 });
 

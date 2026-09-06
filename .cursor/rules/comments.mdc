@@ -1,0 +1,20 @@
+---
+description: Comments stay one line; prefer none when the code is clear
+alwaysApply: true
+---
+
+# Comments
+
+- Do not write multi-line `//` or `/**` blocks.
+- One line max if a comment is needed. Delete it if the name already explains it.
+- No narration, history, or "why we used to do X".
+- Empty `catch` may omit a comment.
+
+```ts
+// ❌
+// Session cookies are first-party on the web origin.
+// Forward them to the API; do not assume they were issued on the API host.
+
+// ✅
+// Forward web cookies to /v1/me.
+```

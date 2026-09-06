@@ -2,7 +2,6 @@ import { serverApiUrl } from '@/lib/server-api-url';
 
 const API_URL = serverApiUrl();
 
-/** Returns user id or a 401 Response. */
 export async function requireUserId(
   request: Request,
 ): Promise<string | Response> {
@@ -16,8 +15,11 @@ export async function requireUserId(
       headers: { cookie },
       cache: 'no-store',
     });
-    if (!res.ok) {
+    if (res.status === 401 || res.status === 403 || res.status === 404) {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    if (!res.ok) {
+      return Response.json({ error: 'API is unavailable' }, { status: 502 });
     }
     const data = (await res.json()) as { user?: { id?: string } };
     const userId = data.user?.id;
@@ -26,7 +28,7 @@ export async function requireUserId(
     }
     return userId;
   } catch {
-    return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    return Response.json({ error: 'API is unavailable' }, { status: 502 });
   }
 }
 
