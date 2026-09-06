@@ -66,7 +66,9 @@ COPY --from=build --chown=api:api /app/apps/api/package.json ./apps/api/package.
 COPY --from=build --chown=api:api /app/apps/api/dist ./apps/api/dist
 COPY --from=build --chown=api:api /app/apps/api/scripts/start.sh ./apps/api/scripts/start.sh
 
-RUN chmod +x /app/apps/api/scripts/start.sh
+RUN chmod +x /app/apps/api/scripts/start.sh \
+ && mkdir -p /app/uploads \
+ && chown api:api /app/uploads
 
 USER api
 EXPOSE 3333

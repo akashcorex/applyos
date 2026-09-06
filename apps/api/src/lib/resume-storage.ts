@@ -1,7 +1,19 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
-const UPLOADS_ROOT = join(process.cwd(), 'uploads');
+const UPLOADS_ROOT =
+  process.env.RESUME_UPLOADS_DIR ?? join(process.cwd(), 'uploads');
+const UPLOADS_FALLBACK = '/tmp/applyos-uploads';
+
+async function uploadsRoot(): Promise<string> {
+  try {
+    await mkdir(UPLOADS_ROOT, { recursive: true });
+    return UPLOADS_ROOT;
+  } catch {
+    await mkdir(UPLOADS_FALLBACK, { recursive: true });
+    return UPLOADS_FALLBACK;
+  }
+}
 
 function safeSegment(value: string): string {
   const cleaned = value.trim().replace(/[^a-zA-Z0-9._-]+/g, '_');
@@ -26,7 +38,7 @@ export async function saveResumeUpload(args: {
   mimeType: string;
   bytes: Buffer;
 }): Promise<string> {
-  const dir = join(UPLOADS_ROOT, safeSegment(args.userId));
+  const dir = join(await uploadsRoot(), safeSegment(args.userId));
   await mkdir(dir, { recursive: true });
   const ext = extensionFor(args.fileName, args.mimeType);
   const path = join(dir, `${args.resumeFileId}${ext}`);
