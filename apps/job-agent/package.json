@@ -5,8 +5,8 @@
   "scripts": {
     "sync": "uv sync --extra dev",
     "serve": "sh -c 'uv run python -m uvicorn main:app --reload --host 0.0.0.0 --port ${PORT:-8002}'",
-    "serve:prod": "sh -c 'uv run python -m uvicorn main:app --host 0.0.0.0 --port ${PORT:-8002}'",
-    "start": "sh -c 'uv run python -m uvicorn main:app --host 0.0.0.0 --port ${PORT:-8002}'",
+    "serve:prod": "sh -c 'uvicorn main:app --host 0.0.0.0 --port ${PORT:-8002}'",
+    "start": "sh -c 'uvicorn main:app --host 0.0.0.0 --port ${PORT:-8002}'",
     "test": "python3 ../../tests/run.py job-agent",
     "seed-yc": "uv run python scripts/seed_yc.py"
   }

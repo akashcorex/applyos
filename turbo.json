@@ -36,7 +36,7 @@
       "cache": true
     },
     "generate": {
-      "cache": true,
+      "cache": false,
       "outputs": ["src/generated/**"],
       "env": ["DATABASE_URL"]
     },
