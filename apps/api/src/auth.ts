@@ -17,8 +17,8 @@ export const auth = betterAuth({
   database: prismaAdapter(prisma, {
     provider: 'postgresql',
   }),
-  // Public origin the browser uses (the Next.js web host). /api/auth/* is
-  // proxied there so session cookies are first-party, not on Railway.
+  // Must match Google/LinkedIn authorized redirect:
+  // ${BETTER_AUTH_URL}/api/auth/callback/google  (e.g. https://api.applyos.in)
   baseURL: authUrl,
   secret: process.env.BETTER_AUTH_SECRET,
   advanced: {

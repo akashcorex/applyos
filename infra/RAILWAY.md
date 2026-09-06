@@ -86,9 +86,9 @@ Per-service overrides for private networking:
   ```
 - `apply-agent`: `API_URL=http://api.railway.internal:3333`, `RESUME_AGENT_URL=http://resume-agent.railway.internal:8005`, `REDIS_URL`
 - `resume-agent`: `DATABASE_URL=${{Postgres.DATABASE_URL}}`, `JOB_AGENT_URL=http://job-agent.railway.internal:8002`
-- Vercel `web`: `API_URL=https://<api-domain>.up.railway.app`, `NEXT_PUBLIC_API_URL` (same), `NEXT_PUBLIC_WEB_URL=https://www.applyos.in`
-- `api`: `HOST=0.0.0.0`, `WEB_URL=https://www.applyos.in`, `BETTER_AUTH_URL=https://www.applyos.in` (web origin — OAuth + cookies are first-party via `/api/auth/*`), `DATABASE_URL`
-- Google / LinkedIn authorized redirect: `https://www.applyos.in/api/auth/callback/google` (and `/linkedin`)
+- Vercel `web`: `API_URL=https://api.applyos.in`, `NEXT_PUBLIC_API_URL=https://api.applyos.in`, `NEXT_PUBLIC_WEB_URL=https://www.applyos.in`
+- `api`: `HOST=0.0.0.0`, `WEB_URL=https://www.applyos.in`, `BETTER_AUTH_URL=https://api.applyos.in` (custom API domain, not `*.up.railway.app`), `DATABASE_URL`
+- Google / LinkedIn authorized redirect: `https://api.applyos.in/api/auth/callback/google` and `.../linkedin`
 
 ## 5. DB Migration
 

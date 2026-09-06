@@ -57,7 +57,7 @@ Key settings:
 
 - `DATABASE_URL` — PostgreSQL connection string
 - `BETTER_AUTH_SECRET` — better-auth secret key
-- `BETTER_AUTH_URL` — public auth origin (must be the web host; defaults to `WEB_URL`)
+- `BETTER_AUTH_URL` — public API origin for OAuth (`https://api.applyos.in` in prod, `http://localhost:5000` locally)
 - `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` — Google OAuth credentials
 - `LINKEDIN_CLIENT_ID` / `LINKEDIN_CLIENT_SECRET` — LinkedIn OAuth credentials
 - `WEB_URL` — frontend origin for CORS + OAuth callback (default `http://localhost:3000`)

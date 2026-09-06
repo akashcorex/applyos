@@ -3,7 +3,6 @@
 import { type FormEvent, useEffect, useState } from 'react';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 
 import { Loader2 } from 'lucide-react';
 
@@ -11,7 +10,7 @@ import { signupSchema, validateAction } from '@applyso/validation';
 
 import { AuthCardLayout } from '@/components/auth/AuthCardLayout';
 import { LinkedinIcon } from '@/components/icons/LinkedinIcon';
-import { appCallbackURL, authClient } from '@/lib/auth-client';
+import { appCallbackURL, authClient, navigateAfterAuth } from '@/lib/auth-client';
 
 function GoogleIcon({ className = 'h-4 w-4' }: { className?: string }) {
   return (
@@ -37,8 +36,6 @@ function GoogleIcon({ className = 'h-4 w-4' }: { className?: string }) {
 }
 
 export default function SignupPage() {
-  const router = useRouter();
-  const { data: session, isPending } = authClient.useSession();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -46,18 +43,16 @@ export default function SignupPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!isPending && session) {
-      router.replace('/dashboard');
+    const params = new URLSearchParams(window.location.search);
+    const fromAuth = params.get('error');
+    if (fromAuth) {
+      setError(
+        fromAuth === 'redirect_uri_mismatch'
+          ? 'Google sign-in is misconfigured. Contact support.'
+          : fromAuth,
+      );
     }
-  }, [isPending, session, router]);
-
-  if (!isPending && session) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-950 text-white">
-        <Loader2 className="h-6 w-6 animate-spin text-white/70" />
-      </div>
-    );
-  }
+  }, []);
 
   async function handleSignup(event: FormEvent) {
     event.preventDefault();
@@ -84,7 +79,7 @@ export default function SignupPage() {
       return;
     }
 
-    router.push('/onboarding');
+    navigateAfterAuth('/onboarding');
   }
 
   async function handleLinkedInLogin() {
