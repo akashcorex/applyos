@@ -18,7 +18,6 @@ interface AutomationSessionStatus {
 
 interface UserPreferences {
   postApplyLinkedinConnectEnabled: boolean;
-  emailOutreachEnabled: boolean;
 }
 
 function formatExpiry(seconds: number | null): string | null {
@@ -42,7 +41,6 @@ export function LinkedInConnectCard() {
   const [automationError, setAutomationError] = useState(false);
   const [preferences, setPreferences] = useState<UserPreferences>({
     postApplyLinkedinConnectEnabled: false,
-    emailOutreachEnabled: false,
   });
   const [savingPreference, setSavingPreference] = useState<
     keyof UserPreferences | null
@@ -87,10 +85,9 @@ export function LinkedInConnectCard() {
           postApplyLinkedinConnectEnabled: Boolean(
             data.postApplyLinkedinConnectEnabled,
           ),
-          emailOutreachEnabled: Boolean(data.emailOutreachEnabled),
         });
       } catch {
-        // Preferences stay at the safe default (both off).
+        // Preferences stay at the safe default (off).
       }
     }
     void fetchPreferences();
@@ -225,29 +222,6 @@ export function LinkedInConnectCard() {
               <span className="block text-xs text-slate-500 dark:text-[#8a8f9d]">
                 After a successful apply, send blank connection requests to
                 people at that company. Off until you enable it.
-              </span>
-            </span>
-          </label>
-          <label className="flex items-start gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              className="mt-1 h-3.5 w-3.5 rounded-[4px] border-slate-300 dark:border-[#26282e] bg-white dark:bg-[#121213] text-slate-900 dark:text-[#f1f3f9] focus:ring-slate-900 dark:focus:ring-[#f1f3f9]"
-              checked={preferences.emailOutreachEnabled}
-              disabled={savingPreference !== null}
-              onChange={(event) =>
-                void updatePreference(
-                  'emailOutreachEnabled',
-                  event.target.checked,
-                )
-              }
-            />
-            <span>
-              <span className="font-medium text-slate-900 dark:text-[#f1f3f9]">
-                Email follow-ups
-              </span>
-              <span className="block text-xs text-slate-500 dark:text-[#8a8f9d]">
-                Allow the outreach agent to send email through your configured
-                provider. Nothing is sent while this is off.
               </span>
             </span>
           </label>

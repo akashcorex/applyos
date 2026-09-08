@@ -116,4 +116,3 @@ describe('webLoginUrl', () => {
     expect(webLoginUrl()).toBe('http://localhost:3000/login');
   });
 });
-

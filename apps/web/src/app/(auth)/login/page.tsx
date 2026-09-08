@@ -10,7 +10,11 @@ import { loginSchema, validateAction } from '@applyso/validation';
 
 import { AuthCardLayout } from '@/components/auth/AuthCardLayout';
 import { LinkedinIcon } from '@/components/icons/LinkedinIcon';
-import { appCallbackURL, authClient, navigateAfterAuth } from '@/lib/auth-client';
+import {
+  appCallbackURL,
+  authClient,
+  navigateAfterAuth,
+} from '@/lib/auth-client';
 
 function GoogleIcon({ className = 'h-4 w-4' }: { className?: string }) {
   return (

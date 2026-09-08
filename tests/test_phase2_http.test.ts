@@ -1,7 +1,9 @@
 import { afterAll, beforeEach, describe, expect, it, mock } from 'bun:test';
-import type { AddressInfo } from 'node:net';
-
 import express from 'express';
+
+import * as databaseEnums from '../packages/database/src/enums';
+
+import type { AddressInfo } from 'node:net';
 
 type SessionUser = {
   id: string;
@@ -47,22 +49,14 @@ const prismaMock = {
 
 mock.module('@applyso/database', () => ({
   prisma: prismaMock,
-  linkedinConnectStatuses: [
-    'queued',
-    'sent',
-    'failed',
-    'already_connected',
-    'skipped_rate_limit',
-  ],
+  ...databaseEnums,
 }));
 
 const { setSessionUserOverride } = await import('../apps/api/src/lib/authz');
-const { resumesInternalRouter, resumesRouter } = await import(
-  '../apps/api/src/routes/resumes'
-);
-const { linkedinConnectsRouter } = await import(
-  '../apps/api/src/routes/linkedin-connects'
-);
+const { resumesInternalRouter, resumesRouter } =
+  await import('../apps/api/src/routes/resumes');
+const { linkedinConnectsRouter } =
+  await import('../apps/api/src/routes/linkedin-connects');
 
 process.env.AGENT_SERVICE_TOKEN = 'test-service-token';
 

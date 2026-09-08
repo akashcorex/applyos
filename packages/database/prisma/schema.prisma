@@ -55,7 +55,6 @@ model User {
   agentTasks    AgentTask[]
   workflowEvents WorkflowEvent[]
   preferences   UserPreferences?
-  outreachEmails OutreachEmail[]
   analyticsEvents AnalyticsEvent[]
   analyticsIdentities AnalyticsIdentity[]
   billingCustomer BillingCustomer?
@@ -623,29 +622,11 @@ model UserPreferences {
   userId                          String   @id @map("user_id")
   user                            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   postApplyLinkedinConnectEnabled Boolean  @default(false) @map("post_apply_linkedin_connect_enabled")
-  emailOutreachEnabled            Boolean  @default(false) @map("email_outreach_enabled")
   autoSubmitEnabled               Boolean  @default(false) @map("auto_submit_enabled")
   createdAt                       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt                       DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   @@map("user_preferences")
-}
-
-model OutreachEmail {
-  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId        String    @map("user_id")
-  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  applicationId String?   @map("application_id") @db.Uuid
-  toAddress     String    @map("to_address")
-  subject       String
-  provider      String
-  status        String    @default("queued")
-  errorDetail   String?   @map("error_detail")
-  sentAt        DateTime? @map("sent_at") @db.Timestamptz(6)
-  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-
-  @@index([userId, createdAt], map: "idx_outreach_emails_user_created_at")
-  @@map("outreach_emails")
 }
 
 model AnalyticsEvent {

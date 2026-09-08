@@ -1,4 +1,8 @@
-import type { BillingAddOnPack, BillingInterval, BillingPlan } from '@applyso/validation';
+import type {
+  BillingAddOnPack,
+  BillingInterval,
+  BillingPlan,
+} from '@applyso/validation';
 
 export interface BillingCycleSummary {
   start: string;

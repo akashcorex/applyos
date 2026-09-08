@@ -1,4 +1,8 @@
-export function LinkedinIcon({ className = 'h-4 w-4' }: { className?: string }) {
+export function LinkedinIcon({
+  className = 'h-4 w-4',
+}: {
+  className?: string;
+}) {
   return (
     <svg
       className={className}

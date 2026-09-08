@@ -5,12 +5,7 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
-import {
-  FileText,
-  Loader2,
-  Shield,
-  Users,
-} from 'lucide-react';
+import { FileText, Loader2, Shield, Users } from 'lucide-react';
 
 import { Badge } from '@applyso/ui/badge';
 import { Button } from '@applyso/ui/button';
@@ -114,7 +109,9 @@ export function AdminPanel() {
       setResumes(resumePage.resumes);
       setResumeTotal(resumePage.total);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load admin data');
+      setError(
+        err instanceof Error ? err.message : 'Failed to load admin data',
+      );
       setAllowed(false);
     } finally {
       setReady(true);
@@ -258,9 +255,7 @@ export function AdminPanel() {
             />
             <select
               value={roleFilter}
-              onChange={(e) =>
-                setRoleFilter(e.target.value as AdminRole | '')
-              }
+              onChange={(e) => setRoleFilter(e.target.value as AdminRole | '')}
               className="h-8 rounded-[6px] border border-slate-200 dark:border-[#26282e] bg-slate-50 dark:bg-[#141518] px-2 text-xs"
             >
               <option value="">All roles</option>
@@ -418,8 +413,8 @@ export function AdminPanel() {
                           {resume.fileName}
                         </Link>
                         <div className="text-slate-500 font-mono">
-                          {resume.mimeType} · {Math.round(resume.fileSize / 1024)}{' '}
-                          KB
+                          {resume.mimeType} ·{' '}
+                          {Math.round(resume.fileSize / 1024)} KB
                         </div>
                       </td>
                       <td className="px-4 py-3">

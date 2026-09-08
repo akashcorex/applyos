@@ -56,7 +56,11 @@ async function call(
     headers.set('Origin', init.originHeader ?? WEB);
   }
   if (init.cookie) headers.set('Cookie', init.cookie);
-  if (init.body && !headers.has('Content-Type') && !(init.body instanceof FormData)) {
+  if (
+    init.body &&
+    !headers.has('Content-Type') &&
+    !(init.body instanceof FormData)
+  ) {
     headers.set('Content-Type', 'application/json');
   }
   const res = await fetch(`${origin}${path}`, {
@@ -87,14 +91,21 @@ async function call(
   };
 }
 
-const api = (path: string, init?: RequestInit & { cookie?: string; originHeader?: string }) =>
-  call(API, path, init);
-const web = (path: string, init?: RequestInit & { cookie?: string; originHeader?: string }) =>
+const api = (
+  path: string,
+  init?: RequestInit & { cookie?: string; originHeader?: string },
+) => call(API, path, init);
+const web = (
+  path: string,
+  init?: RequestInit & { cookie?: string; originHeader?: string },
+) =>
   call(WEB_FETCH, path, { ...init, originHeader: init?.originHeader ?? WEB });
 
 function check(name: string, ok: boolean, detail?: string) {
   results.push({ name, ok, detail });
-  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? ` — ${detail}` : ''}`);
+  console.log(
+    `${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? ` — ${detail}` : ''}`,
+  );
 }
 
 function redirectUriFrom(url: string): string | null {
@@ -115,13 +126,19 @@ async function main() {
   const password = 'SmokeTest9!';
   const name = 'Smoke Flow';
 
-  check('client base URL is pinned dummy origin', AUTH_CLIENT_BASE_URL === 'https://same-origin.invalid');
+  check(
+    'client base URL is pinned dummy origin',
+    AUTH_CLIENT_BASE_URL === 'https://same-origin.invalid',
+  );
   check(
     'client rewrites API get-session to same-origin path',
     toSameOriginAuthPath('https://api.applyos.in/api/auth/get-session') ===
       '/api/auth/get-session',
   );
-  check('classify 404 is logged out', classifyMeStatus(404) === 'unauthenticated');
+  check(
+    'classify 404 is logged out',
+    classifyMeStatus(404) === 'unauthenticated',
+  );
   check('classify 500 is unavailable', classifyMeStatus(500) === 'unavailable');
   check(
     'no cookie is logged out even on 200',
@@ -137,7 +154,11 @@ async function main() {
     'rewrite keeps OAuth callback on API host',
     rewriteLocation(
       'https://api.applyos.in/api/auth/callback/google?code=1',
-      { origin: 'https://www.applyos.in', protocol: 'https:', host: 'www.applyos.in' },
+      {
+        origin: 'https://www.applyos.in',
+        protocol: 'https:',
+        host: 'www.applyos.in',
+      },
       'api.applyos.in',
     ) === 'https://api.applyos.in/api/auth/callback/google?code=1',
   );
@@ -145,7 +166,11 @@ async function main() {
     'rewrite maps API dashboard Location onto web',
     rewriteLocation(
       'https://api.applyos.in/dashboard',
-      { origin: 'https://www.applyos.in', protocol: 'https:', host: 'www.applyos.in' },
+      {
+        origin: 'https://www.applyos.in',
+        protocol: 'https:',
+        host: 'www.applyos.in',
+      },
       'api.applyos.in',
     ) === 'https://www.applyos.in/dashboard',
   );
@@ -180,7 +205,10 @@ async function main() {
     originHeader: 'https://evil.example',
   });
   const acao = (corsBad as { status: number }).status;
-  check('API rejects unknown Origin (still responds)', acao === 200 || acao === 403 || acao === 401);
+  check(
+    'API rejects unknown Origin (still responds)',
+    acao === 200 || acao === 403 || acao === 401,
+  );
 
   const signup = await api('/api/auth/sign-up/email', {
     method: 'POST',
@@ -192,7 +220,11 @@ async function main() {
     String(signup.status) + (signup.text ? ` ${signup.text.slice(0, 80)}` : ''),
   );
   const apiCookie = signup.cookie;
-  check('API signup set a session cookie', /session/i.test(apiCookie) || apiCookie.includes('='), apiCookie.split('=')[0]);
+  check(
+    'API signup set a session cookie',
+    /session/i.test(apiCookie) || apiCookie.includes('='),
+    apiCookie.split('=')[0],
+  );
   const apiHasDomain = signup.setCookie.some((c) => /Domain=/i.test(c));
   check(
     'API localhost signup has no parent Domain (cookieParentDomain unset)',
@@ -212,22 +244,35 @@ async function main() {
   );
 
   const me = await api('/v1/me', { cookie: apiCookie });
-  const onboarding = (me.json as { onboarding?: { onboardingComplete?: boolean } } | null)
-    ?.onboarding;
+  const onboarding = (
+    me.json as {
+      onboarding?: {
+        hasResume?: boolean;
+        canApply?: boolean;
+        onboardingComplete?: boolean;
+      };
+    } | null
+  )?.onboarding;
   check(
-    'API /v1/me after signup is USER and onboarding incomplete',
+    'API /v1/me after signup is USER and cannot apply yet',
     me.status === 200 &&
       asUser(me.json)?.email === email &&
       asUser(me.json)?.role === 'USER' &&
+      onboarding?.hasResume === false &&
+      onboarding?.canApply === false &&
       onboarding?.onboardingComplete === false,
-    `${me.status} complete=${String(onboarding?.onboardingComplete)}`,
+    `${me.status} canApply=${String(onboarding?.canApply)}`,
   );
 
   const dup = await api('/api/auth/sign-up/email', {
     method: 'POST',
     body: JSON.stringify({ name, email, password }),
   });
-  check('API duplicate signup is rejected', dup.status >= 400, String(dup.status));
+  check(
+    'API duplicate signup is rejected',
+    dup.status >= 400,
+    String(dup.status),
+  );
 
   const badPw = await api('/api/auth/sign-in/email', {
     method: 'POST',
@@ -267,7 +312,9 @@ async function main() {
     }),
   });
   const evilUrl =
-    (googleWebCb.json as { url?: string } | null)?.url ?? googleWebCb.location ?? '';
+    (googleWebCb.json as { url?: string } | null)?.url ??
+    googleWebCb.location ??
+    '';
   check(
     'API Google rejects untrusted callbackURL origin',
     googleWebCb.status >= 400 ||
@@ -318,7 +365,11 @@ async function main() {
     String(loginNoCookie.status),
   );
   const signupPage = await web('/signup');
-  check('proxy /signup without cookie stays', signupPage.status === 200, String(signupPage.status));
+  check(
+    'proxy /signup without cookie stays',
+    signupPage.status === 200,
+    String(signupPage.status),
+  );
 
   const bffSignupEmail = `smoke.bff.${stamp}@applyos.test`;
   const bffSignup = await web('/api/auth/sign-up/email', {
@@ -331,17 +382,24 @@ async function main() {
     `${bffSignup.status} ${bffSignup.text.slice(0, 80)}`,
   );
   const bffCookie = bffSignup.cookie;
-  check('BFF signup set a session cookie', bffCookie.includes('='), bffCookie.split('=')[0]);
+  check(
+    'BFF signup set a session cookie',
+    bffCookie.includes('='),
+    bffCookie.split('=')[0],
+  );
   check(
     'BFF Set-Cookie Domain is not the API host',
-    !bffSignup.setCookie.some((c) => /Domain=api\./i.test(c) || /Domain=localhost:5000/i.test(c)),
+    !bffSignup.setCookie.some(
+      (c) => /Domain=api\./i.test(c) || /Domain=localhost:5000/i.test(c),
+    ),
     bffSignup.setCookie[0]?.slice(0, 140),
   );
 
   const bffSession = await web('/api/auth/get-session', { cookie: bffCookie });
   check(
     'BFF get-session after signup',
-    bffSession.status === 200 && asUser(bffSession.json)?.email === bffSignupEmail,
+    bffSession.status === 200 &&
+      asUser(bffSession.json)?.email === bffSignupEmail,
     asUser(bffSession.json)?.email,
   );
 
@@ -354,16 +412,17 @@ async function main() {
 
   const dashWithCookie = await web('/dashboard', { cookie: bffCookie });
   check(
-    'proxy /dashboard with incomplete onboarding → /onboarding',
-    (dashWithCookie.status === 307 || dashWithCookie.status === 302) &&
-      (dashWithCookie.location ?? '').includes('/onboarding'),
+    'proxy /dashboard with session is allowed without resume',
+    dashWithCookie.status === 200,
     `${dashWithCookie.status} ${dashWithCookie.location}`,
   );
   const onboardingWithCookie = await web('/onboarding', { cookie: bffCookie });
   check(
-    'proxy /onboarding with session is allowed',
-    onboardingWithCookie.status === 200,
-    String(onboardingWithCookie.status),
+    'proxy /onboarding with session → /dashboard',
+    (onboardingWithCookie.status === 307 ||
+      onboardingWithCookie.status === 302) &&
+      (onboardingWithCookie.location ?? '').includes('/dashboard'),
+    `${onboardingWithCookie.status} ${onboardingWithCookie.location}`,
   );
   const loginWithCookie = await web('/login', { cookie: bffCookie });
   const loginLoc = loginWithCookie.location ?? '';
@@ -371,7 +430,7 @@ async function main() {
     'proxy /login with session redirects away from login (no loop)',
     (loginWithCookie.status === 307 || loginWithCookie.status === 302) &&
       !loginLoc.endsWith('/login') &&
-      (loginLoc.includes('/dashboard') || loginLoc.includes('/onboarding')),
+      loginLoc.includes('/dashboard'),
     `${loginWithCookie.status} ${loginLoc}`,
   );
 
@@ -384,7 +443,9 @@ async function main() {
     }),
   });
   const bffGoogleUrl =
-    (bffGoogle.json as { url?: string } | null)?.url ?? bffGoogle.location ?? '';
+    (bffGoogle.json as { url?: string } | null)?.url ??
+    bffGoogle.location ??
+    '';
   const bffGoogleRedirect = redirectUriFrom(bffGoogleUrl);
   check(
     'BFF Google redirect_uri stays on API (not rewritten to web)',
@@ -410,7 +471,11 @@ async function main() {
     method: 'POST',
     body: JSON.stringify({ email, password, rememberMe: false }),
   });
-  check('API sign-in/email rememberMe=false', signIn.status === 200, String(signIn.status));
+  check(
+    'API sign-in/email rememberMe=false',
+    signIn.status === 200,
+    String(signIn.status),
+  );
   const meIn = await api('/v1/me', { cookie: signIn.cookie });
   check(
     'API /v1/me after email sign-in',
@@ -446,7 +511,11 @@ async function main() {
       callbackURL: `${WEB}/dashboard`,
     }),
   });
-  check('BFF sign-in/email rememberMe=true', bffSignIn.status === 200, String(bffSignIn.status));
+  check(
+    'BFF sign-in/email rememberMe=true',
+    bffSignIn.status === 200,
+    String(bffSignIn.status),
+  );
   const bffMeIn = await web('/api/me', { cookie: bffSignIn.cookie });
   check(
     'BFF /api/me after email sign-in',
@@ -458,7 +527,8 @@ async function main() {
   console.log(`${results.length - failed.length}/${results.length} passed`);
   if (failed.length) {
     console.log('Failed:');
-    for (const f of failed) console.log(`  - ${f.name}${f.detail ? ` (${f.detail})` : ''}`);
+    for (const f of failed)
+      console.log(`  - ${f.name}${f.detail ? ` (${f.detail})` : ''}`);
     process.exitCode = 1;
   }
 }

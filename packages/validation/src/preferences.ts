@@ -11,9 +11,6 @@ export const preferencesUpdateSchema = z
     postApplyLinkedinConnectEnabled: z.boolean({
       error: 'postApplyLinkedinConnectEnabled must be a boolean',
     }),
-    emailOutreachEnabled: z.boolean({
-      error: 'emailOutreachEnabled must be a boolean',
-    }),
     autoSubmitEnabled: z.boolean({
       error: 'autoSubmitEnabled must be a boolean',
     }),

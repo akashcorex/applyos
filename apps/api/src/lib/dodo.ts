@@ -9,10 +9,7 @@ import {
   type BillingPlan,
 } from '@applyso/validation';
 
-const PRODUCT_ENV: Record<
-  BillingPlan,
-  Record<BillingInterval, string>
-> = {
+const PRODUCT_ENV: Record<BillingPlan, Record<BillingInterval, string>> = {
   starter: {
     monthly: 'DODO_PRODUCT_STARTER_MONTHLY',
     quarterly: 'DODO_PRODUCT_STARTER_QUARTERLY',

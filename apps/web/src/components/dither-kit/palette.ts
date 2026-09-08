@@ -1,13 +1,7 @@
 export type Rgb = [number, number, number];
 
 export type DitherColor =
-  | 'green'
-  | 'blue'
-  | 'purple'
-  | 'pink'
-  | 'orange'
-  | 'red'
-  | 'grey';
+  'green' | 'blue' | 'purple' | 'pink' | 'orange' | 'red' | 'grey';
 
 export type Seed = { fill: Rgb; line: Rgb; star: Rgb };
 

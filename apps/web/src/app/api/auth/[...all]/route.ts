@@ -54,7 +54,10 @@ async function proxyAuth(
   try {
     upstream = await fetch(target, init);
   } catch {
-    return NextResponse.json({ error: 'Auth service is unavailable' }, { status: 502 });
+    return NextResponse.json(
+      { error: 'Auth service is unavailable' },
+      { status: 502 },
+    );
   }
 
   const out = new Headers();

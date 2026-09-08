@@ -42,15 +42,15 @@ infra/
 
 For each service: **+ New → GitHub Repo** → select `applyos.in` → **Settings** →
 
-| Service                | Root Directory | Dockerfile Path                    | Config as Code                      | Healthcheck |
-| ---------------------- | -------------- | ---------------------------------- | ----------------------------------- | ----------- |
+| Service                | Root Directory                                                                  | Dockerfile Path                    | Config as Code                      | Healthcheck |
+| ---------------------- | ------------------------------------------------------------------------------- | ---------------------------------- | ----------------------------------- | ----------- |
 | `web`                  | Prefer **Vercel** (`applyos-ai`). Keep this Railway service only as a fallback. | `infra/Dockerfile.web`             | `apps/web/railway.json`             | `/`         |
-| `api` / `@applyso/api` | _empty_ (`/`)  | `infra/Dockerfile.api`             | `apps/api/railway.json`             | `/`         |
-| `ai-orchestrator`      | _empty_ (`/`)  | `infra/Dockerfile.ai-orchestrator` | `apps/ai-orchestrator/railway.json` | `/health`   |
-| `job-agent`            | _empty_ (`/`)  | `infra/Dockerfile.job-agent`       | `apps/job-agent/railway.json`       | `/health`   |
-| `apply-agent`          | _empty_ (`/`)  | `infra/Dockerfile.apply-agent`     | `apps/apply-agent/railway.json`     | `/health`   |
-| `resume-agent`         | _empty_ (`/`)  | `infra/Dockerfile.resume-agent`    | `apps/resume-agent/railway.json`    | `/health`   |
-| `outreach-agent`       | _empty_ (`/`)  | `infra/Dockerfile.outreach-agent`  | `apps/outreach-agent/railway.json`  | `/health`   |
+| `api` / `@applyso/api` | _empty_ (`/`)                                                                   | `infra/Dockerfile.api`             | `apps/api/railway.json`             | `/`         |
+| `ai-orchestrator`      | _empty_ (`/`)                                                                   | `infra/Dockerfile.ai-orchestrator` | `apps/ai-orchestrator/railway.json` | `/health`   |
+| `job-agent`            | _empty_ (`/`)                                                                   | `infra/Dockerfile.job-agent`       | `apps/job-agent/railway.json`       | `/health`   |
+| `apply-agent`          | _empty_ (`/`)                                                                   | `infra/Dockerfile.apply-agent`     | `apps/apply-agent/railway.json`     | `/health`   |
+| `resume-agent`         | _empty_ (`/`)                                                                   | `infra/Dockerfile.resume-agent`    | `apps/resume-agent/railway.json`    | `/health`   |
+| `outreach-agent`       | _empty_ (`/`)                                                                   | `infra/Dockerfile.outreach-agent`  | `apps/outreach-agent/railway.json`  | `/health`   |
 
 > **Why Root Directory = `/`** for all? The repo is a Bun Turborepo. Node services need `packages/*` and `bun.lock` at root. Python Dockerfiles in `infra/` use `COPY apps/<name>/...` so they also need root context. Do **not** set Root to `apps/web`.
 

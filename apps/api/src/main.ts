@@ -7,13 +7,16 @@ import express from 'express';
 
 import { auth } from './auth';
 import { startFallowBeacon } from './fallow-beacon';
-import { authCookieConfigError, webLoginUrl, webOrigins } from './lib/web-origins';
+import {
+  authCookieConfigError,
+  webLoginUrl,
+  webOrigins,
+} from './lib/web-origins';
 import { adminRouter } from './routes/admin';
 import { applicationsRouter } from './routes/applications';
 import { billingRouter, billingWebhookHandler } from './routes/billing';
 import { linkedinConnectsRouter } from './routes/linkedin-connects';
 import { meRouter } from './routes/me';
-import { outreachRouter } from './routes/outreach';
 import { preferencesRouter } from './routes/preferences';
 import { profilesRouter } from './routes/profiles';
 import { resumesInternalRouter, resumesRouter } from './routes/resumes';
@@ -63,7 +66,6 @@ app.use('/v1/admin', adminRouter);
 app.use('/v1/applications', applicationsRouter);
 app.use('/v1/linkedin-connects', linkedinConnectsRouter);
 app.use('/v1/preferences', preferencesRouter);
-app.use('/v1/outreach', outreachRouter);
 app.use('/v1/workflows', workflowsRouter);
 app.use('/v1/billing', billingRouter);
 

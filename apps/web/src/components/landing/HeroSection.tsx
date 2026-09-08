@@ -39,9 +39,8 @@ export function HeroSection() {
         </h1>
 
         <p className="mt-3 max-w-[34rem] text-base leading-relaxed text-white/70 antialiased">
-          Be first to every opportunity that matters. ApplyOS finds
-          high-growth roles, tailors your applications, and reaches out
-          automatically.
+          Be first to every opportunity that matters. ApplyOS finds high-growth
+          roles, tailors your applications, and reaches out automatically.
         </p>
 
         <div className="mt-5 w-full max-w-[30rem]">

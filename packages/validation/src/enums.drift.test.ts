@@ -16,12 +16,11 @@ import {
   workflowJobStatuses as dbWorkflowJobStatuses,
   workflowRunStatuses as dbWorkflowRunStatuses,
   linkedinConnectStatuses as dbLinkedinConnectStatuses,
-  outreachEmailStatuses as dbOutreachEmailStatuses,
   billingPlans as dbBillingPlans,
   billingIntervals as dbBillingIntervals,
   billingAddOnPacks as dbBillingAddOnPacks,
   billingSubscriptionStatuses as dbBillingSubscriptionStatuses,
-} from '@applyso/database';
+} from '../../database/src/enums.js';
 
 import {
   applicationEventTypes,
@@ -31,7 +30,6 @@ import {
   humanInterventionStatuses,
   humanInterventionTypes,
   linkedinConnectStatuses,
-  outreachEmailStatuses,
   workflowEventTypes,
   workflowJobStatuses,
   workflowRunStatuses,
@@ -55,7 +53,6 @@ const pairs = {
   agentTaskStatuses: [agentTaskStatuses, dbAgentTaskStatuses],
   workflowEventTypes: [workflowEventTypes, dbWorkflowEventTypes],
   linkedinConnectStatuses: [linkedinConnectStatuses, dbLinkedinConnectStatuses],
-  outreachEmailStatuses: [outreachEmailStatuses, dbOutreachEmailStatuses],
   billingPlans: [billingPlans, dbBillingPlans],
   billingIntervals: [billingIntervals, dbBillingIntervals],
   billingAddOnPacks: [billingAddOnPacks, dbBillingAddOnPacks],

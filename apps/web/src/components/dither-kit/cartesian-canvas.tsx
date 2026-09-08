@@ -202,16 +202,14 @@ function startCartesianLoop({
       lastPaintSig = paintSig;
       needsFill = true;
     }
-    if (
-      !(
-        moving ||
-        settling ||
-        winkDue ||
-        marker != null ||
-        progChanged ||
-        sigChanged
-      )
-    )
+    if (!(
+      moving ||
+      settling ||
+      winkDue ||
+      marker != null ||
+      progChanged ||
+      sigChanged
+    ))
       return;
     if (progChanged) {
       lastProg = prog;

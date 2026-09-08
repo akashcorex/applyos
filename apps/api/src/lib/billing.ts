@@ -1,6 +1,7 @@
 import { prisma } from '@applyso/database';
 import {
   ADD_ON_PACK_BONUS,
+  FREE_APPLICATION_QUOTA,
   billingAddOnPacks,
   billingIntervals,
   billingPlans,
@@ -93,8 +94,7 @@ function isSubscriptionStatus(
   value: string | null,
 ): value is BillingSubscriptionStatus {
   return Boolean(
-    value &&
-      (billingSubscriptionStatuses as readonly string[]).includes(value),
+    value && (billingSubscriptionStatuses as readonly string[]).includes(value),
   );
 }
 
@@ -136,10 +136,10 @@ async function upsertSubscriptionFromPayload(
   const mapped = planFromProductId(productId);
   const plan = isBillingPlan(metadata.plan)
     ? metadata.plan
-    : mapped?.plan ?? null;
+    : (mapped?.plan ?? null);
   const interval = isBillingInterval(metadata.interval)
     ? metadata.interval
-    : mapped?.interval ?? null;
+    : (mapped?.interval ?? null);
   if (!plan || !interval) {
     console.warn('[billing] subscription event missing plan/interval mapping');
     return;
@@ -274,35 +274,76 @@ export async function listRecentInvoices(dodoCustomerId: string) {
   }
 }
 
-export async function billingSummaryForUser(userId: string) {
-  const [subscription, cycle, customer] = await Promise.all([
-    latestActiveSubscription(userId),
-    getOrCreateUsageCycle(userId),
-    prisma.billingCustomer.findUnique({ where: { userId } }),
-  ]);
+function isMissingRelation(error: unknown): boolean {
+  return (error as { code?: string }).code === 'P2021';
+}
 
-  const invoices = customer
-    ? await listRecentInvoices(customer.dodoCustomerId)
-    : [];
-  const remaining = remainingInCycle(cycle);
-  const plan = (subscription?.plan as BillingPlan | undefined) ?? 'free';
-
+function freeBillingSummary() {
+  const now = new Date();
+  const end = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
   return {
-    plan,
-    interval: (subscription?.interval as BillingInterval | undefined) ?? null,
-    status: subscription?.status ?? 'free',
-    cancelAtPeriodEnd: subscription?.cancelAtPeriodEnd ?? false,
-    currentPeriodEnd: subscription?.currentPeriodEnd.toISOString() ?? null,
-    hasCustomerPortal: Boolean(customer),
+    plan: 'free' as const,
+    interval: null,
+    status: 'free',
+    cancelAtPeriodEnd: false,
+    currentPeriodEnd: null,
+    hasCustomerPortal: false,
     cycle: {
-      start: cycle.cycleStart.toISOString(),
-      end: cycle.cycleEnd.toISOString(),
-      included: cycle.includedApplications,
-      bonus: cycle.bonusApplications,
-      submitted: cycle.submittedCount,
-      remaining,
-      limit: cycle.includedApplications + cycle.bonusApplications,
+      start: now.toISOString(),
+      end: end.toISOString(),
+      included: FREE_APPLICATION_QUOTA,
+      bonus: 0,
+      submitted: 0,
+      remaining: FREE_APPLICATION_QUOTA,
+      limit: FREE_APPLICATION_QUOTA,
     },
-    invoices,
+    invoices: [] as {
+      id: string;
+      amount: number;
+      currency: string;
+      status: string;
+      createdAt: string | null;
+    }[],
   };
+}
+
+export async function billingSummaryForUser(userId: string) {
+  try {
+    const [subscription, cycle, customer] = await Promise.all([
+      latestActiveSubscription(userId),
+      getOrCreateUsageCycle(userId),
+      prisma.billingCustomer.findUnique({ where: { userId } }),
+    ]);
+
+    const invoices = customer
+      ? await listRecentInvoices(customer.dodoCustomerId)
+      : [];
+    const remaining = remainingInCycle(cycle);
+    const plan = (subscription?.plan as BillingPlan | undefined) ?? 'free';
+
+    return {
+      plan,
+      interval: (subscription?.interval as BillingInterval | undefined) ?? null,
+      status: subscription?.status ?? 'free',
+      cancelAtPeriodEnd: subscription?.cancelAtPeriodEnd ?? false,
+      currentPeriodEnd: subscription?.currentPeriodEnd.toISOString() ?? null,
+      hasCustomerPortal: Boolean(customer),
+      cycle: {
+        start: cycle.cycleStart.toISOString(),
+        end: cycle.cycleEnd.toISOString(),
+        included: cycle.includedApplications,
+        bonus: cycle.bonusApplications,
+        submitted: cycle.submittedCount,
+        remaining,
+        limit: cycle.includedApplications + cycle.bonusApplications,
+      },
+      invoices,
+    };
+  } catch (error) {
+    if (isMissingRelation(error)) {
+      console.warn('[billing] billing tables missing; returning free plan');
+      return freeBillingSummary();
+    }
+    throw error;
+  }
 }

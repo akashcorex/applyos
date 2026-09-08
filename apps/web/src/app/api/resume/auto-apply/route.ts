@@ -1,3 +1,4 @@
+import { requireHasResume } from '@/lib/require-resume';
 import { assertResumeOwner, requireUserId } from '@/lib/require-user';
 
 const RESUME_AGENT_URL =
@@ -112,6 +113,8 @@ export async function POST(request: Request) {
   try {
     const userOrErr = await requireUserId(request);
     if (userOrErr instanceof Response) return userOrErr;
+    const resumeGate = await requireHasResume(request);
+    if (resumeGate instanceof Response) return resumeGate;
     const sessionUserId = userOrErr;
 
     const body = await request.json();
@@ -229,8 +232,7 @@ export async function POST(request: Request) {
     )}/source`;
     const defaultCv = buildCvDataFromResume(resume, originalResumeUrl);
     const firstVariant = resolvedVariants.values().next().value as
-      | ResumeVariant
-      | undefined;
+      ResumeVariant | undefined;
 
     const artifactUrl = (variant: ResumeVariant) =>
       `${RESUME_AGENT_URL}/internal/artifacts/${encodeURIComponent(

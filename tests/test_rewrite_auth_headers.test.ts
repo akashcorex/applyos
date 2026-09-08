@@ -9,8 +9,11 @@ const API = 'api.applyos.in';
 
 describe('rewriteSetCookie', () => {
   it('keeps a parent-domain cookie', () => {
-    const cookie = 'better-auth.session_token=abc; Path=/; Domain=applyos.in; HttpOnly';
-    expect(rewriteSetCookie(cookie, 'https:', API)).toContain('Domain=applyos.in');
+    const cookie =
+      'better-auth.session_token=abc; Path=/; Domain=applyos.in; HttpOnly';
+    expect(rewriteSetCookie(cookie, 'https:', API)).toContain(
+      'Domain=applyos.in',
+    );
     expect(
       rewriteSetCookie(
         'better-auth.session_token=abc; Path=/; Domain=.applyos.in',
@@ -21,7 +24,8 @@ describe('rewriteSetCookie', () => {
   });
 
   it('strips Domain=api.applyos.in so the BFF can set a host-only cookie', () => {
-    const cookie = 'better-auth.session_token=abc; Domain=api.applyos.in; Path=/';
+    const cookie =
+      'better-auth.session_token=abc; Domain=api.applyos.in; Path=/';
     expect(rewriteSetCookie(cookie, 'https:', API)).not.toMatch(/Domain=/i);
   });
 
@@ -50,9 +54,9 @@ describe('rewriteLocation', () => {
   };
 
   it('rewrites an API app location onto the web host', () => {
-    expect(
-      rewriteLocation('https://api.applyos.in/dashboard', web, API),
-    ).toBe('https://www.applyos.in/dashboard');
+    expect(rewriteLocation('https://api.applyos.in/dashboard', web, API)).toBe(
+      'https://www.applyos.in/dashboard',
+    );
   });
 
   it('does not rewrite an OAuth callback Location', () => {

@@ -3,7 +3,10 @@ function isRailwayHost(host: string): boolean {
 }
 
 function isAuthCallbackPath(pathname: string): boolean {
-  return pathname === '/api/auth/callback' || pathname.startsWith('/api/auth/callback/');
+  return (
+    pathname === '/api/auth/callback' ||
+    pathname.startsWith('/api/auth/callback/')
+  );
 }
 
 export function rewriteSetCookie(
@@ -12,13 +15,16 @@ export function rewriteSetCookie(
   apiHost: string,
 ): string {
   const api = apiHost.replace(/^\./, '').toLowerCase();
-  let next = cookie.replace(/;\s*Domain=([^;]*)/gi, (_match, domain: string) => {
-    const host = domain.trim().replace(/^\./, '').toLowerCase();
-    if (isRailwayHost(host) || (api && host === api)) {
-      return '';
-    }
-    return `; Domain=${domain.trim()}`;
-  });
+  let next = cookie.replace(
+    /;\s*Domain=([^;]*)/gi,
+    (_match, domain: string) => {
+      const host = domain.trim().replace(/^\./, '').toLowerCase();
+      if (isRailwayHost(host) || (api && host === api)) {
+        return '';
+      }
+      return `; Domain=${domain.trim()}`;
+    },
+  );
   if (requestProtocol === 'https:' && !/;\s*Secure(?:;|$)/i.test(next)) {
     next += '; Secure';
   }

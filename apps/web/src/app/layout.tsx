@@ -59,12 +59,7 @@ export const metadata: Metadata = {
   },
   description,
   applicationName: 'ApplyOS',
-  keywords: [
-    'ApplyOS',
-    'AI job applications',
-    'auto apply',
-    'job outreach',
-  ],
+  keywords: ['ApplyOS', 'AI job applications', 'auto apply', 'job outreach'],
   authors: [{ name: 'ApplyOS' }],
   creator: 'ApplyOS',
   openGraph: {

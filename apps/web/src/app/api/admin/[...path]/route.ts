@@ -34,7 +34,10 @@ async function proxyAdmin(
     const data = await res.json().catch(() => ({}));
     return Response.json(data, { status: res.status });
   } catch {
-    return Response.json({ error: 'Admin API is unavailable' }, { status: 502 });
+    return Response.json(
+      { error: 'Admin API is unavailable' },
+      { status: 502 },
+    );
   }
 }
 

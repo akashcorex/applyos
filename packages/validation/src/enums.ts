@@ -150,8 +150,6 @@ export const linkedinConnectStatuses = [
   'skipped_rate_limit',
 ] as const;
 
-export const outreachEmailStatuses = ['queued', 'sent', 'failed'] as const;
-
 export const billingPlans = ['starter', 'pro', 'power'] as const;
 
 export const billingIntervals = ['monthly', 'quarterly', 'annual'] as const;
@@ -179,7 +177,6 @@ export const applicationOutcomeSchema = z.enum(applicationOutcomes);
 export const agentTaskStatusSchema = z.enum(agentTaskStatuses);
 export const workflowEventTypeSchema = z.enum(workflowEventTypes);
 export const linkedinConnectStatusSchema = z.enum(linkedinConnectStatuses);
-export const outreachEmailStatusSchema = z.enum(outreachEmailStatuses);
 export const billingPlanSchema = z.enum(billingPlans);
 export const billingIntervalSchema = z.enum(billingIntervals);
 export const billingAddOnPackSchema = z.enum(billingAddOnPacks);
@@ -200,7 +197,6 @@ export type ApplicationOutcome = (typeof applicationOutcomes)[number];
 export type AgentTaskStatus = (typeof agentTaskStatuses)[number];
 export type WorkflowEventType = (typeof workflowEventTypes)[number];
 export type LinkedinConnectStatus = (typeof linkedinConnectStatuses)[number];
-export type OutreachEmailStatus = (typeof outreachEmailStatuses)[number];
 export type BillingPlan = (typeof billingPlans)[number];
 export type BillingInterval = (typeof billingIntervals)[number];
 export type BillingAddOnPack = (typeof billingAddOnPacks)[number];

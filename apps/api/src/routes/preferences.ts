@@ -10,7 +10,6 @@ function hasString(value: unknown): value is string {
 
 const defaultPreferences = {
   postApplyLinkedinConnectEnabled: false,
-  emailOutreachEnabled: false,
   autoSubmitEnabled: false,
 };
 
@@ -56,7 +55,6 @@ preferencesRouter.put('/internal/:userId', async (req, res) => {
 
   const body = req.body as {
     postApplyLinkedinConnectEnabled?: unknown;
-    emailOutreachEnabled?: unknown;
     autoSubmitEnabled?: unknown;
   };
   try {
@@ -68,10 +66,6 @@ preferencesRouter.put('/internal/:userId', async (req, res) => {
       body.postApplyLinkedinConnectEnabled === undefined
         ? (existing?.postApplyLinkedinConnectEnabled ?? false)
         : body.postApplyLinkedinConnectEnabled === true;
-    const nextEmail =
-      body.emailOutreachEnabled === undefined
-        ? (existing?.emailOutreachEnabled ?? false)
-        : body.emailOutreachEnabled === true;
     const nextAutoSubmit =
       body.autoSubmitEnabled === undefined
         ? (existing?.autoSubmitEnabled ?? false)
@@ -82,12 +76,10 @@ preferencesRouter.put('/internal/:userId', async (req, res) => {
       create: {
         userId: req.params.userId,
         postApplyLinkedinConnectEnabled: nextLinkedin,
-        emailOutreachEnabled: nextEmail,
         autoSubmitEnabled: nextAutoSubmit,
       },
       update: {
         postApplyLinkedinConnectEnabled: nextLinkedin,
-        emailOutreachEnabled: nextEmail,
         autoSubmitEnabled: nextAutoSubmit,
       },
     });

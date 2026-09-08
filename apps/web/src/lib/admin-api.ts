@@ -1,11 +1,7 @@
 export type AdminRole = 'USER' | 'ADMIN';
 export type AccountStatus = 'ACTIVE' | 'SUSPENDED' | 'DELETED';
 export type ResumeStatus =
-  | 'UPLOADED'
-  | 'PROCESSING'
-  | 'COMPLETED'
-  | 'FAILED'
-  | 'ARCHIVED';
+  'UPLOADED' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'ARCHIVED';
 
 export interface AdminUser {
   id: string;
@@ -31,12 +27,12 @@ export interface AdminResume {
   updatedAt: string;
   errorCode?: string | null;
   errorMessage?: string | null;
-  extractions?: Array<{
+  extractions?: {
     revisionNumber: number;
     status: string;
     schemaVersion: string;
     createdAt: string;
-  }>;
+  }[];
 }
 
 async function adminFetch<T>(path: string, init?: RequestInit): Promise<T> {

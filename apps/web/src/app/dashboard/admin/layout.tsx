@@ -22,10 +22,7 @@ export default function AdminLayout({
     void fetchMe()
       .then((me) => {
         if (cancelled) return;
-        if (
-          isAdminRole(me.user.role) &&
-          me.user.status === 'ACTIVE'
-        ) {
+        if (isAdminRole(me.user.role) && me.user.status === 'ACTIVE') {
           setAllowed(true);
           return;
         }

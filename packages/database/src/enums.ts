@@ -176,10 +176,6 @@ export const linkedinConnectStatuses = [
 
 export type LinkedinConnectStatus = (typeof linkedinConnectStatuses)[number];
 
-export const outreachEmailStatuses = ['queued', 'sent', 'failed'] as const;
-
-export type OutreachEmailStatus = (typeof outreachEmailStatuses)[number];
-
 export const billingPlans = ['starter', 'pro', 'power'] as const;
 
 export type BillingPlan = (typeof billingPlans)[number];

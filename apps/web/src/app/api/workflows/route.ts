@@ -1,3 +1,4 @@
+import { requireHasResume } from '@/lib/require-resume';
 import { requireUserId } from '@/lib/require-user';
 import {
   agentServiceHeaders,
@@ -10,6 +11,8 @@ const ORCHESTRATOR_URL =
 export async function POST(request: Request) {
   const userOrErr = await requireUserId(request);
   if (userOrErr instanceof Response) return userOrErr;
+  const resumeGate = await requireHasResume(request);
+  if (resumeGate instanceof Response) return resumeGate;
 
   const headers = agentServiceHeaders();
   if (!headers) {

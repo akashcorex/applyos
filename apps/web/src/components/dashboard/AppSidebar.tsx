@@ -18,7 +18,12 @@ import {
 import { Button } from '@applyso/ui/button';
 
 import { DitherAvatar } from '@/components/dither-kit/avatar';
-import { fetchBillingMe, planLabel, statusLabel, type BillingMe } from '@/lib/billing';
+import {
+  fetchBillingMe,
+  planLabel,
+  statusLabel,
+  type BillingMe,
+} from '@/lib/billing';
 
 interface AppSidebarProps {
   userName?: string | null;

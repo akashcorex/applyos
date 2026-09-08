@@ -27,9 +27,10 @@ export default async function proxy(req: NextRequest) {
   if (isDashboard) {
     if (session.status === 'unavailable') return NextResponse.next();
     if (session.status !== 'authenticated') return redirectTo(req, '/login');
-    if (!session.me.onboarding?.onboardingComplete)
-      return redirectTo(req, '/onboarding');
-    if (pathname.startsWith('/dashboard/admin') && session.me.user.role !== 'ADMIN') {
+    if (
+      pathname.startsWith('/dashboard/admin') &&
+      session.me.user.role !== 'ADMIN'
+    ) {
       return redirectTo(req, '/dashboard');
     }
     return NextResponse.next();
@@ -38,8 +39,7 @@ export default async function proxy(req: NextRequest) {
   if (isOnboarding) {
     if (session.status === 'unavailable') return NextResponse.next();
     if (session.status !== 'authenticated') return redirectTo(req, '/login');
-    if (session.me.onboarding?.onboardingComplete) return redirectTo(req, '/dashboard');
-    return NextResponse.next();
+    return redirectTo(req, '/dashboard');
   }
 
   if (session.status === 'authenticated') return redirectTo(req, '/dashboard');

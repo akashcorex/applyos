@@ -1,12 +1,21 @@
+import type { ProfileCompletion, ProfileNextAction } from '@applyso/validation';
+
 export interface MeResponse {
   user: { role: string };
   onboarding?: {
     hasResume: boolean;
     hasProfile: boolean;
     profileConfirmed: boolean;
+    canApply?: boolean;
     onboardingComplete: boolean;
   };
+  completion?: Pick<
+    ProfileCompletion,
+    'percent' | 'filled' | 'total' | 'missing' | 'nextAction'
+  >;
 }
+
+export type { ProfileNextAction };
 
 export type SessionStatus = 'authenticated' | 'unauthenticated' | 'unavailable';
 

@@ -32,8 +32,7 @@ function toAccountStatus(value: unknown, banned?: boolean): string {
 }
 
 let sessionUserOverride:
-  | (() => Promise<SessionUser | null> | SessionUser | null)
-  | null = null;
+  (() => Promise<SessionUser | null> | SessionUser | null) | null = null;
 
 /** Test-only seam so HTTP tests can inject a session without Better Auth. */
 export function setSessionUserOverride(

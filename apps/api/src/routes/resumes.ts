@@ -353,73 +353,82 @@ resumesRouter.post('/', async (req, res) => {
 });
 
 // POST /v1/resumes/upload — multipart file + metadata, then kick off process.
-resumesRouter.post('/upload', (req, res, next) => {
-  upload.single('file')(req, res, (err: unknown) => {
-    if (err) {
-      res.status(400).json({ error: 'file is required or exceeds 50MB' });
+resumesRouter.post(
+  '/upload',
+  (req, res, next) => {
+    upload.single('file')(req, res, (err: unknown) => {
+      if (err) {
+        res.status(400).json({ error: 'file is required or exceeds 50MB' });
+        return;
+      }
+      next();
+    });
+  },
+  async (req, res) => {
+    const me = authUserOf(req);
+    const file = (
+      req as typeof req & {
+        file?: {
+          originalname: string;
+          mimetype: string;
+          size: number;
+          buffer: Buffer;
+        };
+      }
+    ).file;
+    if (!file?.buffer?.length) {
+      res.status(400).json({ error: 'file is required' });
       return;
     }
-    next();
-  });
-}, async (req, res) => {
-  const me = authUserOf(req);
-  const file = (
-    req as typeof req & {
-      file?: { originalname: string; mimetype: string; size: number; buffer: Buffer };
+    if (!ALLOWED_RESUME_MIME.has(file.mimetype)) {
+      res.status(400).json({ error: 'mimeType is not allowed' });
+      return;
     }
-  ).file;
-  if (!file?.buffer?.length) {
-    res.status(400).json({ error: 'file is required' });
-    return;
-  }
-  if (!ALLOWED_RESUME_MIME.has(file.mimetype)) {
-    res.status(400).json({ error: 'mimeType is not allowed' });
-    return;
-  }
 
-  const fileName = file.originalname.trim().slice(0, 255) || 'resume.pdf';
-  const resumeFileId = randomUUID();
-  const storageKey = await saveResumeUpload({
-    userId: me.id,
-    resumeFileId,
-    fileName,
-    mimeType: file.mimetype,
-    bytes: file.buffer,
-  });
-
-  const resume = await prisma.resumeFile.create({
-    data: {
-      id: resumeFileId,
+    const fileName = file.originalname.trim().slice(0, 255) || 'resume.pdf';
+    const resumeFileId = randomUUID();
+    const storageKey = await saveResumeUpload({
       userId: me.id,
+      resumeFileId,
       fileName,
-      storageKey,
       mimeType: file.mimetype,
-      fileSize: file.size,
-      status: 'UPLOADED',
-      version: 1,
-      parserVersion: PARSER_VERSION_DEFAULT,
-      extractionVersion: EXTRACTION_SCHEMA_VERSION,
-    },
-  });
-  await trackResumeEvent('resume_uploaded', me.id, {
-    resume_file_id: resume.id,
-    mime_type: resume.mimeType,
-  });
+      bytes: file.buffer,
+    });
 
-  const started = await beginProcessing({
-    id: resume.id,
-    userId: resume.userId,
-    status: resume.status,
-    parserVersion: resume.parserVersion,
-    storageKey: resume.storageKey,
-    fileName: resume.fileName,
-    mimeType: resume.mimeType,
-  });
-  res.status(202).json({
-    resume: started.resume,
-    extraction: started.extraction,
-  });
-});
+    const resume = await prisma.resumeFile.create({
+      data: {
+        id: resumeFileId,
+        userId: me.id,
+        fileName,
+        storageKey,
+        mimeType: file.mimetype,
+        fileSize: file.size,
+        status: 'UPLOADED',
+        version: 1,
+        parserVersion: PARSER_VERSION_DEFAULT,
+        extractionVersion: EXTRACTION_SCHEMA_VERSION,
+      },
+    });
+    await trackResumeEvent('resume_uploaded', me.id, {
+      resume_file_id: resume.id,
+      mime_type: resume.mimeType,
+    });
+
+    const started = await beginProcessing({
+      id: resume.id,
+      userId: resume.userId,
+      status: resume.status,
+      parserVersion: resume.parserVersion,
+      storageKey: resume.storageKey,
+      fileName: resume.fileName,
+      mimeType: resume.mimeType,
+    });
+    res.status(202).json({
+      resume: started.resume,
+      extraction: started.extraction,
+    });
+  },
+);
 
 // GET /v1/resumes/:id — ownership enforced server-side (IDOR protection).
 resumesRouter.get('/:id', async (req, res) => {
@@ -654,164 +663,169 @@ resumesInternalRouter.post(
   '/internal/:id/complete',
   requireServiceToken,
   async (req, res) => {
-  const { id } = req.params;
-  if (!isValidResourceId(id)) {
-    res.status(400).json({ error: 'Invalid resume id' });
-    return;
-  }
-  const resume = await prisma.resumeFile.findUnique({ where: { id } });
-  if (!resume) {
-    res.status(404).json({ error: 'Resume not found' });
-    return;
-  }
-  if (!canAgentTransitionStatus(resume.status, 'COMPLETED')) {
-    res.status(409).json({
-      error: `Cannot complete from status ${resume.status}`,
+    const { id } = req.params;
+    if (!isValidResourceId(id)) {
+      res.status(400).json({ error: 'Invalid resume id' });
+      return;
+    }
+    const resume = await prisma.resumeFile.findUnique({ where: { id } });
+    if (!resume) {
+      res.status(404).json({ error: 'Resume not found' });
+      return;
+    }
+    if (!canAgentTransitionStatus(resume.status, 'COMPLETED')) {
+      res.status(409).json({
+        error: `Cannot complete from status ${resume.status}`,
+      });
+      return;
+    }
+
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    const validated = validateExtractionPayload(body.extraction ?? body);
+    if (!validated.ok) {
+      const safe = sanitizeErrorForUser({
+        code: 'EXTRACTION_FAILED',
+        message: validated.error,
+      });
+      await markFailed(id, resume.userId, {
+        code: 'INVALID_EXTRACTION',
+        message: validated.error,
+      });
+      res
+        .status(422)
+        .json({ error: 'Invalid extraction output', code: safe.code });
+      return;
+    }
+
+    const extraction = validated.data;
+    const open = await prisma.resumeExtraction.findFirst({
+      where: { resumeFileId: id, status: 'PROCESSING' },
+      orderBy: { revisionNumber: 'desc' },
     });
-    return;
-  }
-
-  const body = (req.body ?? {}) as Record<string, unknown>;
-  const validated = validateExtractionPayload(body.extraction ?? body);
-  if (!validated.ok) {
-    const safe = sanitizeErrorForUser({
-      code: 'EXTRACTION_FAILED',
-      message: validated.error,
+    const count = await prisma.resumeExtraction.count({
+      where: { resumeFileId: id },
     });
-    await markFailed(id, resume.userId, {
-      code: 'INVALID_EXTRACTION',
-      message: validated.error,
+    const revision = open?.revisionNumber ?? nextRevisionNumber(count);
+    const profileData = extractionToProfileData(
+      extraction,
+      EXTRACTION_SCHEMA_VERSION,
+      id,
+    );
+    const existingProfile = await prisma.profile.findUnique({
+      where: { userId: resume.userId },
     });
-    res.status(422).json({ error: 'Invalid extraction output', code: safe.code });
-    return;
-  }
 
-  const extraction = validated.data;
-  const open = await prisma.resumeExtraction.findFirst({
-    where: { resumeFileId: id, status: 'PROCESSING' },
-    orderBy: { revisionNumber: 'desc' },
-  });
-  const count = await prisma.resumeExtraction.count({
-    where: { resumeFileId: id },
-  });
-  const revision = open?.revisionNumber ?? nextRevisionNumber(count);
-  const profileData = extractionToProfileData(
-    extraction,
-    EXTRACTION_SCHEMA_VERSION,
-    id,
-  );
-  const existingProfile = await prisma.profile.findUnique({
-    where: { userId: resume.userId },
-  });
+    const legacyResumeId =
+      typeof body.resumeId === 'string' &&
+      LEGACY_RESUME_UUID.test(body.resumeId)
+        ? body.resumeId
+        : undefined;
 
-  const legacyResumeId =
-    typeof body.resumeId === 'string' && LEGACY_RESUME_UUID.test(body.resumeId)
-      ? body.resumeId
-      : undefined;
+    await prisma.$transaction([
+      open
+        ? prisma.resumeExtraction.update({
+            where: { id: open.id },
+            data: {
+              schemaVersion: EXTRACTION_SCHEMA_VERSION,
+              parserVersion:
+                typeof body.parserVersion === 'string'
+                  ? body.parserVersion.slice(0, 64)
+                  : (resume.parserVersion ?? PARSER_VERSION_DEFAULT),
+              extractionVersion: EXTRACTION_SCHEMA_VERSION,
+              status: 'COMPLETED',
+              payload: extraction as unknown as never,
+              errorCode: null,
+              errorMessage: null,
+            },
+          })
+        : prisma.resumeExtraction.create({
+            data: {
+              resumeFileId: id,
+              userId: resume.userId,
+              revisionNumber: revision,
+              schemaVersion: EXTRACTION_SCHEMA_VERSION,
+              parserVersion:
+                typeof body.parserVersion === 'string'
+                  ? body.parserVersion.slice(0, 64)
+                  : (resume.parserVersion ?? PARSER_VERSION_DEFAULT),
+              extractionVersion: EXTRACTION_SCHEMA_VERSION,
+              status: 'COMPLETED',
+              payload: extraction as unknown as never,
+            },
+          }),
+      prisma.resumeFile.update({
+        where: { id },
+        data: {
+          status: 'COMPLETED',
+          processedAt: new Date(),
+          failedAt: null,
+          errorCode: null,
+          errorMessage: null,
+          extractionVersion: EXTRACTION_SCHEMA_VERSION,
+          version: { increment: 1 },
+          ...(legacyResumeId ? { resumeId: legacyResumeId } : {}),
+        },
+      }),
+      existingProfile?.isConfirmed
+        ? prisma.profile.update({
+            where: { userId: resume.userId },
+            data: {
+              lastExtractedAt: new Date(),
+              extractionVersion: EXTRACTION_SCHEMA_VERSION,
+              sourceResumeFileId: id,
+            },
+          })
+        : prisma.profile.upsert({
+            where: { userId: resume.userId },
+            create: { userId: resume.userId, ...profileData },
+            update: { ...profileData },
+          }),
+    ]);
 
-  await prisma.$transaction([
-    open
-      ? prisma.resumeExtraction.update({
-          where: { id: open.id },
-          data: {
-            schemaVersion: EXTRACTION_SCHEMA_VERSION,
-            parserVersion:
-              typeof body.parserVersion === 'string'
-                ? body.parserVersion.slice(0, 64)
-                : (resume.parserVersion ?? PARSER_VERSION_DEFAULT),
-            extractionVersion: EXTRACTION_SCHEMA_VERSION,
-            status: 'COMPLETED',
-            payload: extraction as unknown as never,
-            errorCode: null,
-            errorMessage: null,
-          },
-        })
-      : prisma.resumeExtraction.create({
-          data: {
-            resumeFileId: id,
-            userId: resume.userId,
-            revisionNumber: revision,
-            schemaVersion: EXTRACTION_SCHEMA_VERSION,
-            parserVersion:
-              typeof body.parserVersion === 'string'
-                ? body.parserVersion.slice(0, 64)
-                : (resume.parserVersion ?? PARSER_VERSION_DEFAULT),
-            extractionVersion: EXTRACTION_SCHEMA_VERSION,
-            status: 'COMPLETED',
-            payload: extraction as unknown as never,
-          },
-        }),
-    prisma.resumeFile.update({
-      where: { id },
-      data: {
-        status: 'COMPLETED',
-        processedAt: new Date(),
-        failedAt: null,
-        errorCode: null,
-        errorMessage: null,
-        extractionVersion: EXTRACTION_SCHEMA_VERSION,
-        version: { increment: 1 },
-        ...(legacyResumeId ? { resumeId: legacyResumeId } : {}),
-      },
-    }),
-    existingProfile?.isConfirmed
-      ? prisma.profile.update({
-          where: { userId: resume.userId },
-          data: {
-            lastExtractedAt: new Date(),
-            extractionVersion: EXTRACTION_SCHEMA_VERSION,
-            sourceResumeFileId: id,
-          },
-        })
-      : prisma.profile.upsert({
-          where: { userId: resume.userId },
-          create: { userId: resume.userId, ...profileData },
-          update: { ...profileData },
-        }),
-  ]);
+    validateEnrichedProfileInput({
+      fullName: extraction.fullName,
+      headline: extraction.headline,
+    });
 
-  validateEnrichedProfileInput({
-    fullName: extraction.fullName,
-    headline: extraction.headline,
-  });
-
-  await trackResumeEvent('resume_processing_completed', resume.userId, {
-    resume_file_id: id,
-    revision,
-    skill_count: extraction.skills.length,
-  });
-  await trackResumeEvent('profile_extracted', resume.userId, {
-    resume_file_id: id,
-    revision,
-  });
-  res.status(200).json({ ok: true, revision });
-});
+    await trackResumeEvent('resume_processing_completed', resume.userId, {
+      resume_file_id: id,
+      revision,
+      skill_count: extraction.skills.length,
+    });
+    await trackResumeEvent('profile_extracted', resume.userId, {
+      resume_file_id: id,
+      revision,
+    });
+    res.status(200).json({ ok: true, revision });
+  },
+);
 
 resumesInternalRouter.post(
   '/internal/:id/fail',
   requireServiceToken,
   async (req, res) => {
-  const { id } = req.params;
-  if (!isValidResourceId(id)) {
-    res.status(400).json({ error: 'Invalid resume id' });
-    return;
-  }
-  const resume = await prisma.resumeFile.findUnique({ where: { id } });
-  if (!resume) {
-    res.status(404).json({ error: 'Resume not found' });
-    return;
-  }
-  if (!canAgentTransitionStatus(resume.status, 'FAILED')) {
-    res.status(409).json({
-      error: `Cannot fail from status ${resume.status}`,
+    const { id } = req.params;
+    if (!isValidResourceId(id)) {
+      res.status(400).json({ error: 'Invalid resume id' });
+      return;
+    }
+    const resume = await prisma.resumeFile.findUnique({ where: { id } });
+    if (!resume) {
+      res.status(404).json({ error: 'Resume not found' });
+      return;
+    }
+    if (!canAgentTransitionStatus(resume.status, 'FAILED')) {
+      res.status(409).json({
+        error: `Cannot fail from status ${resume.status}`,
+      });
+      return;
+    }
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    await markFailed(id, resume.userId, {
+      code: body.code ?? body.errorCode,
+      message: body.message ?? body.error,
     });
-    return;
-  }
-  const body = (req.body ?? {}) as Record<string, unknown>;
-  await markFailed(id, resume.userId, {
-    code: body.code ?? body.errorCode,
-    message: body.message ?? body.error,
-  });
-  const updated = await prisma.resumeFile.findUnique({ where: { id } });
-  res.status(200).json({ resume: updated });
-});
+    const updated = await prisma.resumeFile.findUnique({ where: { id } });
+    res.status(200).json({ resume: updated });
+  },
+);

@@ -21,6 +21,7 @@ export * from './primitives';
 export * from './enums';
 export * from './auth';
 export * from './profile';
+export * from './profile-summary';
 export * from './resume';
 export * from './preferences';
 export * from './applications';

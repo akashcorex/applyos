@@ -58,8 +58,8 @@ export async function getOrCreateUsageCycle(userId: string) {
 
   const subscription = await latestActiveSubscription(userId);
   const included = subscription
-    ? PLAN_APPLICATION_QUOTAS[subscription.plan as BillingPlan] ??
-      FREE_APPLICATION_QUOTA
+    ? (PLAN_APPLICATION_QUOTAS[subscription.plan as BillingPlan] ??
+      FREE_APPLICATION_QUOTA)
     : FREE_APPLICATION_QUOTA;
   const cycleStart =
     subscription && subscription.currentPeriodEnd > now
@@ -107,8 +107,10 @@ export async function assertCanStartApplications(
     },
   });
   const remaining = remainingInCycle(cycle);
-  if (cycle.submittedCount + inFlight + requestedCount >
-    cycle.includedApplications + cycle.bonusApplications) {
+  if (
+    cycle.submittedCount + inFlight + requestedCount >
+    cycle.includedApplications + cycle.bonusApplications
+  ) {
     throw new QuotaExceededError();
   }
   if (requestedCount > remaining) {

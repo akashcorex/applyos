@@ -4,7 +4,10 @@ import { type AnalyticsPayload } from '@applyso/analytics';
 
 export async function POST(req: Request) {
   if (!process.env.DATABASE_URL) {
-    return NextResponse.json({ success: false, error: 'Analytics not configured' });
+    return NextResponse.json({
+      success: false,
+      error: 'Analytics not configured',
+    });
   }
   try {
     const { prisma } = await import('@applyso/database');

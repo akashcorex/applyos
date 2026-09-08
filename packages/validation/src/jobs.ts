@@ -1,10 +1,6 @@
 import * as z from 'zod';
 
-import {
-  httpUrlSchema,
-  nonEmptyString,
-  optionalHttpUrl,
-} from './primitives';
+import { httpUrlSchema, nonEmptyString, optionalHttpUrl } from './primitives';
 
 /**
  * Job discovery + apply boundary.

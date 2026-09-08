@@ -1,6 +1,7 @@
 import { Router } from 'express';
 
 import { prisma } from '@applyso/database';
+import { computeProfileCompletion } from '@applyso/validation';
 
 import { authUserOf, requireAuth } from '../lib/authz';
 
@@ -25,7 +26,18 @@ meRouter.get('/', async (req, res) => {
       lastLoginAt: true,
       createdAt: true,
       updatedAt: true,
-      profile: { select: { isConfirmed: true } },
+      profile: {
+        select: {
+          isConfirmed: true,
+          fullName: true,
+          headline: true,
+          location: true,
+          professionalSummary: true,
+          linkedinUrl: true,
+          githubUrl: true,
+          portfolioUrl: true,
+        },
+      },
       _count: {
         select: {
           // Any resume ever uploaded (archived rows included) — archiving
@@ -42,14 +54,28 @@ meRouter.get('/', async (req, res) => {
   const hasResume = user._count.resumeFiles > 0;
   const hasProfile = user.profile !== null;
   const profileConfirmed = user.profile?.isConfirmed ?? false;
-  const { profile: _profile, _count, ...account } = user;
+  const { profile, _count, ...account } = user;
+  const completion = computeProfileCompletion({
+    hasResume,
+    hasProfile,
+    isConfirmed: profileConfirmed,
+    fullName: profile?.fullName,
+    headline: profile?.headline,
+    location: profile?.location,
+    professionalSummary: profile?.professionalSummary,
+    linkedinUrl: profile?.linkedinUrl,
+    githubUrl: profile?.githubUrl,
+    portfolioUrl: profile?.portfolioUrl,
+  });
   res.status(200).json({
     user: account,
     onboarding: {
       hasResume,
       hasProfile,
       profileConfirmed,
+      canApply: hasResume,
       onboardingComplete: hasResume && profileConfirmed,
     },
+    completion,
   });
 });

@@ -5,6 +5,7 @@ import { prisma } from '@applyso/database';
 import { authUserOf, requireAuth } from '../lib/authz';
 import { validateProfileInput } from '../lib/phase1-validation';
 import { validateEnrichedProfileInput } from '../lib/phase2-validation';
+import { loadProfileSummary } from '../lib/profile-summary';
 
 export const profilesRouter = Router();
 
@@ -43,6 +44,16 @@ profilesRouter.get('/me', async (req, res) => {
     where: { userId: me.id },
   });
   res.status(200).json({ profile });
+});
+
+// GET /v1/profiles/me/summary — completion, latest resume, activity heatmap.
+profilesRouter.get('/me/summary', async (req, res) => {
+  const me = authUserOf(req);
+  const timeZone = Array.isArray(req.query.timeZone)
+    ? req.query.timeZone[0]
+    : req.query.timeZone;
+  const summary = await loadProfileSummary(me.id, timeZone);
+  res.status(200).json(summary);
 });
 
 // PUT /v1/profiles/me — create or update own profile (upsert by userId).

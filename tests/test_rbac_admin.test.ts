@@ -1,7 +1,9 @@
 import { afterAll, beforeEach, describe, expect, it, mock } from 'bun:test';
-import type { AddressInfo } from 'node:net';
-
 import express from 'express';
+
+import * as databaseEnums from '../packages/database/src/enums';
+
+import type { AddressInfo } from 'node:net';
 
 type SessionUser = {
   id: string;
@@ -44,6 +46,7 @@ const prismaMock = {
 
 mock.module('@applyso/database', () => ({
   prisma: prismaMock,
+  ...databaseEnums,
 }));
 
 const { setSessionUserOverride } = await import('../apps/api/src/lib/authz');

@@ -83,7 +83,9 @@ export async function billingWebhookHandler(
   }
 
   const data =
-    parsed.data && typeof parsed.data === 'object' && !Array.isArray(parsed.data)
+    parsed.data &&
+    typeof parsed.data === 'object' &&
+    !Array.isArray(parsed.data)
       ? (parsed.data as Record<string, unknown>)
       : {};
 
@@ -107,77 +109,85 @@ billingRouter.use(requireAuth);
 
 billingRouter.get('/me', async (req, res) => {
   const user = authUserOf(req);
-  const summary = await billingSummaryForUser(user.id);
-  res.json(summary);
+  try {
+    const summary = await billingSummaryForUser(user.id);
+    res.json(summary);
+  } catch (error) {
+    console.error('[billing] /me failed:', error);
+    res.status(503).json({ error: 'Billing is unavailable' });
+  }
 });
 
 billingRouter.post(
   '/checkout',
   validateBody(billingCheckoutSchema),
   async (req, res) => {
-  const body = req.validatedBody as BillingCheckoutInput;
-  const user = authUserOf(req);
+    const body = req.validatedBody as BillingCheckoutInput;
+    const user = authUserOf(req);
 
-  const account = await prisma.user.findUnique({
-    where: { id: user.id },
-    select: {
-      email: true,
-      name: true,
-      billingCustomer: { select: { dodoCustomerId: true } },
-    },
-  });
-  if (!account) {
-    res.status(404).json({ error: 'Account not found' });
-    return;
-  }
-
-  let productId: string;
-  const metadata: Record<string, string> = { userId: user.id };
-  try {
-    if (body.addOnPack) {
-      productId = productIdForAddOn(body.addOnPack);
-      metadata.addOnPack = body.addOnPack;
-    } else if (body.plan && body.interval) {
-      productId = productIdForPlan(body.plan, body.interval);
-      metadata.plan = body.plan;
-      metadata.interval = body.interval;
-    } else {
-      res.status(400).json({ error: 'Invalid checkout request' });
-      return;
-    }
-  } catch (error) {
-    console.error('[billing] product mapping missing:', error);
-    res.status(503).json({ error: 'Billing products are not configured' });
-    return;
-  }
-
-  const customer = account.billingCustomer?.dodoCustomerId
-    ? { customer_id: account.billingCustomer.dodoCustomerId }
-    : { email: account.email, name: account.name || account.email };
-
-  try {
-    const client = getDodoClient();
-    const session = await client.checkoutSessions.create({
-      product_cart: [{ product_id: productId, quantity: 1 }],
-      customer,
-      return_url: billingReturnUrl('success'),
-      cancel_url: billingReturnUrl('cancelled'),
-      metadata,
-      discount_codes: body.couponCode ? [body.couponCode] : undefined,
-      feature_flags: { allow_discount_code: true },
+    const account = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: {
+        email: true,
+        name: true,
+        billingCustomer: { select: { dodoCustomerId: true } },
+      },
     });
-    const checkoutUrl =
-      (session as { checkout_url?: string }).checkout_url ?? null;
-    if (!checkoutUrl) {
-      res.status(502).json({ error: 'Checkout session did not return a URL' });
+    if (!account) {
+      res.status(404).json({ error: 'Account not found' });
       return;
     }
-    res.json({ checkoutUrl });
-  } catch (error) {
-    console.error('[billing] checkout session failed:', error);
-    res.status(502).json({ error: 'Failed to create checkout session' });
-  }
-});
+
+    let productId: string;
+    const metadata: Record<string, string> = { userId: user.id };
+    try {
+      if (body.addOnPack) {
+        productId = productIdForAddOn(body.addOnPack);
+        metadata.addOnPack = body.addOnPack;
+      } else if (body.plan && body.interval) {
+        productId = productIdForPlan(body.plan, body.interval);
+        metadata.plan = body.plan;
+        metadata.interval = body.interval;
+      } else {
+        res.status(400).json({ error: 'Invalid checkout request' });
+        return;
+      }
+    } catch (error) {
+      console.error('[billing] product mapping missing:', error);
+      res.status(503).json({ error: 'Billing products are not configured' });
+      return;
+    }
+
+    const customer = account.billingCustomer?.dodoCustomerId
+      ? { customer_id: account.billingCustomer.dodoCustomerId }
+      : { email: account.email, name: account.name || account.email };
+
+    try {
+      const client = getDodoClient();
+      const session = await client.checkoutSessions.create({
+        product_cart: [{ product_id: productId, quantity: 1 }],
+        customer,
+        return_url: billingReturnUrl('success'),
+        cancel_url: billingReturnUrl('cancelled'),
+        metadata,
+        discount_codes: body.couponCode ? [body.couponCode] : undefined,
+        feature_flags: { allow_discount_code: true },
+      });
+      const checkoutUrl =
+        (session as { checkout_url?: string }).checkout_url ?? null;
+      if (!checkoutUrl) {
+        res
+          .status(502)
+          .json({ error: 'Checkout session did not return a URL' });
+        return;
+      }
+      res.json({ checkoutUrl });
+    } catch (error) {
+      console.error('[billing] checkout session failed:', error);
+      res.status(502).json({ error: 'Failed to create checkout session' });
+    }
+  },
+);
 
 billingRouter.post('/portal', async (req, res) => {
   const user = authUserOf(req);

@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from unittest.mock import AsyncMock
-
 import pytest
 from httpx import ASGITransport, AsyncClient
 
@@ -9,13 +7,10 @@ from main import app
 
 
 @pytest.mark.asyncio
-async def test_send_outreach_requires_service_token(monkeypatch: pytest.MonkeyPatch) -> None:
-    import services.email_sender as email_sender
+async def test_send_outreach_requires_service_token() -> None:
     from config import settings
 
-    monkeypatch.setattr(settings, "agent_service_token", "test-token")
-    monkeypatch.setattr(email_sender, "user_email_outreach_enabled", AsyncMock(return_value=True))
-    monkeypatch.setattr(email_sender, "configured_provider", lambda: "resend")
+    settings.agent_service_token = "test-token"
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -33,13 +28,10 @@ async def test_send_outreach_requires_service_token(monkeypatch: pytest.MonkeyPa
 
 
 @pytest.mark.asyncio
-async def test_send_outreach_requires_user_opt_in(monkeypatch: pytest.MonkeyPatch) -> None:
-    import services.email_sender as email_sender
+async def test_send_outreach_is_not_implemented() -> None:
     from config import settings
 
-    monkeypatch.setattr(settings, "agent_service_token", "test-token")
-    monkeypatch.setattr(email_sender, "user_email_outreach_enabled", AsyncMock(return_value=False))
-    monkeypatch.setattr(email_sender, "configured_provider", lambda: "resend")
+    settings.agent_service_token = "test-token"
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -54,5 +46,5 @@ async def test_send_outreach_requires_user_opt_in(monkeypatch: pytest.MonkeyPatc
             },
         )
 
-    assert response.status_code == 403
-    assert "enables" in response.json()["detail"]
+    assert response.status_code == 501
+    assert "not implemented" in response.json()["detail"]

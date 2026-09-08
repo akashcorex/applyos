@@ -19,11 +19,7 @@ export const EXTRACTION_SCHEMA_VERSION = 'resume-extraction.v2';
 export const PARSER_VERSION_DEFAULT = 'resume-parser.v1';
 
 export type ResumeLifecycleStatus =
-  | 'UPLOADED'
-  | 'PROCESSING'
-  | 'COMPLETED'
-  | 'FAILED'
-  | 'ARCHIVED';
+  'UPLOADED' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'ARCHIVED';
 
 const LIFECYCLE: ResumeLifecycleStatus[] = [
   'UPLOADED',

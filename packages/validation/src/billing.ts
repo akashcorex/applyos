@@ -49,7 +49,8 @@ export const billingCheckoutSchema = z
   })
   .refine(
     (value) =>
-      Boolean(value.addOnPack) || (Boolean(value.plan) && Boolean(value.interval)),
+      Boolean(value.addOnPack) ||
+      (Boolean(value.plan) && Boolean(value.interval)),
     { error: 'Either addOnPack or plan and interval is required' },
   );
 

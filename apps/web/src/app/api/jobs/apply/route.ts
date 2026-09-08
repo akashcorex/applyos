@@ -1,5 +1,6 @@
 import { jobApplySchema, parseJsonBody } from '@applyso/validation';
 
+import { requireHasResume } from '@/lib/require-resume';
 import { assertResumeOwner, requireUserId } from '@/lib/require-user';
 import { agentServiceHeaders } from '@/lib/workflow-authorization';
 
@@ -23,6 +24,8 @@ interface VariantContent {
 export async function POST(request: Request) {
   const userOrErr = await requireUserId(request);
   if (userOrErr instanceof Response) return userOrErr;
+  const resumeGate = await requireHasResume(request);
+  if (resumeGate instanceof Response) return resumeGate;
 
   const headers = agentServiceHeaders();
   if (!headers) {

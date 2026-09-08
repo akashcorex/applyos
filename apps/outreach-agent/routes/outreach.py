@@ -95,50 +95,8 @@ async def generate_batch_outreach(
     response_model=SendOutreachResponse,
     dependencies=[Depends(require_agent_service_token)],
 )
-async def send_outreach(payload: SendOutreachRequest) -> SendOutreachResponse:
-    from services.email_sender import (
-        EmailDeliveryError,
-        configured_provider,
-        record_email,
-        send_email,
-        user_email_outreach_enabled,
+async def send_outreach(_payload: SendOutreachRequest) -> SendOutreachResponse:
+    raise HTTPException(
+        status_code=501,
+        detail="Email outreach is not implemented",
     )
-
-    if not await user_email_outreach_enabled(payload.user_id):
-        raise HTTPException(
-            status_code=403,
-            detail="Email outreach is off until the user enables it in settings",
-        )
-    if configured_provider() is None:
-        raise HTTPException(
-            status_code=503,
-            detail="No email provider is configured (set RESEND_API_KEY or SMTP_HOST)",
-        )
-
-    try:
-        provider = await send_email(
-            to_email=payload.to_email,
-            subject=payload.subject,
-            body=payload.body,
-        )
-    except EmailDeliveryError as exc:
-        await record_email(
-            user_id=payload.user_id,
-            to_email=payload.to_email,
-            subject=payload.subject,
-            provider=configured_provider() or "unknown",
-            status="failed",
-            application_id=payload.application_id,
-            error_detail=str(exc),
-        )
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
-
-    await record_email(
-        user_id=payload.user_id,
-        to_email=payload.to_email,
-        subject=payload.subject,
-        provider=provider,
-        status="sent",
-        application_id=payload.application_id,
-    )
-    return SendOutreachResponse(status="sent", provider=provider)

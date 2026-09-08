@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import { AgentStatusPanel } from '@/components/AgentStatusPanel';
 import { CompanyDiscoveryPanel } from '@/components/CompanyDiscoveryPanel';
 import { DashboardOverview } from '@/components/dashboard/DashboardOverview';
-import { ProfileConfirmBanner } from '@/components/dashboard/ProfileConfirmBanner';
+import { ProfileProgressBanner } from '@/components/dashboard/ProfileProgressBanner';
 import { LinkedInConnectCard } from '@/components/LinkedInConnectCard';
 import { ResumeAutoApplyCard } from '@/components/ResumeAutoApplyCard';
 import { WorkflowPanel } from '@/components/WorkflowPanel';
@@ -19,8 +19,7 @@ export default function DashboardOverviewPage() {
 
   return (
     <div className="max-w-[1240px] mx-auto space-y-6 animate-fadeIn text-[#f1f3f9]">
-      {/* Profile review nudge: extraction is done but not confirmed yet */}
-      <ProfileConfirmBanner />
+      <ProfileProgressBanner />
 
       {/* Top Overview & Dither-Kit Chart */}
       <DashboardOverview />

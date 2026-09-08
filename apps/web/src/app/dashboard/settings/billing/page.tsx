@@ -83,7 +83,9 @@ function BillingPlansPage() {
   useEffect(() => {
     const status = searchParams.get('status');
     if (status === 'success') {
-      setNotice('Payment received. Your plan updates as soon as Dodo confirms it.');
+      setNotice(
+        'Payment received. Your plan updates as soon as Dodo confirms it.',
+      );
     } else if (status === 'cancelled') {
       setNotice('Checkout cancelled. No charge was made.');
     }
@@ -333,7 +335,9 @@ function BillingPlansPage() {
       {atQuota ? (
         <Card className="rounded-[12px] border-amber-500/40">
           <CardHeader>
-            <span className="text-sm font-semibold">Buy extra applications</span>
+            <span className="text-sm font-semibold">
+              Buy extra applications
+            </span>
             <CardDescription className="text-xs">
               Add-on packs apply to your current 30-day cycle. Cards stay on
               Dodo hosted checkout.

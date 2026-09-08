@@ -20,6 +20,7 @@ Finish identity and the first user loop.
 Done when: Google/email login, resume extract, profile save, admin cannot be skipped by a USER.
 
 What shipped:
+
 - `apps/api/src/lib/permissions.ts` — role → capability map + `requirePermission(cap)` middleware; SUPPORT later = one entry.
 - Fail-closed authz (`authz.ts`) — DB read failure denies, never falls back to session-embedded role.
 - Admin mutations hardened (`admin.ts`) — self role/status change blocked, last-admin guard kept, suspend/delete revokes sessions + syncs Better Auth `banned`, every mutation logged to `audit_logs` (no FKs — rows survive user deletion).
@@ -55,7 +56,7 @@ Watch the business and get paid.
 - Subscription + payment (Stripe owns cards). No card data in our DB.
 - Product clicks/funnels go to an analytics tool. Postgres keeps only real business state.
 - Admin sees: users, profiles, resumes, jobs, applications, outreach, connections, billing, errors.
-- Audit log for admin changes (suspend, role change, refund). — *started in Phase 1: `audit_logs` table + role/status mutations logged; refunds etc. extend it.*
+- Audit log for admin changes (suspend, role change, refund). — _started in Phase 1: `audit_logs` table + role/status mutations logged; refunds etc. extend it._
 
 Done when: admin can answer “how many applied, failed, paid, connected LinkedIn?” without opening the database.
 
@@ -63,31 +64,34 @@ Done when: admin can answer “how many applied, failed, paid, connected LinkedI
 
 ## Two-person log
 
-| | Person A | Person B |
-|---|---|---|
-| Name | ________________ | ________________ |
-| Share of the 45% left | ____ % | ____ % |
-| What I finished | | |
-| Blocked on | | |
-| Remarks | | |
+|                       | Person A         | Person B         |
+| --------------------- | ---------------- | ---------------- |
+| Name                  | ________________ | ________________ |
+| Share of the 45% left | ____ %           | ____ %           |
+| What I finished       |                  |                  |
+| Blocked on            |                  |                  |
+| Remarks               |                  |                  |
 
 ---
 
 ## To-do (tick and put A or B)
 
 **Phase 1**
+
 - [x] Permission checks on APIs (not only `role === ADMIN`) — capability layer (`requirePermission`), fail-closed authz, session revocation + audit log on admin mutations
 - [x] Admin page blocked for USER on server + UI — `/dashboard/admin` gated in `proxy.ts` (server) + `useAdminGuard`; `requirePermission` on every admin API
 - [x] Resume upload → extract → confirm profile, end to end — `/onboarding` flow (signup → upload → extract → confirm), enforced by `proxy.ts`; profile save ≠ confirm
 - [ ] Remarks: verified live (53 bun tests + E2E smoke). Archived-resume edge fixed (hasResume = ever uploaded). Password reset + SUPPORT role deferred. Known leftovers: billing/security/dashboard-overview pages are mocks, hardcoded localhost agent URLs in some BFF routes, no rate limiting.
 
 **Phase 2**
+
 - [ ] Job preferences screen + save — ___
 - [ ] Shared job list (deduped) — ___
 - [ ] Application statuses on dashboard — ___
 - [ ] Remarks: ________________________________
 
 **Phase 3**
+
 - [ ] Contact list per company — ___
 - [ ] Outreach row (LinkedIn / email) with status — ___
 - [ ] Connect LinkedIn (OAuth, no password) — ___
@@ -95,6 +99,7 @@ Done when: admin can answer “how many applied, failed, paid, connected LinkedI
 - [ ] Remarks: ________________________________
 
 **Phase 4**
+
 - [ ] Plans + checkout — ___
 - [ ] Admin: users, jobs, applies, outreach, billing — ___
 - [ ] Audit log for admin actions — ___

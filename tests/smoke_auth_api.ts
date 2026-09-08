@@ -5,7 +5,8 @@
  *   bun tests/smoke_auth_api.ts
  */
 const API = process.env.API_URL ?? 'http://localhost:5000';
-const TOKEN = process.env.AGENT_SERVICE_TOKEN ?? 'dev-agent-service-token-applyos';
+const TOKEN =
+  process.env.AGENT_SERVICE_TOKEN ?? 'dev-agent-service-token-applyos';
 
 type Check = { name: string; ok: boolean; detail?: string };
 
@@ -29,11 +30,21 @@ function cookieJar(setCookie: string[] | undefined, prev = ''): string {
 async function req(
   path: string,
   init: RequestInit & { cookie?: string } = {},
-): Promise<{ status: number; json: unknown; text: string; cookie: string; location: string | null }> {
+): Promise<{
+  status: number;
+  json: unknown;
+  text: string;
+  cookie: string;
+  location: string | null;
+}> {
   const headers = new Headers(init.headers);
   if (!headers.has('Origin')) headers.set('Origin', 'http://localhost:3000');
   if (init.cookie) headers.set('Cookie', init.cookie);
-  if (init.body && !headers.has('Content-Type') && !(init.body instanceof FormData)) {
+  if (
+    init.body &&
+    !headers.has('Content-Type') &&
+    !(init.body instanceof FormData)
+  ) {
     headers.set('Content-Type', 'application/json');
   }
   const res = await fetch(`${API}${path}`, {
@@ -82,13 +93,19 @@ async function main() {
   check('GET /v1/me without session → 401', unauthMe.status === 401);
 
   const unauthProfiles = await req('/v1/profiles/me');
-  check('GET /v1/profiles/me without session → 401', unauthProfiles.status === 401);
+  check(
+    'GET /v1/profiles/me without session → 401',
+    unauthProfiles.status === 401,
+  );
 
   const unauthResumes = await req('/v1/resumes');
   check('GET /v1/resumes without session → 401', unauthResumes.status === 401);
 
   const unauthAdmin = await req('/v1/admin/users');
-  check('GET /v1/admin/users without session → 401', unauthAdmin.status === 401);
+  check(
+    'GET /v1/admin/users without session → 401',
+    unauthAdmin.status === 401,
+  );
 
   const noTokenWorkflow = await req('/v1/workflows/internal/start', {
     method: 'POST',
@@ -120,8 +137,9 @@ async function main() {
   let cookie = signup.cookie;
 
   const sessionAfterSignup = await req('/api/auth/get-session', { cookie });
-  const sessionUser = (sessionAfterSignup.json as { user?: { email?: string } } | null)
-    ?.user;
+  const sessionUser = (
+    sessionAfterSignup.json as { user?: { email?: string } } | null
+  )?.user;
   check(
     'GET /api/auth/get-session after signup',
     sessionAfterSignup.status === 200 && sessionUser?.email === email,
@@ -129,11 +147,22 @@ async function main() {
   );
 
   const me = await req('/v1/me', { cookie });
-  const meEmail = (me.json as { user?: { email?: string; role?: string } } | null)?.user;
+  const meEmail = (
+    me.json as { user?: { email?: string; role?: string } } | null
+  )?.user;
+  const meOnboarding = (
+    me.json as {
+      onboarding?: { canApply?: boolean; hasResume?: boolean };
+    } | null
+  )?.onboarding;
   check(
     'GET /v1/me after signup',
-    me.status === 200 && meEmail?.email === email && meEmail?.role === 'USER',
-    `${me.status} ${meEmail?.email ?? ''} ${meEmail?.role ?? ''}`,
+    me.status === 200 &&
+      meEmail?.email === email &&
+      meEmail?.role === 'USER' &&
+      meOnboarding?.hasResume === false &&
+      meOnboarding?.canApply === false,
+    `${me.status} ${meEmail?.email ?? ''} ${meEmail?.role ?? ''} canApply=${String(meOnboarding?.canApply)}`,
   );
 
   const profileEmpty = await req('/v1/profiles/me', { cookie });

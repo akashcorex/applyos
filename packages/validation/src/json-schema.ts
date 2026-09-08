@@ -7,14 +7,11 @@ import {
 import { billingCheckoutSchema } from './billing';
 import { jobApplySchema, jobIngestSchema, jobSearchSchema } from './jobs';
 import { linkedinConnectBulkSchema } from './linkedin';
-import { outreachEmailCreateSchema, outreachSendSchema } from './outreach';
+import { outreachSendSchema } from './outreach';
 import { preferencesUpdateSchema } from './preferences';
 import { profileInputSchema } from './profile';
 import { resumeCreateSchema, resumeUpdateSchema } from './resume';
-import {
-  workflowStartSchema,
-  workflowStatusUpdateSchema,
-} from './workflows';
+import { workflowStartSchema, workflowStatusUpdateSchema } from './workflows';
 
 /**
  * Python bridge. The FastAPI agents (job-agent, resume-agent, …) own their
@@ -35,7 +32,6 @@ export const contractSchemas = {
   applicationEventCreate: applicationEventCreateSchema,
   workflowStart: workflowStartSchema,
   workflowStatusUpdate: workflowStatusUpdateSchema,
-  outreachEmailCreate: outreachEmailCreateSchema,
   outreachSend: outreachSendSchema,
   linkedinConnectBulk: linkedinConnectBulkSchema,
   jobIngest: jobIngestSchema,
