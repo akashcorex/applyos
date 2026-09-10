@@ -422,7 +422,7 @@ watchfiles==1.2.0
     # via uvicorn
 websocket-client==1.9.2
     # via kubernetes
-websockets==15.0.1
+websockets==17.1
     # via
     #   langgraph-sdk
     #   langsmith
