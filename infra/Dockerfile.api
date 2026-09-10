@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 # API: filtered install → generate → production prune → node slim + migrate on start.
 
-FROM oven/bun:1.4.1 AS deps
+FROM oven/bun:1.4.2 AS deps
 WORKDIR /app
 
 COPY package.json bun.lock turbo.json tsconfig.base.json tsconfig.json ./
@@ -50,7 +50,7 @@ RUN bun install --frozen-lockfile --production \
     apps/api/tsconfig.app.json \
     apps/api/scripts/build.mjs
 
-FROM node:20-bookworm-slim AS runner
+FROM node:26-bookworm-slim AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 
