@@ -4,6 +4,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     host: str = "0.0.0.0"
     port: int = 8002
+    registry_db_path: str = str(
+        __import__("pathlib").Path(__file__).resolve().parent / "data" / "board_registry.db"
+    )
     http_timeout_seconds: float = 10.0
     http_max_retries: int = 3
     workable_max_pages: int = 50

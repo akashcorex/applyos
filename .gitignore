@@ -23,6 +23,7 @@ applyagent-implementation plan.md
 
 
 # Python
+apps/job-agent/data/*.db
 __pycache__/
 *.py[cod]
 *$py.class

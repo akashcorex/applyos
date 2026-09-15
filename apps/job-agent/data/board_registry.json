@@ -1,0 +1,335 @@
+[
+  {
+    "domain": "stripe.com",
+    "company_name": "Stripe",
+    "ats_type": "greenhouse",
+    "ats_slug": "stripe",
+    "career_url": null,
+    "source": "pilot",
+    "active": true
+  },
+  {
+    "domain": "airbnb.com",
+    "company_name": "Airbnb",
+    "ats_type": "greenhouse",
+    "ats_slug": "airbnb",
+    "career_url": null,
+    "source": "pilot",
+    "active": true
+  },
+  {
+    "domain": "reddit.com",
+    "company_name": "Reddit",
+    "ats_type": "greenhouse",
+    "ats_slug": "reddit",
+    "career_url": null,
+    "source": "pilot",
+    "active": true
+  },
+  {
+    "domain": "dropbox.com",
+    "company_name": "Dropbox",
+    "ats_type": "greenhouse",
+    "ats_slug": "dropbox",
+    "career_url": null,
+    "source": "pilot",
+    "active": true
+  },
+  {
+    "domain": "figma.com",
+    "company_name": "Figma",
+    "ats_type": "greenhouse",
+    "ats_slug": "figma",
+    "career_url": null,
+    "source": "pilot",
+    "active": true
+  },
+  {
+    "domain": "notion.so",
+    "company_name": "Notion",
+    "ats_type": "greenhouse",
+    "ats_slug": "notion",
+    "career_url": null,
+    "source": "pilot",
+    "active": true
+  },
+  {
+    "domain": "discord.com",
+    "company_name": "Discord",
+    "ats_type": "greenhouse",
+    "ats_slug": "discord",
+    "career_url": null,
+    "source": "pilot",
+    "active": true
+  },
+  {
+    "domain": "scale.com",
+    "company_name": "Scale AI",
+    "ats_type": "greenhouse",
+    "ats_slug": "scaleai",
+    "career_url": null,
+    "source": "pilot",
+    "active": true
+  },
+  {
+    "domain": "ramp.com",
+    "company_name": "Ramp",
+    "ats_type": "greenhouse",
+    "ats_slug": "ramp",
+    "career_url": null,
+    "source": "pilot",
+    "active": true
+  },
+  {
+    "domain": "brex.com",
+    "company_name": "Brex",
+    "ats_type": "greenhouse",
+    "ats_slug": "brex",
+    "career_url": null,
+    "source": "pilot",
+    "active": true
+  },
+  {
+    "domain": "plaid.com",
+    "company_name": "Plaid",
+    "ats_type": "greenhouse",
+    "ats_slug": "plaid",
+    "career_url": null,
+    "source": "pilot",
+    "active": true
+  },
+  {
+    "domain": "retool.com",
+    "company_name": "Retool",
+    "ats_type": "greenhouse",
+    "ats_slug": "retool",
+    "career_url": null,
+    "source": "pilot",
+    "active": true
+  },
+  {
+    "domain": "vercel.com",
+    "company_name": "Vercel",
+    "ats_type": "greenhouse",
+    "ats_slug": "vercel",
+    "career_url": null,
+    "source": "pilot",
+    "active": true
+  },
+  {
+    "domain": "linear.app",
+    "company_name": "Linear",
+    "ats_type": "greenhouse",
+    "ats_slug": "linear",
+    "career_url": null,
+    "source": "pilot",
+    "active": true
+  },
+  {
+    "domain": "rippling.com",
+    "company_name": "Rippling",
+    "ats_type": "greenhouse",
+    "ats_slug": "rippling",
+    "career_url": null,
+    "source": "pilot",
+    "active": true
+  },
+  {
+    "domain": "openai.com",
+    "company_name": "OpenAI",
+    "ats_type": "greenhouse",
+    "ats_slug": "openai",
+    "career_url": null,
+    "source": "pilot",
+    "active": true
+  },
+  {
+    "domain": "netflix.com",
+    "company_name": "Netflix",
+    "ats_type": "lever",
+    "ats_slug": "netflix",
+    "career_url": null,
+    "source": "pilot",
+    "active": true
+  },
+  {
+    "domain": "spotify.com",
+    "company_name": "Spotify",
+    "ats_type": "lever",
+    "ats_slug": "spotify",
+    "career_url": null,
+    "source": "pilot",
+    "active": true
+  },
+  {
+    "domain": "palantir.com",
+    "company_name": "Palantir",
+    "ats_type": "lever",
+    "ats_slug": "palantir",
+    "career_url": null,
+    "source": "pilot",
+    "active": true
+  },
+  {
+    "domain": "lyft.com",
+    "company_name": "Lyft",
+    "ats_type": "greenhouse",
+    "ats_slug": "lyft",
+    "career_url": null,
+    "source": "pilot",
+    "active": true
+  },
+  {
+    "domain": "zapier.com",
+    "company_name": "Zapier",
+    "ats_type": "greenhouse",
+    "ats_slug": "zapier",
+    "career_url": null,
+    "source": "pilot",
+    "active": true
+  },
+  {
+    "domain": "gitlab.com",
+    "company_name": "GitLab",
+    "ats_type": "greenhouse",
+    "ats_slug": "gitlab",
+    "career_url": null,
+    "source": "pilot",
+    "active": true
+  },
+  {
+    "domain": "cloudflare.com",
+    "company_name": "Cloudflare",
+    "ats_type": "greenhouse",
+    "ats_slug": "cloudflare",
+    "career_url": null,
+    "source": "pilot",
+    "active": true
+  },
+  {
+    "domain": "databricks.com",
+    "company_name": "Databricks",
+    "ats_type": "greenhouse",
+    "ats_slug": "databricks",
+    "career_url": null,
+    "source": "pilot",
+    "active": true
+  },
+  {
+    "domain": "twilio.com",
+    "company_name": "Twilio",
+    "ats_type": "greenhouse",
+    "ats_slug": "twilio",
+    "career_url": null,
+    "source": "pilot",
+    "active": true
+  },
+  {
+    "domain": "shopify.com",
+    "company_name": "Shopify",
+    "ats_type": "greenhouse",
+    "ats_slug": "shopify",
+    "career_url": null,
+    "source": "pilot",
+    "active": true
+  },
+  {
+    "domain": "intercom.com",
+    "company_name": "Intercom",
+    "ats_type": "greenhouse",
+    "ats_slug": "intercom",
+    "career_url": null,
+    "source": "pilot",
+    "active": true
+  },
+  {
+    "domain": "webflow.com",
+    "company_name": "Webflow",
+    "ats_type": "greenhouse",
+    "ats_slug": "webflow",
+    "career_url": null,
+    "source": "pilot",
+    "active": true
+  },
+  {
+    "domain": "anthropic.com",
+    "company_name": "Anthropic",
+    "ats_type": "ashby",
+    "ats_slug": "anthropic",
+    "career_url": null,
+    "source": "pilot",
+    "active": true
+  },
+  {
+    "domain": "mercury.com",
+    "company_name": "Mercury",
+    "ats_type": "ashby",
+    "ats_slug": "mercury",
+    "career_url": null,
+    "source": "pilot",
+    "active": true
+  },
+  {
+    "domain": "deel.com",
+    "company_name": "Deel",
+    "ats_type": "ashby",
+    "ats_slug": "deel",
+    "career_url": null,
+    "source": "pilot",
+    "active": true
+  },
+  {
+    "domain": "replit.com",
+    "company_name": "Replit",
+    "ats_type": "ashby",
+    "ats_slug": "replit",
+    "career_url": null,
+    "source": "pilot",
+    "active": true
+  },
+  {
+    "domain": "huggingface.co",
+    "company_name": "Hugging Face",
+    "ats_type": "ashby",
+    "ats_slug": "huggingface",
+    "career_url": null,
+    "source": "pilot",
+    "active": true
+  },
+  {
+    "domain": "remote.com",
+    "company_name": "Remote",
+    "ats_type": "ashby",
+    "ats_slug": "remote",
+    "career_url": null,
+    "source": "pilot",
+    "active": true
+  },
+  {
+    "domain": "loom.com",
+    "company_name": "Loom",
+    "ats_type": "ashby",
+    "ats_slug": "loom",
+    "career_url": null,
+    "source": "pilot",
+    "active": true
+  },
+  {
+    "domain": "personio.com",
+    "company_name": "Personio",
+    "ats_type": "personio",
+    "ats_slug": "personio",
+    "career_url": null,
+    "source": "pilot",
+    "active": true
+  },
+  {
+    "domain": "n26.com",
+    "company_name": "N26",
+    "ats_type": "personio",
+    "ats_slug": "n26",
+    "career_url": null,
+    "source": "pilot",
+    "active": true
+  }
+]
