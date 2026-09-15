@@ -8,7 +8,7 @@ class Settings(BaseSettings):
     openai_api_key: str = ""
     database_url: str = "postgresql://postgres:postgres@localhost:5432/outreach"
     agent_service_token: str = ""
-    api_url: str = "http://localhost:5000"
+    api_url: str = "http://localhost:3333"
     job_agent_url: str = "http://127.0.0.1:8002"
     http_timeout_seconds: float = 60.0
     llm_model: str = "claude-sonnet-4-6"

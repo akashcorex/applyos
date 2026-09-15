@@ -142,7 +142,16 @@ async def _callback_api(
             json=payload,
             headers={"X-Agent-Service-Token": token},
         )
-        response.raise_for_status()
+        try:
+            response.raise_for_status()
+        except httpx.HTTPStatusError:
+            if response.status_code == 403 and ":5000" in url:
+                logger.error(
+                    "API callback 403 from %s — set API_URL to the API origin "
+                    "(local default is http://localhost:3333)",
+                    url,
+                )
+            raise
 
 
 async def _parse_and_extract(
