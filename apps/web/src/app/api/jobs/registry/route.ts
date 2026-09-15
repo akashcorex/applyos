@@ -6,7 +6,10 @@ export async function GET() {
     const data = await res.json();
     return Response.json(data, { status: res.status });
   } catch {
-    return Response.json({ error: 'Job agent is unreachable' }, { status: 502 });
+    return Response.json(
+      { error: 'Job agent is unreachable' },
+      { status: 502 },
+    );
   }
 }
 
@@ -22,6 +25,9 @@ export async function POST(request: Request) {
     const data = await res.json();
     return Response.json(data, { status: res.status });
   } catch {
-    return Response.json({ error: 'Job agent is unreachable' }, { status: 502 });
+    return Response.json(
+      { error: 'Job agent is unreachable' },
+      { status: 502 },
+    );
   }
 }

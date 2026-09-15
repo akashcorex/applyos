@@ -22,6 +22,9 @@ applyagent-implementation plan.md
 .nx/
 
 
+# TypeScript build info
+*.tsbuildinfo
+
 # Python
 apps/job-agent/data/*.db
 __pycache__/

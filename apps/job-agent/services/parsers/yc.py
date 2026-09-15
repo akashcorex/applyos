@@ -4,9 +4,9 @@ from urllib.parse import urlparse
 
 import httpx
 
-YC_COMPANIES_URL = "https://yc-oss.github.io/api/companies/all.json"
-
 from services.board_registry import get_board_registry
+
+YC_COMPANIES_URL = "https://yc-oss.github.io/api/companies/all.json"
 
 
 def extract_domain(website: str | None) -> str | None:
