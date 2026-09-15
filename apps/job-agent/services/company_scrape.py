@@ -36,6 +36,7 @@ def canonical_to_search_result(
         ats_type=ats_type,
         ats_slug=ats_slug,
         description=description,
+        posted_at=getattr(job, "posted_at", None),
     )
 
 

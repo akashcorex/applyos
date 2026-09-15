@@ -16,6 +16,7 @@ from models import (
 from services.company_scrape import scrape_company_jobs
 from services.search_inventory import get_searchable_companies
 from services.dedup import dedupe_search_results
+from services.freshness import apply_freshness_metadata, sort_by_freshness
 from services.semantic_match import semantic_rank_jobs
 
 logger = logging.getLogger(__name__)
@@ -41,6 +42,8 @@ async def semantic_search(payload: SemanticSearchRequest) -> SemanticSearchRespo
             all_results.extend(result)
 
     all_results = dedupe_search_results(all_results)
+    all_results = apply_freshness_metadata(all_results)
+    all_results = sort_by_freshness(all_results)
 
     ranked: list[SemanticMatchResult] = await semantic_rank_jobs(
         all_results,

@@ -1,4 +1,5 @@
 from models import RawJob
+from services.dates import parse_posted_at
 from services.parsers.base import fetch_json_with_retries
 
 ASHBY_JOBS_URL = "https://api.ashbyhq.com/posting-api/job-board/{slug}"
@@ -46,6 +47,9 @@ class AshbyParser:
                     description_html=item.get("descriptionHtml"),
                     workplace_type=item.get("workplaceType"),
                     application_url=application_url,
+                    posted_at=parse_posted_at(
+                        item.get("publishedAt") or item.get("openedAt")
+                    ),
                     raw_payload=item,
                 )
             )

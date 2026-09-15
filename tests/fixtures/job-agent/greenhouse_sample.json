@@ -3,6 +3,7 @@
     {
       "id": 12345,
       "title": "Sr. Software Engineer - Platform (US)",
+      "updated_at": "2026-03-10T12:00:00-04:00",
       "absolute_url": "https://boards.greenhouse.io/stripe/jobs/12345",
       "location": { "name": "Remote - US" },
       "departments": [{ "name": "Engineering" }],
@@ -11,6 +12,7 @@
     {
       "id": 12346,
       "title": "Product Manager",
+      "updated_at": "2026-03-01T09:00:00-04:00",
       "location": { "name": "San Francisco, CA" },
       "departments": [{ "name": "Product" }],
       "metadata": null

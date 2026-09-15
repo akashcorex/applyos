@@ -1,4 +1,5 @@
 from models import RawJob
+from services.dates import parse_posted_at
 from services.parsers.base import fetch_json_with_retries
 
 GREENHOUSE_JOBS_URL = "https://api.greenhouse.io/v1/boards/{slug}/jobs"
@@ -65,6 +66,7 @@ class GreenhouseParser:
                     description_html=description_html,
                     workplace_type=None,
                     application_url=application_url,
+                    posted_at=parse_posted_at(item.get("updated_at")),
                     raw_payload=item,
                 )
             )

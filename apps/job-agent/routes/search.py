@@ -10,6 +10,7 @@ from fastapi import APIRouter
 from models import SearchRequest, SearchResponse, SearchResult
 from services.company_scrape import scrape_company_jobs
 from services.dedup import dedupe_search_results
+from services.freshness import apply_freshness_metadata, sort_by_freshness
 from services.search_inventory import get_searchable_companies
 from services.seniority import seniority_allowed
 
@@ -52,6 +53,8 @@ async def search_jobs(payload: SearchRequest) -> SearchResponse:
         for job in all_results
         if seniority_allowed(payload.experience_years, job.seniority, job.title)
     ]
+    all_results = apply_freshness_metadata(all_results)
+    all_results = sort_by_freshness(all_results)
 
     return SearchResponse(
         query=payload.job_title,
