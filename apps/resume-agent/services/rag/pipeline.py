@@ -19,7 +19,12 @@ from langchain_anthropic import ChatAnthropic
 from langchain_core.documents import Document
 from langchain_core.prompts import ChatPromptTemplate
 
-from models import ImprovementSuggestions
+from models import (
+    ControlledTailoringProposal,
+    ImprovementSuggestions,
+    JobProfile,
+    ResumeIR,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -229,6 +234,46 @@ class ResumeRAGPipeline:
                 "target_role": target_role or "Not specified",
                 "job_description": jd_block,
                 "context": context[:4000],
+            }
+        )
+        return result.model_dump()
+
+    async def propose_controlled_tailoring(
+        self,
+        *,
+        ir: ResumeIR,
+        job_profile: JobProfile,
+    ) -> dict:
+        """Return only stable-ID operations over the supplied IR."""
+        system = (
+            "You propose resume tailoring operations against an authoritative "
+            "ResumeIR. Return only operations using these names: "
+            "emphasize_skill, reorder_skill, reorder_experience, "
+            "rewrite_existing_bullet. Every operation must use an existing "
+            "node_id, exact before value, existing evidence_ids, and no new "
+            "facts, skills, employers, dates, metrics, or technologies. "
+            "For emphasize_skill, after must be integer 0. For reorder_skill "
+            "and reorder_experience, before and after must be complete node-ID "
+            "lists. Never return LaTeX or free-form replacement content."
+        )
+        prompt = ChatPromptTemplate.from_messages(
+            [
+                ("system", "{system_prompt}"),
+                (
+                    "human",
+                    "Job profile:\n{job_profile}\n\nAuthoritative ResumeIR:\n{ir}",
+                ),
+            ]
+        )
+        structured_llm = self._llm.with_structured_output(
+            ControlledTailoringProposal
+        )
+        chain = prompt | structured_llm
+        result = await chain.ainvoke(
+            {
+                "system_prompt": system,
+                "job_profile": job_profile.model_dump_json(),
+                "ir": ir.model_dump_json(),
             }
         )
         return result.model_dump()

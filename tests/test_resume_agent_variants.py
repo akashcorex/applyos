@@ -198,3 +198,165 @@ def test_create_variant_request_truncates_long_job_description() -> None:
     assert payload.job_description is not None
     assert len(payload.job_description) == 8000
     assert payload.initial_match_score == 100.0
+
+
+@pytest.mark.asyncio
+async def test_content_update_clears_stale_artifact_pointer() -> None:
+    from services.tailoring.repository import VariantRepository
+
+    class FakePool:
+        def __init__(self) -> None:
+            self.row = {
+                "id": "variant-1",
+                "user_id": "user-1",
+                "dedup_key": "job-1",
+                "job_title": "Engineer",
+                "company_name": "Acme",
+                "job_description": None,
+                "status": "draft",
+                "content": _sample_content().model_dump(),
+                "suggestions": {"suggestions": [], "overall_assessment": ""},
+                "source_revision_id": None,
+                "patch_id": None,
+                "artifact_id": "stale-artifact",
+                "baseline_match_score": None,
+                "match_score": None,
+                "match_score_updated_at": None,
+                "created_at": None,
+                "updated_at": None,
+                "compile_generation": 1,
+            }
+
+        def acquire(self):
+            return self
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return False
+
+        async def fetchrow(self, sql, *args):
+            if "ARTIFACT_ID = NULL" in sql.upper():
+                self.row["artifact_id"] = None
+            return self.row
+
+    pool = FakePool()
+    repo = VariantRepository(pool)  # type: ignore[arg-type]
+    updated = await repo.update(
+        "resume-1",
+        "variant-1",
+        content=_sample_content(),
+    )
+
+    assert updated.artifact_id is None
+
+
+class _CaptureConn:
+    def __init__(self, row: dict | None) -> None:
+        self.row = row
+        self.sql = ""
+        self.params: tuple = ()
+
+    async def fetchrow(self, sql, *args):
+        self.sql = sql
+        self.params = args
+        return self.row
+
+
+@pytest.mark.asyncio
+async def test_update_compile_result_returns_rows_and_binds_text_ids() -> None:
+    """Regression: UPDATE without RETURNING made this always report False, and
+    binding a UUID object to the text patch_id column raised in asyncpg."""
+    from services.tailoring.repository import VariantRepository
+
+    repo = VariantRepository(None)  # type: ignore[arg-type]
+    patch_id = "7d2f0f2e-3f2b-4a0c-9c4c-8a3a5b1f9e10"
+
+    conn = _CaptureConn(row={"id": "variant-1"})
+    applied = await repo.update_compile_result(
+        "resume-1",
+        "variant-1",
+        generation=3,
+        source_revision_id="rev-1",
+        patch_id=patch_id,
+        artifact_id="artifact-hash",
+        status="ready",
+        conn=conn,
+    )
+    assert applied is True
+    assert "RETURNING" in conn.sql.upper()
+    assert conn.params[1] == patch_id and isinstance(conn.params[1], str)
+    assert conn.params[0] == "rev-1" and isinstance(conn.params[0], str)
+    assert conn.params[-1] == 3
+
+    stale = _CaptureConn(row=None)
+    assert (
+        await repo.update_compile_result(
+            "resume-1",
+            "variant-1",
+            generation=2,
+            source_revision_id="rev-1",
+            patch_id=None,
+            artifact_id="artifact-hash",
+            status=None,
+            conn=stale,
+        )
+        is False
+    )
+    assert "status =" not in stale.sql
+
+
+@pytest.mark.asyncio
+async def test_update_with_content_and_artifact_does_not_double_assign() -> None:
+    from services.tailoring.repository import VariantRepository
+
+    class FakePool:
+        def __init__(self) -> None:
+            self.sql = ""
+
+        def acquire(self):
+            return self
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return False
+
+        async def fetchrow(self, sql, *args):
+            self.sql = sql
+            return {
+                "id": "variant-1",
+                "user_id": "user-1",
+                "dedup_key": "job-1",
+                "job_title": "Engineer",
+                "company_name": "Acme",
+                "job_description": None,
+                "status": "draft",
+                "content": _sample_content().model_dump(),
+                "suggestions": {"suggestions": [], "overall_assessment": ""},
+                "source_revision_id": None,
+                "patch_id": None,
+                "artifact_id": "fresh",
+                "baseline_match_score": None,
+                "match_score": None,
+                "match_score_updated_at": None,
+                "created_at": None,
+                "updated_at": None,
+                "compile_generation": 2,
+            }
+
+    pool = FakePool()
+    repo = VariantRepository(pool)  # type: ignore[arg-type]
+    await repo.update(
+        "resume-1",
+        "variant-1",
+        content=_sample_content(),
+        artifact_id="fresh",
+        file_path="/tmp/fresh.pdf",
+    )
+    set_clause = pool.sql.split("SET", 1)[1].split("WHERE", 1)[0]
+    assert set_clause.count("artifact_id =") == 1
+    assert set_clause.count("file_path =") == 1
+    assert "compile_generation = compile_generation + 1" in set_clause

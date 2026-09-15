@@ -198,6 +198,24 @@ class RevisionRepository:
             )
         return stored
 
+    async def get_patch(self, patch_id: str) -> TailoringPatch:
+        """Load an immutable tailoring patch by id (for worker rebuilds)."""
+        async with self._pool.acquire() as conn:
+            row = await conn.fetchrow(
+                """
+                SELECT payload
+                FROM resume_tailoring_patches
+                WHERE id = $1
+                """,
+                _uuid(patch_id),
+            )
+        if row is None:
+            raise RevisionNotFoundError(f"Tailoring patch {patch_id} not found")
+        payload = row["payload"]
+        if isinstance(payload, str):
+            payload = json.loads(payload)
+        return TailoringPatch.model_validate(payload)
+
     async def get_artifact_by_hash(
         self, resume_id: str, artifact_hash: str
     ) -> CompiledArtifact | None:

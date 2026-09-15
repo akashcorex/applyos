@@ -22,7 +22,18 @@ class Settings(BaseSettings):
     rag_retrieval_k: int = 4
     latex_compiler: str = ""
     latex_timeout_seconds: float = 15.0
+    # Persistent Tectonic bundle cache shared across compiles (empty = <app>/.cache/tectonic).
+    latex_cache_dir: str = ""
+    # Use the FPDF renderer only when no LaTeX compiler is installed at all.
     allow_renderer_fallback: bool = True
+    # --- Async compile worker (Phase 2) ---
+    compile_worker_poll_seconds: float = 2.0
+    compile_worker_batch_size: int = 1
+    compile_max_attempts: int = 3
+    compile_claim_timeout_seconds: float = 120.0
+    compile_retry_base_seconds: float = 10.0
+    compile_retry_max_seconds: float = 300.0
+    compile_job_error_max_chars: int = 2000
     tailor_mode: str = "keyword"
     tailor_llm_on_create: bool = False
     tailor_max_suggestions: int = 5

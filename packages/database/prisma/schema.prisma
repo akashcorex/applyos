@@ -47,6 +47,7 @@ model User {
   resumes       Resume[]
   resumeVariants ResumeVariant[]
   sourceDocuments ResumeSourceDocument[]
+  latexSources  ResumeLatexSource[]
   workflowRuns  WorkflowRun[]
   workflowJobs  WorkflowJob[]
   applications  Application[]
@@ -232,6 +233,8 @@ model Resume {
   irRevisions                 ResumeIrRevision[]
   patches                     ResumeTailoringPatch[]
   artifacts                   ResumeArtifact[]
+  latexSources                ResumeLatexSource[]
+  compileJobs                 ResumeCompileJob[]
   variantVersions             VariantVersion[]
   workflowRuns                WorkflowRun[]
   applications                Application[]
@@ -263,10 +266,13 @@ model ResumeVariant {
   matchScore           Float?    @map("match_score") @db.Real
   matchScoreUpdatedAt  DateTime? @map("match_score_updated_at") @db.Timestamptz(6)
   matchScoreMeta       Json?     @map("match_score_meta") @db.JsonB
+  compileGeneration    Int       @default(0) @map("compile_generation")
   createdAt            DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt            DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
   patches              ResumeTailoringPatch[]
   artifacts            ResumeArtifact[]
+  latexSources         ResumeLatexSource[]
+  compileJobs          ResumeCompileJob[]
   versions             VariantVersion[]
 
   @@index([resumeId], map: "idx_resume_variants_resume_id")
@@ -312,6 +318,8 @@ model ResumeIrRevision {
   createdAt           DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
   patches             ResumeTailoringPatch[]
   artifacts           ResumeArtifact[]
+  latexSources        ResumeLatexSource[]
+  compileJobs         ResumeCompileJob[]
 
   @@unique([resumeId, revisionNumber])
   @@index([resumeId], map: "idx_resume_ir_revisions_resume_id")
@@ -333,6 +341,7 @@ model ResumeTailoringPatch {
   status           String            @default("approved")
   createdAt        DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
   artifacts        ResumeArtifact[]
+  compileJobs      ResumeCompileJob[]
 
   @@index([resumeId], map: "idx_resume_tailoring_patches_resume_id")
   @@index([variantId], map: "idx_resume_tailoring_patches_variant_id")
@@ -364,6 +373,68 @@ model ResumeArtifact {
   @@index([variantId], map: "idx_resume_artifacts_variant_id")
   @@index([sourceRevisionId], map: "idx_resume_artifacts_source_revision_id")
   @@map("resume_artifacts")
+}
+
+model ResumeLatexSource {
+  id             String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  resumeId       String            @map("resume_id") @db.Uuid
+  resume         Resume            @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+  userId         String            @map("user_id")
+  user           User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Nullable by design: user_edit sources may temporarily have no IR
+  // linkage. Generated sources must always link to an IR revision.
+  irRevisionId   String?           @map("ir_revision_id") @db.Uuid
+  sourceRevision ResumeIrRevision? @relation(fields: [irRevisionId], references: [id], onDelete: SetNull)
+  variantId      String?           @map("variant_id") @db.Uuid
+  variant        ResumeVariant?    @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  templateId     String            @map("template_id")
+  storageKey     String            @map("storage_key")
+  sourceHash     String            @map("source_hash")
+  origin         String
+  createdAt      DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([resumeId], map: "idx_resume_latex_sources_resume_id")
+  @@index([sourceHash], map: "idx_resume_latex_sources_source_hash")
+  @@map("resume_latex_sources")
+}
+
+model ResumeCompileJob {
+  id               String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  resumeId         String         @map("resume_id") @db.Uuid
+  resume           Resume         @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+  userId           String         @map("user_id")
+  variantId        String?        @map("variant_id") @db.Uuid
+  variant          ResumeVariant? @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  kind             String         @default("preview")
+  sourceMode       String         @default("structured") @map("source_mode")
+  status           String         @default("queued")
+  templateId       String         @map("template_id")
+  jobProfile       Json           @map("job_profile") @db.JsonB
+  content          Json           @map("content") @db.JsonB
+  diff             Json           @default("{}") @map("diff") @db.JsonB
+  sourceRevisionId String?        @map("source_revision_id") @db.Uuid
+  sourceRevision   ResumeIrRevision? @relation(fields: [sourceRevisionId], references: [id], onDelete: Cascade)
+  patchId          String?        @map("patch_id") @db.Uuid
+  patch            ResumeTailoringPatch? @relation(fields: [patchId], references: [id], onDelete: SetNull)
+  latexSourceId    String?        @map("latex_source_id") @db.Uuid
+  texSource        String?        @map("tex_source")
+  texSourceHash    String?        @map("tex_source_hash")
+  variantGeneration Int?          @map("variant_generation")
+  claimToken       String?        @map("claim_token") @db.Uuid
+  artifactHash     String?        @map("artifact_hash")
+  attempts         Int            @default(0)
+  maxAttempts      Int            @default(3) @map("max_attempts")
+  runAfter         DateTime       @default(now()) @map("run_after") @db.Timestamptz(6)
+  startedAt        DateTime?      @map("started_at") @db.Timestamptz(6)
+  finishedAt       DateTime?      @map("finished_at") @db.Timestamptz(6)
+  lastError        String?        @map("last_error")
+  createdAt        DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([resumeId], map: "idx_resume_compile_jobs_resume_id")
+  @@index([variantId], map: "idx_resume_compile_jobs_variant_id")
+  @@index([status], map: "idx_resume_compile_jobs_status")
+  @@map("resume_compile_jobs")
 }
 
 model VariantVersion {

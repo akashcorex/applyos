@@ -33,14 +33,50 @@ from services.matching import (
     cached_embedding_valid,
     compute_profile_embedding,
 )
-from services.parser import ResumeParser, UnsupportedFileTypeError
+from services.latex_safety import MAX_TEX_BYTES
+from services.parser import (
+    TEX_CONTENT_TYPES,
+    ResumeParser,
+    UnsupportedFileTypeError,
+)
 from services.ir import ir_to_record, record_to_ir, sha256_bytes
 from services.db import ResumeNotFoundError
-from services.storage import find_artifact_path, save_resume_file
+from services.storage import (
+    find_artifact_path,
+    resume_file_storage_key,
+    save_resume_file,
+)
+from services.tex_parser import TEX_PARSER_VERSION
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["resume"])
+
+
+async def _read_resume_upload(file: UploadFile) -> bytes:
+    is_tex = (file.filename or "").lower().endswith(".tex") or (
+        file.content_type in TEX_CONTENT_TYPES
+    )
+    if not is_tex:
+        return await file.read()
+    raw_bytes = await file.read(MAX_TEX_BYTES + 1)
+    if len(raw_bytes) > MAX_TEX_BYTES:
+        raise HTTPException(
+            status_code=status.HTTP_413_CONTENT_TOO_LARGE,
+            detail=f"LaTeX source exceeds the {MAX_TEX_BYTES}-byte limit",
+        )
+    return raw_bytes
+
+
+def _media_type_for(file_type: str | None) -> str:
+    if file_type == "docx":
+        return (
+            "application/vnd.openxmlformats-officedocument."
+            "wordprocessingml.document"
+        )
+    if file_type == "tex":
+        return "application/x-tex"
+    return "application/pdf"
 
 
 def _state(request: Request) -> AppState:
@@ -231,15 +267,22 @@ async def _persist_parsed_resume(
     revision_id: str | None = None
     if state.revision_repository is not None:
         try:
+            parser_version = (
+                TEX_PARSER_VERSION if file_type == "tex" else "resume-parser.v1"
+            )
             source_document_id = await state.revision_repository.create_source_document(
                 resume_id=resume_id,
                 user_id=user_id,
                 file_name=file_name,
                 file_type=file_type,
-                storage_key=f"local://resume-source/{resume_id}",
+                storage_key=resume_file_storage_key(
+                    resume_id=resume_id,
+                    file_name=file_name,
+                    file_type=file_type,
+                ),
                 content_sha256=source_hash,
                 byte_size=len(raw_bytes),
-                parser_version="resume-parser.v1",
+                parser_version=parser_version,
             )
             ir = record_to_ir(
                 record,
@@ -298,7 +341,7 @@ async def _persist_parsed_resume(
 @router.post("/parse", response_model=ParseResponse, status_code=status.HTTP_200_OK)
 async def parse_resume(
     request: Request,
-    file: UploadFile = File(..., description="PDF or DOCX resume"),
+    file: UploadFile = File(..., description="PDF, DOCX, or TeX resume"),
     user_id: str = Form(..., min_length=1, max_length=128),
 ) -> ParseResponse:
     state = _state(request)
@@ -310,7 +353,7 @@ async def parse_resume(
     parser: ResumeParser = state.parser or ResumeParser()
     extractor: LLMExtractor = state.extractor or LLMExtractor()
 
-    raw_bytes = await file.read()
+    raw_bytes = await _read_resume_upload(file)
     record, parsed_document, file_type = await _parse_and_extract(
         parser=parser,
         extractor=extractor,
@@ -340,7 +383,7 @@ async def parse_resume(
 @router.post("/internal/extract", status_code=status.HTTP_200_OK)
 async def internal_extract(
     request: Request,
-    file: UploadFile = File(..., description="PDF or DOCX resume"),
+    file: UploadFile = File(..., description="PDF, DOCX, or TeX resume"),
     resume_file_id: str = Form(..., min_length=1, max_length=128),
     user_id: str = Form(..., min_length=1, max_length=128),
 ) -> dict[str, Any]:
@@ -349,7 +392,7 @@ async def internal_extract(
     state = _state(request)
     parser: ResumeParser = state.parser or ResumeParser()
     extractor: LLMExtractor = state.extractor or LLMExtractor()
-    raw_bytes = await file.read()
+    raw_bytes = await _read_resume_upload(file)
     try:
         record, parsed_document, file_type = await _parse_and_extract(
             parser=parser,
@@ -373,7 +416,9 @@ async def internal_extract(
             resume_file_id,
             complete={
                 "extraction": _extraction_payload(record),
-                "parserVersion": "resume-parser.v1",
+                "parserVersion": (
+                    TEX_PARSER_VERSION if file_type == "tex" else "resume-parser.v1"
+                ),
                 "resumeId": resume_id,
             },
         )
@@ -435,11 +480,7 @@ async def download_internal_source_resume(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     if not record.file_path or not Path(record.file_path).is_file():
         raise HTTPException(status_code=404, detail="Source resume not found")
-    media_type = (
-        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-        if record.file_type == "docx"
-        else "application/pdf"
-    )
+    media_type = _media_type_for(record.file_type)
     return FileResponse(
         record.file_path,
         media_type=media_type,
@@ -453,16 +494,14 @@ async def download_source_resume(resume_id: str, request: Request) -> FileRespon
     record = await require_resume_owner(state.repository, resume_id, request)
     if not record.file_path or not Path(record.file_path).is_file():
         raise HTTPException(status_code=404, detail="Source resume not found")
-    media_type = (
-        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-        if record.file_type == "docx"
-        else "application/pdf"
-    )
+    media_type = _media_type_for(record.file_type)
     return FileResponse(
         record.file_path,
         media_type=media_type,
         filename=record.file_name or f"resume-{resume_id}",
-        content_disposition_type="inline" if record.file_type == "pdf" else "attachment",
+        content_disposition_type="inline"
+        if record.file_type in ("pdf", "tex")
+        else "attachment",
     )
 
 

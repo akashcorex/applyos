@@ -70,6 +70,7 @@ apps/apply-agent/.apply-debug/
 
 # Resume-agent uploaded files
 apps/resume-agent/uploads/
+apps/resume-agent/.cache/
 
 # API resume uploads (Phase 2)
 apps/api/uploads/

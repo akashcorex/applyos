@@ -351,10 +351,10 @@ def _validate_rewrite(before: str, after: str) -> list[str]:
     errors: list[str] = []
     if not after.strip():
         return ["A rewritten value cannot be empty"]
-    if not _numbers(after).issuperset(_numbers(before)):
-        errors.append("A rewrite cannot remove or change existing metrics")
-    if not _dates(after).issuperset(_dates(before)):
-        errors.append("A rewrite cannot remove or change existing dates")
+    if _numbers(after) != _numbers(before):
+        errors.append("A rewrite cannot add, remove, or change existing metrics")
+    if _dates(after) != _dates(before):
+        errors.append("A rewrite cannot add, remove, or change existing dates")
     return errors
 
 
@@ -387,6 +387,14 @@ def build_patch(
         errors = _validate_rewrite(base.summary or "", target.summary or "")
         if errors:
             raise ValueError("; ".join(errors))
+        try:
+            from services.tailoring.controlled import validate_rewrite_content
+
+            validate_rewrite_content(
+                base.summary or "", target.summary or "", ir, job_profile
+            )
+        except ValueError as exc:
+            raise ValueError(str(exc)) from exc
         summary_node = _stable_id("summary", ir.summary or "")
         operation = TailoringOperation(
             operation="summarize_existing",
@@ -443,6 +451,11 @@ def build_patch(
             )
         )
 
+    if base.experience_years != target.experience_years:
+        raise ValueError("Tailoring policy forbids changing experience years")
+    if base.preferred_role != target.preferred_role:
+        raise ValueError("Tailoring policy forbids changing preferred role")
+
     if len(target.work_history) != len(base.work_history):
         raise ValueError("Tailoring policy forbids adding or removing employers")
 
@@ -462,6 +475,12 @@ def build_patch(
             errors = _validate_rewrite(before, after)
             if errors:
                 raise ValueError("; ".join(errors))
+            try:
+                from services.tailoring.controlled import validate_rewrite_content
+
+                validate_rewrite_content(before, after, ir, job_profile)
+            except ValueError as exc:
+                raise ValueError(str(exc)) from exc
             bullet = (
                 ir_role.bullets[bullet_index]
                 if bullet_index < len(ir_role.bullets)

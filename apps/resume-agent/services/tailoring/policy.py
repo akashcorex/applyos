@@ -26,6 +26,7 @@ def validate_patch(
 
     known_nodes = {"skills"}
     known_nodes.update(ir.evidence)
+    known_nodes.update(skill.id for skill in ir.skills)
     for role in ir.experience:
         known_nodes.add(role.id)
         for bullet in role.bullets:
@@ -51,3 +52,24 @@ def validate_patch(
                 raise TailoringPolicyError(
                     f"Operation targets unknown evidence node {operation.node_id}"
                 )
+    controlled = [
+        operation
+        for operation in patch.operations
+        if operation.operation
+        in {
+            "emphasize_skill",
+            "reorder_skill",
+            "reorder_experience",
+            "rewrite_existing_bullet",
+        }
+    ]
+    if controlled:
+        from services.tailoring.controlled import (
+            ControlledTailoringError,
+            validate_controlled_operations,
+        )
+
+        try:
+            validate_controlled_operations(ir, controlled, patch.job_profile)
+        except ControlledTailoringError as exc:
+            raise TailoringPolicyError(str(exc)) from exc

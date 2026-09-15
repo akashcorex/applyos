@@ -1,0 +1,42 @@
+\documentclass[10pt]{article}
+\usepackage[margin=0.7in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{enumitem}
+\usepackage{titlesec}
+\pagestyle{empty}
+\setlist[itemize]{leftmargin=1.2em,itemsep=0pt,topsep=1pt}
+\titleformat{\section}{\large\bfseries}{}{0pt}{}[\titlerule]
+\begin{document}
+\begin{center}\Large\textbf{<< full_name | esc >>}\normalsize\\
+<< contact | join(' | ') | esc >>\end{center}
+{% if preferred_role %}
+\begin{center}
+<< preferred_role | esc >>
+\end{center}
+{% endif %}
+{% if summary %}
+\section*{Summary}
+<< summary | esc >>
+{% endif %}
+{% if skills_line %}
+\section*{Skills}
+<< skills_line | esc >>
+{% endif %}
+{% if roles %}
+\section*{Experience}
+{% for role in roles %}
+\textbf{<< role.heading | esc >>}\hfill << role.dates | esc >>\\
+\begin{itemize}
+{% for bullet in role.highlights %}
+\item << bullet | esc >>
+{% endfor %}
+\end{itemize}
+{% endfor %}
+{% endif %}
+{% if education_lines %}
+\section*{Education}
+{% for line in education_lines %}
+<< line | esc >>\\
+{% endfor %}
+{% endif %}
+\end{document}

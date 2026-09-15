@@ -24,11 +24,34 @@ from services.matching import (
 )
 from services.parser import ResumeParser
 from services.revisions import RevisionRepository
+from services.latex_sources import LatexSourceRepository
+from services.compile_jobs import CompileJobRepository
 from services.compiler import ResumeCompiler
 from services.tailoring import TailorService, VariantRepository
 from services.tailoring.versions import VersionRepository
 
 logger = logging.getLogger(__name__)
+
+
+_COMPILE_JOB_COMPATIBILITY_ALTERS = (
+    "ALTER TABLE resume_compile_jobs ADD COLUMN IF NOT EXISTS "
+    "source_mode text NOT NULL DEFAULT 'structured'",
+    "ALTER TABLE resume_compile_jobs ADD COLUMN IF NOT EXISTS "
+    "latex_source_id uuid",
+    "ALTER TABLE resume_compile_jobs ADD COLUMN IF NOT EXISTS "
+    "tex_source text",
+    "ALTER TABLE resume_compile_jobs ADD COLUMN IF NOT EXISTS "
+    "tex_source_hash text",
+    "ALTER TABLE resume_compile_jobs ADD COLUMN IF NOT EXISTS "
+    "variant_generation integer",
+    "ALTER TABLE resume_compile_jobs ADD COLUMN IF NOT EXISTS "
+    "claim_token uuid",
+)
+
+
+async def _ensure_compile_job_compatibility(conn: asyncpg.Connection) -> None:
+    for statement in _COMPILE_JOB_COMPATIBILITY_ALTERS:
+        await conn.execute(statement)
 
 
 @dataclass
@@ -44,6 +67,8 @@ class AppState:
     variant_repository: VariantRepository | None = None
     version_repository: object | None = None
     revision_repository: RevisionRepository | None = None
+    latex_source_repository: LatexSourceRepository | None = None
+    compile_job_repository: CompileJobRepository | None = None
     compiler: ResumeCompiler | None = None
     tailor_service: TailorService | None = None
     http_client: httpx.AsyncClient | None = None
@@ -168,6 +193,10 @@ class AppState:
                 "ALTER TABLE resume_variants ADD COLUMN IF NOT EXISTS match_score_meta jsonb"
             )
             await conn.execute(
+                "ALTER TABLE resume_variants ADD COLUMN IF NOT EXISTS "
+                "compile_generation integer NOT NULL DEFAULT 0"
+            )
+            await conn.execute(
                 'ALTER TABLE resumes ADD COLUMN IF NOT EXISTS base_profile jsonb'
             )
             await conn.execute(
@@ -268,6 +297,86 @@ class AppState:
                 "CREATE INDEX IF NOT EXISTS idx_resume_artifacts_resume_id "
                 "ON resume_artifacts (resume_id)"
             )
+            await conn.execute("""
+                CREATE TABLE IF NOT EXISTS resume_latex_sources (
+                    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+                    resume_id uuid NOT NULL REFERENCES resumes(id) ON DELETE CASCADE,
+                    user_id text NOT NULL,
+                    -- Nullable by design: user_edit sources may temporarily
+                    -- have no IR linkage. Generated sources must always link
+                    -- to an IR revision (enforced by ResumeCompiler).
+                    ir_revision_id uuid REFERENCES resume_ir_revisions(id)
+                        ON DELETE SET NULL,
+                    variant_id uuid REFERENCES resume_variants(id)
+                        ON DELETE CASCADE,
+                    template_id text NOT NULL,
+                    storage_key text NOT NULL,
+                    source_hash text NOT NULL,
+                    origin text NOT NULL,
+                    created_at timestamptz DEFAULT now() NOT NULL
+                )
+            """)
+            await conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_resume_latex_sources_resume_id "
+                "ON resume_latex_sources (resume_id)"
+            )
+            await conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_resume_latex_sources_source_hash "
+                "ON resume_latex_sources (source_hash)"
+            )
+            await conn.execute("""
+                CREATE TABLE IF NOT EXISTS resume_compile_jobs (
+                    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+                    resume_id uuid NOT NULL REFERENCES resumes(id) ON DELETE CASCADE,
+                    user_id text NOT NULL,
+                    variant_id uuid REFERENCES resume_variants(id)
+                        ON DELETE CASCADE,
+                    kind text NOT NULL DEFAULT 'preview',
+                    source_mode text NOT NULL DEFAULT 'structured',
+                    status text NOT NULL DEFAULT 'queued',
+                    template_id text NOT NULL,
+                    job_profile jsonb NOT NULL,
+                    content jsonb NOT NULL,
+                    diff jsonb NOT NULL DEFAULT '{}'::jsonb,
+                    source_revision_id uuid REFERENCES resume_ir_revisions(id)
+                        ON DELETE CASCADE,
+                    patch_id uuid REFERENCES resume_tailoring_patches(id)
+                        ON DELETE SET NULL,
+                    latex_source_id uuid REFERENCES resume_latex_sources(id)
+                        ON DELETE SET NULL,
+                    tex_source text,
+                    tex_source_hash text,
+                    variant_generation integer,
+                    claim_token uuid,
+                    artifact_hash text,
+                    attempts integer NOT NULL DEFAULT 0,
+                    max_attempts integer NOT NULL DEFAULT 3,
+                    run_after timestamptz NOT NULL DEFAULT now(),
+                    started_at timestamptz,
+                    finished_at timestamptz,
+                    last_error text,
+                    created_at timestamptz DEFAULT now() NOT NULL,
+                    updated_at timestamptz DEFAULT now() NOT NULL
+                )
+            """)
+            await _ensure_compile_job_compatibility(conn)
+            await conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_resume_compile_jobs_resume_id "
+                "ON resume_compile_jobs (resume_id)"
+            )
+            await conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_resume_compile_jobs_variant_id "
+                "ON resume_compile_jobs (variant_id)"
+            )
+            await conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_resume_compile_jobs_status "
+                "ON resume_compile_jobs (status)"
+            )
+            await conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_resume_compile_jobs_claim "
+                "ON resume_compile_jobs (run_after, created_at) "
+                "WHERE status = 'queued'"
+            )
 
         self.repository = ResumeRepository(self.pool)
         self.matching_repository = MatchingRepository(self.pool)
@@ -276,7 +385,12 @@ class AppState:
         self.variant_repository = VariantRepository(self.pool)
         self.version_repository = VersionRepository(self.pool)
         self.revision_repository = RevisionRepository(self.pool)
-        self.compiler = ResumeCompiler(revision_repository=self.revision_repository)
+        self.latex_source_repository = LatexSourceRepository(self.pool)
+        self.compile_job_repository = CompileJobRepository(self.pool)
+        self.compiler = ResumeCompiler(
+            revision_repository=self.revision_repository,
+            latex_source_repository=self.latex_source_repository,
+        )
         self.parser = ResumeParser()
 
         from services.llm import get_llm

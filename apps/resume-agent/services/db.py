@@ -162,36 +162,49 @@ class ResumeRepository:
         content: VariantContent,
     ) -> VariantContent:
         async with self._pool.acquire() as conn:
-            result = await conn.execute(
-                """
-                UPDATE resumes
-                SET full_name = $2,
-                    email = $3,
-                    phone = $4,
-                    location = $5,
-                    summary = $6,
-                    experience_years = $7,
-                    skills = $8,
-                    education = $9::jsonb,
-                    work_history = $10::jsonb,
-                    preferred_role = $11,
-                    base_profile = $12::jsonb,
-                    updated_at = NOW()
-                WHERE id = $1
-                """,
-                _to_uuid(resume_id),
-                content.full_name,
-                content.email,
-                content.phone,
-                content.location,
-                content.summary,
-                content.experience_years,
-                content.skills,
-                json.dumps([item.model_dump() for item in content.education]),
-                json.dumps([item.model_dump() for item in content.work_history]),
-                content.preferred_role,
-                json.dumps(content.model_dump()),
-            )
+            async with conn.transaction():
+                result = await conn.execute(
+                    """
+                    UPDATE resumes
+                    SET full_name = $2,
+                        email = $3,
+                        phone = $4,
+                        location = $5,
+                        summary = $6,
+                        experience_years = $7,
+                        skills = $8,
+                        education = $9::jsonb,
+                        work_history = $10::jsonb,
+                        preferred_role = $11,
+                        base_profile = $12::jsonb,
+                        updated_at = NOW()
+                    WHERE id = $1
+                    """,
+                    _to_uuid(resume_id),
+                    content.full_name,
+                    content.email,
+                    content.phone,
+                    content.location,
+                    content.summary,
+                    content.experience_years,
+                    content.skills,
+                    json.dumps([item.model_dump() for item in content.education]),
+                    json.dumps([item.model_dump() for item in content.work_history]),
+                    content.preferred_role,
+                    json.dumps(content.model_dump()),
+                )
+                if result != "UPDATE 0":
+                    await conn.execute(
+                        """
+                        UPDATE resume_variants
+                        SET compile_generation = compile_generation + 1,
+                            artifact_id = NULL,
+                            file_path = NULL,
+                            updated_at = NOW()
+                        WHERE resume_id = $1
+                        """,
+                        _to_uuid(resume_id),
+                    )
         if result == "UPDATE 0":
             raise ResumeNotFoundError(f"Resume {resume_id} not found")
         return content

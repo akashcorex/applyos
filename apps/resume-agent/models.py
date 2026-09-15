@@ -13,6 +13,7 @@ TAILORING_POLICY_VERSION = "tailoring-policy.v1"
 COMPILER_VERSION = "resume-compiler.v1"
 TEMPLATE_VERSION = "ats-latex.v1"
 JOB_DESCRIPTION_MAX_LENGTH = 8000
+CompileSourceMode = Literal["structured", "latex"]
 
 
 def _truncate_text(value: object, limit: int) -> object:
@@ -132,6 +133,10 @@ class TailoringPolicy(BaseModel):
             "rewrite_existing",
             "summarize_existing",
             "reorder_skills",
+            "emphasize_skill",
+            "reorder_skill",
+            "reorder_experience",
+            "rewrite_existing_bullet",
         ]
     )
     forbidden_changes: list[str] = Field(
@@ -154,6 +159,10 @@ class TailoringOperation(BaseModel):
         "rewrite_existing",
         "summarize_existing",
         "reorder_skills",
+        "emphasize_skill",
+        "reorder_skill",
+        "reorder_experience",
+        "rewrite_existing_bullet",
     ]
     node_id: str
     field: str
@@ -505,6 +514,10 @@ class UpdateVariantRequest(BaseModel):
 class FinalizeVariantRequest(BaseModel):
     content: VariantContent | None = None
     accepted_suggestion_ids: list[str] = Field(default_factory=list)
+    source_mode: CompileSourceMode = "structured"
+    # Optional template override for async compile jobs. When omitted, the
+    # latest LaTeX source template (or registry default) is used.
+    template_id: str | None = Field(default=None, max_length=128)
 
 
 class ResumeVariantResponse(BaseModel):
@@ -528,6 +541,7 @@ class ResumeVariantResponse(BaseModel):
     match_score: float | None = None
     match_score_updated_at: str | None = None
     match_score_meta: MatchScoreMeta | None = None
+    compile_generation: int = 0
     created_at: str | None = None
     updated_at: str | None = None
 
@@ -541,6 +555,27 @@ class VariantFinalizeResponse(BaseModel):
     variant: ResumeVariantResponse
     preview_url: str | None = None
     artifact: CompiledArtifact | None = None
+
+
+class ControlledTailoringRequest(BaseModel):
+    source_revision_id: str | None = None
+    operations: list[TailoringOperation] = Field(min_length=1, max_length=20)
+
+
+class ControlledTailoringProposal(BaseModel):
+    operations: list[TailoringOperation] = Field(default_factory=list, max_length=20)
+    overall_assessment: str = ""
+
+
+class ControlledTailoringProposalResponse(ControlledTailoringProposal):
+    source_revision_id: str
+
+
+class ControlledTailoringResponse(BaseModel):
+    variant: ResumeVariantResponse
+    patch_id: str
+    source_revision_id: str
+    operations: list[TailoringOperation]
 
 
 class BaseProfileResponse(BaseModel):
@@ -567,3 +602,127 @@ class VariantVersionDetail(VariantVersionSummary):
 class VariantVersionListResponse(BaseModel):
     variant_id: str
     versions: list[VariantVersionSummary] = Field(default_factory=list)
+
+
+# --- LaTeX-as-source (Phase 1) ---
+#
+# Layering: ResumeIR = semantic truth; .tex = editable source projection;
+# PDF = compiled artifact. These models describe only the source layer.
+
+LATEX_SOURCE_MAX_CHARS = 200_000
+
+LatexSourceOrigin = Literal["generated", "user_edit", "ai_tailored", "imported"]
+
+
+class LatexTemplateInfo(BaseModel):
+    template_id: str
+    template_version: str
+    display_name: str
+
+
+class TemplateListResponse(BaseModel):
+    templates: list[LatexTemplateInfo] = Field(default_factory=list)
+
+
+class LatexSource(BaseModel):
+    """One append-only LaTeX source row (history is never overwritten)."""
+
+    id: str
+    resume_id: str
+    user_id: str
+    # Nullable by design: user_edit/imported sources may temporarily have no
+    # IR linkage (e.g. edited before re-extraction). Generated sources must
+    # always link to an IR revision.
+    ir_revision_id: str | None = None
+    variant_id: str | None = None
+    template_id: str
+    storage_key: str
+    source_hash: str
+    origin: LatexSourceOrigin
+    created_at: str | None = None
+
+
+class LatexSourceResponse(BaseModel):
+    resume_id: str
+    id: str | None = None
+    variant_id: str | None = None
+    tex_source: str | None = None
+    template_id: str | None = None
+    source_hash: str | None = None
+    origin: LatexSourceOrigin | None = None
+    ir_revision_id: str | None = None
+    created_at: str | None = None
+
+
+class UpdateLatexSourceRequest(BaseModel):
+    tex_source: str = Field(min_length=1, max_length=LATEX_SOURCE_MAX_CHARS)
+    template_id: str = Field(min_length=1, max_length=128)
+    expected_source_hash: str | None = Field(default=None, min_length=64, max_length=64)
+
+
+class ImportTexResponse(BaseModel):
+    resume_id: str
+    ir_revision_id: str | None = None
+    source_hash: str | None = None
+    template_id: str | None = None
+    origin: LatexSourceOrigin | None = None
+
+
+# --- Async compile jobs (Phase 2) ---
+#
+# PDF compilation runs in a separate worker process. FastAPI only prepares
+# inputs, checks the content-addressed artifact cache, and enqueues a job.
+
+CompileJobStatus = Literal["queued", "compiling", "ready", "failed"]
+
+CompileJobKind = Literal["preview", "finalize"]
+
+
+class CompileJob(BaseModel):
+    """One queued/running/finished LaTeX compilation."""
+
+    id: str
+    resume_id: str
+    user_id: str
+    variant_id: str | None = None
+    kind: CompileJobKind = "preview"
+    source_mode: CompileSourceMode = "structured"
+    status: CompileJobStatus = "queued"
+    template_id: str | None = None
+    # Snapshotted at enqueue so the worker compiles exactly what the user
+    # approved, even if the variant is edited afterwards.
+    job_profile: dict[str, Any] = Field(default_factory=dict)
+    content: dict[str, Any] = Field(default_factory=dict)
+    diff: dict[str, Any] = Field(default_factory=dict)
+    source_revision_id: str | None = None
+    patch_id: str | None = None
+    latex_source_id: str | None = None
+    tex_source: str | None = None
+    tex_source_hash: str | None = None
+    variant_generation: int | None = None
+    claim_token: str | None = None
+    artifact_hash: str | None = None
+    attempts: int = 0
+    max_attempts: int = 3
+    last_error: str | None = None
+    created_at: str | None = None
+    updated_at: str | None = None
+    started_at: str | None = None
+    finished_at: str | None = None
+
+
+class CompileEnqueueResponse(BaseModel):
+    """Returned with HTTP 202 when compilation was queued."""
+
+    job_id: str
+    status: CompileJobStatus
+    resume_id: str
+    variant_id: str | None = None
+    kind: CompileJobKind = "preview"
+    source_mode: CompileSourceMode = "structured"
+
+
+class CompileJobResponse(BaseModel):
+    job: CompileJob
+    artifact: CompiledArtifact | None = None
+    pdf_url: str | None = None

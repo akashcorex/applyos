@@ -16,10 +16,12 @@ def _safe_segment(value: str) -> str:
 def extension_for(file_name: str | None, file_type: str | None) -> str:
     if file_name and "." in file_name:
         suffix = Path(file_name).suffix.lower()
-        if suffix in {".pdf", ".docx"}:
+        if suffix in {".pdf", ".docx", ".tex"}:
             return suffix
     if file_type == "docx":
         return ".docx"
+    if file_type == "tex":
+        return ".tex"
     return ".pdf"
 
 
@@ -37,6 +39,12 @@ def save_resume_file(
     path = user_dir / f"{resume_id}{ext}"
     path.write_bytes(raw_bytes)
     return str(path.resolve())
+
+
+def resume_file_storage_key(
+    *, resume_id: str, file_name: str | None, file_type: str | None
+) -> str:
+    return f"local://resume-files/{resume_id}{extension_for(file_name, file_type)}"
 
 
 def save_variant_pdf(
@@ -74,6 +82,36 @@ def resolve_artifact_path(*, user_id: str, artifact_hash: str) -> str | None:
         / _safe_segment(user_id)
         / "artifacts"
         / f"{artifact_hash}.pdf"
+    )
+    return str(path.resolve()) if path.is_file() else None
+
+
+def save_latex_source(
+    *,
+    user_id: str,
+    source_hash: str,
+    tex_bytes: bytes,
+) -> tuple[str, str]:
+    """Store content-addressed LaTeX source, returning (opaque key, local path).
+
+    Mirrors :func:`save_artifact_pdf` under the same per-user scheme. Callers
+    must persist only the opaque key; the local path never leaves the service.
+    """
+
+    user_dir = _UPLOADS_ROOT / _safe_segment(user_id) / "latex-sources"
+    user_dir.mkdir(parents=True, exist_ok=True)
+    path = user_dir / f"{_safe_segment(source_hash)}.tex"
+    if not path.exists():
+        path.write_bytes(tex_bytes)
+    return f"local://resume-latex-sources/{source_hash}.tex", str(path.resolve())
+
+
+def resolve_latex_source_path(*, user_id: str, source_hash: str) -> str | None:
+    path = (
+        _UPLOADS_ROOT
+        / _safe_segment(user_id)
+        / "latex-sources"
+        / f"{_safe_segment(source_hash)}.tex"
     )
     return str(path.resolve()) if path.is_file() else None
 

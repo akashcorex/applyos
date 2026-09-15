@@ -1,11 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import Editor from '@monaco-editor/react';
+import { useEffect, useRef, useState } from 'react';
 
 import {
   Check,
   Download,
   ExternalLink,
+  FileUp,
   Loader2,
   Sparkles,
   X,
@@ -16,6 +18,7 @@ import { Badge } from '@applyso/ui/badge';
 import { Button } from '@applyso/ui/button';
 
 import { ResumeDocumentCanvas } from '@/components/ResumeDocumentCanvas';
+import { pollCompileJob, type CompileJobState } from '@/lib/resume-compile';
 
 export interface VariantContent {
   full_name: string;
@@ -186,6 +189,19 @@ interface VariantVersionSummary {
   created_at?: string | null;
 }
 
+interface LatexTemplate {
+  template_id: string;
+  template_version: string;
+  display_name: string;
+}
+
+interface LatexSourceResponse {
+  id?: string | null;
+  tex_source?: string | null;
+  template_id?: string | null;
+  source_hash?: string | null;
+}
+
 interface ResumeVariantEditorProps {
   resumeId: string;
   job: TailorJobContext;
@@ -219,6 +235,33 @@ export function ResumeVariantEditor({
   const [saveNotice, setSaveNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [reloadNonce, setReloadNonce] = useState(0);
+  const [editorTab, setEditorTab] = useState<'structured' | 'latex'>(
+    'structured',
+  );
+  const [latexSource, setLatexSource] = useState('');
+  const [sourceHash, setSourceHash] = useState<string | null>(null);
+  const [sourceDirty, setSourceDirty] = useState(false);
+  const [sourceSaving, setSourceSaving] = useState(false);
+  const [sourceImporting, setSourceImporting] = useState(false);
+  const [sourceError, setSourceError] = useState<string | null>(null);
+  const [templates, setTemplates] = useState<LatexTemplate[]>([]);
+  const [templateId, setTemplateId] = useState('applyos-ats');
+  const [compileStatus, setCompileStatus] = useState<CompileJobState | 'idle'>(
+    'idle',
+  );
+  const [compileJobId, setCompileJobId] = useState<string | null>(null);
+  const [pdfJobId, setPdfJobId] = useState<string | null>(null);
+  const [compileError, setCompileError] = useState<string | null>(null);
+  const compileAbortRef = useRef<AbortController | null>(null);
+  const sourceFileInputRef = useRef<HTMLInputElement | null>(null);
+  const sourceSaveAbortRef = useRef<AbortController | null>(null);
+  const sourceSaveSequenceRef = useRef(0);
+  const sourceLoadedRef = useRef(false);
+  const [sourceReloadNonce, setSourceReloadNonce] = useState(0);
+
+  useEffect(() => {
+    return () => compileAbortRef.current?.abort();
+  }, []);
 
   useEffect(() => {
     if (!initialVariant) return;
@@ -227,6 +270,65 @@ export function ResumeVariantEditor({
     setSkillsText(initialVariant.content.skills.join(', '));
     setLoading(false);
   }, [initialVariant]);
+
+  useEffect(() => {
+    const variantId = variant?.id;
+    if (!variantId) return;
+    sourceSaveSequenceRef.current += 1;
+    sourceSaveAbortRef.current?.abort();
+    sourceSaveAbortRef.current = null;
+    let cancelled = false;
+    sourceLoadedRef.current = false;
+
+    async function loadLatexSource() {
+      try {
+        const [templatesRes, sourceRes] = await Promise.all([
+          fetch(`/api/resume/${resumeId}/templates`),
+          fetch(`/api/resume/${resumeId}/variants/${variantId}/source.tex`),
+        ]);
+        const templatesData = (await templatesRes.json().catch(() => ({}))) as {
+          templates?: LatexTemplate[];
+        };
+        const sourceData = (await sourceRes.json().catch(() => ({}))) as
+          LatexSourceResponse | { detail?: string; error?: string };
+        if (cancelled) return;
+        if (templatesRes.ok) setTemplates(templatesData.templates ?? []);
+        if (sourceRes.ok) {
+          const source = sourceData as LatexSourceResponse;
+          setLatexSource(source.tex_source ?? '');
+          setSourceHash(source.source_hash ?? null);
+          setTemplateId(source.template_id ?? 'applyos-ats');
+          setSourceError(null);
+        } else {
+          setLatexSource('');
+          setSourceHash(null);
+          setSourceError('No LaTeX source is stored for this variant yet.');
+        }
+        setSourceDirty(false);
+        sourceLoadedRef.current = true;
+      } catch {
+        if (!cancelled) setSourceError('Could not load the LaTeX source');
+      }
+    }
+
+    void loadLatexSource();
+    return () => {
+      cancelled = true;
+      sourceSaveSequenceRef.current += 1;
+      sourceSaveAbortRef.current?.abort();
+      sourceSaveAbortRef.current = null;
+    };
+  }, [resumeId, sourceReloadNonce, variant?.id]);
+
+  useEffect(() => {
+    if (!sourceDirty || !sourceLoadedRef.current) {
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      void persistLatexSource();
+    }, 800);
+    return () => window.clearTimeout(timer);
+  }, [latexSource, sourceDirty, templateId]);
 
   useEffect(() => {
     if (initialVariant) return;
@@ -304,6 +406,199 @@ export function ResumeVariantEditor({
     reloadNonce,
     resumeId,
   ]);
+
+  async function persistLatexSource(): Promise<boolean> {
+    if (!variant) return false;
+    if (!latexSource.trim()) {
+      setSourceError('LaTeX source cannot be empty');
+      return false;
+    }
+    const sequence = ++sourceSaveSequenceRef.current;
+    sourceSaveAbortRef.current?.abort();
+    const controller = new AbortController();
+    sourceSaveAbortRef.current = controller;
+    setSourceSaving(true);
+    setSourceError(null);
+    try {
+      const res = await fetch(
+        `/api/resume/${resumeId}/variants/${variant.id}/source.tex`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            tex_source: latexSource,
+            template_id: templateId,
+            expected_source_hash: sourceHash ?? undefined,
+          }),
+          signal: controller.signal,
+        },
+      );
+      const data = (await res.json().catch(() => ({}))) as
+        LatexSourceResponse | { detail?: unknown; error?: unknown };
+      if (sequence !== sourceSaveSequenceRef.current) return false;
+      if (!res.ok) {
+        setSourceError(apiErrorMessage(data, 'Failed to save LaTeX source'));
+        return false;
+      }
+      const saved = data as LatexSourceResponse;
+      setSourceHash(saved.source_hash ?? null);
+      setSourceDirty(false);
+      setSourceError(null);
+      return true;
+    } catch {
+      if (sequence !== sourceSaveSequenceRef.current) return false;
+      setSourceError('Failed to save LaTeX source');
+      return false;
+    } finally {
+      if (sequence === sourceSaveSequenceRef.current) {
+        setSourceSaving(false);
+      }
+    }
+  }
+
+  async function importLatexSource(file: File) {
+    if (sourceDirty) {
+      setSourceError('Save your current LaTeX changes before importing');
+      return;
+    }
+    setSourceImporting(true);
+    setSourceError(null);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('template_id', templateId);
+      const res = await fetch(`/api/resume/${resumeId}/import-tex`, {
+        method: 'POST',
+        body: formData,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setSourceError(apiErrorMessage(data, 'Failed to import LaTeX source'));
+        return;
+      }
+      setSourceReloadNonce((value) => value + 1);
+      setSaveNotice('LaTeX source imported');
+    } catch {
+      setSourceError('Failed to import LaTeX source');
+    } finally {
+      setSourceImporting(false);
+    }
+  }
+
+  function applyVariant(data: unknown): ResumeVariant | null {
+    if (!data || typeof data !== 'object') return null;
+    const candidate =
+      'variant' in data ? (data as { variant?: unknown }).variant : data;
+    if (!candidate || typeof candidate !== 'object') return null;
+    const next = candidate as ResumeVariant;
+    setVariant(next);
+    setContent(next.content);
+    setSkillsText(next.content.skills.join(', '));
+    onSaved(next);
+    return next;
+  }
+
+  async function runCompile(kind: 'preview' | 'finalize') {
+    if (!variant || !content) return;
+    if (editorTab === 'latex' && !latexSource.trim()) {
+      setCompileError('LaTeX source cannot be empty');
+      setError('LaTeX source cannot be empty');
+      return;
+    }
+    if (editorTab === 'latex' && sourceDirty && !(await persistLatexSource())) {
+      return;
+    }
+    const controller = new AbortController();
+    compileAbortRef.current?.abort();
+    compileAbortRef.current = controller;
+    setCompileError(null);
+    setError(null);
+    setCompileJobId(null);
+    setPdfJobId(null);
+    setCompileStatus('queued');
+    if (kind === 'preview') setPreviewing(true);
+    else setFinalizing(true);
+
+    try {
+      const body: Record<string, unknown> = {
+        source_mode: editorTab,
+      };
+      if (editorTab === 'structured') {
+        body.content = buildPayload(content, skillsText);
+        body.accepted_suggestion_ids = Array.from(acceptedIds);
+        body.template_id = templateId;
+      }
+      const res = await fetch(
+        `/api/resume/${resumeId}/variants/${variant.id}/${kind}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+          signal: controller.signal,
+        },
+      );
+      const data = (await res.json().catch(() => ({}))) as Record<
+        string,
+        unknown
+      >;
+      if (!res.ok && res.status !== 202) {
+        throw new Error(apiErrorMessage(data, `${kind} failed`));
+      }
+      if (res.status === 202 && typeof data.job_id === 'string') {
+        const jobId = data.job_id;
+        setCompileJobId(jobId);
+        const completed = await pollCompileJob(resumeId, jobId, {
+          signal: controller.signal,
+          onStatus: setCompileStatus,
+        });
+        if (completed.job.status !== 'ready') {
+          throw new Error('LaTeX compilation failed');
+        }
+        setCompileStatus('ready');
+        const variantRes = await fetch(
+          `/api/resume/${resumeId}/variants/${variant.id}`,
+          { signal: controller.signal },
+        );
+        const variantData = await variantRes.json().catch(() => ({}));
+        if (!variantRes.ok) {
+          throw new Error(
+            apiErrorMessage(
+              variantData,
+              'Compiled variant could not be loaded',
+            ),
+          );
+        }
+        applyVariant(variantData);
+        setPdfJobId(jobId);
+        if (editorTab === 'structured' && !sourceDirty) {
+          setSourceReloadNonce((value) => value + 1);
+        }
+      } else {
+        const next = applyVariant(data);
+        if (!next) throw new Error(`${kind} returned no variant`);
+        setCompileStatus('ready');
+        setPdfJobId(null);
+        if (editorTab === 'structured' && !sourceDirty) {
+          setSourceReloadNonce((value) => value + 1);
+        }
+      }
+      setAcceptedIds(new Set());
+    } catch (caught) {
+      if (controller.signal.aborted) return;
+      const message =
+        caught instanceof Error ? caught.message : `${kind} failed`;
+      setCompileStatus('failed');
+      setPdfJobId(null);
+      setCompileError(message);
+      setError(message);
+    } finally {
+      if (compileAbortRef.current === controller) {
+        compileAbortRef.current = null;
+      }
+      if (kind === 'preview') setPreviewing(false);
+      else setFinalizing(false);
+    }
+  }
 
   useEffect(() => {
     const variantId = variant?.id;
@@ -449,69 +744,11 @@ export function ResumeVariantEditor({
   }
 
   async function handleFinalize() {
-    if (!variant || !content) return;
-    setFinalizing(true);
-    setError(null);
-
-    const payloadContent = buildPayload(content, skillsText);
-
-    try {
-      const res = await fetch(
-        `/api/resume/${resumeId}/variants/${variant.id}/finalize`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            content: payloadContent,
-            accepted_suggestion_ids: Array.from(acceptedIds),
-          }),
-        },
-      );
-      const data = await res.json();
-      if (!res.ok) {
-        setError(apiErrorMessage(data, 'Finalize failed'));
-        return;
-      }
-      setVariant(data.variant);
-      setContent(data.variant.content);
-      setSkillsText(data.variant.content.skills.join(', '));
-      setAcceptedIds(new Set());
-      onSaved(data.variant);
-    } catch {
-      setError('Failed to finalize variant');
-    } finally {
-      setFinalizing(false);
-    }
+    await runCompile('finalize');
   }
 
   async function handlePreview() {
-    if (!variant || !content) return;
-    setPreviewing(true);
-    setError(null);
-    const payloadContent = buildPayload(content, skillsText);
-    try {
-      const res = await fetch(
-        `/api/resume/${resumeId}/variants/${variant.id}/preview`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ content: payloadContent }),
-        },
-      );
-      const data = await res.json();
-      if (!res.ok) {
-        setError(apiErrorMessage(data, 'Preview failed'));
-        return;
-      }
-      setVariant(data.variant);
-      setContent(data.variant.content);
-      setSkillsText(data.variant.content.skills.join(', '));
-      onSaved(data.variant);
-    } catch {
-      setError('Failed to compile preview');
-    } finally {
-      setPreviewing(false);
-    }
+    await runCompile('preview');
   }
 
   if (loading) {
@@ -581,9 +818,11 @@ export function ResumeVariantEditor({
 
   const suggestions = variant?.suggestions?.suggestions ?? [];
   const semanticDiff = variant?.diff?.semantic ?? [];
-  const previewUrl = variant?.artifact_id
-    ? `/api/resume/${encodeURIComponent(resumeId)}/variants/${encodeURIComponent(variant.id)}/pdf`
-    : null;
+  const previewUrl = pdfJobId
+    ? `/api/resume/${encodeURIComponent(resumeId)}/compile-jobs/${encodeURIComponent(pdfJobId)}/pdf`
+    : variant?.artifact_id
+      ? `/api/resume/${encodeURIComponent(resumeId)}/variants/${encodeURIComponent(variant.id)}/pdf`
+      : null;
   const safeIds = suggestions
     .filter((s) => (s.confidence ?? 0) >= 0.8 && s.risk === 'low')
     .map((s) => s.id);
@@ -649,12 +888,128 @@ export function ResumeVariantEditor({
                 </p>
               ) : null}
               {error ? <p className="text-sm text-red-600">{error}</p> : null}
-              <ResumeDocumentCanvas
-                content={content}
-                skillsText={skillsText}
-                onContentChange={setContent}
-                onSkillsTextChange={setSkillsText}
-              />
+              <div className="flex items-center gap-2 border-b border-slate-200 dark:border-[#282a32]">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={editorTab === 'structured' ? 'default' : 'ghost'}
+                  onClick={() => setEditorTab('structured')}
+                >
+                  Structured
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={editorTab === 'latex' ? 'default' : 'ghost'}
+                  onClick={() => {
+                    setEditorTab('latex');
+                    if (!sourceDirty) {
+                      setSourceReloadNonce((value) => value + 1);
+                    }
+                  }}
+                >
+                  LaTeX source
+                </Button>
+              </div>
+              {editorTab === 'structured' ? (
+                <ResumeDocumentCanvas
+                  content={content}
+                  skillsText={skillsText}
+                  onContentChange={setContent}
+                  onSkillsTextChange={setSkillsText}
+                />
+              ) : (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <label
+                      className="text-sm font-medium"
+                      htmlFor="latex-template"
+                    >
+                      Template
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <select
+                        id="latex-template"
+                        value={templateId}
+                        onChange={(event) => {
+                          setTemplateId(event.target.value);
+                          setSourceDirty(true);
+                        }}
+                        className="rounded border bg-background px-2 py-1 text-sm"
+                      >
+                        {(templates.length > 0
+                          ? templates
+                          : [
+                              {
+                                template_id: 'applyos-ats',
+                                template_version: 'ats-latex.v1',
+                                display_name: 'ApplyOS ATS',
+                              },
+                            ]
+                        ).map((template) => (
+                          <option
+                            key={template.template_id}
+                            value={template.template_id}
+                          >
+                            {template.display_name}
+                          </option>
+                        ))}
+                      </select>
+                      <input
+                        ref={sourceFileInputRef}
+                        type="file"
+                        accept=".tex,application/x-tex,text/plain"
+                        className="hidden"
+                        onChange={(event) => {
+                          const file = event.target.files?.[0];
+                          if (file) void importLatexSource(file);
+                          event.target.value = '';
+                        }}
+                      />
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        disabled={sourceImporting}
+                        onClick={() => sourceFileInputRef.current?.click()}
+                      >
+                        <FileUp className="mr-1 h-3.5 w-3.5" />
+                        Import
+                      </Button>
+                    </div>
+                  </div>
+                  <Editor
+                    height="34rem"
+                    defaultLanguage="latex"
+                    theme="vs-dark"
+                    value={latexSource}
+                    onChange={(value) => {
+                      setLatexSource(value ?? '');
+                      setSourceDirty(true);
+                    }}
+                    options={{
+                      minimap: { enabled: false },
+                      wordWrap: 'on',
+                      fontSize: 13,
+                      automaticLayout: true,
+                    }}
+                  />
+                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <span>
+                      {sourceSaving
+                        ? 'Saving source…'
+                        : sourceDirty
+                          ? 'Unsaved source changes'
+                          : sourceHash
+                            ? `Saved · ${sourceHash.slice(0, 12)}`
+                            : 'Generated source will be stored on save'}
+                    </span>
+                    {sourceError ? (
+                      <span className="text-red-600">{sourceError}</span>
+                    ) : null}
+                  </div>
+                </div>
+              )}
             </div>
 
             <aside className="space-y-4">
@@ -803,6 +1158,26 @@ export function ResumeVariantEditor({
                 </div>
               ) : null}
 
+              {compileStatus !== 'idle' ? (
+                <div className="rounded-[8px] border border-slate-200 bg-slate-50 p-3 text-sm dark:border-[#282a32] dark:bg-[#141518]">
+                  {compileStatus === 'failed' ? (
+                    <p className="text-red-600">
+                      {compileError ?? 'LaTeX compilation failed'}
+                    </p>
+                  ) : (
+                    <p className="text-muted-foreground">
+                      {compileStatus === 'ready'
+                        ? 'Compilation complete'
+                        : `Compilation ${compileStatus}…`}
+                    </p>
+                  )}
+                  {compileJobId ? (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Job {compileJobId}
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
               {previewUrl ? (
                 <div className="space-y-3 rounded-[8px] border border-emerald-800/50 bg-emerald-950/40 p-3.5">
                   <p className="text-sm text-emerald-400 flex items-center gap-1">
@@ -830,6 +1205,11 @@ export function ResumeVariantEditor({
                       Download PDF
                     </a>
                   </div>
+                  <iframe
+                    title="Compiled resume preview"
+                    src={previewUrl}
+                    className="h-[32rem] w-full rounded border border-emerald-800/50 bg-white"
+                  />
                   {semanticDiff.length > 0 ? (
                     <div className="space-y-1">
                       <p className="text-xs font-medium text-green-900">

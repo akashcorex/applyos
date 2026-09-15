@@ -9,8 +9,11 @@ from typing import Final
 
 logger = logging.getLogger(__name__)
 
-SUPPORTED_EXTENSIONS: Final[frozenset[str]] = frozenset({".pdf", ".docx"})
+SUPPORTED_EXTENSIONS: Final[frozenset[str]] = frozenset({".pdf", ".docx", ".tex"})
 MAX_TEXT_CHARS: Final[int] = 200_000
+TEX_CONTENT_TYPES: Final[frozenset[str]] = frozenset(
+    {"text/x-tex", "application/x-tex", "text/plain"}
+)
 
 
 @dataclass(frozen=True)
@@ -30,7 +33,7 @@ class ParsedDocument:
 
 
 class UnsupportedFileTypeError(ValueError):
-    """Raised when the uploaded file is neither PDF nor DOCX."""
+    """Raised when the uploaded file is not PDF, DOCX, or TeX."""
 
 
 class ResumeParser:
@@ -45,6 +48,8 @@ class ResumeParser:
             "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         }:
             return "docx"
+        if name.endswith(".tex") or content_type in TEX_CONTENT_TYPES:
+            return "tex"
         raise UnsupportedFileTypeError(
             f"Unsupported file type: {file_name!r}. Expected one of "
             f"{sorted(SUPPORTED_EXTENSIONS)}."
@@ -62,6 +67,12 @@ class ResumeParser:
         if not raw_bytes:
             raise ValueError("Uploaded file is empty")
         file_type = self.detect_file_type(file_name, content_type)
+        if file_type == "tex":
+            # Import here to avoid a hard parser -> tex_parser import cycle
+            # (tex_parser reuses ResumeParser._normalise for detexed text).
+            from services.tex_parser import parse_tex_bytes
+
+            return parse_tex_bytes(raw_bytes)
         if file_type == "pdf":
             segments = self._parse_pdf_segments(raw_bytes)
         else:

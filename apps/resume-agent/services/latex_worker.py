@@ -14,16 +14,28 @@ import subprocess
 from pathlib import Path
 
 
-def _limit_resources() -> None:
+def _limit_resources(cpu_seconds: int = 12) -> None:
     try:
-        resource.setrlimit(resource.RLIMIT_CPU, (12, 12))
+        resource.setrlimit(resource.RLIMIT_CPU, (cpu_seconds, cpu_seconds))
         resource.setrlimit(resource.RLIMIT_AS, (768 * 1024 * 1024, 768 * 1024 * 1024))
     except (AttributeError, OSError, ValueError):
         pass
 
 
-def compile_latex(compiler: str, source: Path, output_dir: Path) -> Path:
+DEFAULT_TIMEOUT_SECONDS = 15.0
+
+
+def compile_latex(
+    compiler: str,
+    source: Path,
+    output_dir: Path,
+    timeout: float = DEFAULT_TIMEOUT_SECONDS,
+) -> Path:
     output_dir.mkdir(parents=True, exist_ok=True)
+    cache_dir = Path(
+        os.environ.get("TECTONIC_CACHE_DIR") or output_dir / "tectonic-cache"
+    )
+    cache_dir.mkdir(parents=True, exist_ok=True)
     command_name = Path(compiler).name.lower()
     if "tectonic" in command_name:
         command = [
@@ -49,17 +61,17 @@ def compile_latex(compiler: str, source: Path, output_dir: Path) -> Path:
         "PATH": os.environ.get("PATH", ""),
         "HOME": str(output_dir),
         "TEXMFHOME": str(output_dir / "texmf"),
-        "TECTONIC_CACHE_DIR": str(output_dir / "tectonic-cache"),
+        "TECTONIC_CACHE_DIR": str(cache_dir),
     }
+    # Inherit stdout/stderr so the parent captures the compiler log.
     subprocess.run(
         command,
         cwd=source.parent,
         env=env,
         check=True,
-        capture_output=True,
-        timeout=15,
+        timeout=timeout,
         start_new_session=True,
-        preexec_fn=_limit_resources,
+        preexec_fn=lambda: _limit_resources(max(12, int(timeout) + 1)),
     )
     output = output_dir / "resume.pdf"
     if not output.is_file():
@@ -72,8 +84,9 @@ def main() -> int:
     parser.add_argument("--compiler", required=True)
     parser.add_argument("--source", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
+    parser.add_argument("--timeout", type=float, default=DEFAULT_TIMEOUT_SECONDS)
     args = parser.parse_args()
-    compile_latex(args.compiler, args.source, args.output_dir)
+    compile_latex(args.compiler, args.source, args.output_dir, timeout=args.timeout)
     return 0
 
 

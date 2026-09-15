@@ -213,7 +213,12 @@ class VariantRepository:
         source_revision_id: str | None = None,
         patch_id: str | None = None,
         artifact_id: str | None = None,
+        expected_compile_generation: int | None = None,
+        conn: Any | None = None,
     ) -> ResumeVariantResponse:
+        """Update variant fields. Pass ``conn`` to join an outer transaction
+        (used by the compile worker so job-ready + variant update commit
+        atomically)."""
         sets: list[str] = ["updated_at = NOW()"]
         params: list[Any] = []
         idx = 1
@@ -222,6 +227,11 @@ class VariantRepository:
             sets.append(f"content = ${idx}::jsonb")
             params.append(json.dumps(content.model_dump()))
             idx += 1
+            sets.append("compile_generation = compile_generation + 1")
+            if artifact_id is None:
+                sets.append("artifact_id = NULL")
+            if file_path is None:
+                sets.append("file_path = NULL")
         if suggestions is not None:
             sets.append(f"suggestions = ${idx}::jsonb")
             params.append(json.dumps(suggestions.model_dump()))
@@ -248,19 +258,157 @@ class VariantRepository:
             idx += 1
 
         params.extend([_to_uuid(variant_id), _to_uuid(resume_id)])
+        generation_clause = ""
+        if expected_compile_generation is not None:
+            params.append(expected_compile_generation)
+            generation_clause = f" AND compile_generation = ${idx + 2}"
         query = f"""
             UPDATE resume_variants
             SET {", ".join(sets)}
             WHERE id = ${idx} AND resume_id = ${idx + 1}
+            {generation_clause}
             RETURNING *
         """
 
-        async with self._pool.acquire() as conn:
+        if conn is not None:
             row = await conn.fetchrow(query, *params)
+        else:
+            async with self._pool.acquire() as own_conn:
+                row = await own_conn.fetchrow(query, *params)
 
         if row is None:
             raise VariantNotFoundError(f"Variant {variant_id} not found")
         return _row_to_variant(resume_id, row)
+
+    async def bump_compile_generation(
+        self,
+        resume_id: str,
+        variant_id: str,
+        *,
+        conn: Any | None = None,
+    ) -> int:
+        query = """
+            UPDATE resume_variants
+            SET compile_generation = compile_generation + 1,
+                artifact_id = NULL,
+                file_path = NULL,
+                updated_at = NOW()
+            WHERE id = $1 AND resume_id = $2
+            RETURNING compile_generation
+        """
+        params = (_to_uuid(variant_id), _to_uuid(resume_id))
+        if conn is not None:
+            row = await conn.fetchrow(query, *params)
+        else:
+            async with self._pool.acquire() as own_conn:
+                row = await own_conn.fetchrow(query, *params)
+        if row is None:
+            raise VariantNotFoundError(f"Variant {variant_id} not found")
+        return int(row["compile_generation"])
+
+    async def claim_compile_generation(
+        self,
+        resume_id: str,
+        variant_id: str,
+        *,
+        expected_generation: int,
+        conn: Any | None = None,
+    ) -> int:
+        query = """
+            UPDATE resume_variants
+            SET compile_generation = compile_generation + 1,
+                artifact_id = NULL,
+                file_path = NULL,
+                updated_at = NOW()
+            WHERE id = $1 AND resume_id = $2 AND compile_generation = $3
+            RETURNING compile_generation
+        """
+        params = (
+            _to_uuid(variant_id),
+            _to_uuid(resume_id),
+            expected_generation,
+        )
+        if conn is not None:
+            row = await conn.fetchrow(query, *params)
+        else:
+            async with self._pool.acquire() as own_conn:
+                row = await own_conn.fetchrow(query, *params)
+        if row is None:
+            raise ValueError("Variant changed while the compile was prepared")
+        return int(row["compile_generation"])
+
+    async def invalidate_compile_generations(
+        self,
+        resume_id: str,
+        variant_id: str | None = None,
+        *,
+        conn: Any | None = None,
+    ) -> int:
+        params: list[Any] = [_to_uuid(resume_id)]
+        where = "resume_id = $1"
+        if variant_id is not None:
+            params.append(_to_uuid(variant_id))
+            where += " AND id = $2"
+        query = f"""
+            UPDATE resume_variants
+            SET compile_generation = compile_generation + 1,
+                artifact_id = NULL,
+                file_path = NULL,
+                updated_at = NOW()
+            WHERE {where}
+        """
+        if conn is not None:
+            status = await conn.execute(query, *params)
+        else:
+            async with self._pool.acquire() as own_conn:
+                status = await own_conn.execute(query, *params)
+        try:
+            return int(status.split()[-1])
+        except (ValueError, IndexError):
+            return 0
+
+    async def update_compile_result(
+        self,
+        resume_id: str,
+        variant_id: str,
+        *,
+        generation: int,
+        source_revision_id: str | None,
+        patch_id: str | None,
+        artifact_id: str,
+        status: VariantStatus | None,
+        conn: Any,
+    ) -> bool:
+        # source_revision_id / patch_id are text columns; never bind UUID objects.
+        params: list[Any] = [
+            source_revision_id,
+            patch_id,
+            artifact_id,
+        ]
+        status_clause = "status = $4," if status is not None else ""
+        if status is not None:
+            params.append(status)
+        params.extend(
+            [
+                _to_uuid(variant_id),
+                _to_uuid(resume_id),
+                generation,
+            ]
+        )
+        where_index = 5 if status is not None else 4
+        query = f"""
+            UPDATE resume_variants
+            SET source_revision_id = $1,
+                patch_id = $2,
+                artifact_id = $3,
+                {status_clause}
+                updated_at = NOW()
+            WHERE id = ${where_index} AND resume_id = ${where_index + 1}
+              AND compile_generation = ${where_index + 2}
+            RETURNING id
+        """
+        row = await conn.fetchrow(query, *params)
+        return row is not None
 
     async def mark_applied(self, resume_id: str, variant_id: str) -> ResumeVariantResponse:
         return await self.update(resume_id, variant_id, status="applied")
@@ -345,6 +493,7 @@ def _row_to_variant(resume_id: str, row: asyncpg.Record) -> ResumeVariantRespons
         ),
         created_at=row["created_at"].isoformat() if row.get("created_at") else None,
         updated_at=row["updated_at"].isoformat() if row.get("updated_at") else None,
+        compile_generation=int(row.get("compile_generation") or 0),
     )
 
 

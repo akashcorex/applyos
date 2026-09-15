@@ -24,21 +24,31 @@ class VersionRepository:
         resume_id: str,
         content: VariantContent,
         change_reason: str,
+        conn: Any | None = None,
     ) -> str:
-        async with self._pool.acquire() as conn:
-            row = await conn.fetchrow(
-                """
-                INSERT INTO variant_versions (
-                    variant_id, resume_id, content_snapshot, change_reason
-                )
-                VALUES ($1, $2, $3::jsonb, $4)
-                RETURNING id
-                """,
-                _to_uuid(variant_id),
-                _to_uuid(resume_id),
-                json.dumps(content.model_dump()),
-                change_reason,
+        """Save a version snapshot. Pass ``conn`` to join an outer
+        transaction (used by the compile worker for atomic completion)."""
+        query = """
+            INSERT INTO variant_versions (
+                variant_id, resume_id, content_snapshot, change_reason
             )
+            VALUES ($1, $2, $3::jsonb, $4)
+            RETURNING id
+        """
+        params = (
+            _to_uuid(variant_id),
+            _to_uuid(resume_id),
+            json.dumps(content.model_dump()),
+            change_reason,
+        )
+        if conn is not None:
+            row = await conn.fetchrow(query, *params)
+        else:
+            async with self._pool.acquire() as own_conn:
+                row = await own_conn.fetchrow(
+                    query,
+                    *params,
+                )
         version_id = str(row["id"])
         logger.debug(
             "variant_version id=%s variant=%s reason=%s",
