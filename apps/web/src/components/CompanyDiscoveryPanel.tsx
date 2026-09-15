@@ -109,13 +109,13 @@ export function CompanyDiscoveryPanel() {
     setDetectResult(null);
     setIngestResult(null);
     try {
-      const res = await fetch('/api/jobs/detect', {
+      const res = await fetch('/api/jobs/registry', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ career_page_url: careersUrl }),
       });
       const data = await res.json();
-      if (res.ok) setDetectResult(data);
+      if (res.ok) setDetectResult(data.detect ?? data);
       else setError(data.error || data.detail || 'Detection failed');
     } catch {
       setError('Job agent is not running');
