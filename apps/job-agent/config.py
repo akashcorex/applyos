@@ -7,6 +7,8 @@ class Settings(BaseSettings):
     registry_db_path: str = str(
         __import__("pathlib").Path(__file__).resolve().parent / "data" / "board_registry.db"
     )
+    board_max_failures: int = 3
+    board_cache_ttl_seconds: int = 3600
     http_timeout_seconds: float = 10.0
     http_max_retries: int = 3
     workable_max_pages: int = 50

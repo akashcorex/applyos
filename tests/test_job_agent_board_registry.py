@@ -51,6 +51,18 @@ def test_upsert_board_updates_existing(registry: BoardRegistry) -> None:
     assert stripe["name"] == "Stripe Inc"
 
 
+def test_record_board_failure_deactivates_after_max(
+    registry: BoardRegistry, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr("services.board_registry.settings.board_max_failures", 2)
+    registry.init_db()
+    deactivated = registry.record_board_failure("stripe.com")
+    assert deactivated is False
+    deactivated = registry.record_board_failure("stripe.com")
+    assert deactivated is True
+    assert "stripe.com" not in {b["domain"] for b in registry.list_active_boards()}
+
+
 def test_set_active_deactivates_board(registry: BoardRegistry) -> None:
     registry.init_db()
     registry.set_active("stripe.com", False)

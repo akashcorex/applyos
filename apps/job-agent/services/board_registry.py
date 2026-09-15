@@ -65,9 +65,19 @@ class BoardRegistry:
     def init_db(self) -> None:
         with self._connect() as conn:
             conn.executescript(_SCHEMA)
+            self._ensure_columns(conn)
             count = conn.execute("SELECT COUNT(*) FROM board_registry").fetchone()[0]
             if count == 0:
                 self._seed_from_json(conn)
+
+    def _ensure_columns(self, conn: sqlite3.Connection) -> None:
+        columns = {
+            row[1] for row in conn.execute("PRAGMA table_info(board_registry)")
+        }
+        if "failure_count" not in columns:
+            conn.execute(
+                "ALTER TABLE board_registry ADD COLUMN failure_count INTEGER NOT NULL DEFAULT 0"
+            )
 
     def _seed_from_json(self, conn: sqlite3.Connection) -> None:
         if not self.seed_path.exists():
@@ -193,6 +203,50 @@ class BoardRegistry:
                 "UPDATE board_registry SET active = ?, updated_at = ? WHERE domain = ?",
                 (1 if active else 0, _utc_now(), domain.strip().lower()),
             )
+
+    def record_board_success(self, domain: str) -> None:
+        self.init_db()
+        now = _utc_now()
+        with self._connect() as conn:
+            conn.execute(
+                """
+                UPDATE board_registry
+                SET failure_count = 0,
+                    last_verified_at = ?,
+                    updated_at = ?
+                WHERE domain = ?
+                """,
+                (now, now, domain.strip().lower()),
+            )
+
+    def record_board_failure(self, domain: str) -> bool:
+        self.init_db()
+        domain = domain.strip().lower()
+        now = _utc_now()
+        with self._connect() as conn:
+            conn.execute(
+                """
+                UPDATE board_registry
+                SET failure_count = failure_count + 1,
+                    updated_at = ?
+                WHERE domain = ?
+                """,
+                (now, domain),
+            )
+            row = conn.execute(
+                "SELECT failure_count FROM board_registry WHERE domain = ?",
+                (domain,),
+            ).fetchone()
+            if row is None:
+                return False
+            failure_count = int(row["failure_count"])
+            if failure_count >= settings.board_max_failures:
+                conn.execute(
+                    "UPDATE board_registry SET active = 0, updated_at = ? WHERE domain = ?",
+                    (now, domain),
+                )
+                return True
+        return False
 
 
 _registry: BoardRegistry | None = None
