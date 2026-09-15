@@ -43,7 +43,7 @@ def test_controlled_operations_apply_by_ir_id_and_render_deterministically():
     operation = TailoringOperation(
         operation="rewrite_existing_bullet",
         node_id=bullet.id,
-        field=f"experience[0].bullets[0]",
+        field="experience[0].bullets[0]",
         before=bullet.text,
         after="Built Python APIs serving 2M requests/day.",
         evidence_ids=bullet.evidence_ids,

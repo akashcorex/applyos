@@ -14,11 +14,8 @@ const okPropertyChecks = z.properties({
   redirected: z.literal(false),
 });
 
-export const okResponseSchema = z
+export const okResponseSchema: z.ZodType<Response> = z
   .instanceof(Response)
-  // `$ZodCheckProperty` is invariant over the narrowed property shape, so
-  // the spread needs a cast to attach to `Response`. Safe: at runtime each
-  // check only reads its own property (verified by `isOkResponse` tests).
   .check(...(okPropertyChecks as unknown as z.core.$ZodCheck<Response>[]));
 
 export type OkResponse = z.output<typeof okResponseSchema>;
