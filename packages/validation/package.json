@@ -16,7 +16,7 @@
     "snapshot-json-schema": "bun scripts/snapshot-json-schema.ts"
   },
   "dependencies": {
-    "zod": "^4.5.4"
+    "zod": "^4.6.2"
   },
   "peerDependencies": {
     "express": "^4.21.2"
