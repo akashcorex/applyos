@@ -66,6 +66,10 @@ def test_infer_slug_from_url_workable_search_has_no_slug() -> None:
     assert slug is None
 
 
+def test_detect_ats_from_url_greenhouse_board() -> None:
+    assert detect_ats_from_url("https://boards.greenhouse.io/stripe") == "greenhouse"
+
+
 def test_detect_ats_from_url_wellfound_company() -> None:
     assert (
         detect_ats_from_url("https://wellfound.com/company/lamatic")

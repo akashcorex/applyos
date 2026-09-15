@@ -4,6 +4,7 @@ from fastapi import FastAPI
 
 from logging_filters import install_health_access_filter
 from routes.detect import router as detect_router
+from routes.registry import router as registry_router
 from routes.funding import router as funding_router
 from routes.health import router as health_router
 from routes.ingest import router as ingest_router
@@ -30,3 +31,4 @@ app.include_router(search_router, prefix="/search")
 app.include_router(semantic_router, prefix="/search")
 app.include_router(scrape_router, prefix="/scrape")
 app.include_router(detect_router)
+app.include_router(registry_router, prefix="/registry")

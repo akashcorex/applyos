@@ -64,6 +64,56 @@ class DetectResponse(BaseModel):
     career_page_url: str
 
 
+BoardSource = Literal["pilot", "yc", "detect", "manual"]
+
+
+class RegistryBoard(BaseModel):
+    name: str
+    domain: str
+    ats_type: str
+    ats_slug: str
+    career_url: str | None = None
+    source: BoardSource = "manual"
+    active: bool = True
+    last_verified_at: str | None = None
+
+
+class RegistryListResponse(BaseModel):
+    total: int
+    boards: list[RegistryBoard]
+
+
+class RegistryUpsertRequest(BaseModel):
+    domain: str = Field(min_length=1, max_length=128)
+    company_name: str = Field(min_length=1, max_length=128)
+    ats_type: AtsType
+    ats_slug: str = Field(min_length=1, max_length=64)
+    career_url: str | None = None
+    source: BoardSource = "manual"
+    active: bool = True
+
+    @field_validator("ats_slug")
+    @classmethod
+    def validate_registry_ats_slug(cls, value: str) -> str:
+        if not ATS_SLUG_PATTERN.fullmatch(value):
+            raise ValueError(
+                "ats_slug must start with an alphanumeric character and contain only "
+                "letters, numbers, dots, underscores, or hyphens"
+            )
+        return value
+
+
+class RegistryFromDetectRequest(BaseModel):
+    career_page_url: str = Field(min_length=1)
+    company_name: str | None = Field(default=None, max_length=128)
+    domain: str | None = Field(default=None, max_length=128)
+
+
+class RegistryFromDetectResponse(BaseModel):
+    detect: DetectResponse
+    board: RegistryBoard | None = None
+
+
 class RawJob(BaseModel):
     external_id: str
     title: str
