@@ -11,7 +11,7 @@ dependencies = [
     "langchain-core>=1.6.1",
     "langchain-anthropic>=1.7.0",
     "pydantic-settings>=2.15.0",
-    "redis>=5.0.0",
+    "redis>=8.1.0",
 ]
 
 [project.optional-dependencies]
