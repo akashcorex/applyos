@@ -1,12 +1,12 @@
 import '@applyso/validation/compile';
 import 'dotenv/config';
 
-import { toNodeHandler } from 'better-auth/node';
 import cors from 'cors';
 import express from 'express';
 
 import { auth } from './auth';
 import { startFallowBeacon } from './fallow-beacon';
+import { betterAuthExpressHandler } from './lib/better-auth-express';
 import {
   authCookieConfigError,
   webLoginUrl,
@@ -35,7 +35,7 @@ app.use(
   }),
 );
 
-app.all('/api/auth/*', toNodeHandler(auth));
+app.all('/api/auth/*', betterAuthExpressHandler(auth));
 
 app.post(
   '/v1/billing/webhook',
@@ -75,6 +75,10 @@ if (process.env.NODE_ENV === 'production') {
     console.error(`[api] ${cookieError}`);
   }
 }
+
+process.on('unhandledRejection', (reason) => {
+  console.error('[api] unhandledRejection', reason);
+});
 
 app.listen(port, host, () => {
   console.log(`[ ready ] http://${host}:${port}`);
