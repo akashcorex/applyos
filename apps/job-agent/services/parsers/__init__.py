@@ -5,7 +5,6 @@ from services.parsers.lever import LeverParser
 from services.parsers.personio import PersonioParser
 from services.parsers.recruitee import RecruiteeParser
 from services.parsers.yc import (
-	PILOT_ATS_OVERRIDES,
 	YC_COMPANIES_URL,
 	extract_domain,
 	fetch_normalized_companies,
@@ -17,7 +16,6 @@ from services.parsers.workable import WorkableParser
 __all__ = [
 	"ATSParser",
 	"AshbyParser",
-	"PILOT_ATS_OVERRIDES",
 	"GreenhouseParser",
 	"LeverParser",
 	"PersonioParser",

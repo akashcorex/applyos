@@ -126,6 +126,15 @@ class BoardRegistry:
             ).fetchall()
         return [_row_to_company(row) for row in rows]
 
+    def get_board_by_domain(self, domain: str) -> dict[str, object] | None:
+        self.init_db()
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT * FROM board_registry WHERE domain = ?",
+                (domain.strip().lower(),),
+            ).fetchone()
+        return _row_to_company(row) if row else None
+
     def upsert_board(
         self,
         *,

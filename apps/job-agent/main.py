@@ -10,12 +10,14 @@ from routes.ingest import router as ingest_router
 from routes.scrape import router as scrape_router
 from routes.search import router as search_router
 from routes.semantic import router as semantic_router
+from services.board_registry import get_board_registry
 
 install_health_access_filter()
 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
+    get_board_registry().init_db()
     yield
 
 

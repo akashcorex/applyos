@@ -6,46 +6,7 @@ import httpx
 
 YC_COMPANIES_URL = "https://yc-oss.github.io/api/companies/all.json"
 
-# Pilot companies with known public ATS slugs for Phase 1 ingest.
-PILOT_ATS_OVERRIDES: dict[str, dict[str, str]] = {
-    "stripe.com": {"ats_type": "greenhouse", "ats_slug": "stripe"},
-    "airbnb.com": {"ats_type": "greenhouse", "ats_slug": "airbnb"},
-    "reddit.com": {"ats_type": "greenhouse", "ats_slug": "reddit"},
-    "dropbox.com": {"ats_type": "greenhouse", "ats_slug": "dropbox"},
-    "figma.com": {"ats_type": "greenhouse", "ats_slug": "figma"},
-    "notion.so": {"ats_type": "greenhouse", "ats_slug": "notion"},
-    "discord.com": {"ats_type": "greenhouse", "ats_slug": "discord"},
-    "scale.com": {"ats_type": "greenhouse", "ats_slug": "scaleai"},
-    "ramp.com": {"ats_type": "greenhouse", "ats_slug": "ramp"},
-    "brex.com": {"ats_type": "greenhouse", "ats_slug": "brex"},
-    "plaid.com": {"ats_type": "greenhouse", "ats_slug": "plaid"},
-    "retool.com": {"ats_type": "greenhouse", "ats_slug": "retool"},
-    "vercel.com": {"ats_type": "greenhouse", "ats_slug": "vercel"},
-    "linear.app": {"ats_type": "greenhouse", "ats_slug": "linear"},
-    "rippling.com": {"ats_type": "greenhouse", "ats_slug": "rippling"},
-    "openai.com": {"ats_type": "greenhouse", "ats_slug": "openai"},
-    "netflix.com": {"ats_type": "lever", "ats_slug": "netflix"},
-    "spotify.com": {"ats_type": "lever", "ats_slug": "spotify"},
-    "palantir.com": {"ats_type": "lever", "ats_slug": "palantir"},
-    "lyft.com": {"ats_type": "greenhouse", "ats_slug": "lyft"},
-    "zapier.com": {"ats_type": "greenhouse", "ats_slug": "zapier"},
-    "gitlab.com": {"ats_type": "greenhouse", "ats_slug": "gitlab"},
-    "cloudflare.com": {"ats_type": "greenhouse", "ats_slug": "cloudflare"},
-    "databricks.com": {"ats_type": "greenhouse", "ats_slug": "databricks"},
-    "twilio.com": {"ats_type": "greenhouse", "ats_slug": "twilio"},
-    "shopify.com": {"ats_type": "greenhouse", "ats_slug": "shopify"},
-    "intercom.com": {"ats_type": "greenhouse", "ats_slug": "intercom"},
-    "webflow.com": {"ats_type": "greenhouse", "ats_slug": "webflow"},
-    "anthropic.com": {"ats_type": "ashby", "ats_slug": "anthropic"},
-    "mercury.com": {"ats_type": "ashby", "ats_slug": "mercury"},
-    "deel.com": {"ats_type": "ashby", "ats_slug": "deel"},
-    "replit.com": {"ats_type": "ashby", "ats_slug": "replit"},
-    "huggingface.co": {"ats_type": "ashby", "ats_slug": "huggingface"},
-    "remote.com": {"ats_type": "ashby", "ats_slug": "remote"},
-    "loom.com": {"ats_type": "ashby", "ats_slug": "loom"},
-    "personio.com": {"ats_type": "personio", "ats_slug": "personio"},
-    "n26.com": {"ats_type": "personio", "ats_slug": "n26"},
-}
+from services.board_registry import get_board_registry
 
 
 def extract_domain(website: str | None) -> str | None:
@@ -87,9 +48,10 @@ def normalize_company(record: dict[str, object]) -> dict[str, object] | None:
         "source": "yc",
     }
 
-    override = PILOT_ATS_OVERRIDES.get(domain)
-    if override:
-        company.update(override)
+    board = get_board_registry().get_board_by_domain(domain)
+    if board:
+        company["ats_type"] = board["ats_type"]
+        company["ats_slug"] = board["ats_slug"]
 
     return company
 
