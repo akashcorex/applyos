@@ -14,10 +14,11 @@ def test_searchable_ats_covers_all_parsers() -> None:
     assert "wellfound" in SEARCHABLE_ATS
 
 
-def test_yc_overrides_include_non_greenhouse_boards() -> None:
-    from services.parsers.yc import PILOT_ATS_OVERRIDES
+def test_board_registry_includes_non_greenhouse_boards() -> None:
+    from services.search_inventory import get_searchable_companies
 
-    types = {row["ats_type"] for row in PILOT_ATS_OVERRIDES.values()}
+    boards = get_searchable_companies(100)
+    types = {str(board["ats_type"]) for board in boards}
     assert "ashby" in types
     assert "personio" in types
     assert "lever" in types

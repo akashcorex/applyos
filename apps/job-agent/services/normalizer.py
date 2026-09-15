@@ -78,6 +78,7 @@ def to_canonical_job(
         description_html=raw.description_html,
         seniority=detect_seniority(raw.title),
         application_url=raw.application_url,
+        posted_at=raw.posted_at,
         dedup_key=build_dedup_key(namespace, title_normalized, location_normalized),
         raw_payload=raw.raw_payload,
     )

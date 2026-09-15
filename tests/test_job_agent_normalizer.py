@@ -40,3 +40,14 @@ def test_to_canonical_job_sets_location_type_and_equity() -> None:
     assert canonical.equity_mentioned is True
     assert canonical.application_url == "https://jobs.lever.co/netflix/abc-123"
     assert canonical.dedup_key.startswith("netflix::")
+
+
+def test_to_canonical_job_preserves_posted_at() -> None:
+    raw = RawJob(
+        external_id="1",
+        title="Backend Engineer",
+        posted_at="2026-03-10T00:00:00+00:00",
+        raw_payload={},
+    )
+    canonical = to_canonical_job(raw, "greenhouse", "stripe")
+    assert canonical.posted_at == "2026-03-10T00:00:00+00:00"

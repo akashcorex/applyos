@@ -32,20 +32,23 @@ def _wellfound_host(host: str) -> bool:
 
 
 def detect_ats_from_url(career_page_url: str) -> AtsType | None:
-    """Detect ATS from the URL alone (no HTTP fetch).
-
-    Wellfound is detected here because their pages are often blocked to
-    server-side fetchers (DataDome/Cloudflare).
-    """
+    """Detect ATS from the URL alone (no HTTP fetch)."""
     parsed = urlparse(career_page_url)
     host = (parsed.netloc or "").lower().removeprefix("www.")
     path_parts = [part for part in parsed.path.split("/") if part]
+    haystack = f"{host}{parsed.path}".lower()
 
     if _wellfound_host(host):
         if len(path_parts) >= 2 and path_parts[0] == "company":
             return "wellfound"
         if path_parts and path_parts[0] == "jobs":
             return "wellfound"
+
+    for ats_type, signatures in ATS_SIGNATURES.items():
+        if ats_type == "wellfound":
+            continue
+        if any(signature in haystack for signature in signatures):
+            return ats_type
 
     return None
 

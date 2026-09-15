@@ -258,10 +258,6 @@ class ApplicationRunner:
         fields = await handler.extract_fields(self.page)
         uses_agentic_fill = getattr(handler, "uses_agentic_fill", False)
 
-        if uses_agentic_fill:
-            await self._sync(current_step="Agentic form fill")
-            return await handler.fill_and_submit(self.page, self.payload.cv_data, {})
-
         form_html = await self.page.evaluate(
             "() => document.querySelector('form')?.outerHTML?.substring(0, 8000) || ''"
         )
@@ -296,6 +292,14 @@ class ApplicationRunner:
                 field_mapping[field.selector] = f"literal:{default}"
             else:
                 field_mapping[field.selector] = f"literal:{field.options[0]}"
+
+        if uses_agentic_fill:
+            await self._sync(current_step="Structured + agentic form fill")
+            return await handler.fill_and_submit(
+                self.page,
+                self.payload.cv_data,
+                field_mapping,
+            )
 
         await self._sync(current_step="Filling application form")
         auto_submit = self.payload.auto_submit

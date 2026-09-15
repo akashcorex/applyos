@@ -5,6 +5,8 @@ from __future__ import annotations
 import logging
 
 from models import ScrapeRequest, SearchResult
+from services.board_cache import get_cached_jobs, set_cached_jobs
+from services.board_registry import get_board_registry
 from services.ingest import PARSERS, scrape_jobs
 
 logger = logging.getLogger(__name__)
@@ -36,6 +38,7 @@ def canonical_to_search_result(
         ats_type=ats_type,
         ats_slug=ats_slug,
         description=description,
+        posted_at=getattr(job, "posted_at", None),
     )
 
 
@@ -51,6 +54,12 @@ async def scrape_company_jobs(
     if ats_type not in SEARCHABLE_ATS or not ats_slug:
         return []
 
+    if domain:
+        cached = get_cached_jobs(domain)
+        if cached is not None:
+            return cached[:max_jobs]
+
+    registry = get_board_registry()
     try:
         response = await scrape_jobs(
             ats_type,  # type: ignore[arg-type]
@@ -58,9 +67,11 @@ async def scrape_company_jobs(
         )
     except Exception as exc:
         logger.warning("Failed to scrape %s (%s): %s", company_name, ats_type, exc)
+        if domain:
+            registry.record_board_failure(domain)
         return []
 
-    return [
+    results = [
         canonical_to_search_result(
             job,
             company_name=company_name,
@@ -69,3 +80,7 @@ async def scrape_company_jobs(
         )
         for job in response.jobs[:max_jobs]
     ]
+    if domain:
+        registry.record_board_success(domain)
+        set_cached_jobs(domain, results)
+    return results

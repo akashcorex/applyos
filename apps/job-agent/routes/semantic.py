@@ -14,8 +14,9 @@ from models import (
     SemanticMatchResult,
 )
 from services.company_scrape import scrape_company_jobs
-from services.parsers.yc import fetch_normalized_companies
+from services.search_inventory import get_searchable_companies
 from services.dedup import dedupe_search_results
+from services.freshness import apply_freshness_metadata, sort_by_freshness
 from services.semantic_match import semantic_rank_jobs
 
 logger = logging.getLogger(__name__)
@@ -25,16 +26,11 @@ router = APIRouter()
 
 @router.post("/semantic", response_model=SemanticSearchResponse)
 async def semantic_search(payload: SemanticSearchRequest) -> SemanticSearchResponse:
-    companies = await fetch_normalized_companies()
-    pilot = [
-        c
-        for c in companies
-        if c.get("ats_type") and c.get("ats_slug")
-    ][: payload.max_companies]
+    companies = get_searchable_companies(payload.max_companies)
 
     tasks = [
         scrape_company_jobs(company, payload.max_jobs_per_company)
-        for company in pilot
+        for company in companies
     ]
     results_lists = await asyncio.gather(*tasks, return_exceptions=True)
 
@@ -46,6 +42,8 @@ async def semantic_search(payload: SemanticSearchRequest) -> SemanticSearchRespo
             all_results.extend(result)
 
     all_results = dedupe_search_results(all_results)
+    all_results = apply_freshness_metadata(all_results)
+    all_results = sort_by_freshness(all_results)
 
     ranked: list[SemanticMatchResult] = await semantic_rank_jobs(
         all_results,

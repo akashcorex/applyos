@@ -1,4 +1,5 @@
 from models import RawJob
+from services.dates import parse_posted_at
 from services.parsers.base import fetch_json_with_retries
 
 LEVER_JOBS_URL = "https://api.lever.co/v0/postings/{slug}?mode=json"
@@ -46,6 +47,7 @@ class LeverParser:
                     description_html=item.get("description"),
                     workplace_type=item.get("workplaceType"),
                     application_url=application_url,
+                    posted_at=parse_posted_at(item.get("createdAt")),
                     raw_payload=item,
                 )
             )

@@ -34,6 +34,8 @@ async def test_greenhouse_parser_maps_fixture(monkeypatch: pytest.MonkeyPatch) -
     assert jobs[0].department == "Engineering"
     assert jobs[0].location == "Remote - US"
     assert jobs[0].application_url == "https://boards.greenhouse.io/stripe/jobs/12345"
+    assert jobs[0].posted_at is not None
+    assert jobs[0].posted_at.startswith("2026-03-10")
 
 
 @pytest.mark.asyncio
@@ -55,6 +57,7 @@ async def test_lever_parser_maps_fixture(monkeypatch: pytest.MonkeyPatch) -> Non
     assert jobs[0].workplace_type == "remote"
     assert jobs[0].application_url == "https://jobs.lever.co/netflix/abc-123"
     assert "Equity" in (jobs[0].description_raw or "")
+    assert jobs[0].posted_at is not None
 
 
 @pytest.mark.asyncio
@@ -75,6 +78,7 @@ async def test_ashby_parser_maps_fixture(monkeypatch: pytest.MonkeyPatch) -> Non
     assert jobs[0].title == "Senior Platform Engineer"
     assert jobs[0].department == "Engineering"
     assert jobs[0].location == "Remote"
+    assert jobs[0].posted_at == "2026-03-08T10:00:00+00:00"
 
 
 @pytest.mark.asyncio
