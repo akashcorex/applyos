@@ -5,7 +5,6 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 import { AgentStatusPanel } from '@/components/AgentStatusPanel';
-import { CompanyDiscoveryPanel } from '@/components/CompanyDiscoveryPanel';
 import { DashboardOverview } from '@/components/dashboard/DashboardOverview';
 import { ProfileProgressBanner } from '@/components/dashboard/ProfileProgressBanner';
 import { LinkedInConnectCard } from '@/components/LinkedInConnectCard';
@@ -41,11 +40,6 @@ export default function DashboardOverviewPage() {
           <AgentStatusPanel />
           <LinkedInConnectCard />
         </div>
-      </div>
-
-      {/* Company Discovery Section */}
-      <div className="pt-4">
-        <CompanyDiscoveryPanel />
       </div>
     </div>
   );

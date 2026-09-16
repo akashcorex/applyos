@@ -1,9 +1,9 @@
-import { redirect } from 'next/navigation';
+import { OnboardingFlow } from '@/components/onboarding/OnboardingFlow';
 
 export const metadata = {
   title: 'Set up your profile — ApplyOS',
 };
 
 export default function OnboardingPage() {
-  redirect('/dashboard');
+  return <OnboardingFlow />;
 }

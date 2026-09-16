@@ -89,8 +89,6 @@ bun run dev:job-agent # http://127.0.0.1:8002
 | ------------------- | ------------------- |
 | `packages/database` | `@applyso/database` |
 | `packages/logger`   | `@applyso/logger`   |
-| `packages/queue`    | `@applyso/queue`    |
-| `packages/sdk`      | `@applyso/sdk`      |
 | `packages/types`    | `@applyso/types`    |
 | `packages/ui`       | `@applyso/ui`       |
 

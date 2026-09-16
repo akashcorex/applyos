@@ -528,6 +528,12 @@ async def match_resume(
     max_companies: int = 10,
     max_jobs: int = 50,
     intent: str | None = None,
+    profile_role: str | None = None,
+    profile_experience_years: int | None = None,
+    profile_skills: str | None = None,
+    profile_locations: str | None = None,
+    profile_seniority: str | None = None,
+    profile_work_mode: str | None = None,
 ) -> MatchResponse:
     state = _state(request)
     matcher: JobMatcher | None = state.matcher
@@ -545,6 +551,24 @@ async def match_resume(
     )
     if revision is not None:
         record = ir_to_record(revision[1], template=record)
+
+    profile_update: dict[str, object] = {}
+    if profile_role and profile_role.strip():
+        profile_update["preferred_role"] = profile_role.strip()
+    if profile_experience_years is not None:
+        profile_update["experience_years"] = max(profile_experience_years, 0)
+    if profile_skills is not None:
+        profile_update["skills"] = [
+            skill.strip() for skill in profile_skills.split(",") if skill.strip()
+        ]
+    if profile_locations is not None:
+        profile_update["preferred_locations"] = [
+            location.strip()
+            for location in profile_locations.split(",")
+            if location.strip()
+        ]
+    if profile_update:
+        record = record.model_copy(update=profile_update)
 
     intent_override = (intent or "").strip() or None
     if not intent_override and record.last_match_intent:
@@ -589,6 +613,9 @@ async def match_resume(
         max_companies=max_companies,
         max_jobs=max_jobs,
         intent_override=intent_override,
+        profile_seniority=profile_seniority,
+        profile_work_mode=profile_work_mode,
+        profile_locations=record.preferred_locations,
     )
     response.intent_override = intent_override
 

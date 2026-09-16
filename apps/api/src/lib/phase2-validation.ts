@@ -588,6 +588,10 @@ export interface EnrichedProfileData {
   projects?: unknown[];
   certifications?: unknown[];
   achievements?: unknown[];
+  preferredRoles?: string[];
+  preferredLocations?: string[];
+  workMode?: string | null;
+  seniority?: string | null;
 }
 
 function optionalShortText(
@@ -679,6 +683,57 @@ export function validateEnrichedProfileInput(
     });
     if (!parsed.ok) return parsed;
     data[field] = parsed.data[field];
+  }
+
+  for (const field of ['preferredRoles', 'preferredLocations'] as const) {
+    if (body[field] === undefined) continue;
+    const value = body[field];
+    if (!Array.isArray(value) || value.length > 20) {
+      return fail(`Invalid ${field}`);
+    }
+    const values: string[] = [];
+    const seen = new Set<string>();
+    for (const item of value) {
+      if (typeof item !== 'string') return fail(`Invalid ${field}`);
+      const trimmed = item.trim();
+      if (!trimmed || trimmed.length > 120) return fail(`Invalid ${field}`);
+      const key = trimmed.toLowerCase();
+      if (!seen.has(key)) {
+        seen.add(key);
+        values.push(trimmed);
+      }
+    }
+    data[field] = values;
+  }
+
+  if (body.workMode !== undefined) {
+    if (
+      body.workMode !== null &&
+      body.workMode !== '' &&
+      !['remote', 'hybrid', 'onsite'].includes(String(body.workMode))
+    ) {
+      return fail('Invalid workMode');
+    }
+    data.workMode =
+      body.workMode === null || body.workMode === ''
+        ? null
+        : String(body.workMode);
+  }
+
+  if (body.seniority !== undefined) {
+    if (
+      body.seniority !== null &&
+      body.seniority !== '' &&
+      !['intern', 'junior', 'mid', 'senior', 'staff'].includes(
+        String(body.seniority),
+      )
+    ) {
+      return fail('Invalid seniority');
+    }
+    data.seniority =
+      body.seniority === null || body.seniority === ''
+        ? null
+        : String(body.seniority);
   }
 
   return { ok: true, data };

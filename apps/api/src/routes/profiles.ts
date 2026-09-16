@@ -9,6 +9,28 @@ import { loadProfileSummary } from '../lib/profile-summary';
 
 export const profilesRouter = Router();
 
+const PROFILE_INPUT_FIELDS = new Set([
+  'fullName',
+  'headline',
+  'email',
+  'phone',
+  'location',
+  'professionalSummary',
+  'linkedinUrl',
+  'githubUrl',
+  'portfolioUrl',
+  'skills',
+  'education',
+  'experience',
+  'projects',
+  'certifications',
+  'achievements',
+  'preferredRoles',
+  'preferredLocations',
+  'workMode',
+  'seniority',
+]);
+
 profilesRouter.use(requireAuth);
 
 async function trackProfileEvent(
@@ -65,6 +87,13 @@ profilesRouter.get('/me/summary', async (req, res) => {
 profilesRouter.put('/me', async (req, res) => {
   const me = authUserOf(req);
   const body = (req.body ?? {}) as Record<string, unknown>;
+  const unexpectedField = Object.keys(body).find(
+    (field) => !PROFILE_INPUT_FIELDS.has(field),
+  );
+  if (unexpectedField) {
+    res.status(400).json({ error: `Invalid ${unexpectedField}` });
+    return;
+  }
   const legacy = validateProfileInput(body);
   if (!legacy.ok) {
     res.status(400).json({ error: legacy.error });
@@ -102,17 +131,64 @@ profilesRouter.put('/me', async (req, res) => {
 // without changing fields. 404 when no profile exists yet.
 profilesRouter.post('/me/confirm', async (req, res) => {
   const me = authUserOf(req);
-  const existing = await prisma.profile.findUnique({
-    where: { userId: me.id },
+  const profile = await prisma.$transaction(async (tx) => {
+    const existing = await tx.profile.findUnique({
+      where: { userId: me.id },
+      include: {
+        sourceResumeFile: {
+          include: { resume: true },
+        },
+      },
+    });
+    if (!existing) return null;
+
+    const firstConfirmation = !existing.isConfirmed;
+    let sourceResume = existing.sourceResumeFile?.resume;
+    if (firstConfirmation && !sourceResume) {
+      const latestResumeFile = await tx.resumeFile.findFirst({
+        where: {
+          userId: me.id,
+          status: 'COMPLETED',
+          deletedAt: null,
+          resumeId: { not: null },
+        },
+        include: { resume: true },
+        orderBy: { createdAt: 'desc' },
+      });
+      sourceResume = latestResumeFile?.resume;
+    }
+
+    return tx.profile.update({
+      where: { userId: me.id },
+      data: {
+        isConfirmed: true,
+        ...(firstConfirmation
+          ? {
+              confirmedAt: existing.confirmedAt ?? new Date(),
+              totalExperienceYears:
+                existing.totalExperienceYears ??
+                sourceResume?.experienceYears ??
+                null,
+              preferredRoles:
+                existing.preferredRoles.length > 0
+                  ? existing.preferredRoles
+                  : sourceResume?.preferredRole
+                    ? [sourceResume.preferredRole]
+                    : [],
+              preferredLocations:
+                existing.preferredLocations.length > 0
+                  ? existing.preferredLocations
+                  : (sourceResume?.preferredLocations ?? []),
+            }
+          : {}),
+      },
+    });
   });
-  if (!existing) {
+
+  if (!profile) {
     res.status(404).json({ error: 'No profile to confirm' });
     return;
   }
-  const profile = await prisma.profile.update({
-    where: { userId: me.id },
-    data: { isConfirmed: true, confirmedAt: new Date() },
-  });
   await trackProfileEvent('profile_confirmed', me.id);
   res.status(200).json({ profile });
 });

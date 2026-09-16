@@ -248,10 +248,9 @@ used as a development fallback.
 
 ## Persistence
 
-The shared Drizzle schema is in
-`packages/database/src/schema/resume.ts`. The resume-agent also applies
-startup-safe `CREATE TABLE IF NOT EXISTS`/`ALTER TABLE IF NOT EXISTS`
-compatibility statements.
+The shared Prisma schema is in
+`packages/database/prisma/schema.prisma`. Prisma migrations own all schema
+changes; the resume-agent only reads and writes existing tables.
 
 The compiler migration adds:
 
@@ -421,10 +420,9 @@ The app reads environment values from `apps/resume-agent/.env`. Copy
 - `LATEX_TIMEOUT_SECONDS` -> compiler timeout
 - `ALLOW_RENDERER_FALLBACK` -> allow deterministic FPDF fallback locally
 
-The `resumes` table is owned by the Drizzle schema in
-`packages/database/src/schema/resume.ts`. Apply migrations with
-`bun run db:migrate` (or `db:push` for local dev) before starting
-the service.
+The `resumes` table is owned by the Prisma schema in
+`packages/database/prisma/schema.prisma`. Apply migrations with
+`bun run db:migrate` before starting the service.
 
 ## Run
 

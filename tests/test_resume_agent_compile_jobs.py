@@ -39,29 +39,12 @@ from services.compiler import ResumeCompiler, build_artifact_hash
 from services.ir import build_patch, ir_hash, record_to_ir, sha256_bytes, sha256_json
 
 
-@pytest.mark.asyncio
-async def test_runtime_compile_job_compatibility_adds_snapshot_columns() -> None:
-    from dependencies import _ensure_compile_job_compatibility
-
-    class FakeConnection:
-        def __init__(self) -> None:
-            self.statements: list[str] = []
-
-        async def execute(self, statement: str) -> None:
-            self.statements.append(statement)
-
-    connection = FakeConnection()
-    await _ensure_compile_job_compatibility(connection)  # type: ignore[arg-type]
-    sql = "\n".join(connection.statements)
-    for column in (
-        "source_mode",
-        "latex_source_id",
-        "tex_source",
-        "tex_source_hash",
-        "variant_generation",
-        "claim_token",
-    ):
-        assert f"ADD COLUMN IF NOT EXISTS {column}" in sql
+def test_resume_agent_startup_does_not_write_schema() -> None:
+    source = (Path(__file__).parents[1] / "apps" / "resume-agent" / "dependencies.py").read_text()
+    assert "CREATE TABLE" not in source
+    assert "ALTER TABLE" not in source
+    assert "CREATE EXTENSION" not in source
+    assert "to_regclass('public.resumes')" in source
 
 
 def _record() -> ResumeRecord:

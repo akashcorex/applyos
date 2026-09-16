@@ -6,7 +6,7 @@
 
 ## What it does
 
-- **Authentication** — email/password, Google OAuth, and LinkedIn OAuth via better-auth with Drizzle/PostgreSQL adapter
+- **Authentication** — email/password, Google OAuth, and LinkedIn OAuth via better-auth with the Prisma/PostgreSQL adapter
 - **Database gateway** — connects to PostgreSQL (Neon) via `@applyso/database` shared package
 - **Health check** — `GET /` returns service status
 - **Future** — API routes for job management, workflow orchestration, and agent coordination
@@ -31,13 +31,13 @@ better-auth handles these sub-routes automatically:
 
 - **Express 4** + TypeScript, built with esbuild
 - **better-auth** for authentication
-- **Drizzle ORM** + PostgreSQL (Neon cloud, local via Docker)
+- **Prisma ORM** + PostgreSQL (Neon cloud, local via Docker)
 - **CORS** configured for frontend at `http://localhost:3000`
 
 ## Shared packages
 
-- `@applyso/database` — Drizzle schema (user, session, account, verification) and DB client
-- `@applyso/types`, `@applyso/sdk`, `@applyso/ui`, `@applyso/logger`, `@applyso/queue` — available for future use
+- `@applyso/database` — Prisma schema and generated database client
+- `@applyso/ui`, `@applyso/logger` — available for future use
 
 ## Run locally
 

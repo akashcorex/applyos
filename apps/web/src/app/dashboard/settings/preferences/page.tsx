@@ -27,8 +27,18 @@ export default function PreferencesSettingsPage() {
       try {
         const res = await fetch('/api/preferences', { cache: 'no-store' });
         if (!res.ok) return;
-        const data = (await res.json()) as { autoSubmitEnabled?: boolean };
+        const data = (await res.json()) as {
+          autoSubmitEnabled?: boolean;
+          dailyLimit?: number;
+          minScore?: number;
+        };
         setAutoSubmitEnabled(Boolean(data.autoSubmitEnabled));
+        if (typeof data.dailyLimit === 'number') {
+          setDailyLimit(String(data.dailyLimit));
+        }
+        if (typeof data.minScore === 'number') {
+          setMinScore(String(data.minScore));
+        }
       } finally {
         setLoading(false);
       }
@@ -41,7 +51,11 @@ export default function PreferencesSettingsPage() {
     const res = await fetch('/api/preferences', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ autoSubmitEnabled }),
+      body: JSON.stringify({
+        autoSubmitEnabled,
+        dailyLimit: Number(dailyLimit),
+        minScore: Number(minScore),
+      }),
     });
     if (res.ok) {
       setSaved(true);

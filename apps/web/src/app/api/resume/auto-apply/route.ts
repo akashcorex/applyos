@@ -36,6 +36,7 @@ interface ResumeVariant {
 }
 
 interface ApplyJobInput {
+  job_id?: string | null;
   title: string;
   company_name: string;
   application_url?: string | null;
@@ -120,9 +121,13 @@ export async function POST(request: Request) {
     const body = await request.json();
     const resumeId = body.resume_id as string | undefined;
     const userId = body.user_id as string | undefined;
+    const selectionId =
+      typeof body.selection_id === 'string' && body.selection_id.trim()
+        ? body.selection_id
+        : undefined;
     const maxApplies = Math.min(Math.max(Number(body.max_applies ?? 5), 1), 10);
     const minScore = Number(body.min_score ?? 20);
-    const clientJobs = (body.jobs ?? []) as ApplyJobInput[];
+    let clientJobs = (body.jobs ?? []) as ApplyJobInput[];
     const variantIds = (body.variant_ids ?? {}) as Record<string, string>;
 
     if (!resumeId) {
@@ -135,6 +140,58 @@ export async function POST(request: Request) {
     const forbidden = await assertResumeOwner(resumeId, sessionUserId);
     if (forbidden) return forbidden;
 
+    if (selectionId) {
+      const selectionRes = await fetch(
+        `${API_URL}/v1/jobs/selections/${encodeURIComponent(selectionId)}`,
+        {
+          headers: { cookie: request.headers.get('cookie') ?? '' },
+          cache: 'no-store',
+          signal: AbortSignal.timeout(10000),
+        },
+      );
+      const selectionData = (await selectionRes.json().catch(() => ({}))) as {
+        error?: string;
+        jobs?: {
+          id?: string;
+          title?: string;
+          companyName?: string;
+          applicationUrl?: string | null;
+          dedupKey?: string;
+          externalId?: string | null;
+          source?: string | null;
+          department?: string | null;
+          location?: string | null;
+          descriptionRaw?: string | null;
+          score?: number | null;
+        }[];
+      };
+      if (!selectionRes.ok) {
+        return Response.json(
+          { error: selectionData.error ?? 'Could not load the selected jobs' },
+          { status: selectionRes.status },
+        );
+      }
+      clientJobs = (selectionData.jobs ?? []).flatMap((job) =>
+        job.id && job.title && job.companyName && job.dedupKey
+          ? [
+              {
+                job_id: job.id,
+                title: job.title,
+                company_name: job.companyName,
+                application_url: job.applicationUrl,
+                dedup_key: job.dedupKey,
+                external_id: job.externalId,
+                ats_type: job.source,
+                department: job.department,
+                location: job.location,
+                description: job.descriptionRaw,
+                match_score: job.score ?? 0,
+              },
+            ]
+          : [],
+      );
+    }
+
     let eligibleJobs: ApplyJobInput[] = clientJobs
       .filter((job) => {
         if (!job.dedup_key || !job.application_url) return false;
@@ -145,7 +202,7 @@ export async function POST(request: Request) {
       })
       .slice(0, maxApplies);
 
-    if (eligibleJobs.length === 0) {
+    if (eligibleJobs.length === 0 && !selectionId) {
       const matchRes = await fetch(
         `${RESUME_AGENT_URL}/resume/${encodeURIComponent(resumeId)}/match?max_companies=10&max_jobs=50`,
         {
@@ -280,6 +337,7 @@ export async function POST(request: Request) {
       jobs: eligibleJobs.map((job) => {
         const variant = resolvedVariants.get(job.dedup_key!);
         return {
+          job_id: job.job_id,
           title: job.title,
           company_name: job.company_name,
           application_url: job.application_url,
@@ -315,6 +373,7 @@ export async function POST(request: Request) {
         applications: eligibleJobs.map((job) => {
           const variant = resolvedVariants.get(job.dedup_key!);
           return {
+            jobId: job.job_id || undefined,
             dedupKey: job.dedup_key,
             title: job.title,
             companyName: job.company_name,

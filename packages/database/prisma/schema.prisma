@@ -61,6 +61,9 @@ model User {
   billingCustomer BillingCustomer?
   subscriptions   Subscription[]
   usageCycles     UsageCycle[]
+  savedJobs       SavedJob[]
+  notifications   Notification[]
+  jobSelections   JobSelection[]
 
   @@unique([email])
   @@index([role])
@@ -137,11 +140,17 @@ model Profile {
   projects            Json      @default("[]")
   certifications      Json      @default("[]")
   achievements        Json      @default("[]")
+  preferredRoles      String[]  @default([])
+  preferredLocations  String[]  @default([])
+  workMode            String?
+  seniority           String?
+  totalExperienceYears Int?
   isConfirmed         Boolean   @default(false)
   confirmedAt         DateTime?
   lastExtractedAt     DateTime?
   extractionVersion   String?
   sourceResumeFileId  String?
+  sourceResumeFile    ResumeFile? @relation("ProfileSourceResumeFile", fields: [sourceResumeFileId], references: [id], onDelete: SetNull)
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 
@@ -167,13 +176,16 @@ model ResumeFile {
   idempotencyKey    String?
   resumeId          String?      @unique @db.Uuid
   resume            Resume?      @relation(fields: [resumeId], references: [id], onDelete: SetNull)
+  sourceProfiles    Profile[]    @relation("ProfileSourceResumeFile")
   extractions       ResumeExtraction[]
+  deletedAt         DateTime?
   createdAt         DateTime     @default(now())
   updatedAt         DateTime     @updatedAt
 
   @@index([userId])
   @@index([userId, createdAt])
   @@index([status])
+  @@index([deletedAt])
   @@unique([userId, idempotencyKey])
   @@map("resume_files")
 }
@@ -482,6 +494,8 @@ model WorkflowJob {
   workflowRun    WorkflowRun @relation(fields: [workflowRunId], references: [id], onDelete: Cascade)
   userId         String    @map("user_id")
   user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  jobId          String?   @map("job_id")
+  job            Job?      @relation(fields: [jobId], references: [id], onDelete: SetNull)
   dedupKey       String    @map("dedup_key")
   externalId     String?   @map("external_id")
   source         String?
@@ -508,7 +522,108 @@ model WorkflowJob {
   @@index([userId, status], map: "idx_workflow_jobs_user_status")
   @@index([workflowRunId, status], map: "idx_workflow_jobs_run_status")
   @@index([externalId], map: "idx_workflow_jobs_external_id")
+  @@index([jobId], map: "idx_workflow_jobs_job_id")
   @@map("workflow_jobs")
+}
+
+model Company {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  domains     String[] @default([])
+  atsType     String?  @map("ats_type")
+  atsSlug     String?  @map("ats_slug")
+  logoUrl     String?  @map("logo_url")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("companies")
+}
+
+model Job {
+  id                String         @id @default(cuid())
+  dedupKey          String         @unique @map("dedup_key")
+  source            String
+  externalId        String?        @map("external_id")
+  companyName       String         @map("company_name")
+  title             String
+  titleNormalized   String         @map("title_normalized")
+  location          String
+  locationNormalized String        @map("location_normalized")
+  locationType      String?        @map("location_type")
+  seniority         String?
+  descriptionRaw    String?        @map("description_raw")
+  descriptionHash   String?        @map("description_hash")
+  applicationUrl    String?        @map("application_url")
+  postedAt          DateTime?      @map("posted_at") @db.Timestamptz(6)
+  firstSeenAt       DateTime       @default(now()) @map("first_seen_at") @db.Timestamptz(6)
+  lastSeenAt        DateTime       @default(now()) @map("last_seen_at") @db.Timestamptz(6)
+  rawPayload        Json           @default("{}") @map("raw_payload") @db.JsonB
+  isActive          Boolean        @default(true) @map("is_active")
+  createdAt         DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  savedBy           SavedJob[]
+  workflowJobs      WorkflowJob[]
+  selectionItems    JobSelectionItem[]
+
+  @@index([companyName], map: "idx_jobs_company_name")
+  @@index([isActive, lastSeenAt], map: "idx_jobs_active_last_seen")
+  @@index([firstSeenAt], map: "idx_jobs_first_seen")
+  @@index([titleNormalized], map: "idx_jobs_title_normalized")
+  @@map("jobs")
+}
+
+model SavedJob {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  jobId     String   @map("job_id")
+  job       Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@unique([userId, jobId], map: "uq_saved_jobs_user_job")
+  @@index([userId, createdAt], map: "idx_saved_jobs_user_created_at")
+  @@index([jobId], map: "idx_saved_jobs_job_id")
+  @@map("saved_jobs")
+}
+
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String    @map("user_id")
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String
+  title     String
+  body      String
+  readAt    DateTime? @map("read_at") @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([userId, createdAt], map: "idx_notifications_user_created_at")
+  @@index([userId, readAt], map: "idx_notifications_user_read_at")
+  @@map("notifications")
+}
+
+model JobSelection {
+  id        String             @id @default(cuid())
+  userId    String             @map("user_id")
+  user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  items     JobSelectionItem[]
+
+  @@index([userId, createdAt], map: "idx_job_selections_user_created_at")
+  @@map("job_selections")
+}
+
+model JobSelectionItem {
+  id          String       @id @default(cuid())
+  selectionId String       @map("selection_id")
+  selection   JobSelection @relation(fields: [selectionId], references: [id], onDelete: Cascade)
+  jobId       String       @map("job_id")
+  job         Job            @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  rankPosition Int          @map("rank_position")
+  score       Float?
+
+  @@unique([selectionId, jobId], map: "uq_job_selection_items_selection_job")
+  @@index([jobId], map: "idx_job_selection_items_job_id")
+  @@map("job_selection_items")
 }
 
 model Application {
@@ -694,6 +809,8 @@ model UserPreferences {
   user                            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   postApplyLinkedinConnectEnabled Boolean  @default(false) @map("post_apply_linkedin_connect_enabled")
   autoSubmitEnabled               Boolean  @default(false) @map("auto_submit_enabled")
+  dailyLimit                      Int?     @map("daily_limit")
+  minScore                        Int?     @map("min_score")
   createdAt                       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt                       DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 

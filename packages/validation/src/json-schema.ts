@@ -5,7 +5,7 @@ import {
   interventionCreateSchema,
 } from './applications';
 import { billingCheckoutSchema } from './billing';
-import { jobApplySchema, jobIngestSchema, jobSearchSchema } from './jobs';
+import { jobApplySchema } from './jobs';
 import { linkedinConnectBulkSchema } from './linkedin';
 import { outreachSendSchema } from './outreach';
 import { preferencesUpdateSchema } from './preferences';
@@ -34,8 +34,6 @@ export const contractSchemas = {
   workflowStatusUpdate: workflowStatusUpdateSchema,
   outreachSend: outreachSendSchema,
   linkedinConnectBulk: linkedinConnectBulkSchema,
-  jobIngest: jobIngestSchema,
-  jobSearch: jobSearchSchema,
   jobApply: jobApplySchema,
   billingCheckout: billingCheckoutSchema,
 } as const;

@@ -225,6 +225,62 @@ async def test_match_drops_senior_roles_for_one_year_experience() -> None:
     assert response.total_matches == 1
 
 
+@pytest.mark.asyncio
+async def test_match_applies_canonical_profile_filters() -> None:
+    payload = {
+        "companies_scraped": 4,
+        "jobs": [
+            {
+                "title": "Senior Engineer",
+                "company_name": "Acme",
+                "location": "Bengaluru",
+                "location_type": "remote",
+                "seniority": "senior",
+                "dedup_key": "acme::senior",
+                "semantic_score": 0.9,
+            },
+            {
+                "title": "Junior Engineer",
+                "company_name": "Beta",
+                "location": "Bengaluru",
+                "location_type": "remote",
+                "seniority": "junior",
+                "dedup_key": "beta::junior",
+                "semantic_score": 0.8,
+            },
+            {
+                "title": "Junior Engineer",
+                "company_name": "Gamma",
+                "location": "Bengaluru",
+                "location_type": "onsite",
+                "seniority": "junior",
+                "dedup_key": "gamma::onsite",
+                "semantic_score": 0.8,
+            },
+            {
+                "title": "Junior Engineer",
+                "company_name": "Delta",
+                "location": "New York",
+                "location_type": "remote",
+                "seniority": "junior",
+                "dedup_key": "delta::remote",
+                "semantic_score": 0.8,
+            },
+        ],
+    }
+    matcher = JobMatcher(_FakeClient(payload))
+
+    response, _ = await matcher.match(
+        resume=_resume(["Python"]),
+        resume_id="r-profile-filters",
+        profile_seniority="junior",
+        profile_work_mode="remote",
+        profile_locations=["Bengaluru"],
+    )
+
+    assert [job.company_name for job in response.jobs] == ["Beta"]
+
+
 def test_normalize_skills_aliases_and_dedupe() -> None:
     assert normalize_skills(["JS", "js", "Next", "ReactJS", "Python"]) == [
         "JavaScript",

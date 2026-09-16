@@ -49,7 +49,7 @@ bun --filter @applyso/validation snapshot-json-schema  # regenerates contracts.s
 
 ## Enum sync
 
-DB tuples live in `packages/database/src/schema/*` and are duplicated here
-as Zod enums so browser bundles never pull in drizzle/prisma.
+DB tuples live in `packages/database/src/enums.ts` and are duplicated here
+as Zod enums so browser bundles never pull in the database client.
 `src/enums.drift.test.ts` fails if the copies diverge — update the database
 schema first, then mirror it in `src/enums.ts`.

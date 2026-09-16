@@ -33,13 +33,19 @@ export default async function proxy(req: NextRequest) {
     ) {
       return redirectTo(req, '/dashboard');
     }
+    if (session.me.onboarding && !session.me.onboarding.onboardingComplete) {
+      return redirectTo(req, '/onboarding');
+    }
     return NextResponse.next();
   }
 
   if (isOnboarding) {
     if (session.status === 'unavailable') return NextResponse.next();
     if (session.status !== 'authenticated') return redirectTo(req, '/login');
-    return redirectTo(req, '/dashboard');
+    if (session.me.onboarding?.onboardingComplete) {
+      return redirectTo(req, '/dashboard');
+    }
+    return NextResponse.next();
   }
 
   if (session.status === 'authenticated') return redirectTo(req, '/dashboard');

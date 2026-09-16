@@ -109,7 +109,14 @@ export async function POST(request: Request) {
       ),
     ]);
     const resumeJson = (await resumeRes.json().catch(() => null)) as {
-      resume?: { resumeId?: string | null };
+      resume?: {
+        resumeId?: string | null;
+        resume?: {
+          experienceYears?: number;
+          preferredRole?: string | null;
+          preferredLocations?: string[];
+        } | null;
+      };
     } | null;
     const extractionJson = (await extractionRes.json().catch(() => null)) as {
       extraction?: { payload?: Record<string, unknown> };
@@ -134,12 +141,17 @@ export async function POST(request: Request) {
       phone: payload.phone ?? null,
       location: payload.location ?? null,
       summary: payload.professionalSummary ?? null,
-      experience_years: 0,
+      experience_years: resumeJson?.resume?.resume?.experienceYears ?? 0,
+      total_experience_years:
+        resumeJson?.resume?.resume?.experienceYears ?? null,
       skills,
       education: payload.education ?? [],
       work_history: payload.experience ?? [],
-      preferred_role: payload.headline ?? null,
-      preferred_locations: [],
+      preferred_role:
+        resumeJson?.resume?.resume?.preferredRole ?? payload.headline ?? null,
+      preferred_locations: resumeJson?.resume?.resume?.preferredLocations ?? [],
+      seniority: null,
+      work_mode: null,
       file_name: file.name,
     });
   } catch {

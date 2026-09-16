@@ -1,11 +1,4 @@
-/**
- * DB-owned enum tuples — Prisma is the ONLY ORM.
- *
- * These are the database-level status vocabularies previously owned by
- * Drizzle schema files. They live here (plain constants, no ORM import) so
- * `@applyso/validation` can drift-check without pulling Prisma/Drizzle into
- * browser bundles, and so API routes can validate status strings.
- */
+// Shared enum tuples keep validation independent from the Prisma client.
 
 export const resumeStatuses = [
   'UPLOADED',

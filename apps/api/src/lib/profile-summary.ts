@@ -114,9 +114,9 @@ export async function loadProfileSummary(
         portfolioUrl: true,
       },
     }),
-    prisma.resumeFile.count({ where: { userId } }),
+    prisma.resumeFile.count({ where: { userId, deletedAt: null } }),
     prisma.resumeFile.findFirst({
-      where: { userId, status: { not: 'ARCHIVED' } },
+      where: { userId, status: { not: 'ARCHIVED' }, deletedAt: null },
       orderBy: { createdAt: 'desc' },
       select: {
         id: true,
@@ -168,7 +168,7 @@ export async function loadProfileSummary(
       select: { createdAt: true },
     }),
     prisma.resumeFile.findMany({
-      where: { userId, createdAt: { gte: rangeStartUtc } },
+      where: { userId, deletedAt: null, createdAt: { gte: rangeStartUtc } },
       select: { createdAt: true, processedAt: true, status: true },
     }),
   ]);

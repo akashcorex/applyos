@@ -31,9 +31,3 @@ def get_vectorstore(embeddings: Embeddings | None = None) -> PGVector:
     )
     logger.info("PGVector initialised (collection=%s)", settings.rag_collection_name)
     return _vectorstore
-
-
-async def ensure_pgvector_extension(conn) -> None:
-    """Create the ``vector`` extension if missing. Call with an asyncpg connection."""
-    await conn.execute("CREATE EXTENSION IF NOT EXISTS vector;")
-    logger.info("pgvector extension ensured")

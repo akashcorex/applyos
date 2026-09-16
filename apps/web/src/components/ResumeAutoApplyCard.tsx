@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import {
   Check,
@@ -34,6 +34,7 @@ interface ParsedResume {
 }
 
 interface MatchedJob extends TailorJobContext {
+  job_id?: string;
   location?: string | null;
   location_type?: string | null;
   seniority?: string | null;
@@ -51,7 +52,25 @@ interface MatchResponse {
   jobs: MatchedJob[];
 }
 
+interface SelectionResponse {
+  jobs: {
+    id: string;
+    dedupKey: string;
+    title: string;
+    companyName: string;
+    descriptionRaw?: string | null;
+    applicationUrl?: string | null;
+    externalId?: string | null;
+    location?: string | null;
+    locationType?: string | null;
+    seniority?: string | null;
+    rankPosition?: number;
+    score?: number | null;
+  }[];
+}
+
 interface ResumeAutoApplyCardProps {
+  selectionId?: string | null;
   onWorkflowStarted?: (workflowId: string) => void;
 }
 
@@ -73,6 +92,7 @@ function errorMessage(data: unknown, fallback: string): string {
 }
 
 export function ResumeAutoApplyCard({
+  selectionId,
   onWorkflowStarted,
 }: ResumeAutoApplyCardProps) {
   const { data: session } = authClient.useSession();
@@ -90,6 +110,8 @@ export function ResumeAutoApplyCard({
   const [uploading, setUploading] = useState(false);
   const [matching, setMatching] = useState(false);
   const [applying, setApplying] = useState(false);
+  const [dailyLimit, setDailyLimit] = useState(25);
+  const [minScore, setMinScore] = useState(80);
   const [error, setError] = useState<string | null>(null);
   const [workflowId, setWorkflowId] = useState<string | null>(null);
 
@@ -101,6 +123,20 @@ export function ResumeAutoApplyCard({
   });
   const selectedNeedsReview = selectedJobs.length - readySelectedJobs.length;
 
+  useEffect(() => {
+    void fetch('/api/preferences', { cache: 'no-store' })
+      .then(async (response) => {
+        if (!response.ok) return;
+        const data = (await response.json()) as {
+          dailyLimit?: number;
+          minScore?: number;
+        };
+        if (typeof data.dailyLimit === 'number') setDailyLimit(data.dailyLimit);
+        if (typeof data.minScore === 'number') setMinScore(data.minScore);
+      })
+      .catch(() => undefined);
+  }, []);
+
   function resetMatches() {
     setJobs([]);
     setSelectedJobKeys(new Set());
@@ -108,6 +144,72 @@ export function ResumeAutoApplyCard({
     setActiveJobKey(null);
     setWorkflowId(null);
   }
+
+  useEffect(() => {
+    if (!selectionId) return;
+    const currentSelectionId = selectionId;
+    let cancelled = false;
+
+    async function loadSelection() {
+      try {
+        const response = await fetch(
+          `/api/jobs/selections/${encodeURIComponent(currentSelectionId)}`,
+          { cache: 'no-store' },
+        );
+        const data = (await response.json().catch(() => null)) as
+          (SelectionResponse & { error?: string }) | null;
+        if (!response.ok || !data) {
+          if (!cancelled) {
+            setError(data?.error ?? 'Could not load the selected jobs');
+          }
+          return;
+        }
+        const selected = data.jobs.map((job) => ({
+          job_id: job.id,
+          title: job.title,
+          company_name: job.companyName,
+          description: job.descriptionRaw,
+          location: job.location,
+          location_type: job.locationType,
+          seniority: job.seniority,
+          application_url: job.applicationUrl,
+          external_id: job.externalId,
+          dedup_key: job.dedupKey,
+          match_score: job.score ?? 0,
+          reason: null,
+        }));
+        if (cancelled) return;
+        setJobs(selected);
+        setSelectedJobKeys(new Set(selected.map((job) => job.dedup_key)));
+        if (!resume?.resume_id) return;
+
+        const variantsResponse = await fetch(
+          `/api/resume/${encodeURIComponent(resume.resume_id)}/variants`,
+          { cache: 'no-store' },
+        );
+        const variantsData = (await variantsResponse
+          .json()
+          .catch(() => null)) as { variants?: ResumeVariant[] } | null;
+        if (!cancelled) {
+          setVariantsByJob(
+            (variantsData?.variants ?? []).reduce<
+              Record<string, ResumeVariant>
+            >((result, variant) => {
+              result[variant.dedup_key] = variant;
+              return result;
+            }, {}),
+          );
+        }
+      } catch {
+        if (!cancelled) setError('Could not load the selected jobs');
+      }
+    }
+
+    void loadSelection();
+    return () => {
+      cancelled = true;
+    };
+  }, [resume?.resume_id, selectionId]);
 
   async function handleUpload(file: File) {
     const userId = session?.user?.id;
@@ -138,7 +240,13 @@ export function ResumeAutoApplyCard({
     setUploading(true);
     setError(null);
     setResume(null);
-    resetMatches();
+    if (selectionId) {
+      setVariantsByJob({});
+      setActiveJobKey(null);
+      setWorkflowId(null);
+    } else {
+      resetMatches();
+    }
 
     try {
       const formData = new FormData();
@@ -297,10 +405,11 @@ export function ResumeAutoApplyCard({
         body: JSON.stringify({
           user_id: userId,
           resume_id: resume.resume_id,
+          selection_id: selectionId ?? undefined,
           jobs: selectedJobs,
           variant_ids: variantIds,
-          max_applies: selectedJobs.length,
-          min_score: 0,
+          max_applies: Math.min(selectedJobs.length, dailyLimit),
+          min_score: minScore,
         }),
       });
       const data = (await res.json().catch(() => null)) as unknown;

@@ -13,7 +13,10 @@ from models import MatchedJob, MatchResponse, ResumeRecord
 from services.matching.profile import cached_embedding_valid
 from services.matching.rerank import BehaviorReranker
 from services.matching.repository import MatchingRepository
-from services.matching.seniority import seniority_allowed
+from services.matching.seniority import (
+    profile_seniority_allowed,
+    seniority_allowed,
+)
 from services.skills import (
     combine_match_score,
     find_matching_skills,
@@ -45,6 +48,9 @@ class JobMatcher:
         max_jobs: int = 50,
         *,
         intent_override: str | None = None,
+        profile_seniority: str | None = None,
+        profile_work_mode: str | None = None,
+        profile_locations: list[str] | None = None,
     ) -> tuple[MatchResponse, int]:
         """Return (match response, latency_ms)."""
         started = time.perf_counter()
@@ -98,6 +104,15 @@ class JobMatcher:
             if seniority_allowed(
                 resume.experience_years or 0, job.seniority, job.title
             )
+            and profile_seniority_allowed(
+                profile_seniority, job.seniority, job.title
+            )
+            and self._location_allowed(
+                job.location,
+                job.location_type,
+                profile_locations or [],
+                profile_work_mode,
+            )
         ]
         ranked.sort(key=lambda j: j.match_score, reverse=True)
 
@@ -119,6 +134,30 @@ class JobMatcher:
             jobs=ranked,
         )
         return response, latency_ms
+
+    @staticmethod
+    def _location_allowed(
+        location: str | None,
+        location_type: str | None,
+        preferred_locations: list[str],
+        work_mode: str | None,
+    ) -> bool:
+        normalized_type = (location_type or "").strip().lower()
+        normalized_location = (location or "").strip().lower()
+        if work_mode and normalized_type and normalized_type != work_mode.lower():
+            return False
+        if not preferred_locations or not normalized_location:
+            return True
+        if normalized_type == "remote" and any(
+            preference.strip().lower() == "remote"
+            for preference in preferred_locations
+        ):
+            return True
+        return any(
+            preference.strip().lower() in normalized_location
+            for preference in preferred_locations
+            if preference.strip()
+        )
 
     async def _fetch_jobs(
         self,

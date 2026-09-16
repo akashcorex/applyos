@@ -73,7 +73,7 @@ meRouter.get('/', async (req, res) => {
       hasResume,
       hasProfile,
       profileConfirmed,
-      canApply: hasResume,
+      canApply: hasResume && profileConfirmed,
       onboardingComplete: hasResume && profileConfirmed,
     },
     completion,

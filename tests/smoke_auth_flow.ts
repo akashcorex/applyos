@@ -412,16 +412,15 @@ async function main() {
 
   const dashWithCookie = await web('/dashboard', { cookie: bffCookie });
   check(
-    'proxy /dashboard with session is allowed without resume',
-    dashWithCookie.status === 200,
+    'proxy /dashboard with incomplete onboarding → /onboarding',
+    (dashWithCookie.status === 307 || dashWithCookie.status === 302) &&
+      (dashWithCookie.location ?? '').includes('/onboarding'),
     `${dashWithCookie.status} ${dashWithCookie.location}`,
   );
   const onboardingWithCookie = await web('/onboarding', { cookie: bffCookie });
   check(
-    'proxy /onboarding with session → /dashboard',
-    (onboardingWithCookie.status === 307 ||
-      onboardingWithCookie.status === 302) &&
-      (onboardingWithCookie.location ?? '').includes('/dashboard'),
+    'proxy /onboarding with incomplete profile renders flow',
+    onboardingWithCookie.status === 200,
     `${onboardingWithCookie.status} ${onboardingWithCookie.location}`,
   );
   const loginWithCookie = await web('/login', { cookie: bffCookie });

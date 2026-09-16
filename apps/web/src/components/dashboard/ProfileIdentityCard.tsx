@@ -20,6 +20,12 @@ interface ProfileIdentityCardProps {
   linkedinUrl: string;
   githubUrl: string;
   portfolioUrl: string;
+  skills: string;
+  preferredRoles: string;
+  preferredLocations: string;
+  workMode: string;
+  seniority: string;
+  totalExperienceYears: number | null;
   saving: boolean;
   saved: boolean;
   error: string | null;
@@ -37,6 +43,12 @@ export function ProfileIdentityCard({
   linkedinUrl,
   githubUrl,
   portfolioUrl,
+  skills,
+  preferredRoles,
+  preferredLocations,
+  workMode,
+  seniority,
+  totalExperienceYears,
   saving,
   saved,
   error,
@@ -173,6 +185,101 @@ export function ProfileIdentityCard({
                   onChange({ portfolioUrl: event.target.value })
                 }
                 placeholder="https://you.dev"
+              />
+            </div>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className={FIELD_LABEL} htmlFor="profile-skills">
+                Skills (comma-separated)
+              </label>
+              <Input
+                id="profile-skills"
+                value={skills}
+                onChange={(event) => onChange({ skills: event.target.value })}
+                placeholder="TypeScript, React, SQL"
+              />
+            </div>
+            <div>
+              <label className={FIELD_LABEL} htmlFor="profile-roles">
+                Preferred roles (comma-separated)
+              </label>
+              <Input
+                id="profile-roles"
+                value={preferredRoles}
+                onChange={(event) =>
+                  onChange({ preferredRoles: event.target.value })
+                }
+                placeholder="Backend Engineer, Platform Engineer"
+              />
+            </div>
+            <div>
+              <label
+                className={FIELD_LABEL}
+                htmlFor="profile-preferred-locations"
+              >
+                Preferred locations (comma-separated)
+              </label>
+              <Input
+                id="profile-preferred-locations"
+                value={preferredLocations}
+                onChange={(event) =>
+                  onChange({ preferredLocations: event.target.value })
+                }
+                placeholder="Remote, Bengaluru"
+              />
+            </div>
+            <div>
+              <label className={FIELD_LABEL} htmlFor="profile-seniority">
+                Seniority
+              </label>
+              <select
+                id="profile-seniority"
+                value={seniority}
+                onChange={(event) =>
+                  onChange({ seniority: event.target.value })
+                }
+                className="flex h-9 w-full rounded-[6px] border border-slate-200 dark:border-[#26282e] bg-slate-50 dark:bg-[#141518] px-3 py-2 text-xs font-medium text-slate-900 dark:text-[#f1f3f9]"
+              >
+                <option value="">Not set</option>
+                {['intern', 'junior', 'mid', 'senior', 'staff'].map((value) => (
+                  <option key={value} value={value}>
+                    {value}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className={FIELD_LABEL} htmlFor="profile-work-mode">
+                Work mode
+              </label>
+              <select
+                id="profile-work-mode"
+                value={workMode}
+                onChange={(event) => onChange({ workMode: event.target.value })}
+                className="flex h-9 w-full rounded-[6px] border border-slate-200 dark:border-[#26282e] bg-slate-50 dark:bg-[#141518] px-3 py-2 text-xs font-medium text-slate-900 dark:text-[#f1f3f9]"
+              >
+                <option value="">Not set</option>
+                {['remote', 'hybrid', 'onsite'].map((value) => (
+                  <option key={value} value={value}>
+                    {value}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className={FIELD_LABEL} htmlFor="profile-experience">
+                Total experience
+              </label>
+              <Input
+                id="profile-experience"
+                value={
+                  totalExperienceYears === null
+                    ? 'Not extracted'
+                    : `${totalExperienceYears} years`
+                }
+                disabled
+                className="cursor-not-allowed font-mono text-slate-500"
               />
             </div>
           </div>

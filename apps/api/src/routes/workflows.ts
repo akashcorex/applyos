@@ -41,6 +41,7 @@ function isUniqueViolation(error: unknown): boolean {
 }
 
 interface ApplicationInput {
+  jobId?: string | null;
   dedupKey: string;
   title: string;
   companyName: string;
@@ -114,6 +115,7 @@ function parseApplication(raw: unknown): ApplicationInput | null {
   }
 
   return {
+    jobId: hasString(item.jobId) ? item.jobId : null,
     dedupKey: item.dedupKey,
     title: item.title,
     companyName: item.companyName,
@@ -297,6 +299,38 @@ workflowsRouter.post('/internal/start', async (req, res) => {
     return;
   }
 
+  const persistedJobIds = [
+    ...new Set(
+      selectedApplications
+        .map((job) => job.jobId)
+        .filter((jobId): jobId is string => Boolean(jobId)),
+    ),
+  ];
+  if (persistedJobIds.length > 0) {
+    const persistedJobs = await prisma.job.findMany({
+      where: { id: { in: persistedJobIds }, isActive: true },
+      select: { id: true, dedupKey: true },
+    });
+    if (persistedJobs.length !== persistedJobIds.length) {
+      res.status(400).json({ error: 'One or more persisted jobs are invalid' });
+      return;
+    }
+    const dedupByJobId = new Map(
+      persistedJobs.map((job) => [job.id, job.dedupKey]),
+    );
+    for (const application of selectedApplications) {
+      if (
+        application.jobId &&
+        dedupByJobId.get(application.jobId) !== application.dedupKey
+      ) {
+        res.status(400).json({
+          error: 'A persisted job does not match its dedupKey',
+        });
+        return;
+      }
+    }
+  }
+
   const userId = body.userId!;
   const idempotencyKeys = selectedApplications.map((job) =>
     applicationIdempotencyKey(userId, job.dedupKey, job.resumeVariantId),
@@ -436,6 +470,7 @@ workflowsRouter.post('/internal/start', async (req, res) => {
           data: {
             workflowRunId: workflowId,
             userId,
+            jobId: job.jobId,
             dedupKey: job.dedupKey,
             externalId: job.externalId,
             source: job.source,
@@ -491,6 +526,7 @@ workflowsRouter.post('/internal/start', async (req, res) => {
           data: {
             workflowRunId: workflowId,
             userId,
+            jobId: item.job.jobId,
             dedupKey: item.job.dedupKey,
             externalId: item.job.externalId,
             source: item.job.source,

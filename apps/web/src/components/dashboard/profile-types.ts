@@ -37,6 +37,11 @@ export interface ProfileRecord {
   githubUrl?: string | null;
   portfolioUrl?: string | null;
   skills?: string[];
+  preferredRoles?: string[];
+  preferredLocations?: string[];
+  workMode?: string | null;
+  seniority?: string | null;
+  totalExperienceYears?: number | null;
   education?: ProfileEducationItem[];
   experience?: ProfileExperienceItem[];
   projects?: ProfileProjectItem[];

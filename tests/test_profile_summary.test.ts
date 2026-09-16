@@ -117,6 +117,7 @@ describe('GET /v1/profiles/me/summary', () => {
     expect(application.findMany.mock.calls[0]?.[0]?.where?.OR).toBeDefined();
     expect(resumeFile.count.mock.calls[0]?.[0]?.where).toEqual({
       userId: 'user-a',
+      deletedAt: null,
     });
     expect(resumeFile.findMany.mock.calls[0]?.[0]?.where?.userId).toBe(
       'user-a',

@@ -44,7 +44,12 @@
           "maximum": 52428800
         }
       },
-      "required": ["fileName", "storageKey", "mimeType", "fileSize"],
+      "required": [
+        "fileName",
+        "storageKey",
+        "mimeType",
+        "fileSize"
+      ],
       "additionalProperties": false
     },
     "resumeUpdate": {
@@ -58,7 +63,13 @@
         },
         "status": {
           "type": "string",
-          "enum": ["UPLOADED", "PROCESSING", "COMPLETED", "FAILED", "ARCHIVED"]
+          "enum": [
+            "UPLOADED",
+            "PROCESSING",
+            "COMPLETED",
+            "FAILED",
+            "ARCHIVED"
+          ]
         }
       },
       "additionalProperties": false
@@ -104,7 +115,10 @@
           "maxLength": 2000
         }
       },
-      "required": ["type", "message"],
+      "required": [
+        "type",
+        "message"
+      ],
       "additionalProperties": false
     },
     "applicationEventCreate": {
@@ -145,7 +159,11 @@
           "additionalProperties": {}
         }
       },
-      "required": ["type", "description", "metadata"],
+      "required": [
+        "type",
+        "description",
+        "metadata"
+      ],
       "additionalProperties": false
     },
     "workflowStart": {
@@ -289,7 +307,12 @@
           }
         }
       },
-      "required": ["userId", "resumeId", "request", "applications"],
+      "required": [
+        "userId",
+        "resumeId",
+        "request",
+        "applications"
+      ],
       "additionalProperties": false
     },
     "workflowStatusUpdate": {
@@ -415,7 +438,11 @@
           }
         }
       },
-      "required": ["status", "eventType", "applications"],
+      "required": [
+        "status",
+        "eventType",
+        "applications"
+      ],
       "additionalProperties": false
     },
     "outreachSend": {
@@ -443,7 +470,11 @@
           "maxLength": 256
         }
       },
-      "required": ["to_email", "subject", "body"],
+      "required": [
+        "to_email",
+        "subject",
+        "body"
+      ],
       "additionalProperties": false
     },
     "linkedinConnectBulk": {
@@ -541,73 +572,8 @@
           }
         }
       },
-      "required": ["connects"],
-      "additionalProperties": false
-    },
-    "jobIngest": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "type": "object",
-      "properties": {
-        "atsType": {
-          "type": "string",
-          "enum": [
-            "greenhouse",
-            "lever",
-            "ashby",
-            "workable",
-            "recruitee",
-            "personio",
-            "wellfound",
-            "generic"
-          ]
-        },
-        "atsSlug": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 64
-        },
-        "companyName": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 64
-        }
-      },
-      "required": ["atsType", "atsSlug"],
-      "additionalProperties": false
-    },
-    "jobSearch": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "type": "object",
-      "properties": {
-        "job_title": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 128
-        },
-        "max_companies": {
-          "default": 15,
-          "type": "integer",
-          "minimum": 1,
-          "maximum": 40
-        },
-        "max_jobs_per_company": {
-          "default": 50,
-          "type": "integer",
-          "minimum": 1,
-          "maximum": 200
-        },
-        "experience_years": {
-          "default": 0,
-          "type": "integer",
-          "minimum": 0,
-          "maximum": 9007199254740991
-        }
-      },
       "required": [
-        "job_title",
-        "max_companies",
-        "max_jobs_per_company",
-        "experience_years"
+        "connects"
       ],
       "additionalProperties": false
     },
@@ -688,7 +654,10 @@
           "maxLength": 512
         }
       },
-      "required": ["application_url", "resume_id"],
+      "required": [
+        "application_url",
+        "resume_id"
+      ],
       "additionalProperties": false
     },
     "billingCheckout": {
@@ -697,11 +666,19 @@
       "properties": {
         "plan": {
           "type": "string",
-          "enum": ["starter", "pro", "power"]
+          "enum": [
+            "starter",
+            "pro",
+            "power"
+          ]
         },
         "interval": {
           "type": "string",
-          "enum": ["monthly", "quarterly", "annual"]
+          "enum": [
+            "monthly",
+            "quarterly",
+            "annual"
+          ]
         },
         "couponCode": {
           "type": "string",
@@ -710,7 +687,10 @@
         },
         "addOnPack": {
           "type": "string",
-          "enum": ["plus_50", "plus_150"]
+          "enum": [
+            "plus_50",
+            "plus_150"
+          ]
         }
       },
       "additionalProperties": false

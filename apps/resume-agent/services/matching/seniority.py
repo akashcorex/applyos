@@ -60,3 +60,16 @@ def seniority_allowed(
         return True
     job_rank = SENIORITY_RANK.get(resolved, SENIORITY_RANK["mid"])
     return job_rank <= max_rank_for_years(years_experience)
+
+
+def profile_seniority_allowed(
+    profile_seniority: str | None,
+    job_seniority: str | None = None,
+    title: str | None = None,
+) -> bool:
+    if not profile_seniority:
+        return True
+    profile_rank = SENIORITY_RANK.get(profile_seniority.lower())
+    resolved_job = infer_seniority(title, job_seniority)
+    job_rank = SENIORITY_RANK.get(resolved_job) if resolved_job else None
+    return profile_rank is None or job_rank is None or job_rank <= profile_rank

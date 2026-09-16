@@ -1,6 +1,6 @@
 'use client';
 
-import { CompanyDiscoveryPanel } from '@/components/CompanyDiscoveryPanel';
+import { PersistedDiscoveryPanel } from '@/components/PersistedDiscoveryPanel';
 
 export default function DiscoveryPage() {
   return (
@@ -15,7 +15,7 @@ export default function DiscoveryPage() {
         </p>
       </div>
 
-      <CompanyDiscoveryPanel />
+      <PersistedDiscoveryPanel />
     </div>
   );
 }

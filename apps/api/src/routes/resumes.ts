@@ -276,7 +276,7 @@ resumesRouter.get('/', async (req, res) => {
     100,
   );
   const resumes = await prisma.resumeFile.findMany({
-    where: { userId: me.id },
+    where: { userId: me.id, deletedAt: null },
     orderBy: { createdAt: 'desc' },
     take: limit,
     include: {
@@ -442,6 +442,13 @@ resumesRouter.get('/:id', async (req, res) => {
     where: { id },
     include: {
       extractions: { orderBy: { revisionNumber: 'desc' }, take: 5 },
+      resume: {
+        select: {
+          experienceYears: true,
+          preferredRole: true,
+          preferredLocations: true,
+        },
+      },
     },
   });
   if (!resume) {
@@ -503,7 +510,11 @@ resumesRouter.patch('/:id', async (req, res) => {
   }
   const updated = await prisma.resumeFile.update({
     where: { id },
-    data: { ...data, version: { increment: 1 } },
+    data: {
+      ...data,
+      ...(data.status === 'ARCHIVED' ? { deletedAt: new Date() } : {}),
+      version: { increment: 1 },
+    },
   });
   res.status(200).json({ resume: updated });
 });

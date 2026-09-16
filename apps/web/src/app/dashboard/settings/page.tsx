@@ -58,6 +58,11 @@ export default function ProfilePage() {
   const [linkedinUrl, setLinkedinUrl] = useState('');
   const [githubUrl, setGithubUrl] = useState('');
   const [portfolioUrl, setPortfolioUrl] = useState('');
+  const [skills, setSkills] = useState('');
+  const [preferredRoles, setPreferredRoles] = useState('');
+  const [preferredLocations, setPreferredLocations] = useState('');
+  const [workMode, setWorkMode] = useState('');
+  const [seniority, setSeniority] = useState('');
 
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -78,6 +83,11 @@ export default function ProfilePage() {
       setLinkedinUrl(next.linkedinUrl ?? '');
       setGithubUrl(next.githubUrl ?? '');
       setPortfolioUrl(next.portfolioUrl ?? '');
+      setSkills(next.skills?.join(', ') ?? '');
+      setPreferredRoles(next.preferredRoles?.join(', ') ?? '');
+      setPreferredLocations(next.preferredLocations?.join(', ') ?? '');
+      setWorkMode(next.workMode ?? '');
+      setSeniority(next.seniority ?? '');
     },
     [fallbackName],
   );
@@ -128,6 +138,20 @@ export default function ProfilePage() {
           linkedinUrl,
           githubUrl,
           portfolioUrl,
+          skills: skills
+            .split(',')
+            .map((value) => value.trim())
+            .filter(Boolean),
+          preferredRoles: preferredRoles
+            .split(',')
+            .map((value) => value.trim())
+            .filter(Boolean),
+          preferredLocations: preferredLocations
+            .split(',')
+            .map((value) => value.trim())
+            .filter(Boolean),
+          workMode: workMode || null,
+          seniority: seniority || null,
         }),
       });
       const data = (await res.json().catch(() => null)) as {
@@ -248,6 +272,12 @@ export default function ProfilePage() {
           linkedinUrl={linkedinUrl}
           githubUrl={githubUrl}
           portfolioUrl={portfolioUrl}
+          skills={skills}
+          preferredRoles={preferredRoles}
+          preferredLocations={preferredLocations}
+          workMode={workMode}
+          seniority={seniority}
+          totalExperienceYears={profile?.totalExperienceYears ?? null}
           saving={saving}
           saved={saved}
           error={sectionError}
@@ -266,6 +296,15 @@ export default function ProfilePage() {
             if (patch.portfolioUrl !== undefined) {
               setPortfolioUrl(patch.portfolioUrl);
             }
+            if (patch.skills !== undefined) setSkills(patch.skills);
+            if (patch.preferredRoles !== undefined) {
+              setPreferredRoles(patch.preferredRoles);
+            }
+            if (patch.preferredLocations !== undefined) {
+              setPreferredLocations(patch.preferredLocations);
+            }
+            if (patch.workMode !== undefined) setWorkMode(patch.workMode);
+            if (patch.seniority !== undefined) setSeniority(patch.seniority);
           }}
           onSave={() => void saveIdentity()}
         />

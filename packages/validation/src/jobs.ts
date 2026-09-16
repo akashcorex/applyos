@@ -2,17 +2,6 @@ import * as z from 'zod';
 
 import { httpUrlSchema, nonEmptyString, optionalHttpUrl } from './primitives';
 
-/**
- * Job discovery + apply boundary.
- *
- * These mirror the Pydantic models in `apps/job-agent/models.py`
- * (`ScrapeRequest`, `DetectRequest`, `SearchRequest`,
- * `FundingScrapeRequest`) so the Next.js proxy routes
- * (`apps/web/src/app/api/jobs/*`) reject malformed payloads with a 400
- * BEFORE proxying to Python. Bounds are kept identical to the Python
- * side; if you change one, change the other.
- */
-
 export const atsTypes = [
   'greenhouse',
   'lever',
@@ -37,37 +26,41 @@ export const atsSlugSchema = z
       'ats_slug must start with an alphanumeric character and contain only letters, numbers, dots, underscores, or hyphens',
   });
 
-/** POST /api/jobs/ingest → job-agent `/ingest/:atsType`. */
-export const jobIngestSchema = z.object({
-  atsType: atsTypeSchema,
-  atsSlug: atsSlugSchema,
-  companyName: atsSlugSchema.optional(),
+export const jobDiscoverSchema = z.object({
+  profileId: nonEmptyString(128, 'profileId'),
+  query: nonEmptyString(128, 'query').optional(),
+  limit: z.number().int().min(1).max(100).default(50).prefault(50),
 });
 
-export type JobIngest = z.input<typeof jobIngestSchema>;
+export type JobDiscover = z.input<typeof jobDiscoverSchema>;
 
-/** POST /api/jobs/detect → job-agent `/detect`. */
-export const jobDetectSchema = z.object({
-  careerPageUrl: httpUrlSchema,
+export const jobListQuerySchema = z.object({
+  saved: z.enum(['true', 'false']).optional(),
+  q: z.string().trim().max(128).optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(50).prefault(50),
+  offset: z.coerce.number().int().min(0).max(10_000).default(0).prefault(0),
 });
 
-export type JobDetect = z.input<typeof jobDetectSchema>;
+export type JobListQuery = z.input<typeof jobListQuerySchema>;
 
-/** POST /api/jobs/search → job-agent `/search` (mirrors SearchRequest). */
-export const jobSearchSchema = z.object({
-  job_title: nonEmptyString(128, 'job_title'),
-  max_companies: z.number().int().min(1).max(40).default(15).prefault(15),
-  max_jobs_per_company: z
-    .number()
-    .int()
-    .min(1)
-    .max(200)
-    .default(50)
-    .prefault(50),
-  experience_years: z.number().int().min(0).default(0).prefault(0),
+export const jobSelectSchema = z.object({
+  jobIds: z
+    .array(nonEmptyString(128, 'jobIds'))
+    .min(1, { error: 'Select at least one job' })
+    .max(10, { error: 'Select no more than 10 jobs' }),
+  scores: z.record(z.string(), z.number().min(0).max(100)).optional(),
 });
 
-export type JobSearch = z.input<typeof jobSearchSchema>;
+export type JobSelect = z.input<typeof jobSelectSchema>;
+
+export const jobInteractionSchema = z.object({
+  sessionId: nonEmptyString(128, 'sessionId'),
+  eventType: z.enum(['impression', 'click', 'skip']),
+  rankPosition: z.number().int().min(0).max(10_000).optional(),
+  matchScore: z.number().min(0).max(100).optional(),
+});
+
+export type JobInteraction = z.input<typeof jobInteractionSchema>;
 
 /** Funding discovery (mirrors FundingScrapeRequest). */
 export const fundingSources = [
@@ -125,6 +118,4 @@ export const jobApplySchema = z.object({
 
 export type JobApply = z.input<typeof jobApplySchema>;
 
-export const compiledJobIngestSchema = z.compile(jobIngestSchema);
-export const compiledJobSearchSchema = z.compile(jobSearchSchema);
 export const compiledJobApplySchema = z.compile(jobApplySchema);
