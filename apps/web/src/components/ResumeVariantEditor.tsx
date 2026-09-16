@@ -793,7 +793,14 @@ export function ResumeVariantEditor({
     if (autoPreviewAttemptedRef.current === variant.id) return;
     autoPreviewAttemptedRef.current = variant.id;
     void runCompile('preview');
-  }, [finalizing, loading, pdfJobId, previewing, rejecting, variant]);
+  }, [
+    finalizing,
+    loading,
+    pdfJobId,
+    previewing,
+    rejecting,
+    variant,
+  ]);
 
   if (loading) {
     return (
