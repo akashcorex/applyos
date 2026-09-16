@@ -231,15 +231,10 @@ export function ResumeAutoApplyCard({
         );
         const variantsData = (await ensureResponse
           .json()
-          .catch(() => null)) as {
-          variants?: ResumeVariant[];
-          error?: string;
-        } | null;
+          .catch(() => null)) as { variants?: ResumeVariant[]; error?: string } | null;
         if (!cancelled) {
           if (!ensureResponse.ok) {
-            setError(
-              variantsData?.error ?? 'Could not prepare tailored drafts',
-            );
+            setError(variantsData?.error ?? 'Could not prepare tailored drafts');
             return;
           }
           setVariantsByJob(
