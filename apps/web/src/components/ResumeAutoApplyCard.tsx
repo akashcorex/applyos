@@ -114,6 +114,7 @@ export function ResumeAutoApplyCard({
   const [minScore, setMinScore] = useState(80);
   const [error, setError] = useState<string | null>(null);
   const [workflowId, setWorkflowId] = useState<string | null>(null);
+  const [resumeLoading, setResumeLoading] = useState(false);
 
   const activeJob = jobs.find((job) => job.dedup_key === activeJobKey) ?? null;
   const selectedJobs = jobs.filter((job) => selectedJobKeys.has(job.dedup_key));
@@ -122,6 +123,35 @@ export function ResumeAutoApplyCard({
     return variant?.status === 'ready' && Boolean(variant.artifact_id);
   });
   const selectedNeedsReview = selectedJobs.length - readySelectedJobs.length;
+
+  useEffect(() => {
+    if (!session?.user?.id || resume) return;
+    let cancelled = false;
+
+    async function loadCurrentResume() {
+      setResumeLoading(true);
+      try {
+        const response = await fetch('/api/resume/current', {
+          cache: 'no-store',
+        });
+        const data = (await response.json().catch(() => null)) as
+          | ParsedResume
+          | { error?: string }
+          | null;
+        if (!response.ok || !data || !('resume_id' in data)) return;
+        if (!cancelled) setResume(data);
+      } catch {
+        // No resume yet — upload step stays visible.
+      } finally {
+        if (!cancelled) setResumeLoading(false);
+      }
+    }
+
+    void loadCurrentResume();
+    return () => {
+      cancelled = true;
+    };
+  }, [resume, session?.user?.id]);
 
   useEffect(() => {
     void fetch('/api/preferences', { cache: 'no-store' })
@@ -468,17 +498,21 @@ export function ResumeAutoApplyCard({
             <Button
               className="w-full"
               variant="outline"
-              disabled={uploading || !session?.user?.id}
+              disabled={uploading || resumeLoading || !session?.user?.id}
               onClick={() => fileInputRef.current?.click()}
             >
-              {uploading ? (
+              {uploading || resumeLoading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
                 <FileUp className="h-4 w-4" />
               )}
               {uploading
                 ? 'Processing resume...'
-                : 'Upload resume (PDF or DOCX)'}
+                : resumeLoading
+                  ? 'Loading saved resume...'
+                  : resume
+                    ? 'Replace resume (PDF or DOCX)'
+                    : 'Upload resume (PDF or DOCX)'}
             </Button>
 
             {resume ? (
