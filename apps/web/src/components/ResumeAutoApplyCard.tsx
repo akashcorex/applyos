@@ -135,9 +135,7 @@ export function ResumeAutoApplyCard({
           cache: 'no-store',
         });
         const data = (await response.json().catch(() => null)) as
-          | ParsedResume
-          | { error?: string }
-          | null;
+          ParsedResume | { error?: string } | null;
         if (!response.ok || !data || !('resume_id' in data)) return;
         if (!cancelled) setResume(data);
       } catch {
@@ -231,10 +229,15 @@ export function ResumeAutoApplyCard({
         );
         const variantsData = (await ensureResponse
           .json()
-          .catch(() => null)) as { variants?: ResumeVariant[]; error?: string } | null;
+          .catch(() => null)) as {
+          variants?: ResumeVariant[];
+          error?: string;
+        } | null;
         if (!cancelled) {
           if (!ensureResponse.ok) {
-            setError(variantsData?.error ?? 'Could not prepare tailored drafts');
+            setError(
+              variantsData?.error ?? 'Could not prepare tailored drafts',
+            );
             return;
           }
           setVariantsByJob(

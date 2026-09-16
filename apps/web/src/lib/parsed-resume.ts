@@ -59,7 +59,8 @@ export function buildParsedResumePayload(input: {
     work_history: Array.isArray(payload.experience) ? payload.experience : [],
     preferred_role:
       input.preferredRole ??
-      ((payload.headline as string | null | undefined) ?? null),
+      (payload.headline as string | null | undefined) ??
+      null,
     preferred_locations: input.preferredLocations ?? [],
     seniority: null,
     work_mode: null,

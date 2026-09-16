@@ -13,7 +13,7 @@ const workflowRun = {
   update: mock(async () => ({})),
 };
 const workflowJob = {
-  findUnique: mock(async () => ({ id: 'wf-job-1' } as unknown)),
+  findUnique: mock(async () => ({ id: 'wf-job-1' }) as unknown),
   create: mock(async () => ({ id: 'wf-job-1' })),
   update: mock(async () => ({})),
 };
@@ -168,7 +168,10 @@ describe('Phase 3 workflow apply lifecycle', () => {
       }),
     });
     expect(res.status).toBe(201);
-    const body = (await res.json()) as { workflowId?: string; queued?: string[] };
+    const body = (await res.json()) as {
+      workflowId?: string;
+      queued?: string[];
+    };
     expect(body.workflowId).toBeTruthy();
     expect(body.queued).toEqual(['acme::engineer']);
     expect(workflowJob.create).toHaveBeenCalled();
