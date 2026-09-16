@@ -37,13 +37,25 @@ Manual `.tex` editing, template picker, version-gallery restore UI, outreach ema
 ## Definition of done
 
 - [x] Selecting 1–10 persisted jobs creates an owned durable selection and carries canonical `jobId` into the workflow handoff
-- [ ] Selecting 1–10 persisted jobs creates one `draft` variant each with an `approved` patch
-- [ ] Each variant compiles to a downloadable PDF artifact (or surfaces `failed` with `last_error` after retries)
-- [ ] User can approve or reject a variant; rejected returns to `draft` with a new patch attempt
-- [ ] Approved variants create `Application(pending)` rows linked to `workflow_jobs.jobId`
-- [ ] Blocker/captcha/login pauses to `waiting_for_human` with an `open` intervention; user can take control, resolve, and resume to `submitted`
-- [ ] Each first `submitted` increments `submittedCount` exactly once; quota-exceeded returns `402` before creation
-- [ ] Every application has queryable `application_events` + outcome (`viewed|rejected|interview|offer`)
+- [x] Selecting 1–10 persisted jobs creates one `draft` variant each with an `approved` patch (`POST /resume/{id}/variants/ensure`)
+- [x] Each variant compiles to a downloadable PDF artifact (or surfaces `failed` with `last_error` after retries)
+- [x] User can approve or reject a variant; rejected returns to `draft` with a new patch attempt
+- [x] Approved variants create `Application(pending)` rows linked to `workflow_jobs.jobId`
+- [x] Blocker/captcha/login pauses to `waiting_for_human` with an `open` intervention; user can take control, resolve, and resume to `submitted`
+- [x] Each first `submitted` increments `submittedCount` exactly once; quota-exceeded returns `402` before creation (HTTP unit tests)
+- [x] Every application has queryable `application_events` + outcome (`viewed|rejected|interview|offer`)
+
+## Verification (2026-09-16)
+
+End-to-end smoke with root `resume.pdf` (requires API, resume-agent, compile worker, orchestrator, apply-agent + Celery worker):
+
+```bash
+cd apps/apply-agent && uv run python ../../scripts/phase3_smoke_test.py
+```
+
+Passed: parse → ensure draft+patch → preview PDF → reject+new patch → finalize PDF → durable workflow → `Application(pending)` → `waiting_for_human` (GitLab Greenhouse CAPTCHA) → outcome patch.
+
+Unit tests: `bun test tests/test_phase3_http.test.ts`, `bun test tests/test_parsed_resume.test.ts`, resume-agent tailoring/compile suites.
 
 ## Open risks / unresolved
 

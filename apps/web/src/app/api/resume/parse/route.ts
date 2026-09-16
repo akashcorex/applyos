@@ -1,3 +1,4 @@
+import { buildParsedResumePayload } from '@/lib/parsed-resume';
 import { requireUserId } from '@/lib/require-user';
 
 const API_URL = process.env.API_URL ?? 'http://localhost:5000';
@@ -11,19 +12,6 @@ function cookieHeader(request: Request): HeadersInit {
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-function asSkillNames(skills: unknown): string[] {
-  if (!Array.isArray(skills)) return [];
-  const names: string[] = [];
-  for (const item of skills) {
-    if (typeof item === 'string' && item.trim()) names.push(item.trim());
-    else if (item && typeof item === 'object' && 'name' in item) {
-      const name = (item as { name?: unknown }).name;
-      if (typeof name === 'string' && name.trim()) names.push(name.trim());
-    }
-  }
-  return names;
 }
 
 export async function POST(request: Request) {
@@ -131,29 +119,21 @@ export async function POST(request: Request) {
       );
     }
 
-    const skills = asSkillNames(payload.skills);
-    return Response.json({
-      resume_id: legacyId,
-      resume_file_id: resumeFileId,
-      user_id: userOrErr,
-      full_name: payload.fullName ?? '',
-      email: payload.email ?? '',
-      phone: payload.phone ?? null,
-      location: payload.location ?? null,
-      summary: payload.professionalSummary ?? null,
-      experience_years: resumeJson?.resume?.resume?.experienceYears ?? 0,
-      total_experience_years:
-        resumeJson?.resume?.resume?.experienceYears ?? null,
-      skills,
-      education: payload.education ?? [],
-      work_history: payload.experience ?? [],
-      preferred_role:
-        resumeJson?.resume?.resume?.preferredRole ?? payload.headline ?? null,
-      preferred_locations: resumeJson?.resume?.resume?.preferredLocations ?? [],
-      seniority: null,
-      work_mode: null,
-      file_name: file.name,
-    });
+    return Response.json(
+      buildParsedResumePayload({
+        legacyResumeId: legacyId,
+        resumeFileId,
+        userId: userOrErr,
+        extractionPayload: payload,
+        experienceYears: resumeJson?.resume?.resume?.experienceYears ?? 0,
+        preferredRole:
+          resumeJson?.resume?.resume?.preferredRole ??
+          (typeof payload.headline === 'string' ? payload.headline : null),
+        preferredLocations:
+          resumeJson?.resume?.resume?.preferredLocations ?? [],
+        fileName: file.name,
+      }),
+    );
   } catch {
     return Response.json(
       { error: 'Resume service is unreachable' },

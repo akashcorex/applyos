@@ -69,20 +69,6 @@ interface SelectionResponse {
   }[];
 }
 
-interface SavedResumeResponse {
-  resumes?: {
-    status?: string;
-    resume?: {
-      id: string;
-      fullName: string;
-      email: string;
-      preferredRole?: string | null;
-      experienceYears: number;
-      skills: string[];
-    } | null;
-  }[];
-}
-
 interface ResumeAutoApplyCardProps {
   selectionId?: string | null;
   onWorkflowStarted?: (workflowId: string) => void;
@@ -128,6 +114,7 @@ export function ResumeAutoApplyCard({
   const [minScore, setMinScore] = useState(80);
   const [error, setError] = useState<string | null>(null);
   const [workflowId, setWorkflowId] = useState<string | null>(null);
+  const [resumeLoading, setResumeLoading] = useState(false);
 
   const activeJob = jobs.find((job) => job.dedup_key === activeJobKey) ?? null;
   const selectedJobs = jobs.filter((job) => selectedJobKeys.has(job.dedup_key));
@@ -138,39 +125,31 @@ export function ResumeAutoApplyCard({
   const selectedNeedsReview = selectedJobs.length - readySelectedJobs.length;
 
   useEffect(() => {
+    if (!session?.user?.id || resume) return;
     let cancelled = false;
 
-    async function loadSavedResume() {
+    async function loadCurrentResume() {
+      setResumeLoading(true);
       try {
-        const response = await fetch('/api/resumes?limit=10', {
+        const response = await fetch('/api/resume/current', {
           cache: 'no-store',
         });
-        const data = (await response
-          .json()
-          .catch(() => null)) as SavedResumeResponse | null;
-        const saved = data?.resumes?.find(
-          (item) => item.status === 'COMPLETED' && item.resume?.id,
-        )?.resume;
-        if (!cancelled && saved) {
-          setResume({
-            resume_id: saved.id,
-            full_name: saved.fullName,
-            email: saved.email,
-            preferred_role: saved.preferredRole,
-            experience_years: saved.experienceYears,
-            skills: saved.skills,
-          });
-        }
+        const data = (await response.json().catch(() => null)) as
+          ParsedResume | { error?: string } | null;
+        if (!response.ok || !data || !('resume_id' in data)) return;
+        if (!cancelled) setResume(data);
       } catch {
-        return;
+        // No resume yet — upload step stays visible.
+      } finally {
+        if (!cancelled) setResumeLoading(false);
       }
     }
 
-    void loadSavedResume();
+    void loadCurrentResume();
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [resume, session?.user?.id]);
 
   useEffect(() => {
     void fetch('/api/preferences', { cache: 'no-store' })
@@ -232,14 +211,35 @@ export function ResumeAutoApplyCard({
         setSelectedJobKeys(new Set(selected.map((job) => job.dedup_key)));
         if (!resume?.resume_id) return;
 
-        const variantsResponse = await fetch(
-          `/api/resume/${encodeURIComponent(resume.resume_id)}/variants`,
-          { cache: 'no-store' },
+        const ensureResponse = await fetch(
+          `/api/resume/${encodeURIComponent(resume.resume_id)}/variants/ensure`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              jobs: selected.map((job) => ({
+                dedup_key: job.dedup_key,
+                job_title: job.title,
+                company_name: job.company_name,
+                job_description: job.description,
+                initial_match_score: job.match_score,
+              })),
+            }),
+          },
         );
-        const variantsData = (await variantsResponse
+        const variantsData = (await ensureResponse
           .json()
-          .catch(() => null)) as { variants?: ResumeVariant[] } | null;
+          .catch(() => null)) as {
+          variants?: ResumeVariant[];
+          error?: string;
+        } | null;
         if (!cancelled) {
+          if (!ensureResponse.ok) {
+            setError(
+              variantsData?.error ?? 'Could not prepare tailored drafts',
+            );
+            return;
+          }
           setVariantsByJob(
             (variantsData?.variants ?? []).reduce<
               Record<string, ResumeVariant>
@@ -521,19 +521,21 @@ export function ResumeAutoApplyCard({
             <Button
               className="w-full"
               variant="outline"
-              disabled={uploading || !session?.user?.id}
+              disabled={uploading || resumeLoading || !session?.user?.id}
               onClick={() => fileInputRef.current?.click()}
             >
-              {uploading ? (
+              {uploading || resumeLoading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
                 <FileUp className="h-4 w-4" />
               )}
               {uploading
                 ? 'Processing resume...'
-                : resume
-                  ? 'Replace saved resume'
-                  : 'Upload resume (PDF or DOCX)'}
+                : resumeLoading
+                  ? 'Loading saved resume...'
+                  : resume
+                    ? 'Replace resume (PDF or DOCX)'
+                    : 'Upload resume (PDF or DOCX)'}
             </Button>
 
             {resume ? (
