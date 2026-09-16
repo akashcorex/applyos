@@ -234,132 +234,142 @@ jobsRouter.post('/discover', async (req, res) => {
 
   const matchJobs = Array.isArray(data?.jobs) ? data.jobs : [];
   const latencyMs = Date.now() - startedAt;
-  const persisted = await prisma.$transaction(async (tx) => {
-    const jobs: {
-      id: string;
-      score: number;
-      reason: string;
-      firstSeenAt: Date;
-      lastSeenAt: Date;
-      companyName: string;
-      title: string;
-      location: string;
-      seniority: string | null;
-      applicationUrl: string | null;
-      dedupKey: string;
-    }[] = [];
+  const persisted = await prisma
+    .$transaction(
+      async (tx) => {
+        const jobs: {
+          id: string;
+          score: number;
+          reason: string;
+          firstSeenAt: Date;
+          lastSeenAt: Date;
+          companyName: string;
+          title: string;
+          location: string;
+          seniority: string | null;
+          applicationUrl: string | null;
+          dedupKey: string;
+        }[] = [];
 
-    for (const item of matchJobs) {
-      const dedupKey = item.dedup_key?.trim();
-      const title = item.title?.trim();
-      const companyName = item.company_name?.trim();
-      if (!dedupKey || !title || !companyName) continue;
-      const description = item.description_raw ?? item.description ?? null;
-      const location = item.location?.trim() ?? '';
-      const source = item.source ?? item.ats_type ?? 'generic';
-      const job = await tx.job.upsert({
-        where: { dedupKey },
-        create: {
-          dedupKey,
-          source,
-          externalId: item.external_id ?? null,
-          companyName,
-          title,
-          titleNormalized: normalizeTitle(title),
-          location,
-          locationNormalized: normalizeLocation(location),
-          locationType: item.location_type ?? null,
-          seniority: item.seniority ?? null,
-          descriptionRaw: description,
-          descriptionHash: descriptionHash(description),
-          applicationUrl: item.application_url ?? null,
-          firstSeenAt: new Date(),
-          lastSeenAt: new Date(),
-          rawPayload: (item.raw_payload ?? {}) as never,
-          isActive: true,
-        },
-        update: {
-          source,
-          externalId: item.external_id ?? null,
-          companyName,
-          title,
-          titleNormalized: normalizeTitle(title),
-          location,
-          locationNormalized: normalizeLocation(location),
-          locationType: item.location_type ?? null,
-          seniority: item.seniority ?? null,
-          descriptionRaw: description,
-          descriptionHash: descriptionHash(description),
-          applicationUrl: item.application_url ?? null,
-          lastSeenAt: new Date(),
-          rawPayload: (item.raw_payload ?? {}) as never,
-          isActive: true,
-        },
-      });
+        for (const item of matchJobs) {
+          const dedupKey = item.dedup_key?.trim();
+          const title = item.title?.trim();
+          const companyName = item.company_name?.trim();
+          if (!dedupKey || !title || !companyName) continue;
+          const description = item.description_raw ?? item.description ?? null;
+          const location = item.location?.trim() ?? '';
+          const source = item.source ?? item.ats_type ?? 'generic';
+          const job = await tx.job.upsert({
+            where: { dedupKey },
+            create: {
+              dedupKey,
+              source,
+              externalId: item.external_id ?? null,
+              companyName,
+              title,
+              titleNormalized: normalizeTitle(title),
+              location,
+              locationNormalized: normalizeLocation(location),
+              locationType: item.location_type ?? null,
+              seniority: item.seniority ?? null,
+              descriptionRaw: description,
+              descriptionHash: descriptionHash(description),
+              applicationUrl: item.application_url ?? null,
+              firstSeenAt: new Date(),
+              lastSeenAt: new Date(),
+              rawPayload: (item.raw_payload ?? {}) as never,
+              isActive: true,
+            },
+            update: {
+              source,
+              externalId: item.external_id ?? null,
+              companyName,
+              title,
+              titleNormalized: normalizeTitle(title),
+              location,
+              locationNormalized: normalizeLocation(location),
+              locationType: item.location_type ?? null,
+              seniority: item.seniority ?? null,
+              descriptionRaw: description,
+              descriptionHash: descriptionHash(description),
+              applicationUrl: item.application_url ?? null,
+              lastSeenAt: new Date(),
+              rawPayload: (item.raw_payload ?? {}) as never,
+              isActive: true,
+            },
+          });
 
-      await tx.company.upsert({
-        where: { name: companyName },
-        create: {
-          name: companyName,
-          atsType: item.ats_type ?? null,
-          atsSlug: null,
-        },
-        update: {
-          atsType: item.ats_type ?? undefined,
-        },
-      });
+          await tx.company.upsert({
+            where: { name: companyName },
+            create: {
+              name: companyName,
+              atsType: item.ats_type ?? null,
+              atsSlug: null,
+            },
+            update: {
+              atsType: item.ats_type ?? undefined,
+            },
+          });
 
-      jobs.push({
-        id: job.id,
-        score:
-          typeof item.match_score === 'number' &&
-          Number.isFinite(item.match_score)
-            ? item.match_score
-            : 0,
-        reason:
-          item.reason?.trim() || 'Recommended from your confirmed profile.',
-        firstSeenAt: job.firstSeenAt,
-        lastSeenAt: job.lastSeenAt,
-        companyName: job.companyName,
-        title: job.title,
-        location: job.location,
-        seniority: job.seniority,
-        applicationUrl: job.applicationUrl,
-        dedupKey: job.dedupKey,
-      });
-    }
+          jobs.push({
+            id: job.id,
+            score:
+              typeof item.match_score === 'number' &&
+              Number.isFinite(item.match_score)
+                ? item.match_score
+                : 0,
+            reason:
+              item.reason?.trim() || 'Recommended from your confirmed profile.',
+            firstSeenAt: job.firstSeenAt,
+            lastSeenAt: job.lastSeenAt,
+            companyName: job.companyName,
+            title: job.title,
+            location: job.location,
+            seniority: job.seniority,
+            applicationUrl: job.applicationUrl,
+            dedupKey: job.dedupKey,
+          });
+        }
 
-    const topResults = jobs.map((job, index) => ({
-      jobId: job.id,
-      dedupKey: job.dedupKey,
-      score: job.score,
-      reason: job.reason,
-      rank: index + 1,
-    }));
-    const sessionId = data?.session_id;
-    const session = sessionId
-      ? await tx.matchSession.findUnique({ where: { id: sessionId } })
-      : null;
-    const persistedSession = session
-      ? await tx.matchSession.update({
-          where: { id: session.id },
-          data: { topResults: topResults as never, latencyMs },
-        })
-      : await tx.matchSession.create({
-          data: {
-            userId: me.id,
-            resumeId: resume.id,
-            queryRole: role,
-            jobsScraped: data?.jobs_scraped ?? jobs.length,
-            jobsReturned: jobs.length,
-            companiesScraped: data?.companies_scraped ?? 0,
-            latencyMs,
-            topResults: topResults as never,
-          },
-        });
+        const topResults = jobs.map((job, index) => ({
+          jobId: job.id,
+          dedupKey: job.dedupKey,
+          score: job.score,
+          reason: job.reason,
+          rank: index + 1,
+        }));
+        const sessionId = data?.session_id;
+        const session = sessionId
+          ? await tx.matchSession.findUnique({ where: { id: sessionId } })
+          : null;
+        const persistedSession = session
+          ? await tx.matchSession.update({
+              where: { id: session.id },
+              data: { topResults: topResults as never, latencyMs },
+            })
+          : await tx.matchSession.create({
+              data: {
+                userId: me.id,
+                resumeId: resume.id,
+                queryRole: role,
+                jobsScraped: data?.jobs_scraped ?? jobs.length,
+                jobsReturned: jobs.length,
+                companiesScraped: data?.companies_scraped ?? 0,
+                latencyMs,
+                topResults: topResults as never,
+              },
+            });
 
-    return { sessionId: persistedSession.id, jobs };
-  });
+        return { sessionId: persistedSession.id, jobs };
+      },
+      { maxWait: 10000, timeout: 30000 },
+    )
+    .catch((error) => {
+      console.error('[jobs] discovery persistence failed:', error);
+      res.status(503).json({ error: 'Job results could not be saved' });
+      return null;
+    });
+  if (!persisted) return;
 
   const saved = await prisma.savedJob.findMany({
     where: {
