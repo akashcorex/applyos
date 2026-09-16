@@ -29,7 +29,11 @@ Default sequence: `job-select → ResumeVariant(draft) → ResumeTailoringPatch(
 Rationale: matches the existing `variants.py` prepare/compile/enqueue chain without adding an editor or multi-template gallery. Revisit: manual tex edit + template picker post-MVP.
 
 ### 6. Final table set
-See disposition matrix below — it is the decision. Summary: keep all 34 Prisma models, fix ownership (Prisma migrations sole DDL path), add `jobs, companies, saved_jobs, notifications`, defer `outreach_emails` table (no sender in MVP).
+See disposition matrix below — it is the decision. Summary: keep all 34 Prisma models (with real FKs per Phase 1, Prisma migrations sole DDL path), keep 2 SQLite-local caches with explicit fold-into-Postgres plan, add `jobs, companies, saved_jobs, notifications`, defer `outreach_emails` table (no sender in MVP). Matrix total: 41 rows = 34 Prisma + 2 SQLite-local + 5 gaps. `listing_fingerprint` is not a table — it is existing dedup logic (`dedup.py:55-68`) whose output is stored as `jobs.descriptionHash`; no separate disposition needed.
+
+### 7. Delete/cascade behavior for the resume chain
+Default: soft delete on `resume_files` (`deletedAt timestamptz?`; list queries filter `deletedAt IS NULL`; `ARCHIVED` status set together with `deletedAt`). No physical cascade — downstream `resumes → variants → patches → artifacts` stay intact so old tailored variants tied to old jobs survive re-uploads.
+Rationale: users re-upload resumes and expect history to persist; hard `CASCADE` would silently destroy user work and `RESTRICT` would force cleanup UX with no pre-launch payoff. `ON DELETE SET NULL` on `profiles.sourceResumeFileId` has no normal-flow trigger (soft deletes don't fire FK actions) — it exists only for the hard-delete path via `user` account deletion (Prisma cascade); no standalone `resume_files` hard-delete endpoint in MVP. Revisit: hard-delete with explicit user confirmation + cascade preview post-MVP.
 
 ## Table disposition matrix
 
@@ -39,8 +43,8 @@ See disposition matrix below — it is the decision. Summary: keep all 34 Prisma
 | `session` | Prisma | keep as-is | Prisma | auth infra |
 | `account` | Prisma | keep as-is | Prisma | OAuth linkage |
 | `verification` | Prisma | keep as-is | Prisma | auth infra |
-| `profiles` | Prisma | keep + alter (add Decision 1 columns) | Prisma | canonical Profile |
-| `resume_files` | Prisma (API writes) | keep as-is | Prisma | upload record |
+| `profiles` | Prisma | keep + alter (add Decision 1 columns + FK `sourceResumeFileId → resume_files.id SET NULL`) | Prisma | canonical Profile, real FK replaces app join |
+| `resume_files` | Prisma (API writes) | keep + alter (add `deletedAt timestamptz?`, soft-delete per Decision 7; no cascade) | Prisma | upload record; archive hides, history survives |
 | `resume_extractions` | Prisma (API writes) | keep as-is | Prisma | extraction revisions |
 | `resumes` | Prisma schema + agent ALTERs | keep, remove agent DDL | Prisma | agent keeps R/W, no DDL |
 | `resume_source_documents` | Prisma schema + agent DDL mirror | keep, remove agent DDL | Prisma | same DB, one migration path |
@@ -70,7 +74,8 @@ See disposition matrix below — it is the decision. Summary: keep all 34 Prisma
 | `usage_cycles` | Prisma | keep as-is | Prisma | credit windows |
 | `processed_webhooks` | Prisma | keep as-is | Prisma | webhook dedup |
 | `board_registry` (SQLite) | job-agent SQLite | keep as-is (local cache) | job-agent | ATS registry, not product data |
-| `job_snapshots` (SQLite) | job-agent SQLite | keep local, supersede logic in Phase 2 `jobs.firstSeenAt/lastSeenAt` | Prisma `jobs` | per-instance cache → central timestamps |
+| `job_snapshots` (SQLite) | job-agent SQLite | keep local cache, fold logic into `jobs.firstSeenAt/lastSeenAt` in Phase 2 (no data migration; Postgres becomes source of truth) | Prisma `jobs` | per-instance cache → central timestamps |
+| `listing_fingerprint` | job-agent code (not a table) | keep logic, store output as `jobs.descriptionHash` | Prisma `jobs` | dedup helper, not a store |
 | `jobs` | — (gap) | add new (Decision 3 fields) | Prisma | canonical job, Phase 2 |
 | `companies` | — (gap) | add new (`id, name UNIQUE, domains[], atsType?, atsSlug?, logoUrl?, createdAt`) | Prisma | dedup company strings, Phase 2 |
 | `saved_jobs` | — (gap) | add new (`userId, jobId UNIQUE[userId,jobId], createdAt`) | Prisma | bookmark join, distinct from match feedback, Phase 2 |
@@ -81,8 +86,9 @@ See disposition matrix below — it is the decision. Summary: keep all 34 Prisma
 Email outreach send, LinkedIn auto-connect, multiple LaTeX templates, manual `.tex` editor, resume restore gallery UI, company CRM UI, notification sender, admin deep analytics, complex workflow builder.
 
 ## Lock checklist before code
-- [ ] Prisma migration adds Profile Decision-1 columns + `jobs/companies/saved_jobs/notifications`
+- [ ] Prisma migration adds Profile Decision-1 columns + FK + `resume_files.deletedAt` + `jobs/companies/saved_jobs/notifications`
 - [ ] Agent DDL removal verified (no `CREATE/ALTER` at agent startup except guard check)
+- [ ] Backfill: silent default + re-derive from stored text/IR, no auto re-match, no forced reconfirm gate
 - [ ] Confirm-profile screen spec'd (Decision 2 allowlist)
 - [ ] Job + Match schema locked (Decision 3+4)
 - [ ] Application + tailoring lifecycle locked (Decision 5)
