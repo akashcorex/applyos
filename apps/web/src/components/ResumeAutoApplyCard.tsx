@@ -69,6 +69,20 @@ interface SelectionResponse {
   }[];
 }
 
+interface SavedResumeResponse {
+  resumes?: {
+    status?: string;
+    resume?: {
+      id: string;
+      fullName: string;
+      email: string;
+      preferredRole?: string | null;
+      experienceYears: number;
+      skills: string[];
+    } | null;
+  }[];
+}
+
 interface ResumeAutoApplyCardProps {
   selectionId?: string | null;
   onWorkflowStarted?: (workflowId: string) => void;
@@ -122,6 +136,41 @@ export function ResumeAutoApplyCard({
     return variant?.status === 'ready' && Boolean(variant.artifact_id);
   });
   const selectedNeedsReview = selectedJobs.length - readySelectedJobs.length;
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadSavedResume() {
+      try {
+        const response = await fetch('/api/resumes?limit=10', {
+          cache: 'no-store',
+        });
+        const data = (await response
+          .json()
+          .catch(() => null)) as SavedResumeResponse | null;
+        const saved = data?.resumes?.find(
+          (item) => item.status === 'COMPLETED' && item.resume?.id,
+        )?.resume;
+        if (!cancelled && saved) {
+          setResume({
+            resume_id: saved.id,
+            full_name: saved.fullName,
+            email: saved.email,
+            preferred_role: saved.preferredRole,
+            experience_years: saved.experienceYears,
+            skills: saved.skills,
+          });
+        }
+      } catch {
+        return;
+      }
+    }
+
+    void loadSavedResume();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     void fetch('/api/preferences', { cache: 'no-store' })
@@ -459,9 +508,13 @@ export function ResumeAutoApplyCard({
             <div className="flex items-center gap-2">
               <Badge variant="outline">1</Badge>
               <div>
-                <p className="text-sm font-medium">Upload resume</p>
+                <p className="text-sm font-medium">
+                  {resume ? 'Saved resume' : 'Upload resume'}
+                </p>
                 <p className="text-xs text-muted-foreground">
-                  Parse a PDF or DOCX before matching jobs.
+                  {resume
+                    ? 'Your onboarding resume is ready. Replace it only if needed.'
+                    : 'Parse a PDF or DOCX before matching jobs.'}
                 </p>
               </div>
             </div>
@@ -478,7 +531,9 @@ export function ResumeAutoApplyCard({
               )}
               {uploading
                 ? 'Processing resume...'
-                : 'Upload resume (PDF or DOCX)'}
+                : resume
+                  ? 'Replace saved resume'
+                  : 'Upload resume (PDF or DOCX)'}
             </Button>
 
             {resume ? (
