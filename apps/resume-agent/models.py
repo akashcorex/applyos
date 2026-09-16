@@ -546,6 +546,10 @@ class ResumeVariantResponse(BaseModel):
     updated_at: str | None = None
 
 
+class EnsureVariantsRequest(BaseModel):
+    jobs: list[CreateVariantRequest] = Field(min_length=1, max_length=10)
+
+
 class VariantListResponse(BaseModel):
     resume_id: str
     variants: list[ResumeVariantResponse] = Field(default_factory=list)

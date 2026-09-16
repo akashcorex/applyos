@@ -213,14 +213,30 @@ export function ResumeAutoApplyCard({
         setSelectedJobKeys(new Set(selected.map((job) => job.dedup_key)));
         if (!resume?.resume_id) return;
 
-        const variantsResponse = await fetch(
-          `/api/resume/${encodeURIComponent(resume.resume_id)}/variants`,
-          { cache: 'no-store' },
+        const ensureResponse = await fetch(
+          `/api/resume/${encodeURIComponent(resume.resume_id)}/variants/ensure`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              jobs: selected.map((job) => ({
+                dedup_key: job.dedup_key,
+                job_title: job.title,
+                company_name: job.company_name,
+                job_description: job.description,
+                initial_match_score: job.match_score,
+              })),
+            }),
+          },
         );
-        const variantsData = (await variantsResponse
+        const variantsData = (await ensureResponse
           .json()
-          .catch(() => null)) as { variants?: ResumeVariant[] } | null;
+          .catch(() => null)) as { variants?: ResumeVariant[]; error?: string } | null;
         if (!cancelled) {
+          if (!ensureResponse.ok) {
+            setError(variantsData?.error ?? 'Could not prepare tailored drafts');
+            return;
+          }
           setVariantsByJob(
             (variantsData?.variants ?? []).reduce<
               Record<string, ResumeVariant>

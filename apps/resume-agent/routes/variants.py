@@ -16,6 +16,7 @@ from models import (
     CompiledArtifact,
     CompileEnqueueResponse,
     CreateVariantRequest,
+    EnsureVariantsRequest,
     ControlledTailoringRequest,
     ControlledTailoringProposalResponse,
     ControlledTailoringResponse,
@@ -588,6 +589,38 @@ async def create_variant(
         payload,
         base_content=base_content,
     )
+
+
+@router.post(
+    "/resume/{resume_id}/variants/ensure",
+    response_model=VariantListResponse,
+)
+async def ensure_variants(
+    resume_id: str,
+    request: Request,
+    payload: EnsureVariantsRequest,
+) -> VariantListResponse:
+    state = _state(request)
+    assert state.repository is not None
+    assert state.tailor_service is not None
+
+    master = await require_resume_owner(state.repository, resume_id, request)
+    base_content = await state.repository.get_base_profile(resume_id)
+
+    variants: list[ResumeVariantResponse] = []
+    for job in payload.jobs:
+        try:
+            variant = await state.tailor_service.ensure_draft_with_approved_patch(
+                resume_id,
+                master,
+                job,
+                base_content=base_content,
+            )
+        except VariantValidationError as exc:
+            raise HTTPException(status_code=400, detail=exc.errors) from exc
+        variants.append(variant)
+
+    return VariantListResponse(resume_id=resume_id, variants=variants)
 
 
 @router.get("/resume/{resume_id}/variants", response_model=VariantListResponse)
