@@ -15,7 +15,11 @@ Every schema here is **strict**: an unknown key is a rejection, not a warning. A
   "title": "Batch broadcast sending through Postmark",
   "summary": "One paragraph answering: what does this change do?",
   "lenses": ["architecture", "data-flow"],
-  "provenance": { "repo": { "owner": "…", "name": "…" }, "base": { "sha": "…" }, "head": { "sha": "…" } },
+  "provenance": {
+    "repo": { "owner": "…", "name": "…" },
+    "base": { "sha": "…" },
+    "head": { "sha": "…" }
+  },
   "lanes": [],
   "nodes": [],
   "edges": [],
@@ -44,7 +48,12 @@ Every node, edge, flow and flow step declares one: `added`, `modified`, `removed
 1 to 16. Every node belongs to exactly one.
 
 ```json
-{ "id": "functions", "label": "Cloud Functions", "subtitle": "Node 20", "order": 1 }
+{
+  "id": "functions",
+  "label": "Cloud Functions",
+  "subtitle": "Node 20",
+  "order": 1
+}
 ```
 
 `order` (0-64) places lanes left to right; ties fall back to array order. Give a lane a `delta` only when the lane itself is new or gone.
@@ -63,7 +72,13 @@ Every node, edge, flow and flow step declares one: `added`, `modified`, `removed
   "group": "broadcast-lib",
   "subtitle": "(broadcastId) => Promise<void>",
   "summary": "Claims the broadcast, builds one bulk payload and posts it.",
-  "files": [{ "path": "functions/src/broadcast/sendBroadcastBulk.ts", "startLine": 1, "endLine": 142 }],
+  "files": [
+    {
+      "path": "functions/src/broadcast/sendBroadcastBulk.ts",
+      "startLine": 1,
+      "endLine": 142
+    }
+  ],
   "badges": ["retry"]
 }
 ```
@@ -100,11 +115,37 @@ Up to 16, for the data-flow lens.
   "id": "send-pipeline",
   "title": "Sending a broadcast",
   "delta": "modified",
-  "participants": [{ "node": "queue-route" }, { "node": "send-broadcast-bulk" }, { "node": "postmark" }],
+  "participants": [
+    { "node": "queue-route" },
+    { "node": "send-broadcast-bulk" },
+    { "node": "postmark" }
+  ],
   "messages": [
-    { "id": "enqueue", "from": "queue-route", "to": "send-broadcast-bulk", "label": "enqueue job", "kind": "async", "delta": "modified" },
-    { "id": "send", "from": "send-broadcast-bulk", "to": "postmark", "label": "POST /email/bulk", "kind": "sync", "delta": "added", "repeat": 4 },
-    { "id": "accepted", "from": "postmark", "to": "send-broadcast-bulk", "label": "200 Accepted", "kind": "return", "delta": "added" }
+    {
+      "id": "enqueue",
+      "from": "queue-route",
+      "to": "send-broadcast-bulk",
+      "label": "enqueue job",
+      "kind": "async",
+      "delta": "modified"
+    },
+    {
+      "id": "send",
+      "from": "send-broadcast-bulk",
+      "to": "postmark",
+      "label": "POST /email/bulk",
+      "kind": "sync",
+      "delta": "added",
+      "repeat": 4
+    },
+    {
+      "id": "accepted",
+      "from": "postmark",
+      "to": "send-broadcast-bulk",
+      "label": "200 Accepted",
+      "kind": "return",
+      "delta": "added"
+    }
   ]
 }
 ```
@@ -118,7 +159,14 @@ Up to 16, for the data-flow lens.
 ## Stats
 
 ```json
-{ "filesChanged": 27, "additions": 1979, "deletions": 1370, "chips": [{ "label": "Postmark calls", "value": "500x fewer", "tone": "hero" }] }
+{
+  "filesChanged": 27,
+  "additions": 1979,
+  "deletions": 1370,
+  "chips": [
+    { "label": "Postmark calls", "value": "500x fewer", "tone": "hero" }
+  ]
+}
 ```
 
 Up to 8 chips, `tone` one of `neutral added modified removed hero`. Per-delta element counts are deliberately absent from the schema: they are derivable from the document, and a stored copy can only go stale.
@@ -134,7 +182,10 @@ The drill-down tree in the comment: up to 32 at the root, nesting up to 32 child
   "lens": "architecture",
   "summary": "What replaced the per-recipient loop.",
   "defaultOpen": false,
-  "scope": { "kind": "selection", "nodes": ["send-broadcast-bulk", "postmark"] },
+  "scope": {
+    "kind": "selection",
+    "nodes": ["send-broadcast-bulk", "postmark"]
+  },
   "children": []
 }
 ```
@@ -166,8 +217,17 @@ This compact fragment shows the shape. The selected ids refer to elements declar
       "defaultOpen": true,
       "scope": {
         "kind": "selection",
-        "nodes": ["shopper", "commerce-platform", "payment-provider", "fulfilment-system"],
-        "edges": ["shopper-to-commerce", "commerce-to-payment", "commerce-to-fulfilment"]
+        "nodes": [
+          "shopper",
+          "commerce-platform",
+          "payment-provider",
+          "fulfilment-system"
+        ],
+        "edges": [
+          "shopper-to-commerce",
+          "commerce-to-payment",
+          "commerce-to-fulfilment"
+        ]
       },
       "children": [
         {
@@ -176,8 +236,17 @@ This compact fragment shows the shape. The selected ids refer to elements declar
           "lens": "architecture",
           "scope": {
             "kind": "selection",
-            "nodes": ["storefront", "checkout-api", "orders-db", "payment-provider"],
-            "edges": ["storefront-to-checkout", "checkout-to-orders", "checkout-to-payment"]
+            "nodes": [
+              "storefront",
+              "checkout-api",
+              "orders-db",
+              "payment-provider"
+            ],
+            "edges": [
+              "storefront-to-checkout",
+              "checkout-to-orders",
+              "checkout-to-payment"
+            ]
           },
           "children": [
             {
@@ -217,7 +286,10 @@ Optional in the format, but write one for anything that is not trivial: more tha
         "heading": "Postmark now gets 500 emails per call",
         "body": "One call per batch, and Postmark answers with a result for each message.",
         "stage": { "kind": "flow", "flow": "send-pipeline" },
-        "focus": { "kind": "selection", "messages": ["batch-post", "batch-results"] }
+        "focus": {
+          "kind": "selection",
+          "messages": ["batch-post", "batch-results"]
+        }
       },
       {
         "id": "blast-radius",
@@ -252,7 +324,11 @@ The validator checks:
 ## Layout
 
 ```json
-{ "direction": "right", "laneOrder": ["api", "functions", "external"], "rank": { "send-broadcast-bulk": 2 } }
+{
+  "direction": "right",
+  "laneOrder": ["api", "functions", "external"],
+  "rank": { "send-broadcast-bulk": 2 }
+}
 ```
 
 Hints, not instructions: the renderer owns final placement, so a diagram stays deterministic and a stale hint cannot break it. Absolute coordinates are not expressible. Omitting `layout` entirely is normal.
@@ -260,7 +336,12 @@ Hints, not instructions: the renderer owns final placement, so a diagram stays d
 ## File references
 
 ```json
-{ "path": "functions/src/broadcast/sendBroadcastBulk.ts", "startLine": 1, "endLine": 142, "revision": "head" }
+{
+  "path": "functions/src/broadcast/sendBroadcastBulk.ts",
+  "startLine": 1,
+  "endLine": 142,
+  "revision": "head"
+}
 ```
 
 Repository-relative POSIX paths: no leading `/`, no drive letter, no backslash, no `..` segment. Lines are 1-based, `endLine` requires `startLine` and may not precede it. `revision` defaults to `head`; use `base` on elements the change removes.

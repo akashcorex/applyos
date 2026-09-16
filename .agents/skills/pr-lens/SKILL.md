@@ -1,6 +1,6 @@
 ---
 name: pr-lens
-description: "WHAT: Draws a code change or part of a codebase as an animated architecture or data-flow diagram, on its own or in a pull request. WHEN: asked to diagram, visualise or explain a change or a system, or when a pull request should carry a diagram. KEYWORDS: PR Lens, diagram, architecture, data flow, visualise, visualize, pull request"
+description: 'WHAT: Draws a code change or part of a codebase as an animated architecture or data-flow diagram, on its own or in a pull request. WHEN: asked to diagram, visualise or explain a change or a system, or when a pull request should carry a diagram. KEYWORDS: PR Lens, diagram, architecture, data flow, visualise, visualize, pull request'
 ---
 
 # PR Lens
@@ -144,11 +144,11 @@ Write every word for a smart twelve-year-old: short common words, one idea per l
 
 The same three steps, written well and written badly. Heading first, then the body after the slash:
 
-| Write this | Not this |
-| -------- | -------- |
+| Write this                                                                                                  | Not this                                                                                                                                                 |
+| ----------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Route now queues the job instead of sending / The API call finishes at once. A worker sends the mail later. | Broadcast fan-out moves behind the queue / The API route now enqueues broadcast jobs for asynchronous batch processing instead of sending emails inline. |
-| Postmark now gets 500 emails per call / One call per batch instead of one call per person. | Batched delivery replaces single sends / The worker leverages the shared library to send emails in chunks of 500 via Postmark's batch endpoint. |
-| processBroadcast and sendSingleEmail removed / sendBroadcastBulk does their job for whole batches. | Single send functions are retired / sendBroadcastBulk replaces processBroadcast and sendSingleEmail to handle bulk deliveries in chunks. |
+| Postmark now gets 500 emails per call / One call per batch instead of one call per person.                  | Batched delivery replaces single sends / The worker leverages the shared library to send emails in chunks of 500 via Postmark's batch endpoint.          |
+| processBroadcast and sendSingleEmail removed / sendBroadcastBulk does their job for whole batches.          | Single send functions are retired / sendBroadcastBulk replaces processBroadcast and sendSingleEmail to handle bulk deliveries in chunks.                 |
 
 Keep consecutive steps on the same stage together. Every change of stage flies the camera across the canvas, so a tour that alternates between two diagrams spends its time travelling.
 
@@ -165,12 +165,12 @@ The field arrived with contract 0.1.1. A CLI older than 0.4.0 does not know it a
 
 Read `references/graph-document.md` before writing. The four failures that account for nearly everything:
 
-| Code                         | What you did                                                         |
-| ---------------------------- | -------------------------------------------------------------------- |
+| Code                         | What you did                                                                      |
+| ---------------------------- | --------------------------------------------------------------------------------- |
 | `BROKEN_REFERENCE`           | an edge, a flow step, a view or a walkthrough step names an id you never declared |
-| `INVALID_DOCUMENT`           | an invented field; the schemas are strict, unknown keys are rejected |
-| `DUPLICATE_ID`               | two nodes, edges or views sharing an id                              |
-| `UNSUPPORTED_SCHEMA_VERSION` | `schemaVersion` is not the contract version installed                |
+| `INVALID_DOCUMENT`           | an invented field; the schemas are strict, unknown keys are rejected              |
+| `DUPLICATE_ID`               | two nodes, edges or views sharing an id                                           |
+| `UNSUPPORTED_SCHEMA_VERSION` | `schemaVersion` is not the contract version installed                             |
 
 Six rules cannot be expressed in JSON Schema and are checked only by the parser, so structured output alone does not make a document valid: referential integrity, a line range that ends before it starts, a `self` message whose endpoints disagree, a patch whose two commits are the same, more views than a render manifest could describe, and a walkthrough step focusing flow steps the diagram on its stage does not draw. Always validate.
 
@@ -185,7 +185,7 @@ map:
     - match: functions/src/broadcast/sendBroadcastBulk.ts
       to: Broadcast sender
   exclude:
-    - "**/*.test.ts"
+    - '**/*.test.ts'
   lane:
     - match: packages/broadcast-lib/**
       lane: functions

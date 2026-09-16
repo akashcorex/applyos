@@ -44,12 +44,7 @@
           "maximum": 52428800
         }
       },
-      "required": [
-        "fileName",
-        "storageKey",
-        "mimeType",
-        "fileSize"
-      ],
+      "required": ["fileName", "storageKey", "mimeType", "fileSize"],
       "additionalProperties": false
     },
     "resumeUpdate": {
@@ -63,13 +58,7 @@
         },
         "status": {
           "type": "string",
-          "enum": [
-            "UPLOADED",
-            "PROCESSING",
-            "COMPLETED",
-            "FAILED",
-            "ARCHIVED"
-          ]
+          "enum": ["UPLOADED", "PROCESSING", "COMPLETED", "FAILED", "ARCHIVED"]
         }
       },
       "additionalProperties": false
@@ -115,10 +104,7 @@
           "maxLength": 2000
         }
       },
-      "required": [
-        "type",
-        "message"
-      ],
+      "required": ["type", "message"],
       "additionalProperties": false
     },
     "applicationEventCreate": {
@@ -159,11 +145,7 @@
           "additionalProperties": {}
         }
       },
-      "required": [
-        "type",
-        "description",
-        "metadata"
-      ],
+      "required": ["type", "description", "metadata"],
       "additionalProperties": false
     },
     "workflowStart": {
@@ -307,12 +289,7 @@
           }
         }
       },
-      "required": [
-        "userId",
-        "resumeId",
-        "request",
-        "applications"
-      ],
+      "required": ["userId", "resumeId", "request", "applications"],
       "additionalProperties": false
     },
     "workflowStatusUpdate": {
@@ -438,11 +415,7 @@
           }
         }
       },
-      "required": [
-        "status",
-        "eventType",
-        "applications"
-      ],
+      "required": ["status", "eventType", "applications"],
       "additionalProperties": false
     },
     "outreachSend": {
@@ -470,11 +443,7 @@
           "maxLength": 256
         }
       },
-      "required": [
-        "to_email",
-        "subject",
-        "body"
-      ],
+      "required": ["to_email", "subject", "body"],
       "additionalProperties": false
     },
     "linkedinConnectBulk": {
@@ -572,9 +541,7 @@
           }
         }
       },
-      "required": [
-        "connects"
-      ],
+      "required": ["connects"],
       "additionalProperties": false
     },
     "jobApply": {
@@ -654,10 +621,7 @@
           "maxLength": 512
         }
       },
-      "required": [
-        "application_url",
-        "resume_id"
-      ],
+      "required": ["application_url", "resume_id"],
       "additionalProperties": false
     },
     "billingCheckout": {
@@ -666,19 +630,11 @@
       "properties": {
         "plan": {
           "type": "string",
-          "enum": [
-            "starter",
-            "pro",
-            "power"
-          ]
+          "enum": ["starter", "pro", "power"]
         },
         "interval": {
           "type": "string",
-          "enum": [
-            "monthly",
-            "quarterly",
-            "annual"
-          ]
+          "enum": ["monthly", "quarterly", "annual"]
         },
         "couponCode": {
           "type": "string",
@@ -687,10 +643,7 @@
         },
         "addOnPack": {
           "type": "string",
-          "enum": [
-            "plus_50",
-            "plus_150"
-          ]
+          "enum": ["plus_50", "plus_150"]
         }
       },
       "additionalProperties": false
