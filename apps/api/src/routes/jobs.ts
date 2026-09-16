@@ -379,13 +379,93 @@ jobsRouter.post('/discover', async (req, res) => {
     select: { jobId: true },
   });
   const savedIds = new Set(saved.map((item) => item.jobId));
+  const visibleJobs = persisted.jobs.slice(0, 10);
   res.status(200).json({
     sessionId: persisted.sessionId,
-    jobs: persisted.jobs.map((job) => ({
+    jobs: visibleJobs.map((job) => ({
       ...job,
       isSaved: savedIds.has(job.id),
     })),
+    totalJobs: persisted.jobs.length,
+    hasMore: visibleJobs.length < persisted.jobs.length,
     latencyMs,
+  });
+});
+
+jobsRouter.get('/discover/:id', async (req, res) => {
+  const parsed = jobListQuerySchema.safeParse({
+    limit: queryValue(req.query.limit),
+    offset: queryValue(req.query.offset),
+  });
+  if (!parsed.success) {
+    res.status(400).json({ error: errorMessage(parsed) });
+    return;
+  }
+
+  const me = authUserOf(req);
+  const profile = await confirmedProfile(me.id);
+  if (!profile) {
+    res.status(403).json({ error: 'A confirmed profile is required' });
+    return;
+  }
+
+  const session = await prisma.matchSession.findFirst({
+    where: { id: req.params.id, userId: me.id },
+    select: { topResults: true },
+  });
+  if (!session) {
+    res.status(404).json({ error: 'Match session not found' });
+    return;
+  }
+
+  const topResults = Array.isArray(session.topResults)
+    ? session.topResults.filter(
+        (
+          item,
+        ): item is {
+          jobId: string;
+          dedupKey: string;
+          score?: number;
+          reason?: string;
+        } =>
+          Boolean(item) &&
+          typeof item === 'object' &&
+          typeof (item as { jobId?: unknown }).jobId === 'string' &&
+          typeof (item as { dedupKey?: unknown }).dedupKey === 'string',
+      )
+    : [];
+  const limit = Math.min(parsed.data.limit, 20);
+  const page = topResults.slice(parsed.data.offset, parsed.data.offset + limit);
+  const jobs = await prisma.job.findMany({
+    where: { id: { in: page.map((item) => item.jobId) } },
+  });
+  const jobsById = new Map(jobs.map((job) => [job.id, job]));
+  const saved = await prisma.savedJob.findMany({
+    where: {
+      userId: me.id,
+      jobId: { in: page.map((item) => item.jobId) },
+    },
+    select: { jobId: true },
+  });
+  const savedIds = new Set(saved.map((item) => item.jobId));
+
+  res.status(200).json({
+    jobs: page.flatMap((item) => {
+      const job = jobsById.get(item.jobId);
+      return job
+        ? [
+            {
+              ...savedJobResponse(job, savedIds.has(job.id)),
+              score: item.score ?? 0,
+              reason: item.reason ?? null,
+            },
+          ]
+        : [];
+    }),
+    totalJobs: topResults.length,
+    hasMore: parsed.data.offset + page.length < topResults.length,
+    offset: parsed.data.offset,
+    limit,
   });
 });
 
