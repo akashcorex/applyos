@@ -328,3 +328,62 @@ async def test_ensure_draft_preserves_ready_variant() -> None:
     assert result.status == "ready"
     repo.update_job_metadata.assert_awaited_once()
     service.update_variant.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_reject_variant_regenerates_keyword_patch() -> None:
+    content = _sample_content()
+    master = ResumeRecord(
+        user_id="user-1",
+        full_name="Jane Doe",
+        email="jane@example.com",
+        skills=content.skills,
+        experience_years=5,
+    )
+    request = _sample_request()
+    ready = ResumeVariantResponse(
+        id="var-1",
+        resume_id="res-1",
+        user_id="user-1",
+        dedup_key=request.dedup_key,
+        job_title=request.job_title,
+        company_name=request.company_name,
+        status="ready",
+        content=content,
+        suggestions=VariantSuggestions(suggestions=[], overall_assessment=""),
+        patch_id="patch-old",
+        artifact_id="artifact-old",
+    )
+    reset = ready.model_copy(
+        update={"status": "draft", "patch_id": None, "artifact_id": None}
+    )
+    refreshed = reset.model_copy(update={"patch_id": "patch-new"})
+
+    repo = MagicMock()
+    repo.reset_for_reject = AsyncMock(return_value=reset)
+
+    service = TailorService(repo)
+    service._generate_suggestions = AsyncMock(
+        return_value=VariantSuggestions(
+            suggestions=[
+                SuggestionWithId(
+                    id="s0",
+                    section="skills",
+                    current="Docker, Python, PostgreSQL",
+                    suggested="Python, PostgreSQL, Docker",
+                    reason="Prioritize Python",
+                    confidence=0.9,
+                    risk="low",
+                    operation="reorder_skills",
+                )
+            ],
+            overall_assessment="Retry",
+        )
+    )
+    service.update_variant = AsyncMock(return_value=refreshed)
+
+    result = await service.reject_variant("res-1", master, ready)
+
+    assert result.patch_id == "patch-new"
+    repo.reset_for_reject.assert_awaited_once()
+    service.update_variant.assert_awaited_once()

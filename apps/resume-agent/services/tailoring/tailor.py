@@ -269,6 +269,46 @@ class TailorService:
             }
         )
 
+    async def reject_variant(
+        self,
+        resume_id: str,
+        master: ResumeRecord,
+        variant: ResumeVariantResponse,
+    ) -> ResumeVariantResponse:
+        request = CreateVariantRequest(
+            dedup_key=variant.dedup_key,
+            job_title=variant.job_title or "Role",
+            company_name=variant.company_name or "Company",
+            job_description=variant.job_description,
+            missing_skills=(
+                variant.match_score_meta.missing_skills
+                if variant.match_score_meta
+                else []
+            ),
+            matched_skills=(
+                variant.match_score_meta.matched_skills
+                if variant.match_score_meta
+                else []
+            ),
+        )
+        suggestions = await self._generate_suggestions(
+            resume_id=resume_id,
+            request=request,
+            content=variant.content,
+            include_llm=False,
+        )
+        reset = await self._repo.reset_for_reject(
+            resume_id,
+            variant.id,
+            suggestions=suggestions,
+        )
+        accepted = safe_suggestion_ids(suggestions.suggestions)
+        return await self.update_variant(
+            resume_id,
+            reset,
+            accepted_suggestion_ids=accepted or None,
+        )
+
     async def finalize_variant(
         self,
         resume_id: str,
