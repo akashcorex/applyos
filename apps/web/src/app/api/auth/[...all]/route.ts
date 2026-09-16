@@ -14,6 +14,8 @@ const HOP_BY_HOP = new Set([
   'upgrade',
   'host',
   'content-length',
+  'accept-encoding',
+  'content-encoding',
 ]);
 
 function apiHost(): string {
@@ -36,6 +38,7 @@ async function proxyAuth(
       headers.set(key, value);
     }
   });
+  headers.set('accept-encoding', 'identity');
   headers.set('origin', req.headers.get('origin') ?? req.nextUrl.origin);
   headers.set('x-forwarded-host', req.nextUrl.host);
   headers.set('x-forwarded-proto', req.nextUrl.protocol.replace(':', ''));
