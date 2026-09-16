@@ -135,7 +135,9 @@ export function ResumeAutoApplyCard({
           cache: 'no-store',
         });
         const data = (await response.json().catch(() => null)) as
-          ParsedResume | { error?: string } | null;
+          | ParsedResume
+          | { error?: string }
+          | null;
         if (!response.ok || !data || !('resume_id' in data)) return;
         if (!cancelled) setResume(data);
       } catch {

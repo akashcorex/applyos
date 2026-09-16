@@ -38,10 +38,7 @@ export async function GET(request: Request) {
       (row) => row.status === 'COMPLETED' && row.resumeId,
     );
     if (!latest?.id || !latest.resumeId) {
-      return Response.json(
-        { error: 'No processed resume found' },
-        { status: 404 },
-      );
+      return Response.json({ error: 'No processed resume found' }, { status: 404 });
     }
 
     const [resumeRes, extractionRes] = await Promise.all([
