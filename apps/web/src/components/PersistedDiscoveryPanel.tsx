@@ -35,6 +35,8 @@ interface Job {
 interface DiscoveryResponse {
   sessionId: string;
   jobs: Job[];
+  totalJobs: number;
+  hasMore: boolean;
   latencyMs: number;
 }
 
@@ -49,8 +51,11 @@ export function PersistedDiscoveryPanel() {
   const [query, setQuery] = useState('');
   const [jobs, setJobs] = useState<Job[]>([]);
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [totalJobs, setTotalJobs] = useState(0);
+  const [loadedCount, setLoadedCount] = useState(0);
   const [selected, setSelected] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [staging, setStaging] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -124,14 +129,42 @@ export function PersistedDiscoveryPanel() {
       }
       setSessionId(data.sessionId);
       setJobs(data.jobs ?? []);
+      setTotalJobs(data.totalJobs ?? data.jobs?.length ?? 0);
+      setLoadedCount(data.jobs?.length ?? 0);
       setSelected([]);
       setMessage(
-        `${data.jobs?.length ?? 0} persisted matches found in ${data.latencyMs}ms`,
+        `${data.totalJobs ?? data.jobs?.length ?? 0} persisted matches found in ${data.latencyMs}ms`,
       );
     } catch {
       setError('Job discovery service is unavailable');
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function loadMore() {
+    if (!sessionId || loadingMore || loadedCount >= totalJobs) return;
+    setLoadingMore(true);
+    setError(null);
+    try {
+      const response = await fetch(
+        `/api/jobs/discover/${encodeURIComponent(sessionId)}?limit=20&offset=${loadedCount}`,
+        { cache: 'no-store' },
+      );
+      const data = (await response.json()) as DiscoveryResponse & {
+        error?: string;
+      };
+      if (!response.ok) {
+        setError(data.error ?? 'Could not load more jobs');
+        return;
+      }
+      setJobs((current) => [...current, ...(data.jobs ?? [])]);
+      setLoadedCount((current) => current + (data.jobs?.length ?? 0));
+      setTotalJobs(data.totalJobs ?? totalJobs);
+    } catch {
+      setError('Could not load more jobs');
+    } finally {
+      setLoadingMore(false);
     }
   }
 
@@ -345,6 +378,17 @@ export function PersistedDiscoveryPanel() {
             </div>
           ))}
         </div>
+        {sessionId && loadedCount < totalJobs ? (
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full"
+            onClick={() => void loadMore()}
+            disabled={loadingMore}
+          >
+            {loadingMore ? 'Loading more…' : 'See more jobs'}
+          </Button>
+        ) : null}
         {selectedJobs.length > 0 ? (
           <div className="flex items-center justify-between rounded-md bg-slate-100 px-3 py-2 dark:bg-[#1b1c20]">
             <span className="text-xs font-medium">

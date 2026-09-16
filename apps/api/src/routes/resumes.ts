@@ -280,6 +280,16 @@ resumesRouter.get('/', async (req, res) => {
     orderBy: { createdAt: 'desc' },
     take: limit,
     include: {
+      resume: {
+        select: {
+          id: true,
+          fullName: true,
+          email: true,
+          preferredRole: true,
+          experienceYears: true,
+          skills: true,
+        },
+      },
       extractions: {
         orderBy: { revisionNumber: 'desc' },
         take: 1,

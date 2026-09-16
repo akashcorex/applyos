@@ -508,9 +508,13 @@ export function ResumeAutoApplyCard({
             <div className="flex items-center gap-2">
               <Badge variant="outline">1</Badge>
               <div>
-                <p className="text-sm font-medium">Upload resume</p>
+                <p className="text-sm font-medium">
+                  {resume ? 'Saved resume' : 'Upload resume'}
+                </p>
                 <p className="text-xs text-muted-foreground">
-                  Parse a PDF or DOCX before matching jobs.
+                  {resume
+                    ? 'Your onboarding resume is ready. Replace it only if needed.'
+                    : 'Parse a PDF or DOCX before matching jobs.'}
                 </p>
               </div>
             </div>
