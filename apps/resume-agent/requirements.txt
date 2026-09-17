@@ -290,7 +290,7 @@ pydantic-settings==2.14.2
     # via
     #   chromadb
     #   resume-agent
-pygments==2.20.0
+pygments==2.21.0
     # via rich
 pypdfium2==5.11.0
     # via pdfplumber
