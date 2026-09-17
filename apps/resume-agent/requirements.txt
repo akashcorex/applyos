@@ -260,7 +260,7 @@ protobuf==7.36.1
     #   googleapis-common-protos
     #   onnxruntime
     #   opentelemetry-proto
-psycopg==3.3.4
+psycopg==3.3.5
     # via langchain-postgres
 psycopg-binary==3.3.4 ; implementation_name != 'pypy'
     # via psycopg
