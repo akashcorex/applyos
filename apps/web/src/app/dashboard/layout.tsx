@@ -113,7 +113,7 @@ export default function DashboardAppLayout({
 
   if (isPending) {
     return (
-      <main className="min-h-screen bg-[#f0f2f5] dark:bg-[#09090A] p-6 flex items-center justify-center text-slate-900 dark:text-[#f1f3f9] transition-colors duration-150">
+      <main className="min-h-screen bg-[#f0f2f5] dark:bg-[#09090b] p-6 flex items-center justify-center text-slate-900 dark:text-[#f4f4f5] transition-colors duration-150">
         <DashboardSkeleton />
       </main>
     );
@@ -121,7 +121,7 @@ export default function DashboardAppLayout({
 
   if (!session) {
     return (
-      <main className="min-h-screen bg-[#f0f2f5] dark:bg-[#09090A] p-6 flex flex-col items-center justify-center gap-3 text-slate-900 dark:text-[#f1f3f9]">
+      <main className="min-h-screen bg-[#f0f2f5] dark:bg-[#09090b] p-6 flex flex-col items-center justify-center gap-3 text-slate-900 dark:text-[#f4f4f5]">
         <p className="text-sm font-medium">Could not load your session.</p>
         <button
           type="button"
@@ -136,7 +136,7 @@ export default function DashboardAppLayout({
 
   if (!adminChecked) {
     return (
-      <main className="min-h-screen bg-[#f0f2f5] dark:bg-[#09090A] p-6 flex items-center justify-center text-slate-900 dark:text-[#f1f3f9] transition-colors duration-150">
+      <main className="min-h-screen bg-[#f0f2f5] dark:bg-[#09090b] p-6 flex items-center justify-center text-slate-900 dark:text-[#f4f4f5] transition-colors duration-150">
         <DashboardSkeleton />
       </main>
     );
@@ -145,7 +145,7 @@ export default function DashboardAppLayout({
   const currentTitle = titleFor(pathname);
 
   return (
-    <div className="flex h-screen w-full bg-[#f0f2f5] dark:bg-[#09090A] text-slate-900 dark:text-[#f1f3f9] overflow-hidden font-sans antialiased transition-colors duration-150">
+    <div className="flex h-screen w-full bg-[#f0f2f5] dark:bg-[#070709] text-slate-900 dark:text-[#f4f4f5] overflow-hidden font-sans antialiased transition-colors duration-150">
       {/* Desktop Sidebar */}
       <div className="hidden md:flex h-full shrink-0">
         <AppSidebar
@@ -162,10 +162,10 @@ export default function DashboardAppLayout({
       {sidebarOpen ? (
         <div className="fixed inset-0 z-40 md:hidden flex">
           <div
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm transition-opacity"
             onClick={() => setSidebarOpen(false)}
           />
-          <div className="relative z-50 w-64 h-full bg-[#f0f2f5] dark:bg-[#09090A] shadow-2xl border-r border-slate-200 dark:border-[#22242a]">
+          <div className="relative z-50 w-64 h-full bg-[#f0f2f5] dark:bg-[#0c0c0e] shadow-2xl border-r border-slate-200 dark:border-[#27272a]">
             <AppSidebar
               userName={session.user.name}
               userEmail={session.user.email}
@@ -178,8 +178,8 @@ export default function DashboardAppLayout({
         </div>
       ) : null}
 
-      {/* Main Workspace Area with Sidebar-Facing Corner Curves (Top-Left & Bottom-Left Only) */}
-      <div className="flex-1 flex flex-col h-full md:my-2 md:h-[calc(100vh-1rem)] overflow-hidden bg-white dark:bg-[#09090A] md:rounded-l-2xl md:rounded-r-none md:border-l md:border-y md:border-r-0 border-slate-200/80 dark:border-[#22242a] shadow-xl dark:shadow-2xl transition-colors duration-150">
+      {/* Main Workspace Area with Sidebar-Facing Corner Curves */}
+      <div className="flex-1 flex flex-col h-full md:my-2 md:h-[calc(100vh-1rem)] overflow-hidden bg-white dark:bg-[#0e0e11] md:rounded-l-2xl md:rounded-r-none md:border-l md:border-y md:border-r-0 border-slate-200/80 dark:border-[#232328] shadow-xl dark:shadow-2xl transition-colors duration-150">
         {/* Single Unified Linear Header Bar */}
         <DashboardHeader
           currentTitle={currentTitle}
@@ -190,7 +190,7 @@ export default function DashboardAppLayout({
         />
 
         {/* Scrollable Page Workspace */}
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-6 bg-white dark:bg-[#09090A] transition-colors duration-150">
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-6 bg-white dark:bg-[#0e0e11] transition-colors duration-150">
           {children}
         </main>
       </div>

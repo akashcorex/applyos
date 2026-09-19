@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { Menu, X } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
@@ -34,9 +35,11 @@ const Navbar = () => {
           <div className="relative flex flex-wrap items-center justify-between gap-6 py-1 lg:gap-0">
             <div className="flex w-full justify-between lg:w-auto">
               <Link href="/" className="flex items-center gap-2">
-                <img
+                <Image
                   src="/logo-white.png"
                   alt="ApplyOS"
+                  width={120}
+                  height={32}
                   className="mt-1 h-8 w-auto object-contain"
                 />
               </Link>

@@ -3,6 +3,7 @@
 import type { ReactNode } from 'react';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { FileSearch, MessageCircle, Zap } from 'lucide-react';
 
 const highlights = [
@@ -36,9 +37,11 @@ export function AuthCardLayout({ children }: { children: ReactNode }) {
 
           <div className="relative z-10 space-y-8">
             <Link href="/" className="inline-flex items-center">
-              <img
+              <Image
                 src="/logo-white.png"
                 alt="ApplyOS"
+                width={120}
+                height={32}
                 className="h-8 w-auto object-contain"
               />
             </Link>

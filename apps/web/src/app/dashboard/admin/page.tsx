@@ -136,6 +136,7 @@ export default function AdminOverviewPage() {
       </div>
 
       <DashboardOverview
+        showRecent={false}
         stats={[
           {
             label: 'Users',

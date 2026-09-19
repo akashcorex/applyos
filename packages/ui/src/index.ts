@@ -20,6 +20,16 @@ export { Avatar, AvatarImage, AvatarFallback } from './avatar';
 export { Tabs, TabsList, TabsTrigger, TabsContent } from './tabs';
 export { Label } from './label';
 export { Skeleton } from './skeleton';
+export {
+  Table,
+  TableHeader,
+  TableBody,
+  TableFooter,
+  TableHead,
+  TableRow,
+  TableCell,
+  TableCaption,
+} from './table';
 export { cn } from './utils';
 export {
   Toast,

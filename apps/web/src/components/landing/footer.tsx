@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { CiHeart } from 'react-icons/ci';
 
 const Footer = () => {
@@ -10,9 +11,11 @@ const Footer = () => {
         <div>
           <div className="mb-2 flex">
             <Link href="/" className="flex items-center">
-              <img
+              <Image
                 src="/logo-white.png"
                 alt="ApplyOS"
+                width={120}
+                height={32}
                 className="h-8 w-auto object-contain"
               />
             </Link>

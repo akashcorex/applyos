@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { Loader2 } from 'lucide-react';
 
 import { AuthCardLayout } from '@/components/auth/AuthCardLayout';
@@ -78,9 +79,11 @@ export default function AuthForm() {
         <div className="text-center">
           <div className="mb-6 flex justify-center">
             <Link href="/">
-              <img
+              <Image
                 src="/logo-white.png"
                 alt="ApplyOS"
+                width={48}
+                height={48}
                 className="h-12 w-12 object-contain"
               />
             </Link>

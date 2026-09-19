@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 
 import {
@@ -11,15 +12,16 @@ import {
   ClipboardList,
   CreditCard,
   FileText,
+  HelpCircle,
   Inbox,
   Layers,
   LogOut,
+  Mail,
+  Plus,
   Search,
   Send,
   Settings,
   Shield,
-  Sliders,
-  User,
   Users,
 } from 'lucide-react';
 
@@ -143,7 +145,7 @@ function SectionLabel({
 }) {
   if (hidden) return null;
   return (
-    <span className="block px-2 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-[#656a7b]">
+    <span className="block px-3 pt-3 pb-1 text-[11px] font-medium uppercase tracking-wider text-slate-400 dark:text-[#71717a]">
       {children}
     </span>
   );
@@ -251,16 +253,21 @@ export function AppSidebar({
   const accountItems = isAdminNav
     ? []
     : [
-        { href: '/dashboard/settings', label: 'Profile', icon: User },
+        { href: '/dashboard/settings', label: 'Settings', icon: Settings },
+        {
+          href: 'mailto:support@applyos.in',
+          label: 'Get Help',
+          icon: HelpCircle,
+        },
+        {
+          href: '/dashboard/discovery',
+          label: 'Search',
+          icon: Search,
+        },
         {
           href: '/dashboard/settings/billing',
           label: 'Plans & Billing',
           icon: CreditCard,
-        },
-        {
-          href: '/dashboard/settings/preferences',
-          label: 'Preferences',
-          icon: Sliders,
         },
         {
           href: '/dashboard/settings/security',
@@ -284,12 +291,12 @@ export function AppSidebar({
     <aside
       className={`${
         isCollapsed ? 'w-[60px]' : 'w-60'
-      } bg-[#f0f2f5] dark:bg-[#09090A] flex flex-col h-full shrink-0 select-none text-slate-900 dark:text-[#f1f3f9] font-sans transition-all duration-200 ease-in-out`}
+      } bg-[#f0f2f5] dark:bg-[#171717] border-r border-slate-200/80 dark:border-[#242424] flex flex-col h-full shrink-0 select-none text-slate-900 dark:text-[#f4f4f5] font-sans transition-all duration-200 ease-in-out`}
     >
       <div
         className={`h-[50px] px-3 flex items-center shrink-0 ${
           isCollapsed ? 'justify-center' : 'justify-between'
-        } bg-[#f0f2f5] dark:bg-[#09090A]`}
+        } bg-[#f0f2f5] dark:bg-[#171717]`}
       >
         {isCollapsed ? (
           <button
@@ -297,11 +304,13 @@ export function AppSidebar({
             onClick={onToggleCollapse}
             aria-label="Expand sidebar"
             title="Expand sidebar"
-            className="flex h-8 w-8 items-center justify-center rounded-[8px] bg-white dark:bg-[#16171b] border border-slate-200 dark:border-[#282a32] p-1.5 text-slate-900 dark:text-white shadow-sm hover:border-slate-300 dark:hover:border-[#383b47] hover:scale-105 transition-all cursor-pointer group"
+            className="flex h-8 w-8 items-center justify-center rounded-[8px] bg-white dark:bg-[#202020] border border-slate-200 dark:border-[#303030] p-1.5 text-slate-900 dark:text-white shadow-sm hover:border-slate-300 dark:hover:border-[#454545] hover:scale-105 transition-all cursor-pointer group"
           >
-            <img
+            <Image
               src="/favicon.ico"
               alt="ApplyOS"
+              width={32}
+              height={32}
               className="h-full w-full rounded-[4px] object-contain group-hover:hidden"
             />
             <ExpandIcon className="w-3.5 h-3.5 text-slate-700 dark:text-slate-200 hidden group-hover:block" />
@@ -312,9 +321,11 @@ export function AppSidebar({
               href={isAdminNav ? '/dashboard/admin' : '/'}
               className="flex items-center gap-2.5 group truncate min-w-0"
             >
-              <img
+              <Image
                 src="/logo-white.png"
                 alt="ApplyOS"
+                width={100}
+                height={16}
                 className="h-[16px] w-auto shrink-0 object-contain invert transition-transform duration-150 group-hover:scale-[1.03] dark:invert-0 pl-2"
               />
             </Link>
@@ -333,8 +344,42 @@ export function AppSidebar({
         )}
       </div>
 
+      {/* Quick Create Button (Matching Dashboard-01 Screenshot) */}
+      {!isAdminNav ? (
+        <div className="px-3 pt-1 pb-2 shrink-0">
+          {isCollapsed ? (
+            <div className="flex justify-center">
+              <Link
+                href="/dashboard/auto-apply"
+                title="Quick Create"
+                className="h-8.5 w-8.5 flex items-center justify-center rounded-xl bg-slate-900 text-white dark:bg-[#f4f4f5] dark:text-black font-semibold text-xs shadow-sm hover:bg-slate-800 dark:hover:bg-white transition-colors"
+              >
+                <Plus className="h-4 w-4 stroke-[2.5]" />
+              </Link>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5">
+              <Link
+                href="/dashboard/auto-apply"
+                className="flex-1 inline-flex items-center justify-center gap-1.5 h-8.5 rounded-xl bg-slate-900 text-white dark:bg-[#f4f4f5] dark:text-black font-bold text-xs shadow-sm hover:bg-slate-800 dark:hover:bg-white transition-colors px-3 py-1.5"
+              >
+                <Plus className="h-3.5 w-3.5 stroke-[2.5]" />
+                <span>Quick Create</span>
+              </Link>
+              <button
+                type="button"
+                aria-label="Quick Messages"
+                className="h-8.5 w-8.5 shrink-0 rounded-xl border border-slate-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-slate-600 dark:text-[#a1a1aa] hover:text-slate-900 dark:hover:text-white flex items-center justify-center transition-colors cursor-pointer"
+              >
+                <Mail className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          )}
+        </div>
+      ) : null}
+
       <nav aria-label="Primary" className="flex-1 overflow-y-auto">
-        <div className="flex flex-col gap-1 border-b border-slate-200/60 dark:border-white/[0.06] px-2.5 py-2">
+        <div className="flex flex-col gap-1 border-b border-slate-200/60 dark:border-[#242424] px-2.5 py-2">
           <ul className="flex flex-col gap-1">
             {workspaceItems.map((item) => (
               <NavLink
@@ -348,7 +393,7 @@ export function AppSidebar({
           </ul>
         </div>
         {workflowItems.length > 0 ? (
-          <div className="flex flex-col gap-1 border-b border-slate-200/60 dark:border-white/[0.06] px-2.5 py-2">
+          <div className="flex flex-col gap-1 border-b border-slate-200/60 dark:border-[#242424] px-2.5 py-2">
             <SectionLabel hidden={isCollapsed}>Workflow</SectionLabel>
             <ul className="flex flex-col gap-1">
               {workflowItems.map((item) => (
@@ -366,15 +411,35 @@ export function AppSidebar({
       </nav>
 
       <div
-        className={`${isCollapsed ? 'p-1.5' : 'px-3 py-3'} space-y-1 bg-[#f0f2f5] dark:bg-[#09090A]`}
+        className={`${isCollapsed ? 'p-1.5' : 'px-3 py-3'} space-y-1 bg-[#f0f2f5] dark:bg-[#171717]`}
       >
         {isAdminNav ? null : (
-          <ul className="flex flex-col gap-[6px]">
+          <ul className="flex flex-col gap-[4px] border-b border-slate-200/60 dark:border-[#242424] pb-2 mb-2">
             <NavLink
               item={{
                 href: '/dashboard/settings',
                 label: 'Settings',
                 icon: Settings,
+              }}
+              pathname={pathname}
+              isCollapsed={isCollapsed}
+              onNavigate={onNavigate}
+            />
+            <NavLink
+              item={{
+                href: 'mailto:support@applyos.in',
+                label: 'Get Help',
+                icon: HelpCircle,
+              }}
+              pathname={pathname}
+              isCollapsed={isCollapsed}
+              onNavigate={onNavigate}
+            />
+            <NavLink
+              item={{
+                href: '/dashboard/discovery',
+                label: 'Search',
+                icon: Search,
               }}
               pathname={pathname}
               isCollapsed={isCollapsed}
@@ -386,7 +451,7 @@ export function AppSidebar({
         <div ref={accountRef} className="relative">
           {accountOpen ? (
             <div
-              className={`absolute z-30 mb-2 origin-bottom overflow-hidden rounded-[10px] border border-slate-200 bg-white shadow-[var(--sidebar-nav-active-shadow)] dark:border-[#282a32] dark:bg-[#16171b] ${
+              className={`absolute z-30 mb-2 origin-bottom overflow-hidden rounded-[10px] border border-slate-200 bg-white shadow-[var(--sidebar-nav-active-shadow)] dark:border-[#303030] dark:bg-[#202020] ${
                 isCollapsed
                   ? 'bottom-0 left-full ml-2 w-48 origin-bottom-left'
                   : 'bottom-full left-0 right-0'
@@ -402,8 +467,8 @@ export function AppSidebar({
                     onClick={closeAccount}
                     className={`flex items-center gap-2.5 px-3 py-2 text-xs font-medium transition-colors ${
                       isActive
-                        ? 'bg-slate-100 text-slate-950 dark:bg-[#1c1d21] dark:text-white'
-                        : 'text-slate-600 hover:bg-slate-50 hover:text-slate-950 dark:text-[#8a8f9d] dark:hover:bg-[#141518] dark:hover:text-[#f1f3f9]'
+                        ? 'bg-slate-100 text-slate-950 dark:bg-[#303030] dark:text-white'
+                        : 'text-slate-600 hover:bg-slate-50 hover:text-slate-950 dark:text-[#a1a1aa] dark:hover:bg-[#2a2a2a] dark:hover:text-white'
                     }`}
                   >
                     <Icon className="h-3.5 w-3.5 shrink-0" />
@@ -417,9 +482,9 @@ export function AppSidebar({
                   setAccountOpen(false);
                   onSignOut();
                 }}
-                className={`flex w-full items-center gap-2.5 px-3 py-2 text-left text-xs font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-950 dark:text-[#8a8f9d] dark:hover:bg-[#141518] dark:hover:text-[#f1f3f9] ${
+                className={`flex w-full items-center gap-2.5 px-3 py-2 text-left text-xs font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-950 dark:text-[#a1a1aa] dark:hover:bg-[#2a2a2a] dark:hover:text-white ${
                   accountItems.length > 0
-                    ? 'border-t border-slate-200 dark:border-[#282a32]'
+                    ? 'border-t border-slate-200 dark:border-[#303030]'
                     : ''
                 }`}
               >
@@ -439,7 +504,7 @@ export function AppSidebar({
             }
             className={`w-full flex items-center ${
               isCollapsed ? 'justify-center p-1.5' : 'gap-2.5 px-2.5 py-2'
-            } rounded-[9px] bg-white dark:bg-[#14151a] border border-slate-200 dark:border-white/10 hover:border-slate-300 dark:hover:border-white/20 shadow-sm transition-[transform,box-shadow,border-color] duration-150 ease-power3-out active:scale-[0.96]`}
+            } rounded-[9px] bg-white dark:bg-[#202020] border border-slate-200 dark:border-[#303030] hover:border-slate-300 dark:hover:border-[#454545] shadow-sm transition-[transform,box-shadow,border-color] duration-150 ease-power3-out active:scale-[0.96]`}
           >
             <DitherAvatar name={seedName} size={26} bloom="low" />
             {!isCollapsed && (
