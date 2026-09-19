@@ -1,98 +1,154 @@
-'use client';
+"use client";
 
-import { useState, type FormEvent } from 'react';
+import { cn } from "@/lib/utils";
+import { motion } from "motion/react";
+import Image from "next/image";
+import AnalyticsPreview from "./demo/analyticspreview";
+import Herobuttons from "./hero-buttons";
+import TechStackSection from "./techstacksection";
+import HeroBadge from "./herobadge";
 
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-
-import { ArrowRight, CheckCircle2, Mail } from 'lucide-react';
-
-import { Button, Input } from '@applyso/ui';
-
-export function HeroSection() {
-  const router = useRouter();
-  const [email, setEmail] = useState('');
-
-  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const trimmed = email.trim();
-    router.push(
-      trimmed ? `/signup?email=${encodeURIComponent(trimmed)}` : '/signup',
-    );
-  };
-
+const HeroSection = () => {
   return (
-    <main className="relative z-10 flex-1 flex items-center px-6 sm:px-10 lg:px-16 py-6">
-      <div className="flex max-w-2xl flex-col items-start text-left">
-        <div className="mb-2 flex items-center gap-2.5 text-white/80">
-          <span className="flex h-5 w-5 items-center justify-center rounded-[4px] bg-[#FF6600] text-[12px] font-black text-white leading-none">
-            Y
-          </span>
-          <span className="text-sm font-medium tracking-[-0.02em]">
-            Not backed by YC. Yet.
-          </span>
-        </div>
-
-        <h1 className="text-balance text-[clamp(3.4rem,5.8vw,5.2rem)] font-medium leading-[0.88] tracking-[-0.05em] text-white antialiased [text-shadow:_0_1px_1px_rgba(0,0,0,0.35),_0_0_1px_rgba(255,255,255,0.1)]">
-          Your AI applies
-          <span className="block">while you study.</span>
-        </h1>
-
-        <p className="mt-3 max-w-[34rem] text-base leading-relaxed text-white/70 antialiased">
-          Be first to every opportunity that matters. ApplyOS finds high-growth
-          roles, tailors your applications, and reaches out automatically.
-        </p>
-
-        <div className="mt-5 w-full max-w-[30rem]">
-          <form
-            onSubmit={handleSubmit}
-            className="group relative flex w-full items-center rounded-full border border-white/20 bg-slate-950/40 p-1 shadow-lg backdrop-blur-xl transition-all focus-within:border-white/40 focus-within:bg-slate-950/60 focus-within:ring-2 focus-within:ring-white/10"
-          >
-            <div className="relative flex flex-1 items-center pl-3">
-              <Mail className="h-3.5 w-3.5 text-white/50 transition-colors group-focus-within:text-white/90" />
-              <Input
-                type="email"
-                placeholder="Enter your work email..."
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="h-9 border-0 bg-transparent pl-2.5 pr-2 text-sm font-medium text-white placeholder:text-white/45 shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
-              />
+    <div className="mx-auto flex min-h-[100vh] flex-col items-center justify-center">
+      <div
+        className={cn(
+          "flex h-full min-h-[99.5vh] w-full max-w-[99.5%] justify-center rounded-b-2xl",
+          "bg-[radial-gradient(125%_125%_at_50%_101%,rgba(80,140,240,0.7)_0%,rgba(60,120,220,0.6)_15%,rgba(40,90,200,0.5)_30%,rgba(0,0,0,0.5)_50%,rgba(0,0,0,1)_70%,rgba(0,0,0,1)_100%)]",
+        )}
+      >
+        <div
+          className={cn(
+            "mt-tab mt-24 flex h-full min-h-[99.5vh] w-full flex-col justify-center rounded-b-2xl sm:mt-48 md:mt-48 lg:mt-0 lg:flex-row",
+          )}
+        >
+          <div className="flex lg:flex-[2]">
+            <div className="flex flex-col justify-center space-y-5 pl-6 lg:mx-auto lg:max-w-[32rem] xl:pl-2">
+              <HeroBadge />
+              <motion.h1
+                initial={{
+                  opacity: 0,
+                  y: 8,
+                  filter: "blur(10px)",
+                }}
+                animate={{
+                  opacity: 1,
+                  y: 0,
+                  filter: "blur(0px)",
+                }}
+                transition={{
+                  duration: 0.3,
+                  ease: "easeInOut",
+                }}
+                viewport={{ once: true }}
+                className="max-w-lg whitespace-pre-wrap text-balance font-sans text-4xl font-bold tracking-tight text-white md:max-w-2xl md:text-5xl"
+              >
+                Your AI applies while you study
+              </motion.h1>
+              <motion.p
+                initial={{
+                  opacity: 0,
+                  y: 8,
+                  filter: "blur(10px)",
+                }}
+                animate={{
+                  opacity: 1,
+                  y: 0,
+                  filter: "blur(0px)",
+                }}
+                transition={{
+                  duration: 0.3,
+                  delay: 0.1,
+                  ease: "easeInOut",
+                }}
+                viewport={{ once: true }}
+                className="max-w-sm text-balance text-[0.95rem] text-neutral-400 sm:max-w-lg md:text-[1.1rem] lg:max-w-md"
+              >
+                Be first to every opportunity that matters. ApplyOS finds
+                high-growth roles, tailors your applications, and reaches out
+                automatically.
+              </motion.p>
+              <motion.div
+                initial={{
+                  opacity: 0,
+                  y: 8,
+                  filter: "blur(10px)",
+                }}
+                animate={{
+                  opacity: 1,
+                  y: 0,
+                  filter: "blur(0px)",
+                }}
+                transition={{
+                  duration: 0.3,
+                  delay: 0.2,
+                  ease: "easeInOut",
+                }}
+                viewport={{ once: true }}
+                className="flex items-start"
+              >
+                <Herobuttons />
+              </motion.div>
+              <TechStackSection />
             </div>
-            <Button
-              type="submit"
-              className="h-8 rounded-full bg-white hover:bg-white/90 text-slate-950 px-3 text-xs font-semibold shadow-sm transition-all hover:scale-[1.02] active:scale-[0.98] shrink-0"
-            >
-              <ArrowRight className="h-3.5 w-3.5 text-slate-950" />
-              <span>Get started</span>
-            </Button>
-          </form>
-        </div>
-
-        <div className="mt-3 px-1 text-xs text-white/40">
-          Free to start · Already have an account?{' '}
-          <Link
-            href="/login"
-            className="text-white/70 underline-offset-4 hover:text-white hover:underline"
-          >
-            Log in
-          </Link>
-        </div>
-
-        <div className="mt-8 flex flex-wrap items-center gap-4 sm:gap-6 text-xs text-white/70">
-          <div className="flex items-center gap-1.5">
-            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
-            <span>Instant AI Resume Matching</span>
           </div>
-          <div className="flex items-center gap-1.5">
-            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
-            <span>1-Click Autonomous Applications</span>
+          <div className="relative hidden items-center overflow-hidden lg:flex lg:flex-[3]">
+            <div className="relative w-[calc(100%+8rem)] max-w-none origin-right skew-x-[-0.05rad] skew-y-[-0.02rad]">
+              <motion.div
+                initial={{
+                  opacity: 0,
+                  filter: "blur(6px)",
+                }}
+                animate={{
+                  opacity: 1,
+                  filter: "blur(0px)",
+                }}
+                transition={{
+                  duration: 0.6,
+                  ease: "easeInOut",
+                }}
+                viewport={{ once: true }}
+                className="min-w-[600px] scale-75 rounded-xl"
+              >
+                <AnalyticsPreview />
+              </motion.div>
+            </div>
           </div>
-          <div className="flex items-center gap-1.5">
-            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
-            <span>LinkedIn Recruiter Outreach</span>
+          <div className="mx-auto mt-4 block max-w-7xl overflow-hidden lg:hidden">
+            <div className="-mr-16 pl-2">
+              <motion.div
+                initial={{
+                  opacity: 0,
+                  filter: "blur(10px)",
+                }}
+                animate={{
+                  opacity: 1,
+                  filter: "blur(0px)",
+                }}
+                transition={{
+                  duration: 0.5,
+                  delay: 0.1,
+                  ease: "easeInOut",
+                }}
+                viewport={{ once: true }}
+                className="relative skew-x-[.10rad] p-6"
+              >
+                <Image
+                  className="rounded-xl shadow-lg shadow-black"
+                  src="/forge-analytics.png"
+                  alt="hero section"
+                  width={2000}
+                  height={2000}
+                  priority
+                  quality={100}
+                />
+              </motion.div>
+            </div>
           </div>
         </div>
       </div>
-    </main>
+    </div>
   );
-}
+};
+
+export default HeroSection;

@@ -17,10 +17,6 @@ import {
 
 type AuthMode = 'login' | 'signup';
 
-interface AuthFormProps {
-  mode: AuthMode;
-}
-
 function GoogleIcon({ className = 'h-4 w-4' }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" aria-hidden="true">
@@ -44,7 +40,10 @@ function GoogleIcon({ className = 'h-4 w-4' }: { className?: string }) {
   );
 }
 
-export default function AuthForm({ mode }: AuthFormProps) {
+const fieldClass =
+  'mt-1 w-full rounded-xl border border-neutral-800 bg-neutral-900/60 px-3.5 py-2.5 text-sm text-white placeholder:text-neutral-600 focus:border-neutral-600 focus:outline-none focus:ring-2 focus:ring-white/10';
+
+export default function AuthForm({ mode }: { mode: AuthMode }) {
   const isSignup = mode === 'signup';
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -54,7 +53,9 @@ export default function AuthForm({ mode }: AuthFormProps) {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    const fromAuth = new URLSearchParams(window.location.search).get('error');
+    const params = new URLSearchParams(window.location.search);
+    const fromAuth = params.get('error');
+    const prefill = params.get('email');
     if (fromAuth) {
       setError(
         fromAuth === 'redirect_uri_mismatch'
@@ -62,6 +63,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
           : fromAuth,
       );
     }
+    if (prefill) setEmail(prefill);
   }, []);
 
   async function handleEmailSubmit(event: FormEvent<HTMLFormElement>) {
@@ -125,128 +127,135 @@ export default function AuthForm({ mode }: AuthFormProps) {
   }
 
   return (
-    <AuthCardLayout
-      headlineLine1={isSignup ? 'BUILD.' : 'EXPLORE.'}
-      headlineLine2={isSignup ? 'APPLY. SUCCEED.' : 'LEARN. GROW.'}
-    >
-      <div className="flex flex-col items-center text-center">
-        <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-md bg-slate-950 p-2 shadow-md">
-          <img
-            src="/logo-white.png"
-            alt="ApplyOS"
-            className="h-4 w-auto object-contain"
-          />
+    <AuthCardLayout>
+      <div className="space-y-8">
+        <div className="text-center">
+          <div className="mb-6 flex justify-center md:hidden">
+            <Link href="/">
+              <img
+                src="/logo-white.png"
+                alt="ApplyOS"
+                className="h-10 w-auto object-contain"
+              />
+            </Link>
+          </div>
+          <h2 className="bg-[radial-gradient(61.17%_178.53%_at_38.83%_-13.54%,#3B3B3B_0%,#888787_12.61%,#FFFFFF_50%,#888787_80%,#3B3B3B_100%)] bg-clip-text text-4xl font-bold tracking-tight text-transparent">
+            {isSignup ? 'Welcome to ApplyOS' : 'Welcome back'}
+          </h2>
+          <p className="mt-3 text-sm text-neutral-400">
+            {isSignup
+              ? 'Start applying while you study'
+              : 'Sign in to continue your applications'}
+          </p>
         </div>
-        <h1 className="text-2xl font-black tracking-tight text-slate-900 sm:text-3xl">
-          {isSignup ? 'CREATE ACCOUNT' : 'WELCOME BACK'}
-        </h1>
-        <p className="mb-6 mt-1 text-xs font-medium text-slate-500 sm:text-sm">
-          {isSignup
-            ? 'Enter your details to create your account and get started'
-            : 'Enter your email and password to access your account'}
-        </p>
-      </div>
 
-      <form onSubmit={handleEmailSubmit} className="w-full space-y-3.5">
-        {isSignup ? (
-          <label className="block text-xs font-bold text-slate-700">
-            Name
+        <form onSubmit={handleEmailSubmit} className="space-y-4">
+          {isSignup ? (
+            <label className="block text-xs font-medium text-neutral-300">
+              Name
+              <input
+                required
+                type="text"
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                className={fieldClass}
+              />
+            </label>
+          ) : null}
+          <label className="block text-xs font-medium text-neutral-300">
+            Email
             <input
               required
-              type="text"
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              className="mt-1 w-full rounded-md border border-slate-200/90 bg-slate-50 px-3.5 py-2 text-xs text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-950"
+              type="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              className={fieldClass}
             />
           </label>
-        ) : null}
-        <label className="block text-xs font-bold text-slate-700">
-          Email
-          <input
-            required
-            type="email"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            className="mt-1 w-full rounded-md border border-slate-200/90 bg-slate-50 px-3.5 py-2 text-xs text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-950"
-          />
-        </label>
-        <label className="block text-xs font-bold text-slate-700">
-          Password
-          <input
-            required
-            minLength={isSignup ? 8 : undefined}
-            type="password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            className="mt-1 w-full rounded-md border border-slate-200/90 bg-slate-50 px-3.5 py-2 text-xs text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-950"
-          />
-        </label>
-        {!isSignup ? (
-          <label className="flex items-center gap-2 text-xs font-semibold text-slate-600">
+          <label className="block text-xs font-medium text-neutral-300">
+            Password
             <input
-              type="checkbox"
-              checked={rememberMe}
-              onChange={(event) => setRememberMe(event.target.checked)}
+              required
+              minLength={isSignup ? 8 : undefined}
+              type="password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              className={fieldClass}
             />
-            Remember me
           </label>
-        ) : null}
-        {error ? (
-          <div className="rounded-md border border-red-200 bg-red-50 p-3 text-xs font-medium text-red-600">
-            {error}
-          </div>
-        ) : null}
-        <button
-          type="submit"
-          disabled={loading}
-          className="flex w-full items-center justify-center gap-2 rounded-md bg-slate-950 py-2.5 text-xs font-semibold text-white transition hover:bg-slate-900 disabled:opacity-50"
-        >
-          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-          {loading
-            ? isSignup
-              ? 'Creating account...'
-              : 'Signing in...'
-            : isSignup
-              ? 'Create Account'
-              : 'Sign In'}
-        </button>
-      </form>
+          {!isSignup ? (
+            <label className="flex items-center gap-2 text-xs font-medium text-neutral-400">
+              <input
+                type="checkbox"
+                checked={rememberMe}
+                onChange={(event) => setRememberMe(event.target.checked)}
+              />
+              Remember me
+            </label>
+          ) : null}
+          {error ? (
+            <div className="rounded-xl border border-red-900/50 bg-red-950/40 p-3 text-xs font-medium text-red-300">
+              {error}
+            </div>
+          ) : null}
+          <button
+            type="submit"
+            disabled={loading}
+            className="group relative inline-flex h-12 w-full items-center justify-center gap-2 overflow-hidden rounded-xl border border-neutral-700 bg-gradient-to-r from-neutral-800 to-neutral-900 px-8 text-sm font-medium text-white shadow-lg transition-all duration-200 hover:from-neutral-700 hover:to-neutral-800 disabled:opacity-50"
+          >
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+            {loading
+              ? isSignup
+                ? 'Creating account...'
+                : 'Signing in...'
+              : isSignup
+                ? 'Create Account'
+                : 'Sign In'}
+          </button>
+        </form>
 
-      <div className="relative my-4 flex items-center justify-center">
-        <div className="w-full border-t border-slate-200" />
-        <span className="absolute bg-white px-2.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-          or continue with
-        </span>
+        <div className="relative">
+          <div className="absolute inset-0 flex items-center">
+            <span className="w-full border-t border-neutral-800" />
+          </div>
+          <div className="relative flex justify-center text-xs uppercase">
+            <span className="bg-black px-4 font-medium text-neutral-500">
+              Or continue with
+            </span>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2.5">
+          <button
+            type="button"
+            onClick={() => void handleSocialLogin('google')}
+            disabled={loading}
+            className="inline-flex h-12 items-center justify-center gap-2 rounded-xl border-2 border-neutral-800 bg-neutral-900/50 px-4 text-sm font-medium text-white transition-all hover:border-neutral-700 hover:bg-neutral-800/50 disabled:opacity-50"
+          >
+            <GoogleIcon />
+            Google
+          </button>
+          <button
+            type="button"
+            onClick={() => void handleSocialLogin('linkedin')}
+            disabled={loading}
+            className="inline-flex h-12 items-center justify-center gap-2 rounded-xl border-2 border-neutral-800 bg-neutral-900/50 px-4 text-sm font-medium text-white transition-all hover:border-neutral-700 hover:bg-neutral-800/50 disabled:opacity-50"
+          >
+            <LinkedinIcon className="h-4 w-4 text-[#0A66C2]" />
+            LinkedIn
+          </button>
+        </div>
+
+        <p className="text-center text-sm text-neutral-500">
+          {isSignup ? 'Already have an account? ' : "Don't have an account? "}
+          <Link
+            href={isSignup ? '/login' : '/signup'}
+            className="font-medium text-neutral-200 underline transition-colors hover:text-white"
+          >
+            {isSignup ? 'Sign in' : 'Sign up'}
+          </Link>
+        </p>
       </div>
-      <div className="grid grid-cols-2 gap-2.5">
-        <button
-          type="button"
-          onClick={() => void handleSocialLogin('google')}
-          disabled={loading}
-          className="flex w-full items-center justify-center gap-2 rounded-md border border-slate-200 bg-white py-2 text-xs font-semibold text-slate-800 transition hover:bg-slate-50 disabled:opacity-50"
-        >
-          <GoogleIcon />
-          Google
-        </button>
-        <button
-          type="button"
-          onClick={() => void handleSocialLogin('linkedin')}
-          disabled={loading}
-          className="flex w-full items-center justify-center gap-2 rounded-md border border-slate-200 bg-white py-2 text-xs font-semibold text-slate-800 transition hover:bg-slate-50 disabled:opacity-50"
-        >
-          <LinkedinIcon className="h-4 w-4 text-[#0A66C2]" />
-          LinkedIn
-        </button>
-      </div>
-      <p className="mt-5 text-center text-xs font-medium text-slate-500">
-        {isSignup ? 'Already have an account? ' : "Don't have an account? "}
-        <Link
-          href={isSignup ? '/login' : '/signup'}
-          className="font-bold text-slate-900 hover:underline"
-        >
-          {isSignup ? 'Sign in' : 'Sign up'}
-        </Link>
-      </p>
     </AuthCardLayout>
   );
 }
