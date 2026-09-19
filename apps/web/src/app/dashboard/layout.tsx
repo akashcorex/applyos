@@ -14,10 +14,10 @@ import { authClient } from '@/lib/auth-client';
 import { isAdminRole } from '@/lib/rbac';
 
 const sectionTitles: Record<string, string> = {
-  '/dashboard': 'Home',
+  '/dashboard': 'Overview',
   '/dashboard/auto-apply': 'Profile & Resume',
-  '/dashboard/discovery': 'Discover jobs',
-  '/dashboard/workflows': 'Tracker',
+  '/dashboard/discovery': 'Discover Jobs',
+  '/dashboard/workflows': 'Job Tracker',
   '/dashboard/applications': 'Applications',
   '/dashboard/linkedin': 'Outreach',
   '/dashboard/admin': 'Admin',

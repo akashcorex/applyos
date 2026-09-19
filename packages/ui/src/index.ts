@@ -1,5 +1,11 @@
 export { Button, buttonVariants, type ButtonProps } from './button';
 export {
+  RaisedButton,
+  RaisedChip,
+  raisedButtonVariants,
+  type RaisedButtonProps,
+} from './raised-button';
+export {
   Card,
   CardHeader,
   CardFooter,

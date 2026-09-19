@@ -37,6 +37,18 @@
     --input: 214.3 31.8% 91.4%;
     --ring: 222.2 84% 4.9%;
     --radius: 0.375rem; /* 6px */
+    --sidebar-background: 210 16% 95%;
+    --sidebar-foreground: 215 14% 46%;
+    --sidebar-primary: 0 0% 100%;
+    --sidebar-primary-foreground: 222.2 84% 4.9%;
+    --sidebar-accent: 210 16% 92%;
+    --sidebar-accent-foreground: 222.2 84% 4.9%;
+    --sidebar-border: 214 18% 88%;
+    --sidebar-ring: 222.2 84% 4.9%;
+    --raised-shadow:
+      0 0 0 1px oklch(0 0 0 / 0.08), inset 0 1px 0 oklch(1 0 0 / 0.9);
+    --sidebar-nav-active-shadow: var(--raised-shadow);
+    --ease-power3-out: cubic-bezier(0.215, 0.61, 0.355, 1);
   }
 
   .dark {
@@ -71,6 +83,19 @@
     --border: 235 11% 18%; /* #282a32 */
     --input: 235 11% 18%;
     --ring: 220 20% 96%;
+    --sidebar-background: 240 6% 4%;
+    --sidebar-foreground: 0 0% 58%;
+    --sidebar-primary: 0 0% 11%;
+    --sidebar-primary-foreground: 0 0% 96%;
+    --sidebar-accent: 0 0% 10%;
+    --sidebar-accent-foreground: 0 0% 96%;
+    --sidebar-border: 0 0% 14%;
+    --sidebar-ring: 0 0% 96%;
+    --raised-shadow:
+      0 0 0 1px rgba(0, 0, 0, 0.4),
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.1),
+      inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+    --sidebar-nav-active-shadow: var(--raised-shadow);
   }
 }
 
@@ -165,6 +190,30 @@
   .linear-dot-amber {
     background-color: #f59e0b;
     box-shadow: 0 0 6px rgba(245, 158, 11, 0.6);
+  }
+
+  .sidebar-eyebrow {
+    display: block;
+    padding-inline: 8px;
+    font-size: 11px;
+    font-weight: 500;
+    color: hsl(var(--sidebar-foreground) / 0.72);
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .raised-button:hover {
+      color: hsl(var(--sidebar-primary-foreground));
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .raised-button {
+      transition: none;
+    }
+
+    .raised-button:active {
+      transform: none;
+    }
   }
 
   @media (min-width: 540px) and (max-width: 640px) {
