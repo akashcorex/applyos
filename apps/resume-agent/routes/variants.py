@@ -17,6 +17,7 @@ from models import (
     CompiledArtifact,
     CompileEnqueueResponse,
     CreateVariantRequest,
+    EnsureVariantsRequest,
     ControlledTailoringRequest,
     ControlledTailoringProposalResponse,
     ControlledTailoringResponse,
@@ -592,6 +593,38 @@ async def create_variant(
     )
 
 
+@router.post(
+    "/resume/{resume_id}/variants/ensure",
+    response_model=VariantListResponse,
+)
+async def ensure_variants(
+    resume_id: str,
+    request: Request,
+    payload: EnsureVariantsRequest,
+) -> VariantListResponse:
+    state = _state(request)
+    assert state.repository is not None
+    assert state.tailor_service is not None
+
+    master = await require_resume_owner(state.repository, resume_id, request)
+    base_content = await state.repository.get_base_profile(resume_id)
+
+    variants: list[ResumeVariantResponse] = []
+    for job in payload.jobs:
+        try:
+            variant = await state.tailor_service.ensure_draft_with_approved_patch(
+                resume_id,
+                master,
+                job,
+                base_content=base_content,
+            )
+        except VariantValidationError as exc:
+            raise HTTPException(status_code=400, detail=exc.errors) from exc
+        variants.append(variant)
+
+    return VariantListResponse(resume_id=resume_id, variants=variants)
+
+
 @router.get("/resume/{resume_id}/variants", response_model=VariantListResponse)
 async def list_variants(
     resume_id: str,
@@ -945,6 +978,32 @@ async def apply_controlled_ai_tailoring(
         source_revision_id=source_revision_id,
         operations=payload.operations,
     )
+
+
+@router.post(
+    "/resume/{resume_id}/variants/{variant_id}/reject",
+    response_model=ResumeVariantResponse,
+)
+async def reject_variant_route(
+    resume_id: str,
+    variant_id: str,
+    request: Request,
+) -> ResumeVariantResponse:
+    state = _state(request)
+    assert state.repository is not None
+    assert state.tailor_service is not None
+    assert state.variant_repository is not None
+
+    master = await require_resume_owner(state.repository, resume_id, request)
+    try:
+        variant = await state.variant_repository.get(resume_id, variant_id)
+    except VariantNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    try:
+        return await state.tailor_service.reject_variant(resume_id, master, variant)
+    except VariantValidationError as exc:
+        raise HTTPException(status_code=400, detail=exc.errors) from exc
 
 
 @router.post(

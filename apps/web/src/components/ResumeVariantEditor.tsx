@@ -9,6 +9,7 @@ import {
   ExternalLink,
   FileUp,
   Loader2,
+  RotateCcw,
   Sparkles,
   X,
 } from 'lucide-react';
@@ -229,6 +230,7 @@ export function ResumeVariantEditor({
   const [saving, setSaving] = useState(false);
   const [previewing, setPreviewing] = useState(false);
   const [finalizing, setFinalizing] = useState(false);
+  const [rejecting, setRejecting] = useState(false);
   const [suggesting, setSuggesting] = useState(false);
   const [versions, setVersions] = useState<VariantVersionSummary[]>([]);
   const [versionsLoading, setVersionsLoading] = useState(false);
@@ -257,6 +259,7 @@ export function ResumeVariantEditor({
   const sourceSaveAbortRef = useRef<AbortController | null>(null);
   const sourceSaveSequenceRef = useRef(0);
   const sourceLoadedRef = useRef(false);
+  const autoPreviewAttemptedRef = useRef<string | null>(null);
   const [sourceReloadNonce, setSourceReloadNonce] = useState(0);
 
   useEffect(() => {
@@ -751,6 +754,47 @@ export function ResumeVariantEditor({
     await runCompile('preview');
   }
 
+  async function handleReject() {
+    if (!variant) return;
+    setRejecting(true);
+    setError(null);
+    setCompileError(null);
+    setSaveNotice(null);
+    try {
+      const res = await fetch(
+        `/api/resume/${resumeId}/variants/${variant.id}/reject`,
+        { method: 'POST' },
+      );
+      const data = await res.json();
+      if (!res.ok) {
+        setError(apiErrorMessage(data, 'Could not reject this variant'));
+        return;
+      }
+      setVariant(data);
+      setContent(data.content);
+      setSkillsText(data.content.skills.join(', '));
+      setAcceptedIds(new Set());
+      setPdfJobId(null);
+      setCompileStatus('idle');
+      autoPreviewAttemptedRef.current = null;
+      onSaved(data);
+      setSaveNotice('Rejected · fresh keyword suggestions applied');
+    } catch {
+      setError('Failed to reject variant');
+    } finally {
+      setRejecting(false);
+    }
+  }
+
+  useEffect(() => {
+    if (loading || !variant || previewing || finalizing || rejecting) return;
+    if (variant.status !== 'draft' || !variant.patch_id) return;
+    if (variant.artifact_id || pdfJobId) return;
+    if (autoPreviewAttemptedRef.current === variant.id) return;
+    autoPreviewAttemptedRef.current = variant.id;
+    void runCompile('preview');
+  }, [finalizing, loading, pdfJobId, previewing, rejecting, variant]);
+
   if (loading) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
@@ -1234,7 +1278,7 @@ export function ResumeVariantEditor({
         <div className="flex flex-wrap gap-2 border-t bg-background px-4 py-3">
           <Button
             variant="outline"
-            disabled={saving || previewing || finalizing}
+            disabled={saving || previewing || finalizing || rejecting}
             onClick={() => void handleSaveDraft()}
           >
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
@@ -1242,7 +1286,7 @@ export function ResumeVariantEditor({
           </Button>
           <Button
             variant="outline"
-            disabled={saving || previewing || finalizing}
+            disabled={saving || previewing || finalizing || rejecting}
             onClick={() => void handlePreview()}
           >
             {previewing ? (
@@ -1253,7 +1297,19 @@ export function ResumeVariantEditor({
             Preview PDF
           </Button>
           <Button
-            disabled={saving || previewing || finalizing}
+            variant="outline"
+            disabled={saving || previewing || finalizing || rejecting}
+            onClick={() => void handleReject()}
+          >
+            {rejecting ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <RotateCcw className="h-4 w-4" />
+            )}
+            Reject & retry
+          </Button>
+          <Button
+            disabled={saving || previewing || finalizing || rejecting}
             onClick={() => void handleFinalize()}
           >
             {finalizing ? (
@@ -1261,7 +1317,7 @@ export function ResumeVariantEditor({
             ) : (
               <Sparkles className="h-4 w-4" />
             )}
-            Mark ready
+            Approve resume
           </Button>
         </div>
       </div>

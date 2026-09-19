@@ -23,7 +23,11 @@ from services.tailoring.keyword_rules import build_keyword_rule_suggestions
 from services.tailoring.profile_text import variant_content_to_prompt_text
 from services.tailoring.repository import VariantRepository
 from services.tailoring.suggestion_validator import filter_keyword_suggestions
-from services.tailoring.suggestions import enrich_suggestion, rank_and_cap
+from services.tailoring.suggestions import (
+    enrich_suggestion,
+    rank_and_cap,
+    safe_suggestion_ids,
+)
 from services.tailoring.validator import VariantValidationError, validate_variant_content
 from services.tailoring.variant_scorer import score_variant
 from services.tailoring.versions import VersionRepository
@@ -91,6 +95,40 @@ class TailorService:
             baseline_match_score=baseline,
             match_score=scored.match_score,
             match_score_meta=scored.as_meta(),
+        )
+
+    async def ensure_draft_with_approved_patch(
+        self,
+        resume_id: str,
+        master: ResumeRecord,
+        request: CreateVariantRequest,
+        *,
+        base_content: VariantContent | None = None,
+    ) -> ResumeVariantResponse:
+        existing = await self._repo.get_by_dedup_key(resume_id, request.dedup_key)
+        if existing is not None:
+            if existing.status in ("ready", "applied"):
+                return await self._repo.update_job_metadata(
+                    resume_id, existing.id, request
+                )
+            if existing.patch_id:
+                return await self._repo.update_job_metadata(
+                    resume_id, existing.id, request
+                )
+            variant = existing
+        else:
+            variant = await self.create_draft(
+                resume_id,
+                master,
+                request,
+                base_content=base_content,
+            )
+
+        accepted = safe_suggestion_ids(variant.suggestions.suggestions)
+        return await self.update_variant(
+            resume_id,
+            variant,
+            accepted_suggestion_ids=accepted or None,
         )
 
     async def suggest(
@@ -229,6 +267,46 @@ class TailorService:
                 "patch_id": patch_id,
                 "diff": diff,
             }
+        )
+
+    async def reject_variant(
+        self,
+        resume_id: str,
+        master: ResumeRecord,
+        variant: ResumeVariantResponse,
+    ) -> ResumeVariantResponse:
+        request = CreateVariantRequest(
+            dedup_key=variant.dedup_key,
+            job_title=variant.job_title or "Role",
+            company_name=variant.company_name or "Company",
+            job_description=variant.job_description,
+            missing_skills=(
+                variant.match_score_meta.missing_skills
+                if variant.match_score_meta
+                else []
+            ),
+            matched_skills=(
+                variant.match_score_meta.matched_skills
+                if variant.match_score_meta
+                else []
+            ),
+        )
+        suggestions = await self._generate_suggestions(
+            resume_id=resume_id,
+            request=request,
+            content=variant.content,
+            include_llm=False,
+        )
+        reset = await self._repo.reset_for_reject(
+            resume_id,
+            variant.id,
+            suggestions=suggestions,
+        )
+        accepted = safe_suggestion_ids(suggestions.suggestions)
+        return await self.update_variant(
+            resume_id,
+            reset,
+            accepted_suggestion_ids=accepted or None,
         )
 
     async def finalize_variant(

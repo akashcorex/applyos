@@ -410,6 +410,35 @@ class VariantRepository:
         row = await conn.fetchrow(query, *params)
         return row is not None
 
+    async def reset_for_reject(
+        self,
+        resume_id: str,
+        variant_id: str,
+        *,
+        suggestions: VariantSuggestions,
+    ) -> ResumeVariantResponse:
+        async with self._pool.acquire() as conn:
+            row = await conn.fetchrow(
+                """
+                UPDATE resume_variants
+                SET status = 'draft',
+                    suggestions = $1::jsonb,
+                    patch_id = NULL,
+                    artifact_id = NULL,
+                    file_path = NULL,
+                    compile_generation = compile_generation + 1,
+                    updated_at = NOW()
+                WHERE id = $2 AND resume_id = $3
+                RETURNING *
+                """,
+                json.dumps(suggestions.model_dump()),
+                _to_uuid(variant_id),
+                _to_uuid(resume_id),
+            )
+        if row is None:
+            raise VariantNotFoundError(f"Variant {variant_id} not found")
+        return _row_to_variant(resume_id, row)
+
     async def mark_applied(self, resume_id: str, variant_id: str) -> ResumeVariantResponse:
         return await self.update(resume_id, variant_id, status="applied")
 
