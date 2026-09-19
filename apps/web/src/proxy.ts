@@ -5,8 +5,14 @@ import { serverApiUrl } from '@/lib/server-api-url';
 
 function redirectTo(req: NextRequest, path: string): NextResponse {
   const url = req.nextUrl.clone();
-  url.pathname = path;
-  url.search = '';
+  const qIndex = path.indexOf('?');
+  if (qIndex === -1) {
+    url.pathname = path;
+    url.search = '';
+  } else {
+    url.pathname = path.slice(0, qIndex);
+    url.search = path.slice(qIndex);
+  }
   return NextResponse.redirect(url);
 }
 
@@ -17,6 +23,7 @@ export default async function proxy(req: NextRequest) {
   const isOnboarding = pathname === '/onboarding';
   const isDashboard =
     pathname === '/dashboard' || pathname.startsWith('/dashboard/');
+  const isAdminPath = pathname.startsWith('/dashboard/admin');
 
   if (!isAuthPage && !isOnboarding && !isDashboard) {
     return NextResponse.next();
@@ -26,12 +33,19 @@ export default async function proxy(req: NextRequest) {
 
   if (isDashboard) {
     if (session.status === 'unavailable') return NextResponse.next();
+    if (session.status === 'suspended') {
+      return redirectTo(req, '/login?error=account_suspended');
+    }
     if (session.status !== 'authenticated') return redirectTo(req, '/login');
-    if (
-      pathname.startsWith('/dashboard/admin') &&
-      session.me.user.role !== 'ADMIN'
-    ) {
-      return redirectTo(req, '/dashboard');
+    const isAdmin = session.me.user.role === 'ADMIN';
+    if (isAdminPath) {
+      if (!isAdmin) {
+        return redirectTo(req, '/dashboard');
+      }
+      return NextResponse.next();
+    }
+    if (isAdmin) {
+      return redirectTo(req, '/dashboard/admin');
     }
     if (session.me.onboarding && !session.me.onboarding.onboardingComplete) {
       return redirectTo(req, '/onboarding');
@@ -41,14 +55,34 @@ export default async function proxy(req: NextRequest) {
 
   if (isOnboarding) {
     if (session.status === 'unavailable') return NextResponse.next();
+    if (session.status === 'suspended') {
+      return redirectTo(req, '/login?error=account_suspended');
+    }
     if (session.status !== 'authenticated') return redirectTo(req, '/login');
     if (session.me.onboarding?.onboardingComplete) {
-      return redirectTo(req, '/dashboard');
+      return redirectTo(
+        req,
+        session.me.user.role === 'ADMIN' ? '/dashboard/admin' : '/dashboard',
+      );
     }
     return NextResponse.next();
   }
 
-  if (session.status === 'authenticated') return redirectTo(req, '/dashboard');
+  if (session.status === 'suspended') {
+    if (
+      pathname === '/login' &&
+      req.nextUrl.searchParams.get('error') === 'account_suspended'
+    ) {
+      return NextResponse.next();
+    }
+    return redirectTo(req, '/login?error=account_suspended');
+  }
+  if (session.status === 'authenticated') {
+    return redirectTo(
+      req,
+      session.me.user.role === 'ADMIN' ? '/dashboard/admin' : '/dashboard',
+    );
+  }
   return NextResponse.next();
 }
 

@@ -63,7 +63,7 @@ export default function AdminUserDetailPage() {
   return (
     <div className="space-y-4 max-w-3xl">
       <Button asChild variant="ghost" size="sm">
-        <Link href="/dashboard/admin">
+        <Link href="/dashboard/admin/users">
           <ArrowLeft className="h-3.5 w-3.5 mr-1" />
           All users
         </Link>

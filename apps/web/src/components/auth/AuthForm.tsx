@@ -6,10 +6,7 @@ import Link from 'next/link';
 import { Loader2 } from 'lucide-react';
 
 import { AuthCardLayout } from '@/components/auth/AuthCardLayout';
-import {
-  appCallbackURL,
-  authClient,
-} from '@/lib/auth-client';
+import { appCallbackURL, authClient } from '@/lib/auth-client';
 
 function GoogleIcon({ className = 'h-4 w-4' }: { className?: string }) {
   return (
@@ -43,11 +40,21 @@ export default function AuthForm() {
   useEffect(() => {
     const fromAuth = new URLSearchParams(window.location.search).get('error');
     if (!fromAuth) return;
-    setError(
-      fromAuth === 'redirect_uri_mismatch'
-        ? 'Google sign-in is misconfigured. Contact support.'
-        : fromAuth,
-    );
+    if (fromAuth === 'redirect_uri_mismatch') {
+      setError('Google sign-in is misconfigured. Contact support.');
+      return;
+    }
+    if (fromAuth === 'account_suspended') {
+      setError(
+        'Your account is suspended or deactivated. Contact support to restore access.',
+      );
+      return;
+    }
+    if (fromAuth === 'account_inactive') {
+      setError('Your account is not active. Contact support.');
+      return;
+    }
+    setError(fromAuth);
   }, []);
 
   async function continueWithGoogle(path: '/onboarding' | '/dashboard') {

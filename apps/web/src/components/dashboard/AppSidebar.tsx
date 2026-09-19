@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
 import {
+  Activity,
   ChevronDown,
   ClipboardList,
   CreditCard,
@@ -19,6 +20,7 @@ import {
   Shield,
   Sliders,
   User,
+  Users,
 } from 'lucide-react';
 
 import { RaisedButton, RaisedChip } from '@applyso/ui/raised-button';
@@ -29,7 +31,7 @@ import { fetchBillingMe, planLabel, type BillingMe } from '@/lib/billing';
 interface AppSidebarProps {
   userName?: string | null;
   userEmail?: string | null;
-  isAdmin?: boolean;
+  variant?: 'workspace' | 'admin';
   onSignOut: () => void;
   onNavigate?: () => void;
   isCollapsed?: boolean;
@@ -84,7 +86,9 @@ type NavItem = {
 };
 
 function navActive(pathname: string, href: string): boolean {
-  if (href === '/dashboard') return pathname === '/dashboard';
+  if (href === '/dashboard' || href === '/dashboard/admin') {
+    return pathname === href;
+  }
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
@@ -115,7 +119,7 @@ function NavLink({
           title={isCollapsed ? item.label : undefined}
           aria-current={isActive ? 'page' : undefined}
         >
-          <Icon strokeWidth={1.4} />
+          <Icon strokeWidth={1.7} />
           {!isCollapsed && (
             <span className="min-w-0 flex-1 truncate text-left">
               {item.label}
@@ -138,13 +142,17 @@ function SectionLabel({
   children: string;
 }) {
   if (hidden) return null;
-  return <span className="sidebar-eyebrow">{children}</span>;
+  return (
+    <span className="block px-2 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-[#656a7b]">
+      {children}
+    </span>
+  );
 }
 
 export function AppSidebar({
   userName = 'User',
   userEmail = 'user@applyos.in',
-  isAdmin = false,
+  variant = 'workspace',
   onSignOut,
   onNavigate,
   isCollapsed = false,
@@ -155,10 +163,11 @@ export function AppSidebar({
   const [attentionCount, setAttentionCount] = useState(0);
   const [accountOpen, setAccountOpen] = useState(false);
   const accountRef = useRef<HTMLDivElement>(null);
-  const firstName = userName.split(' ')[0] ?? userName;
+  const firstName = (userName ?? 'User').split(' ')[0] ?? 'User';
   const seedName = userEmail ?? userName ?? 'User';
 
   useEffect(() => {
+    if (variant === 'admin') return;
     void fetchBillingMe().then(setBilling);
     void fetch('/api/applications?category=attention', { cache: 'no-store' })
       .then(async (res) => {
@@ -167,7 +176,7 @@ export function AppSidebar({
         setAttentionCount(data.applications?.length ?? 0);
       })
       .catch(() => undefined);
-  }, []);
+  }, [variant]);
 
   useEffect(() => {
     if (!accountOpen) return;
@@ -187,60 +196,84 @@ export function AppSidebar({
     };
   }, [accountOpen]);
 
-  const workspaceItems: NavItem[] = [
-    { href: '/dashboard', label: 'Overview', icon: Inbox },
-    {
-      href: '/dashboard/auto-apply',
-      label: 'Profile & Resume',
-      icon: FileText,
-    },
-    {
-      href: '/dashboard/discovery',
-      label: 'Discover Jobs',
-      icon: Search,
-    },
-    {
-      href: '/dashboard/applications',
-      label: 'Applications',
-      icon: ClipboardList,
-      badge: attentionCount,
-    },
-    {
-      href: '/dashboard/linkedin',
-      label: 'Outreach',
-      icon: Send,
-    },
-  ];
+  const isAdminNav = variant === 'admin';
 
-  const workflowItems: NavItem[] = [
-    {
-      href: '/dashboard/workflows',
-      label: 'Job Tracker',
-      icon: Layers,
-    },
-    ...(isAdmin
-      ? [{ href: '/dashboard/admin', label: 'Admin', icon: Shield }]
-      : []),
-  ];
+  const workspaceItems: NavItem[] = isAdminNav
+    ? [
+        { href: '/dashboard/admin', label: 'Overview', icon: Inbox },
+        { href: '/dashboard/admin/users', label: 'Users', icon: Users },
+        {
+          href: '/dashboard/admin/resumes',
+          label: 'Resumes',
+          icon: FileText,
+        },
+        {
+          href: '/dashboard/admin/system',
+          label: 'System',
+          icon: Activity,
+        },
+      ]
+    : [
+        { href: '/dashboard', label: 'Overview', icon: Inbox },
+        {
+          href: '/dashboard/auto-apply',
+          label: 'Profile & Resume',
+          icon: FileText,
+        },
+        {
+          href: '/dashboard/discovery',
+          label: 'Discover Jobs',
+          icon: Search,
+        },
+        {
+          href: '/dashboard/applications',
+          label: 'Applications',
+          icon: ClipboardList,
+          badge: attentionCount,
+        },
+        {
+          href: '/dashboard/linkedin',
+          label: 'Outreach',
+          icon: Send,
+        },
+      ];
 
-  const accountItems = [
-    { href: '/dashboard/settings', label: 'Profile', icon: User },
-    {
-      href: '/dashboard/settings/billing',
-      label: 'Plans & Billing',
-      icon: CreditCard,
-    },
-    {
-      href: '/dashboard/settings/preferences',
-      label: 'Preferences',
-      icon: Sliders,
-    },
-    {
-      href: '/dashboard/settings/security',
-      label: 'Security',
-      icon: Shield,
-    },
-  ];
+  const workflowItems: NavItem[] = isAdminNav
+    ? []
+    : [
+        {
+          href: '/dashboard/workflows',
+          label: 'Job Tracker',
+          icon: Layers,
+        },
+      ];
+
+  const accountItems = isAdminNav
+    ? []
+    : [
+        { href: '/dashboard/settings', label: 'Profile', icon: User },
+        {
+          href: '/dashboard/settings/billing',
+          label: 'Plans & Billing',
+          icon: CreditCard,
+        },
+        {
+          href: '/dashboard/settings/preferences',
+          label: 'Preferences',
+          icon: Sliders,
+        },
+        {
+          href: '/dashboard/settings/security',
+          label: 'Security',
+          icon: Shield,
+        },
+      ];
+
+  const accountSubtitle = isAdminNav
+    ? 'Admin'
+    : `${planLabel(billing?.plan ?? 'free')} plan${
+        billing ? ` · ${billing.cycle.submitted}/${billing.cycle.limit}` : ''
+      }`;
 
   function closeAccount() {
     setAccountOpen(false);
@@ -250,11 +283,11 @@ export function AppSidebar({
   return (
     <aside
       className={`${
-        isCollapsed ? 'w-[60px]' : 'w-64'
+        isCollapsed ? 'w-[60px]' : 'w-60'
       } bg-[#f0f2f5] dark:bg-[#09090A] flex flex-col h-full shrink-0 select-none text-slate-900 dark:text-[#f1f3f9] font-sans transition-all duration-200 ease-in-out`}
     >
       <div
-        className={`h-12 px-3 flex items-center ${
+        className={`h-[50px] px-3 flex items-center shrink-0 ${
           isCollapsed ? 'justify-center' : 'justify-between'
         } bg-[#f0f2f5] dark:bg-[#09090A]`}
       >
@@ -267,28 +300,23 @@ export function AppSidebar({
             className="flex h-8 w-8 items-center justify-center rounded-[8px] bg-white dark:bg-[#16171b] border border-slate-200 dark:border-[#282a32] p-1.5 text-slate-900 dark:text-white shadow-sm hover:border-slate-300 dark:hover:border-[#383b47] hover:scale-105 transition-all cursor-pointer group"
           >
             <img
-              src="/logo-white.png"
+              src="/favicon.ico"
               alt="ApplyOS"
-              className="h-full w-full object-contain dark:invert-0 invert group-hover:hidden"
+              className="h-full w-full rounded-[4px] object-contain group-hover:hidden"
             />
             <ExpandIcon className="w-3.5 h-3.5 text-slate-700 dark:text-slate-200 hidden group-hover:block" />
           </button>
         ) : (
           <div className="flex items-center justify-between w-full">
             <Link
-              href="/"
+              href={isAdminNav ? '/dashboard/admin' : '/'}
               className="flex items-center gap-2.5 group truncate min-w-0"
             >
-              <div className="flex h-7 w-7 items-center justify-center rounded-[8px] bg-white dark:bg-[#16171b] border border-slate-200 dark:border-[#282a32] p-1 text-slate-900 dark:text-white shadow-sm transition-transform duration-150 group-hover:scale-105 shrink-0">
-                <img
-                  src="/logo-white.png"
-                  alt="ApplyOS"
-                  className="h-full w-full object-contain dark:invert-0 invert"
-                />
-              </div>
-              <span className="text-sm font-semibold text-slate-900 dark:text-[#f1f3f9] leading-none tracking-tight truncate">
-                ApplyOS
-              </span>
+              <img
+                src="/logo-white.png"
+                alt="ApplyOS"
+                className="h-[16px] w-auto shrink-0 object-contain invert transition-transform duration-150 group-hover:scale-[1.03] dark:invert-0 pl-2"
+              />
             </Link>
             {onToggleCollapse ? (
               <button
@@ -305,12 +333,9 @@ export function AppSidebar({
         )}
       </div>
 
-      <nav
-        aria-label="Primary"
-        className="flex-1 overflow-y-auto"
-      >
-        <div className="flex flex-col gap-1 border-b border-sidebar-border p-3">
-          <ul className="flex flex-col">
+      <nav aria-label="Primary" className="flex-1 overflow-y-auto">
+        <div className="flex flex-col gap-1 border-b border-slate-200/60 dark:border-white/[0.06] px-2.5 py-2">
+          <ul className="flex flex-col gap-1">
             {workspaceItems.map((item) => (
               <NavLink
                 key={item.href}
@@ -322,37 +347,41 @@ export function AppSidebar({
             ))}
           </ul>
         </div>
-        <div className="flex flex-col gap-1 border-b border-sidebar-border p-3">
-          <SectionLabel hidden={isCollapsed}>Workflow</SectionLabel>
-          <ul className="flex flex-col">
-            {workflowItems.map((item) => (
-              <NavLink
-                key={item.href}
-                item={item}
-                pathname={pathname}
-                isCollapsed={isCollapsed}
-                onNavigate={onNavigate}
-              />
-            ))}
-          </ul>
-        </div>
+        {workflowItems.length > 0 ? (
+          <div className="flex flex-col gap-1 border-b border-slate-200/60 dark:border-white/[0.06] px-2.5 py-2">
+            <SectionLabel hidden={isCollapsed}>Workflow</SectionLabel>
+            <ul className="flex flex-col gap-1">
+              {workflowItems.map((item) => (
+                <NavLink
+                  key={item.href}
+                  item={item}
+                  pathname={pathname}
+                  isCollapsed={isCollapsed}
+                  onNavigate={onNavigate}
+                />
+              ))}
+            </ul>
+          </div>
+        ) : null}
       </nav>
 
       <div
-        className={`${isCollapsed ? 'p-1.5' : 'p-3'} space-y-1 bg-[#f0f2f5] dark:bg-[#09090A]`}
+        className={`${isCollapsed ? 'p-1.5' : 'px-3 py-3'} space-y-1 bg-[#f0f2f5] dark:bg-[#09090A]`}
       >
-        <ul className="flex flex-col">
-          <NavLink
-            item={{
-              href: '/dashboard/settings',
-              label: 'Settings',
-              icon: Settings,
-            }}
-            pathname={pathname}
-            isCollapsed={isCollapsed}
-            onNavigate={onNavigate}
-          />
-        </ul>
+        {isAdminNav ? null : (
+          <ul className="flex flex-col gap-[6px]">
+            <NavLink
+              item={{
+                href: '/dashboard/settings',
+                label: 'Settings',
+                icon: Settings,
+              }}
+              pathname={pathname}
+              isCollapsed={isCollapsed}
+              onNavigate={onNavigate}
+            />
+          </ul>
+        )}
 
         <div ref={accountRef} className="relative">
           {accountOpen ? (
@@ -388,7 +417,11 @@ export function AppSidebar({
                   setAccountOpen(false);
                   onSignOut();
                 }}
-                className="flex w-full items-center gap-2.5 border-t border-slate-200 px-3 py-2 text-left text-xs font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-950 dark:border-[#282a32] dark:text-[#8a8f9d] dark:hover:bg-[#141518] dark:hover:text-[#f1f3f9]"
+                className={`flex w-full items-center gap-2.5 px-3 py-2 text-left text-xs font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-950 dark:text-[#8a8f9d] dark:hover:bg-[#141518] dark:hover:text-[#f1f3f9] ${
+                  accountItems.length > 0
+                    ? 'border-t border-slate-200 dark:border-[#282a32]'
+                    : ''
+                }`}
               >
                 <LogOut className="h-3.5 w-3.5 shrink-0" />
                 Sign out
@@ -401,12 +434,14 @@ export function AppSidebar({
             onClick={() => setAccountOpen((open) => !open)}
             aria-expanded={accountOpen}
             aria-haspopup="menu"
-            title={isCollapsed ? `${firstName} · ${planLabel(billing?.plan ?? 'free')} plan` : undefined}
+            title={
+              isCollapsed ? `${firstName} · ${accountSubtitle}` : undefined
+            }
             className={`w-full flex items-center ${
-              isCollapsed ? 'justify-center p-1.5' : 'gap-2.5 p-2.5'
-            } rounded-[10px] bg-white dark:bg-[#121213] border border-slate-200 dark:border-[#22242a] hover:border-slate-300 dark:hover:border-[#30333d] shadow-sm transition-[transform,box-shadow] duration-150 ease-power3-out active:scale-[0.96]`}
+              isCollapsed ? 'justify-center p-1.5' : 'gap-2.5 px-2.5 py-2'
+            } rounded-[9px] bg-white dark:bg-[#14151a] border border-slate-200 dark:border-white/10 hover:border-slate-300 dark:hover:border-white/20 shadow-sm transition-[transform,box-shadow,border-color] duration-150 ease-power3-out active:scale-[0.96]`}
           >
-            <DitherAvatar name={seedName} size={28} bloom="low" />
+            <DitherAvatar name={seedName} size={26} bloom="low" />
             {!isCollapsed && (
               <>
                 <div className="flex min-w-0 flex-1 flex-col text-left">
@@ -414,10 +449,7 @@ export function AppSidebar({
                     {firstName}
                   </span>
                   <span className="mt-0.5 truncate text-[10px] leading-tight text-slate-500 dark:text-[#8a8f9d]">
-                    {planLabel(billing?.plan ?? 'free')} plan
-                    {billing
-                      ? ` · ${billing.cycle.submitted}/${billing.cycle.limit}`
-                      : ''}
+                    {accountSubtitle}
                   </span>
                 </div>
                 <ChevronDown

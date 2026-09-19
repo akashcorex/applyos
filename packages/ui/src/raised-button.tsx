@@ -6,12 +6,12 @@ import { type VariantProps, cva } from 'class-variance-authority';
 import { cn } from './utils';
 
 const raisedButtonVariants = cva(
-  'raised-button group inline-flex shrink-0 cursor-pointer items-center justify-start whitespace-nowrap rounded-lg font-medium leading-none outline-none select-none bg-transparent text-[hsl(var(--sidebar-foreground))] shadow-none transition-[background-color,color,box-shadow,transform] duration-150 ease-power3-out focus-visible:ring-2 focus-visible:ring-ring/60 disabled:pointer-events-none disabled:opacity-50 data-[active=true]:bg-[hsl(var(--sidebar-primary))] data-[active=true]:text-[hsl(var(--sidebar-primary-foreground))] data-[active=true]:shadow-[var(--raised-shadow)] [&_svg]:shrink-0 [&_svg]:text-current',
+  'raised-button group inline-flex shrink-0 cursor-pointer items-center justify-start whitespace-nowrap rounded-[9px] font-medium leading-none outline-none select-none bg-transparent text-slate-600 dark:text-[#9ea3b0] shadow-none transition-[background-color,color,box-shadow,transform,border-color] duration-150 ease-power3-out focus-visible:ring-2 focus-visible:ring-ring/60 disabled:pointer-events-none disabled:opacity-50 hover:bg-slate-200/60 dark:hover:bg-white/[0.04] hover:text-slate-900 dark:hover:text-[#f1f3f9] data-[active=true]:bg-white data-[active=true]:dark:bg-[#1e1f25] data-[active=true]:text-slate-950 data-[active=true]:dark:text-white data-[active=true]:border-slate-300/80 data-[active=true]:dark:border-white/[0.14] data-[active=true]:shadow-[0_1px_3px_rgba(0,0,0,0.06),inset_0_1px_0_rgba(255,255,255,0.8)] data-[active=true]:dark:shadow-[0_1px_3px_rgba(0,0,0,0.4),inset_0_1px_0_0_rgba(255,255,255,0.12)] [&_svg]:shrink-0 [&_svg]:text-current',
   {
     variants: {
       size: {
-        nav: 'h-[30px] gap-1.5 px-2 py-0 text-[14px] data-[active=true]:h-8 [&_svg]:size-3.5',
-        default: 'h-8 gap-2 px-3 text-xs data-[active=true]:h-8 [&_svg]:size-3.5',
+        nav: 'h-[34px] gap-2.5 rounded-[9px] border border-transparent px-2.5 py-0 text-[13px] font-medium tracking-[-0.01em] [&_svg]:size-[16px]',
+        default: 'h-8 gap-2 px-3 text-xs [&_svg]:size-3.5',
         sm: 'h-7 gap-1.5 px-2.5 text-[11px] [&_svg]:size-3',
         lg: 'h-9 gap-2 px-4 text-sm [&_svg]:size-4',
         icon: 'size-8 justify-center px-0 [&_svg]:size-3.5',
@@ -69,7 +69,7 @@ function RaisedChip({
   return (
     <span
       className={cn(
-        'inline-flex h-4 min-w-6 shrink-0 items-center justify-center rounded-full border-[0.5px] border-[#d4d4d4] bg-muted px-1 text-center text-[10px] leading-none text-muted-foreground shadow-[0_0_0_0.5px_oklch(0_0_0_/_0.06)] dark:border-[#414141] dark:shadow-[0_0_0_0.5px_#0e0e0e]',
+        'inline-flex h-[20px] min-w-[26px] shrink-0 items-center justify-center rounded-full border px-2 text-center text-[11px] font-mono font-normal leading-none tabular-nums border-slate-300/70 bg-slate-200/50 text-slate-500 dark:border-white/10 dark:bg-white/[0.06] dark:text-[#a0a5b5] group-data-[active=true]:border-slate-300 group-data-[active=true]:bg-slate-100 group-data-[active=true]:text-slate-800 group-data-[active=true]:dark:border-white/[0.18] group-data-[active=true]:dark:bg-white/[0.09] group-data-[active=true]:dark:text-slate-200 group-data-[active=true]:dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]',
         className,
       )}
       {...props}

@@ -17,16 +17,22 @@ export interface MeResponse {
 
 export type { ProfileNextAction };
 
-export type SessionStatus = 'authenticated' | 'unauthenticated' | 'unavailable';
+export type SessionStatus =
+  'authenticated' | 'unauthenticated' | 'suspended' | 'unavailable';
 
 export type SessionLookup =
   | { status: 'authenticated'; me: MeResponse }
   | { status: 'unauthenticated' }
+  | { status: 'suspended' }
   | { status: 'unavailable' };
 
 export function classifyMeStatus(httpStatus: number): SessionStatus {
   if (httpStatus === 200) return 'authenticated';
-  if (httpStatus === 401 || httpStatus === 403 || httpStatus === 404) {
+  // /v1/me returns 403 only when the account exists but is not ACTIVE
+  // (suspended/deleted/banned). Surface it distinctly so the proxy can show
+  // "account suspended" instead of a generic login loop.
+  if (httpStatus === 403) return 'suspended';
+  if (httpStatus === 401 || httpStatus === 404) {
     return 'unauthenticated';
   }
   return 'unavailable';

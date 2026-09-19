@@ -268,7 +268,10 @@ adminRouter.patch(
       }
     }
     // Keep Better Auth ban fields in sync with our AccountStatus and revoke
-    // live sessions so suspension/role changes take effect immediately.
+    // live sessions so suspension/demotion takes effect immediately.
+    // Promotion (USER -> ADMIN) and re-activation take effect immediately via
+    // DB-read on each request, so keep sessions alive — otherwise a freshly
+    // promoted admin gets logged out and bounced to /login.
     const mutatingData: Record<string, unknown> = { ...data };
     if (data.status === 'SUSPENDED' || data.status === 'DELETED') {
       mutatingData.banned = true;
@@ -285,7 +288,10 @@ adminRouter.patch(
       data: mutatingData,
       select: PUBLIC_USER_SELECT,
     });
-    if (data.status !== undefined || data.role !== undefined) {
+    const isDemotion = data.role === 'USER' && existing.role === 'ADMIN';
+    const isDeactivation =
+      data.status === 'SUSPENDED' || data.status === 'DELETED';
+    if (isDemotion || isDeactivation) {
       await prisma.session.deleteMany({ where: { userId: id } });
     }
     await recordAuditLog(actor.id, 'admin.user.updated', id, {

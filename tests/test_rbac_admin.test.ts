@@ -228,4 +228,47 @@ describe('RBAC: /v1/admin is ADMIN-only', () => {
     expect(res.status).toBe(409);
     expect(prismaMock.user.update.mock.calls.length).toBe(0);
   });
+
+  it('promotion to ADMIN keeps sessions alive so the new admin stays logged in', async () => {
+    sessionUser = {
+      id: 'admin-1',
+      email: 'admin@example.com',
+      role: 'ADMIN',
+      status: 'ACTIVE',
+    };
+    prismaMock.user.findUnique.mockResolvedValue({
+      id: 'user-a',
+      role: 'USER',
+      status: 'ACTIVE',
+    });
+    const res = await fetch(`${base}/v1/admin/users/user-a`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ role: 'ADMIN' }),
+    });
+    expect(res.status).toBe(200);
+    expect(prismaMock.session.deleteMany.mock.calls.length).toBe(0);
+  });
+
+  it('demotion from ADMIN revokes the target sessions', async () => {
+    sessionUser = {
+      id: 'admin-2',
+      email: 'admin2@example.com',
+      role: 'ADMIN',
+      status: 'ACTIVE',
+    };
+    prismaMock.user.findUnique.mockResolvedValue({
+      id: 'admin-1',
+      role: 'ADMIN',
+      status: 'ACTIVE',
+    });
+    prismaMock.user.count.mockResolvedValue(2);
+    const res = await fetch(`${base}/v1/admin/users/admin-1`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ role: 'USER' }),
+    });
+    expect(res.status).toBe(200);
+    expect(prismaMock.session.deleteMany.mock.calls.length).toBe(1);
+  });
 });

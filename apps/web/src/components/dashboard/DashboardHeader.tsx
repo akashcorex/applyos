@@ -12,12 +12,16 @@ import { DitherButton } from '@/components/dither-kit/button';
 
 interface DashboardHeaderProps {
   currentTitle?: string;
+  homeHref?: string;
+  showQuickAction?: boolean;
   onQuickAction?: () => void;
   onToggleSidebar?: () => void;
 }
 
 export function DashboardHeader({
   currentTitle = 'Overview',
+  homeHref = '/dashboard',
+  showQuickAction = true,
   onQuickAction,
   onToggleSidebar,
 }: DashboardHeaderProps) {
@@ -37,7 +41,7 @@ export function DashboardHeader({
 
         <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-[#8a8f9d] font-medium">
           <Link
-            href="/dashboard"
+            href={homeHref}
             className="flex items-center gap-1 hover:text-slate-900 dark:hover:text-[#f1f3f9] transition-colors"
           >
             <Home className="h-3.5 w-3.5 text-slate-500 dark:text-[#8a8f9d]" />
@@ -66,15 +70,17 @@ export function DashboardHeader({
           </kbd>
         </div>
 
-        <DitherButton
-          color="blue"
-          variant="gradient"
-          bloom="aura"
-          onClick={onQuickAction}
-          className="h-7 px-2.5 text-[11px] font-semibold text-white rounded-[6px] shadow-sm flex items-center gap-1.5 cursor-pointer tactile-btn"
-        >
-          <span>Auto-Apply</span>
-        </DitherButton>
+        {showQuickAction ? (
+          <DitherButton
+            color="blue"
+            variant="gradient"
+            bloom="aura"
+            onClick={onQuickAction}
+            className="h-7 px-2.5 text-[11px] font-semibold text-white rounded-[6px] shadow-sm flex items-center gap-1.5 cursor-pointer tactile-btn"
+          >
+            <span>Auto-Apply</span>
+          </DitherButton>
+        ) : null}
 
         {/* Dark / Light Mode Switcher */}
         <ThemeToggle />

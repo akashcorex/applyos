@@ -10,10 +10,13 @@ describe('classifyMeStatus', () => {
     expect(classifyMeStatus(200)).toBe('authenticated');
   });
 
-  it('treats 401, 403, and 404 as logged out', () => {
+  it('treats 401 and 404 as logged out', () => {
     expect(classifyMeStatus(401)).toBe('unauthenticated');
-    expect(classifyMeStatus(403)).toBe('unauthenticated');
     expect(classifyMeStatus(404)).toBe('unauthenticated');
+  });
+
+  it('treats 403 as suspended, not logged out', () => {
+    expect(classifyMeStatus(403)).toBe('suspended');
   });
 
   it('treats 5xx as unavailable, not logged out', () => {
@@ -35,5 +38,9 @@ describe('sessionStatusFromLookup', () => {
 
   it('maps a confirmed 200 to authenticated', () => {
     expect(sessionStatusFromLookup('sid=1', 200)).toBe('authenticated');
+  });
+
+  it('maps 403 to suspended so the proxy can show account status', () => {
+    expect(sessionStatusFromLookup('sid=1', 403)).toBe('suspended');
   });
 });

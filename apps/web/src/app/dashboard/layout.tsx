@@ -20,12 +20,22 @@ const sectionTitles: Record<string, string> = {
   '/dashboard/workflows': 'Job Tracker',
   '/dashboard/applications': 'Applications',
   '/dashboard/linkedin': 'Outreach',
-  '/dashboard/admin': 'Admin',
+  '/dashboard/admin': 'Overview',
+  '/dashboard/admin/users': 'Users',
+  '/dashboard/admin/resumes': 'Resumes',
+  '/dashboard/admin/system': 'System',
   '/dashboard/settings': 'Profile',
   '/dashboard/settings/billing': 'Plans & Billing',
   '/dashboard/settings/security': 'Security',
   '/dashboard/settings/preferences': 'Preferences',
 };
+
+function titleFor(pathname: string): string {
+  if (pathname.startsWith('/dashboard/admin/users')) return 'Users';
+  if (pathname.startsWith('/dashboard/admin/resumes')) return 'Resumes';
+  if (pathname.startsWith('/dashboard/admin/system')) return 'System';
+  return sectionTitles[pathname] ?? 'Dashboard';
+}
 
 export default function DashboardAppLayout({
   children,
@@ -38,6 +48,7 @@ export default function DashboardAppLayout({
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [adminChecked, setAdminChecked] = useState(false);
 
   useEffect(() => {
     try {
@@ -70,11 +81,24 @@ export default function DashboardAppLayout({
   useEffect(() => {
     if (!session) {
       setIsAdmin(false);
+      setAdminChecked(false);
       return;
     }
+    let cancelled = false;
     void fetchMe()
-      .then((me) => setIsAdmin(isAdminRole(me.user.role)))
-      .catch(() => setIsAdmin(false));
+      .then((me) => {
+        if (cancelled) return;
+        setIsAdmin(isAdminRole(me.user.role));
+        setAdminChecked(true);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setIsAdmin(false);
+        setAdminChecked(true);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [session]);
 
   async function handleSignOut() {
@@ -110,9 +134,15 @@ export default function DashboardAppLayout({
     );
   }
 
-  const currentTitle = pathname.startsWith('/dashboard/admin')
-    ? 'Admin'
-    : (sectionTitles[pathname] ?? 'Dashboard');
+  if (!adminChecked) {
+    return (
+      <main className="min-h-screen bg-[#f0f2f5] dark:bg-[#09090A] p-6 flex items-center justify-center text-slate-900 dark:text-[#f1f3f9] transition-colors duration-150">
+        <DashboardSkeleton />
+      </main>
+    );
+  }
+
+  const currentTitle = titleFor(pathname);
 
   return (
     <div className="flex h-screen w-full bg-[#f0f2f5] dark:bg-[#09090A] text-slate-900 dark:text-[#f1f3f9] overflow-hidden font-sans antialiased transition-colors duration-150">
@@ -121,7 +151,7 @@ export default function DashboardAppLayout({
         <AppSidebar
           userName={session.user.name}
           userEmail={session.user.email}
-          isAdmin={isAdmin}
+          variant={isAdmin ? 'admin' : 'workspace'}
           onSignOut={handleSignOut}
           isCollapsed={isCollapsed}
           onToggleCollapse={toggleCollapse}
@@ -139,7 +169,7 @@ export default function DashboardAppLayout({
             <AppSidebar
               userName={session.user.name}
               userEmail={session.user.email}
-              isAdmin={isAdmin}
+              variant={isAdmin ? 'admin' : 'workspace'}
               onSignOut={handleSignOut}
               onNavigate={() => setSidebarOpen(false)}
               onToggleCollapse={() => setSidebarOpen(false)}
@@ -153,6 +183,8 @@ export default function DashboardAppLayout({
         {/* Single Unified Linear Header Bar */}
         <DashboardHeader
           currentTitle={currentTitle}
+          homeHref={isAdmin ? '/dashboard/admin' : '/dashboard'}
+          showQuickAction={!isAdmin}
           onQuickAction={() => router.push('/dashboard/auto-apply')}
           onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
         />
