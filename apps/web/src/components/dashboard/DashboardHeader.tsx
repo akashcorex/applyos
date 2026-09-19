@@ -22,7 +22,7 @@ export function DashboardHeader({
   onToggleSidebar,
 }: DashboardHeaderProps) {
   return (
-    <header className="sticky top-0 z-20 h-12 w-full border-b border-slate-200/80 dark:border-[#22242a] bg-white/95 dark:bg-[#121213]/95 backdrop-blur px-4 sm:px-6 flex items-center justify-between gap-4 text-slate-900 dark:text-[#f1f3f9] transition-colors duration-150">
+    <header className="sticky top-0 z-20 h-12 w-full border-b border-slate-200/80 dark:border-[#22242a] bg-white/95 dark:bg-[#09090A]/95 backdrop-blur px-4 sm:px-6 flex items-center justify-between gap-4 text-slate-900 dark:text-[#f1f3f9] transition-colors duration-150">
       {/* Left: Mobile Toggle & Breadcrumbs Navigation */}
       <div className="flex items-center gap-2 flex-1 max-w-lg">
         <Button

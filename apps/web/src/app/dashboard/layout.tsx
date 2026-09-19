@@ -14,10 +14,11 @@ import { authClient } from '@/lib/auth-client';
 import { isAdminRole } from '@/lib/rbac';
 
 const sectionTitles: Record<string, string> = {
-  '/dashboard': 'Overview',
+  '/dashboard': 'Home',
   '/dashboard/auto-apply': 'Profile & Resume',
-  '/dashboard/discovery': 'Jobs',
+  '/dashboard/discovery': 'Discover jobs',
   '/dashboard/workflows': 'Tracker',
+  '/dashboard/applications': 'Applications',
   '/dashboard/linkedin': 'Outreach',
   '/dashboard/admin': 'Admin',
   '/dashboard/settings': 'Profile',
@@ -148,7 +149,7 @@ export default function DashboardAppLayout({
       ) : null}
 
       {/* Main Workspace Area with Sidebar-Facing Corner Curves (Top-Left & Bottom-Left Only) */}
-      <div className="flex-1 flex flex-col h-full md:my-2 md:h-[calc(100vh-1rem)] overflow-hidden bg-white dark:bg-[#121213] md:rounded-l-2xl md:rounded-r-none md:border-l md:border-y md:border-r-0 border-slate-200/80 dark:border-[#22242a] shadow-xl dark:shadow-2xl transition-colors duration-150">
+      <div className="flex-1 flex flex-col h-full md:my-2 md:h-[calc(100vh-1rem)] overflow-hidden bg-white dark:bg-[#09090A] md:rounded-l-2xl md:rounded-r-none md:border-l md:border-y md:border-r-0 border-slate-200/80 dark:border-[#22242a] shadow-xl dark:shadow-2xl transition-colors duration-150">
         {/* Single Unified Linear Header Bar */}
         <DashboardHeader
           currentTitle={currentTitle}
@@ -157,7 +158,7 @@ export default function DashboardAppLayout({
         />
 
         {/* Scrollable Page Workspace */}
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-6 bg-white dark:bg-[#121213] transition-colors duration-150">
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-6 bg-white dark:bg-[#09090A] transition-colors duration-150">
           {children}
         </main>
       </div>
