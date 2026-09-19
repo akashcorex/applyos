@@ -1,0 +1,76 @@
+{
+  "id": "resume-new-fact",
+  "prompt_hash": "3207118d7e9ff2434a41c6a13e63b5a92b1625d1ba258cd1417de98882251f9f",
+  "ir": {
+    "schema_version": "resume-ir.v1",
+    "user_id": "user-test",
+    "source_document_hash": "doc-002",
+    "identity": {
+      "full_name": "Test Candidate",
+      "email": "",
+      "phone": null
+    },
+    "skills": [
+      {
+        "id": "skill-python",
+        "name": "Python",
+        "normalized_name": "python",
+        "evidence_ids": ["ev-python"]
+      }
+    ],
+    "experience": [
+      {
+        "id": "role-acme",
+        "company": "Acme",
+        "title": "Engineer",
+        "start_date": "2020",
+        "end_date": "2023",
+        "bullets": [
+          {
+            "id": "bullet-acme-1",
+            "text": "Built internal Python tools.",
+            "evidence_ids": ["ev-bullet"]
+          }
+        ],
+        "evidence_ids": ["ev-bullet"]
+      }
+    ],
+    "evidence": {
+      "ev-python": {
+        "id": "ev-python",
+        "kind": "assertion",
+        "spans": []
+      },
+      "ev-bullet": {
+        "id": "ev-bullet",
+        "kind": "assertion",
+        "spans": []
+      }
+    }
+  },
+  "job_profile": {
+    "schema_version": "job-profile.v1",
+    "title": "Backend Engineer",
+    "required_skills": ["Python"],
+    "preferred_skills": []
+  },
+  "proposal": {
+    "operations": [
+      {
+        "operation": "rewrite_existing_bullet",
+        "node_id": "bullet-acme-1",
+        "field": "text",
+        "before": "Built internal Python tools.",
+        "after": "Built internal Python tools used by 40% of the company.",
+        "evidence_ids": ["ev-bullet"]
+      }
+    ],
+    "overall_assessment": "Add an unsupported impact metric."
+  },
+  "expected": {
+    "no_new_facts": false,
+    "evidence_ids_valid": true,
+    "operation_allowed": true,
+    "skills_relevant": 90
+  }
+}

@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from pathlib import Path
+from time import perf_counter
 
 from fastapi import APIRouter, HTTPException, Request, status
 from fastapi.responses import FileResponse, JSONResponse
@@ -44,6 +45,7 @@ from services.ir import (
     sha256_bytes,
     sha256_json,
 )
+from services.jev_trace import log_resume_tailoring_trace, should_sample_trace
 from services.latex_templates.registry import (
     DEFAULT_TEMPLATE_ID,
     UnknownTemplateError,
@@ -768,6 +770,7 @@ async def propose_controlled_ai_tailoring(
         company_name=variant.company_name,
         description=variant.job_description,
     )
+    started_at = perf_counter()
     try:
         proposal = await state.rag_pipeline.propose_controlled_tailoring(
             ir=ir,
@@ -784,6 +787,20 @@ async def propose_controlled_ai_tailoring(
             raise ControlledTailoringError(
                 "The model returned an unsupported tailoring operation"
             )
+        if settings.jev_enabled and should_sample_trace(
+            variant_id, settings.jev_sample_rate
+        ):
+            try:
+                log_resume_tailoring_trace(
+                    variant_id=variant_id,
+                    ir=ir,
+                    job_profile=profile,
+                    proposal=parsed,
+                    model=settings.llm_model,
+                    started_at=started_at,
+                )
+            except Exception as exc:
+                logger.warning("JEV trace logging failed: %s", exc)
         return parsed
     except ControlledTailoringError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc

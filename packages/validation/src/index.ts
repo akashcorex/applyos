@@ -32,6 +32,7 @@ export * from './jobs';
 export * from './billing';
 export * from './http';
 export * from './errors';
+export * from './evals';
 export * from './parse';
 export * from './express';
 export * from './next';

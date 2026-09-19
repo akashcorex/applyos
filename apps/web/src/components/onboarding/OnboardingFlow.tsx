@@ -1,62 +1,209 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 
 import {
+  ArrowRight,
   CheckCircle2,
   FileText,
   Loader2,
-  RefreshCw,
+  ShieldCheck,
+  Sparkles,
   UploadCloud,
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 
 interface ParseResult {
   resume_id: string;
   resume_file_id: string;
   full_name: string;
   email: string;
-  phone: string | null;
   location: string | null;
-  summary: string | null;
   skills: string[];
   education: Record<string, unknown>[];
   work_history: Record<string, unknown>[];
   experience_years: number;
   total_experience_years: number | null;
   preferred_role: string | null;
-  preferred_locations: string[];
-  seniority: string | null;
-  work_mode: string | null;
   file_name: string;
 }
 
-type Step = 'upload' | 'review' | 'confirmed';
+type Step = 'upload' | 'processing' | 'review' | 'success';
+
+interface ReviewDraft {
+  fullName: string;
+  role: string;
+  location: string;
+  skills: string;
+}
+
+interface Summary {
+  firstName: string;
+  role: string | null;
+  skillsCount: number;
+  expYears: number | null;
+  positions: number;
+  fileName: string;
+}
+
+const MAX_BYTES = 50 * 1024 * 1024;
+const ACCEPTED = ['.pdf', '.doc', '.docx'];
+const STAGES = ['Uploading', 'Reading your resume', 'Building your profile'];
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function firstNameOf(fullName: string): string {
+  const first = fullName.trim().split(/\s+/)[0] ?? '';
+  return first || 'there';
+}
+
+const containerVariants = {
+  hidden: { opacity: 0, y: 12, filter: 'blur(8px)' },
+  visible: { opacity: 1, y: 0, filter: 'blur(0px)' },
+};
 
 export function OnboardingFlow() {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
+  const progressTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const redirectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const progressValue = useRef(0);
+
   const [step, setStep] = useState<Step>('upload');
+  const [dragging, setDragging] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
-  const [uploading, setUploading] = useState(false);
+  const [fileSize, setFileSize] = useState<string | null>(null);
+  const [progress, setProgress] = useState(0);
+  const [stageIndex, setStageIndex] = useState(0);
   const [confirming, setConfirming] = useState(false);
-  const [editing, setEditing] = useState(false);
-  const [savingEdits, setSavingEdits] = useState(false);
+  const [confirmError, setConfirmError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [parsed, setParsed] = useState<ParseResult | null>(null);
-  const [editFullName, setEditFullName] = useState('');
-  const [editRole, setEditRole] = useState('');
-  const [editLocation, setEditLocation] = useState('');
-  const [editLocations, setEditLocations] = useState('');
-  const [editSkills, setEditSkills] = useState('');
-  const [editSeniority, setEditSeniority] = useState('');
-  const [editWorkMode, setEditWorkMode] = useState('');
+  const [reviewDraft, setReviewDraft] = useState<ReviewDraft>({
+    fullName: '',
+    role: '',
+    location: '',
+    skills: '',
+  });
+  const [summary, setSummary] = useState<Summary | null>(null);
+
+  useEffect(() => {
+    router.prefetch('/dashboard');
+    router.prefetch('/dashboard/settings');
+    return () => {
+      if (progressTimer.current) clearInterval(progressTimer.current);
+      if (redirectTimer.current) clearTimeout(redirectTimer.current);
+    };
+  }, [router]);
+
+  const stopProgress = useCallback(() => {
+    if (progressTimer.current) {
+      clearInterval(progressTimer.current);
+      progressTimer.current = null;
+    }
+  }, []);
+
+  const startProgress = useCallback(() => {
+    stopProgress();
+    progressValue.current = 4;
+    setProgress(4);
+    setStageIndex(0);
+    progressTimer.current = setInterval(() => {
+      const current = progressValue.current;
+      const next = Math.min(
+        current < 30
+          ? current + 3
+          : current < 70
+            ? current + 1.2
+            : current + 0.4,
+        92,
+      );
+      progressValue.current = next;
+      setProgress(next);
+      setStageIndex(next > 55 ? 2 : next > 20 ? 1 : 0);
+    }, 220);
+  }, [stopProgress]);
+
+  const confirmProfile = useCallback(
+    async (draft: ReviewDraft, source: ParseResult) => {
+      setConfirming(true);
+      setConfirmError(null);
+      try {
+        const save = await fetch('/api/profiles', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            fullName: draft.fullName.trim(),
+            email: source.email,
+            location: draft.location.trim() || null,
+            skills: draft.skills
+              .split(',')
+              .map((skill) => skill.trim())
+              .filter(Boolean),
+            preferredRoles: draft.role.trim() ? [draft.role.trim()] : [],
+          }),
+        });
+        if (!save.ok) {
+          const data = (await save.json().catch(() => ({}))) as {
+            error?: string;
+          };
+          setConfirmError(
+            data.error ?? 'Could not save your profile. Try again.',
+          );
+          return false;
+        }
+
+        const res = await fetch('/api/profiles/confirm', { method: 'POST' });
+        if (!res.ok) {
+          const data = (await res.json().catch(() => ({}))) as {
+            error?: string;
+          };
+          setConfirmError(data.error ?? 'Could not finish setup. Try again.');
+          return false;
+        }
+        return true;
+      } catch {
+        setConfirmError('Profile service is unavailable. Try again.');
+        return false;
+      } finally {
+        setConfirming(false);
+      }
+    },
+    [],
+  );
+
+  const goDashboard = useCallback(() => {
+    redirectTimer.current = setTimeout(() => {
+      router.replace('/dashboard');
+    }, 1600);
+  }, [router]);
 
   async function handleFile(file: File) {
-    setUploading(true);
+    const lower = file.name.toLowerCase();
+    const okExt = ACCEPTED.some((ext) => lower.endsWith(ext));
+    if (!okExt) {
+      setError('Please upload a PDF or DOCX file.');
+      return;
+    }
+    if (file.size > MAX_BYTES) {
+      setError('That file is over 50MB. Please upload a smaller resume.');
+      return;
+    }
+
     setError(null);
+    setConfirmError(null);
     setFileName(file.name);
+    setFileSize(formatBytes(file.size));
+    setStep('processing');
+    startProgress();
+
     try {
       const body = new FormData();
       body.append('file', file);
@@ -65,25 +212,49 @@ export function OnboardingFlow() {
         error?: string;
       };
       if (!res.ok) {
+        stopProgress();
+        setStep('upload');
         setError(data.error ?? 'Resume processing failed. Please try again.');
-        setFileName(null);
         return;
       }
+
+      stopProgress();
+      progressValue.current = 100;
+      setProgress(100);
       setParsed(data);
-      setEditFullName(data.full_name);
-      setEditRole(data.preferred_role ?? '');
-      setEditLocation(data.location ?? '');
-      setEditLocations(data.preferred_locations.join(', '));
-      setEditSkills(data.skills.join(', '));
-      setEditSeniority(data.seniority ?? '');
-      setEditWorkMode(data.work_mode ?? '');
+      setReviewDraft({
+        fullName: data.full_name,
+        role: data.preferred_role ?? '',
+        location: data.location ?? '',
+        skills: data.skills.join(', '),
+      });
       setStep('review');
     } catch {
+      stopProgress();
+      setStep('upload');
       setError('Resume service is unreachable. Please try again.');
-      setFileName(null);
-    } finally {
-      setUploading(false);
     }
+  }
+
+  async function handleConfirm() {
+    if (!parsed) return;
+    const ok = await confirmProfile(reviewDraft, parsed);
+    if (!ok) return;
+
+    setSummary({
+      firstName: firstNameOf(reviewDraft.fullName),
+      role: reviewDraft.role || null,
+      skillsCount: reviewDraft.skills
+        .split(',')
+        .map((skill) => skill.trim())
+        .filter(Boolean).length,
+      expYears:
+        parsed.total_experience_years ?? parsed.experience_years ?? null,
+      positions: parsed.work_history.length,
+      fileName: parsed.file_name || fileName || 'your resume',
+    });
+    setStep('success');
+    goDashboard();
   }
 
   function onInputChange(event: React.ChangeEvent<HTMLInputElement>) {
@@ -92,420 +263,514 @@ export function OnboardingFlow() {
     event.target.value = '';
   }
 
-  function onDrop(event: React.DragEvent) {
-    event.preventDefault();
-    if (uploading) return;
-    const file = event.dataTransfer.files?.[0];
-    if (file) void handleFile(file);
-  }
-
-  async function handleConfirm() {
-    setConfirming(true);
-    setError(null);
-    try {
-      const res = await fetch('/api/profiles/confirm', { method: 'POST' });
-      if (!res.ok) {
-        const data = (await res.json().catch(() => ({}))) as { error?: string };
-        setError(data.error ?? 'Could not confirm your profile.');
-        setConfirming(false);
-        return;
-      }
-      setStep('confirmed');
-      router.replace('/dashboard');
-    } catch {
-      setError('Profile service is unavailable. Please try again.');
-      setConfirming(false);
-    }
-  }
-
-  async function saveEdits() {
-    if (!parsed) return;
-    setSavingEdits(true);
-    setError(null);
-    try {
-      const res = await fetch('/api/profiles', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          fullName: editFullName,
-          headline: editRole,
-          location: editLocation,
-          skills: editSkills
-            .split(',')
-            .map((value) => value.trim())
-            .filter(Boolean),
-          preferredRoles: editRole ? [editRole] : [],
-          preferredLocations: editLocations
-            .split(',')
-            .map((value) => value.trim())
-            .filter(Boolean),
-          seniority: editSeniority || null,
-          workMode: editWorkMode || null,
-        }),
-      });
-      const data = (await res.json().catch(() => ({}))) as {
-        error?: string;
-      };
-      if (!res.ok) {
-        setError(data.error ?? 'Could not save your profile edits.');
-        return;
-      }
-      setParsed({
-        ...parsed,
-        full_name: editFullName,
-        preferred_role: editRole || null,
-        location: editLocation || null,
-        skills: editSkills
-          .split(',')
-          .map((value) => value.trim())
-          .filter(Boolean),
-        preferred_locations: editLocations
-          .split(',')
-          .map((value) => value.trim())
-          .filter(Boolean),
-        seniority: editSeniority || null,
-        work_mode: editWorkMode || null,
-      });
-      setEditing(false);
-    } catch {
-      setError('Profile service is unavailable. Please try again.');
-    } finally {
-      setSavingEdits(false);
-    }
-  }
-
   return (
-    <main className="min-h-screen bg-slate-950 text-white flex items-center justify-center p-4 sm:p-6">
-      <div className="w-full max-w-xl">
-        <div className="flex items-center justify-center gap-2 mb-6">
-          <div className="h-9 w-9 rounded-md bg-white p-2 shadow-md flex items-center justify-center">
-            <img
+    <main className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-6 sm:p-10 relative overflow-hidden">
+      {/* ambient radial glow */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(800px_500px_at_50%_10%,rgba(59,130,246,0.12),transparent)]"
+      />
+
+      <div className="w-full max-w-xl relative z-10">
+        {/* brand header */}
+        <motion.div
+          initial="hidden"
+          animate="visible"
+          variants={containerVariants}
+          transition={{ duration: 0.4, ease: 'easeOut' }}
+          className="flex items-center justify-center gap-2.5 mb-8"
+        >
+          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-neutral-900 border border-white/10 shadow-md">
+            <Image
               src="/logo-white.png"
               alt="ApplyOS"
+              width={16}
+              height={16}
               className="h-4 w-auto object-contain"
             />
+          </span>
+          <span className="text-sm font-bold text-white tracking-[0.15em] uppercase">
+            ApplyOS.in
+          </span>
+        </motion.div>
+
+        {/* stepper */}
+        <motion.div
+          initial="hidden"
+          animate="visible"
+          variants={containerVariants}
+          transition={{ duration: 0.4, delay: 0.05, ease: 'easeOut' }}
+          className="space-y-3 mb-6"
+        >
+          {/* step 1 — completed */}
+          <div className="relative overflow-hidden rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.03] p-4">
+            <div className="flex items-center gap-4">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-emerald-500/30 bg-emerald-500/10 text-emerald-400">
+                <CheckCircle2 className="h-5 w-5" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-white">
+                  Account Created
+                </p>
+                <p className="text-xs text-neutral-400">
+                  Signed in and ready to set up
+                </p>
+              </div>
+            </div>
           </div>
-        </div>
 
-        <ol className="flex items-center justify-center gap-3 mb-6 text-[11px] font-bold uppercase tracking-wider">
-          {[
-            { key: 'upload', label: '1. Upload resume' },
-            { key: 'review', label: '2. Confirm profile' },
-            { key: 'confirmed', label: '3. Done' },
-          ].map((item) => (
-            <li
-              key={item.key}
-              className={item.key === step ? 'text-white' : 'text-slate-500'}
-            >
-              {item.label}
-            </li>
-          ))}
-        </ol>
-
-        <div className="rounded-2xl bg-white text-slate-900 p-6 sm:p-8 shadow-2xl">
-          {step === 'upload' ? (
-            <>
-              <h1 className="text-xl sm:text-2xl font-black tracking-tight uppercase">
-                Upload your resume
-              </h1>
-              <p className="text-xs sm:text-sm text-slate-500 mt-1 mb-6 font-medium">
-                We extract your profile from it — that&apos;s the only thing we
-                need to get you started.
-              </p>
-
+          {/* step 2 — active (upload / processing / verified) */}
+          <div
+            className={`relative overflow-hidden rounded-2xl border p-4 transition-all duration-500 ${
+              step === 'upload'
+                ? 'border-blue-500/30 bg-blue-500/[0.06] shadow-[0_0_40px_-16px_rgba(59,130,246,0.35)]'
+                : step === 'processing' || step === 'review'
+                  ? 'border-blue-500/40 bg-blue-500/[0.08] shadow-[0_0_50px_-12px_rgba(59,130,246,0.45)]'
+                  : 'border-emerald-500/20 bg-emerald-500/[0.04]'
+            }`}
+          >
+            <div className="flex items-center gap-4">
               <div
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={onDrop}
-                onClick={() => !uploading && inputRef.current?.click()}
-                className="border-2 border-dashed border-slate-200 rounded-xl p-8 flex flex-col items-center justify-center gap-3 cursor-pointer hover:border-slate-400 hover:bg-slate-50 transition-all duration-150"
+                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors duration-300 ${
+                  step === 'upload'
+                    ? 'bg-blue-500/15 text-blue-400'
+                    : step === 'processing' || step === 'review'
+                      ? 'bg-blue-500/20 text-blue-300'
+                      : 'bg-emerald-500/15 text-emerald-400'
+                }`}
               >
-                {uploading ? (
-                  <>
-                    <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
-                    <p className="text-xs font-semibold text-slate-500">
-                      Extracting your profile from{' '}
-                      <span className="text-slate-900">{fileName}</span>…
-                    </p>
-                    <p className="text-[11px] text-slate-400">
-                      This usually takes under a minute.
-                    </p>
-                  </>
+                {step === 'processing' ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : step === 'success' ? (
+                  <CheckCircle2 className="h-5 w-5" />
                 ) : (
-                  <>
-                    <UploadCloud className="h-8 w-8 text-slate-400" />
-                    <p className="text-xs font-semibold text-slate-600">
-                      Drop your resume here or click to browse
-                    </p>
-                    <p className="text-[11px] text-slate-400">
-                      PDF or DOCX, up to 50MB
-                    </p>
-                  </>
+                  <FileText className="h-5 w-5" />
                 )}
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-white">
+                  {step === 'upload'
+                    ? 'Upload Resume'
+                    : step === 'processing'
+                      ? 'Verifying Details'
+                      : step === 'review'
+                        ? 'Review Profile'
+                        : 'Details Verified'}
+                </p>
+                <p className="text-xs text-neutral-400">
+                  {step === 'upload'
+                    ? 'Add your resume so we can build your profile'
+                    : step === 'processing'
+                      ? STAGES[stageIndex]
+                      : step === 'review'
+                        ? 'Check the extracted details before confirming'
+                        : 'Profile built from your resume'}
+                </p>
+              </div>
+              {step === 'processing' ? (
+                <span className="text-xs font-semibold text-blue-400">
+                  {Math.round(progress)}%
+                </span>
+              ) : null}
+            </div>
+
+            {step === 'processing' ? (
+              <div className="mt-4">
+                <div
+                  className="h-1.5 w-full rounded-full bg-white/10 overflow-hidden"
+                  role="progressbar"
+                  aria-valuenow={Math.round(progress)}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                >
+                  <motion.div
+                    className="h-full rounded-full bg-gradient-to-r from-cyan-400 to-blue-500"
+                    initial={{ width: 0 }}
+                    animate={{ width: `${Math.round(progress)}%` }}
+                    transition={{ duration: 0.2 }}
+                  />
+                </div>
+              </div>
+            ) : null}
+          </div>
+
+          {/* step 3 — pending / active */}
+          <div
+            className={`relative overflow-hidden rounded-2xl border p-4 transition-all duration-500 ${
+              step === 'success'
+                ? 'border-emerald-500/20 bg-emerald-500/[0.04] shadow-[0_0_40px_-16px_rgba(16,185,129,0.25)]'
+                : 'border-white/[0.05] bg-white/[0.02] opacity-60'
+            }`}
+          >
+            <div className="flex items-center gap-4">
+              <div
+                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors duration-300 ${
+                  step === 'success'
+                    ? 'bg-emerald-500/15 text-emerald-400'
+                    : 'border border-white/10 bg-white/5 text-neutral-500'
+                }`}
+              >
+                {step === 'success' ? (
+                  <Sparkles className="h-5 w-5" />
+                ) : (
+                  <CheckCircle2 className="h-5 w-5" />
+                )}
+              </div>
+              <div className="flex-1">
+                <p
+                  className={`text-sm font-semibold transition-colors duration-300 ${step === 'success' ? 'text-white' : 'text-neutral-300'}`}
+                >
+                  Welcome Aboard
+                </p>
+                <p className="text-xs text-neutral-400">
+                  {step === 'success'
+                    ? 'Redirecting to your dashboard…'
+                    : 'Final step after verification'}
+                </p>
+              </div>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* main interaction card */}
+        <motion.div
+          initial="hidden"
+          animate="visible"
+          variants={containerVariants}
+          transition={{ duration: 0.4, delay: 0.1, ease: 'easeOut' }}
+          className="rounded-3xl border border-white/[0.08] bg-neutral-950/80 backdrop-blur-sm p-6 sm:p-8"
+        >
+          <AnimatePresence mode="wait">
+            {step === 'upload' ? (
+              <motion.div
+                key="upload"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.25 }}
+                className="text-center"
+              >
+                <div
+                  role="button"
+                  tabIndex={0}
+                  aria-label="Upload your resume"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      inputRef.current?.click();
+                    }
+                  }}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setDragging(true);
+                  }}
+                  onDragLeave={() => setDragging(false)}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setDragging(false);
+                    const file = e.dataTransfer.files?.[0];
+                    if (file) void handleFile(file);
+                  }}
+                  onClick={() => inputRef.current?.click()}
+                  className={`group rounded-2xl border-2 border-dashed p-8 sm:p-10 flex flex-col items-center justify-center gap-3 text-center transition-all duration-200 cursor-pointer ${
+                    dragging
+                      ? 'border-blue-400 bg-blue-500/[0.06] scale-[1.01]'
+                      : 'border-white/10 bg-white/[0.02] hover:border-blue-400/60 hover:bg-blue-500/[0.04]'
+                  }`}
+                >
+                  <span className="h-14 w-14 rounded-full bg-blue-500/15 text-blue-400 flex items-center justify-center shadow-[0_0_24px_-8px_rgba(59,130,246,0.35)] transition-transform duration-200 group-hover:scale-105">
+                    <UploadCloud className="h-7 w-7" />
+                  </span>
+                  <p className="text-base sm:text-lg font-semibold text-white">
+                    Drag & drop your resume
+                  </p>
+                  <p className="text-sm text-neutral-400">
+                    or click to browse files
+                  </p>
+                  <div className="flex items-center justify-center gap-2 mt-1">
+                    {['PDF', 'DOCX', '50MB MAX'].map((pill) => (
+                      <span
+                        key={pill}
+                        className="rounded-full bg-white/[0.06] px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-neutral-300"
+                      >
+                        {pill}
+                      </span>
+                    ))}
+                  </div>
+                  <input
+                    ref={inputRef}
+                    type="file"
+                    accept=".pdf,.doc,.docx"
+                    className="hidden"
+                    onChange={onInputChange}
+                  />
+                </div>
+
+                {error ? (
+                  <motion.div
+                    initial={{ opacity: 0, y: 4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="mt-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-xs text-red-200 font-medium flex items-start justify-between gap-3"
+                  >
+                    <span>{error}</span>
+                    <button
+                      type="button"
+                      onClick={() => inputRef.current?.click()}
+                      className="shrink-0 font-bold underline underline-offset-2 hover:text-red-100"
+                    >
+                      Retry
+                    </button>
+                  </motion.div>
+                ) : null}
+
+                <ul className="mt-6 space-y-3 text-sm font-medium text-neutral-300 text-left">
+                  {[
+                    'Auto-extracts your role, skills & experience',
+                    'Wrong details? Fix them anytime in Settings',
+                    'One upload, about a minute — then you’re in',
+                  ].map((line) => (
+                    <li key={line} className="flex items-start gap-3">
+                      <CheckCircle2 className="h-4 w-4 mt-0.5 text-emerald-400 shrink-0" />
+                      <span>{line}</span>
+                    </li>
+                  ))}
+                </ul>
+
+                <p className="mt-6 text-center text-[11px] text-neutral-500 font-medium">
+                  Your resume is only used to build your profile.
+                </p>
+              </motion.div>
+            ) : null}
+
+            {step === 'review' && parsed ? (
+              <motion.form
+                key="review"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  void handleConfirm();
+                }}
+                className="space-y-4"
+              >
+                <div>
+                  <h2 className="text-xl font-bold text-white">
+                    Review your extracted profile
+                  </h2>
+                  <p className="mt-1 text-sm text-neutral-400">
+                    Make corrections before ApplyOS saves and confirms it.
+                  </p>
+                </div>
+                {(
+                  [
+                    ['fullName', 'Full name'],
+                    ['role', 'Target role'],
+                    ['location', 'Location'],
+                    ['skills', 'Skills'],
+                  ] as const
+                ).map(([field, label]) => (
+                  <label
+                    key={field}
+                    className="block text-left text-xs font-semibold text-neutral-300"
+                  >
+                    {label}
+                    <input
+                      required={field === 'fullName'}
+                      value={reviewDraft[field]}
+                      onChange={(event) =>
+                        setReviewDraft((draft) => ({
+                          ...draft,
+                          [field]: event.target.value,
+                        }))
+                      }
+                      className="mt-1 w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2.5 text-sm text-white outline-none focus:border-blue-400"
+                    />
+                  </label>
+                ))}
+                <p className="-mt-2 text-left text-xs text-neutral-500">
+                  Separate skills with commas.
+                </p>
+                {confirmError ? (
+                  <p className="rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-left text-xs text-red-200">
+                    {confirmError}
+                  </p>
+                ) : null}
+                <button
+                  type="submit"
+                  disabled={confirming}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-white py-3 text-sm font-semibold text-black transition hover:bg-neutral-200 disabled:opacity-50"
+                >
+                  {confirming ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : null}
+                  {confirming ? 'Saving profile…' : 'Confirm profile'}
+                  {!confirming ? <ArrowRight className="h-4 w-4" /> : null}
+                </button>
+              </motion.form>
+            ) : null}
+
+            {step === 'processing' ? (
+              <motion.div
+                key="processing"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.25 }}
+                className="text-center py-6"
+              >
+                <div className="mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-full bg-blue-500/10 text-blue-400 shadow-[0_0_40px_-12px_rgba(59,130,246,0.4)]">
+                  <Loader2 className="h-9 w-9 animate-spin" />
+                </div>
+                <p className="text-lg font-semibold text-white">
+                  {STAGES[stageIndex]}
+                </p>
+                <p className="mt-1 text-sm text-neutral-400">
+                  {fileName} · {fileSize}
+                </p>
+                <p className="mt-5 text-xs text-neutral-500">
+                  Keep this tab open — usually under a minute.
+                </p>
+
+                {error ? (
+                  <motion.div
+                    initial={{ opacity: 0, y: 4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="mt-5 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-xs text-red-200 font-medium"
+                  >
+                    {error}{' '}
+                    <button
+                      type="button"
+                      onClick={() => inputRef.current?.click()}
+                      className="font-bold underline underline-offset-2 hover:text-red-100"
+                    >
+                      Retry
+                    </button>
+                  </motion.div>
+                ) : null}
                 <input
                   ref={inputRef}
                   type="file"
                   accept=".pdf,.doc,.docx"
                   className="hidden"
                   onChange={onInputChange}
-                  disabled={uploading}
                 />
-              </div>
-            </>
-          ) : null}
+              </motion.div>
+            ) : null}
 
-          {step === 'review' && parsed ? (
-            <>
-              <div className="flex items-center gap-2 mb-1">
-                <CheckCircle2 className="h-5 w-5 text-emerald-500" />
-                <h1 className="text-xl sm:text-2xl font-black tracking-tight uppercase">
-                  Profile extracted
-                </h1>
-              </div>
-              <p className="text-xs sm:text-sm text-slate-500 mt-1 mb-6 font-medium">
-                Review what we pulled from{' '}
-                <span className="font-bold text-slate-700">
-                  {parsed.file_name}
-                </span>
-                . You can edit every detail in Settings afterwards.
-              </p>
+            {step === 'success' && summary ? (
+              <motion.div
+                key="success"
+                initial={{ opacity: 0, scale: 0.98 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.98 }}
+                transition={{ duration: 0.3 }}
+                className="text-center py-2"
+              >
+                <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-400 shadow-[0_0_40px_-12px_rgba(16,185,129,0.35)]">
+                  {confirming ? (
+                    <Loader2 className="h-9 w-9 animate-spin" />
+                  ) : (
+                    <CheckCircle2 className="h-9 w-9" />
+                  )}
+                </div>
+                <h2 className="mt-5 text-xl sm:text-2xl font-bold tracking-tight">
+                  Welcome
+                  {summary.firstName !== 'there'
+                    ? `, ${summary.firstName}`
+                    : ''}
+                  !
+                </h2>
+                <p className="mt-1 text-sm text-neutral-400">
+                  Profile built from{' '}
+                  <span className="font-semibold text-neutral-200">
+                    {summary.fileName}
+                  </span>
+                  .
+                </p>
 
-              <dl className="space-y-3 text-xs mb-6">
-                <div className="flex gap-2">
-                  <dt className="w-24 shrink-0 font-bold text-slate-500 uppercase tracking-wide">
-                    Name
-                  </dt>
-                  <dd className="text-slate-900 font-medium">
-                    {parsed.full_name || '—'}
-                  </dd>
+                <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
+                  {summary.role ? (
+                    <span className="rounded-full bg-blue-500/15 text-blue-300 px-3.5 py-1.5 text-xs font-semibold">
+                      {summary.role}
+                    </span>
+                  ) : null}
+                  {summary.expYears !== null ? (
+                    <span className="rounded-full bg-white/[0.06] px-3.5 py-1.5 text-xs font-semibold text-neutral-300">
+                      {summary.expYears} yr{summary.expYears === 1 ? '' : 's'}{' '}
+                      exp
+                    </span>
+                  ) : null}
+                  {summary.skillsCount > 0 ? (
+                    <span className="rounded-full bg-white/[0.06] px-3.5 py-1.5 text-xs font-semibold text-neutral-300">
+                      {summary.skillsCount} skills
+                    </span>
+                  ) : null}
+                  {summary.positions > 0 ? (
+                    <span className="rounded-full bg-white/[0.06] px-3.5 py-1.5 text-xs font-semibold text-neutral-300">
+                      {summary.positions} role
+                      {summary.positions === 1 ? '' : 's'}
+                    </span>
+                  ) : null}
                 </div>
-                <div className="flex gap-2">
-                  <dt className="w-24 shrink-0 font-bold text-slate-500 uppercase tracking-wide">
-                    Email
-                  </dt>
-                  <dd className="text-slate-900 font-medium break-all">
-                    {parsed.email || '—'}
-                  </dd>
-                </div>
-                {parsed.preferred_role ? (
-                  <div className="flex gap-2">
-                    <dt className="w-24 shrink-0 font-bold text-slate-500 uppercase tracking-wide">
-                      Headline
-                    </dt>
-                    <dd className="text-slate-900 font-medium">
-                      {parsed.preferred_role}
-                    </dd>
+
+                {confirmError ? (
+                  <div className="mt-5 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-200 font-medium">
+                    {confirmError}{' '}
+                    <button
+                      type="button"
+                      onClick={() =>
+                        parsed &&
+                        void confirmProfile(reviewDraft, parsed).then((ok) => {
+                          if (ok) {
+                            setConfirmError(null);
+                            goDashboard();
+                          }
+                        })
+                      }
+                      disabled={confirming}
+                      className="font-bold underline underline-offset-2 disabled:opacity-50"
+                    >
+                      {confirming ? 'Retrying…' : 'Retry'}
+                    </button>
                   </div>
-                ) : null}
-                {parsed.location ? (
-                  <div className="flex gap-2">
-                    <dt className="w-24 shrink-0 font-bold text-slate-500 uppercase tracking-wide">
-                      Location
-                    </dt>
-                    <dd className="text-slate-900 font-medium">
-                      {parsed.location}
-                    </dd>
-                  </div>
-                ) : null}
-                <div className="flex gap-2">
-                  <dt className="w-24 shrink-0 font-bold text-slate-500 uppercase tracking-wide">
-                    Skills
-                  </dt>
-                  <dd className="text-slate-900 font-medium">
-                    {parsed.skills.length > 0
-                      ? parsed.skills.slice(0, 12).join(', ') +
-                        (parsed.skills.length > 12
-                          ? ` +${parsed.skills.length - 12} more`
-                          : '')
-                      : '—'}
-                  </dd>
-                </div>
-                <div className="flex gap-2">
-                  <dt className="w-24 shrink-0 font-bold text-slate-500 uppercase tracking-wide">
-                    Experience
-                  </dt>
-                  <dd className="text-slate-900 font-medium">
-                    {parsed.total_experience_years ?? parsed.experience_years}{' '}
-                    year
-                    {(parsed.total_experience_years ??
-                      parsed.experience_years) === 1
-                      ? ''
-                      : 's'}
-                    {' · '}
-                    {parsed.work_history.length} position
-                    {parsed.work_history.length === 1 ? '' : 's'} ·{' '}
-                    {parsed.education.length} education entr
-                    {parsed.education.length === 1 ? 'y' : 'ies'}
-                  </dd>
-                </div>
-                <div className="flex gap-2">
-                  <dt className="w-24 shrink-0 font-bold text-slate-500 uppercase tracking-wide">
-                    Roles
-                  </dt>
-                  <dd className="text-slate-900 font-medium">
-                    {parsed.preferred_role || '—'}
-                  </dd>
-                </div>
-                <div className="flex gap-2">
-                  <dt className="w-24 shrink-0 font-bold text-slate-500 uppercase tracking-wide">
-                    Preferred location
-                  </dt>
-                  <dd className="text-slate-900 font-medium">
-                    {parsed.preferred_locations.length > 0
-                      ? parsed.preferred_locations.join(', ')
-                      : '—'}
-                  </dd>
-                </div>
-                <div className="flex gap-2">
-                  <dt className="w-24 shrink-0 font-bold text-slate-500 uppercase tracking-wide">
-                    Seniority
-                  </dt>
-                  <dd className="text-slate-900 font-medium">
-                    {parsed.seniority || 'Not set'}
-                  </dd>
-                </div>
-                <div className="flex gap-2">
-                  <dt className="w-24 shrink-0 font-bold text-slate-500 uppercase tracking-wide">
-                    Work mode
-                  </dt>
-                  <dd className="text-slate-900 font-medium">
-                    {parsed.work_mode || 'Not set'}
-                  </dd>
-                </div>
-              </dl>
+                ) : (
+                  <p className="mt-5 text-xs text-neutral-400 flex items-center justify-center gap-1.5">
+                    <Sparkles className="h-3.5 w-3.5" />
+                    Taking you to your dashboard…
+                  </p>
+                )}
 
-              {editing ? (
-                <div className="grid gap-3 sm:grid-cols-2 mb-6">
-                  {[
-                    ['Full name', editFullName, setEditFullName],
-                    ['Primary role', editRole, setEditRole],
-                    ['Location', editLocation, setEditLocation],
-                    ['Preferred locations', editLocations, setEditLocations],
-                    ['Skills (comma-separated)', editSkills, setEditSkills],
-                  ].map(([label, value, setValue]) => (
-                    <label
-                      key={label as string}
-                      className="text-[11px] font-bold uppercase tracking-wide text-slate-500"
-                    >
-                      {label as string}
-                      <input
-                        value={value as string}
-                        onChange={(event) =>
-                          (setValue as (next: string) => void)(
-                            event.target.value,
-                          )
-                        }
-                        className="mt-1 w-full rounded-md border border-slate-200 px-3 py-2 text-xs font-medium text-slate-900"
-                      />
-                    </label>
-                  ))}
-                  <label className="text-[11px] font-bold uppercase tracking-wide text-slate-500">
-                    Seniority
-                    <select
-                      value={editSeniority}
-                      onChange={(event) => setEditSeniority(event.target.value)}
-                      className="mt-1 w-full rounded-md border border-slate-200 px-3 py-2 text-xs font-medium text-slate-900"
-                    >
-                      <option value="">Not set</option>
-                      {['intern', 'junior', 'mid', 'senior', 'staff'].map(
-                        (value) => (
-                          <option key={value} value={value}>
-                            {value}
-                          </option>
-                        ),
-                      )}
-                    </select>
-                  </label>
-                  <label className="text-[11px] font-bold uppercase tracking-wide text-slate-500">
-                    Work mode
-                    <select
-                      value={editWorkMode}
-                      onChange={(event) => setEditWorkMode(event.target.value)}
-                      className="mt-1 w-full rounded-md border border-slate-200 px-3 py-2 text-xs font-medium text-slate-900"
-                    >
-                      <option value="">Not set</option>
-                      {['remote', 'hybrid', 'onsite'].map((value) => (
-                        <option key={value} value={value}>
-                          {value}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
+                <div className="mt-6 flex flex-col sm:flex-row gap-3">
                   <button
                     type="button"
-                    onClick={() => void saveEdits()}
-                    disabled={savingEdits}
-                    className="sm:col-span-2 bg-slate-100 hover:bg-slate-200 text-slate-900 font-semibold text-xs py-2.5 rounded-md transition-all disabled:opacity-50"
+                    onClick={() => router.replace('/dashboard')}
+                    className="flex-1 bg-white hover:bg-neutral-200 text-black font-semibold text-sm py-3 rounded-xl shadow-sm transition-all flex items-center justify-center gap-2"
                   >
-                    {savingEdits ? 'Saving…' : 'Save profile edits'}
+                    Continue to dashboard
+                    <ArrowRight className="h-4 w-4" />
                   </button>
+                  <a
+                    href="/dashboard/settings"
+                    className="sm:w-auto px-5 bg-transparent border border-white/10 hover:bg-white/[0.04] text-white font-semibold text-sm py-3 rounded-xl transition-all flex items-center justify-center gap-2"
+                  >
+                    <ShieldCheck className="h-4 w-4" />
+                    Review in Settings
+                  </a>
                 </div>
-              ) : null}
+              </motion.div>
+            ) : null}
+          </AnimatePresence>
+        </motion.div>
 
-              {error ? (
-                <div className="mb-4 p-3 rounded-md bg-red-50 border border-red-200 text-xs text-red-600 font-medium">
-                  {error}
-                </div>
-              ) : (
-                <p className="mb-4 text-[11px] leading-relaxed text-slate-400 font-medium">
-                  Confirming locks this profile — future resume uploads
-                  won&apos;t overwrite it. You can always edit details in
-                  Settings.
-                </p>
-              )}
-
-              <div className="flex flex-col sm:flex-row gap-2.5">
-                <button
-                  type="button"
-                  onClick={() => setEditing((value) => !value)}
-                  disabled={confirming || savingEdits}
-                  className="sm:w-auto px-4 bg-white border border-slate-200 hover:bg-slate-50 text-slate-800 font-semibold text-xs py-2.5 rounded-md shadow-sm transition-all duration-150 tactile-btn flex items-center justify-center gap-2 disabled:opacity-50"
-                >
-                  {editing ? 'Close editor' : 'Edit profile'}
-                </button>
-                <button
-                  type="button"
-                  onClick={handleConfirm}
-                  disabled={confirming}
-                  className="flex-1 bg-slate-950 hover:bg-slate-900 text-white font-semibold text-xs py-2.5 rounded-md shadow-sm transition-all duration-150 tactile-btn disabled:opacity-50 flex items-center justify-center gap-2"
-                >
-                  {confirming ? (
-                    <Loader2 className="h-4 w-4 animate-spin text-white" />
-                  ) : (
-                    <CheckCircle2 className="h-4 w-4" />
-                  )}
-                  <span>
-                    {confirming ? 'Confirming...' : 'Confirm & continue'}
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setParsed(null);
-                    setFileName(null);
-                    setError(null);
-                    setStep('upload');
-                  }}
-                  disabled={confirming}
-                  className="sm:w-auto px-4 bg-white border border-slate-200 hover:bg-slate-50 text-slate-800 font-semibold text-xs py-2.5 rounded-md shadow-sm transition-all duration-150 tactile-btn flex items-center justify-center gap-2 disabled:opacity-50"
-                >
-                  <RefreshCw className="h-3.5 w-3.5" />
-                  <span>Use a different file</span>
-                </button>
-              </div>
-            </>
-          ) : null}
-
-          {error && step === 'upload' ? (
-            <div className="mt-4 p-3 rounded-md bg-red-50 border border-red-200 text-xs text-red-600 font-medium">
-              {error}
-            </div>
-          ) : null}
-
-          <p className="mt-5 text-center text-[11px] text-slate-400 font-medium flex items-center justify-center gap-1.5">
-            <FileText className="h-3 w-3" />
-            Your resume is only used to build your profile.
-          </p>
-        </div>
+        {/* footer tagline */}
+        <motion.div
+          initial="hidden"
+          animate="visible"
+          variants={containerVariants}
+          transition={{ duration: 0.4, delay: 0.15, ease: 'easeOut' }}
+          className="mt-10 text-center"
+        ></motion.div>
       </div>
     </main>
   );

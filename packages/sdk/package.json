@@ -1,0 +1,21 @@
+{
+  "name": "@applyso/sdk",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "ApplyOS evaluation SDK and offline evaluation runners.",
+  "exports": {
+    ".": "./src/jev.ts",
+    "./jev": "./src/jev.ts",
+    "./evals/resume": "./src/evals/resume.ts"
+  },
+  "scripts": {
+    "eval:resume": "bun scripts/eval-resume.ts",
+    "eval:resume:gate": "bun scripts/eval-resume.ts --all --runs=3 --gate"
+  },
+  "dependencies": {
+    "@applyso/validation": "workspace:*",
+    "ai": "latest",
+    "zod": "^4.5.4"
+  }
+}

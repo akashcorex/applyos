@@ -1,0 +1,55 @@
+{
+  "id": "resume-disallowed-operation",
+  "prompt_hash": "3207118d7e9ff2434a41c6a13e63b5a92b1625d1ba258cd1417de98882251f9f",
+  "ir": {
+    "schema_version": "resume-ir.v1",
+    "user_id": "user-test",
+    "source_document_hash": "doc-004",
+    "identity": {
+      "full_name": "Test Candidate",
+      "email": "",
+      "phone": null
+    },
+    "skills": [
+      {
+        "id": "skill-typescript",
+        "name": "TypeScript",
+        "normalized_name": "typescript",
+        "evidence_ids": ["ev-typescript"]
+      }
+    ],
+    "experience": [],
+    "evidence": {
+      "ev-typescript": {
+        "id": "ev-typescript",
+        "kind": "assertion",
+        "spans": []
+      }
+    }
+  },
+  "job_profile": {
+    "schema_version": "job-profile.v1",
+    "title": "TypeScript Engineer",
+    "required_skills": ["TypeScript"],
+    "preferred_skills": []
+  },
+  "proposal": {
+    "operations": [
+      {
+        "operation": "summarize_existing",
+        "node_id": "skill-typescript",
+        "field": "skills",
+        "before": "TypeScript",
+        "after": "TypeScript",
+        "evidence_ids": ["ev-typescript"]
+      }
+    ],
+    "overall_assessment": "Use an operation outside the controlled policy."
+  },
+  "expected": {
+    "no_new_facts": true,
+    "evidence_ids_valid": true,
+    "operation_allowed": false,
+    "skills_relevant": 90
+  }
+}

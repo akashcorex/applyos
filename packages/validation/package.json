@@ -6,7 +6,8 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./compile": "./src/compile.ts"
+    "./compile": "./src/compile.ts",
+    "./evals": "./src/evals.ts"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",

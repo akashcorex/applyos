@@ -37,6 +37,8 @@ class Settings(BaseSettings):
     tailor_mode: str = "keyword"
     tailor_llm_on_create: bool = False
     tailor_max_suggestions: int = 5
+    jev_enabled: bool = False
+    jev_sample_rate: float = 0.1
 
     # --- Chroma Cloud (primary vector store) ---
     # Dummy defaults — set real values via env / .env from Chroma dashboard

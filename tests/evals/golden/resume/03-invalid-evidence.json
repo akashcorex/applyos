@@ -1,0 +1,55 @@
+{
+  "id": "resume-invalid-evidence",
+  "prompt_hash": "3207118d7e9ff2434a41c6a13e63b5a92b1625d1ba258cd1417de98882251f9f",
+  "ir": {
+    "schema_version": "resume-ir.v1",
+    "user_id": "user-test",
+    "source_document_hash": "doc-003",
+    "identity": {
+      "full_name": "Test Candidate",
+      "email": "",
+      "phone": null
+    },
+    "skills": [
+      {
+        "id": "skill-react",
+        "name": "React",
+        "normalized_name": "react",
+        "evidence_ids": ["ev-react"]
+      }
+    ],
+    "experience": [],
+    "evidence": {
+      "ev-react": {
+        "id": "ev-react",
+        "kind": "assertion",
+        "spans": []
+      }
+    }
+  },
+  "job_profile": {
+    "schema_version": "job-profile.v1",
+    "title": "Frontend Engineer",
+    "required_skills": ["React"],
+    "preferred_skills": []
+  },
+  "proposal": {
+    "operations": [
+      {
+        "operation": "emphasize_skill",
+        "node_id": "skill-react",
+        "field": "skills",
+        "before": "React",
+        "after": 0,
+        "evidence_ids": ["ev-missing"]
+      }
+    ],
+    "overall_assessment": "Use a missing evidence reference."
+  },
+  "expected": {
+    "no_new_facts": true,
+    "evidence_ids_valid": false,
+    "operation_allowed": true,
+    "skills_relevant": 95
+  }
+}
