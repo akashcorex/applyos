@@ -3,7 +3,7 @@
 import type { ReactNode } from 'react';
 
 import Link from 'next/link';
-import { FileSearch, Linkedin, Zap } from 'lucide-react';
+import { FileSearch, MessageCircle, Zap } from 'lucide-react';
 
 const highlights = [
   {
@@ -17,7 +17,7 @@ const highlights = [
     body: 'Every role gets a match score and a rewrite.',
   },
   {
-    icon: Linkedin,
+    icon: MessageCircle,
     title: 'Recruiter outreach',
     body: 'Messages that sound like you, sent for you.',
   },

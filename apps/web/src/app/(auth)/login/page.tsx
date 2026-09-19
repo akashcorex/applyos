@@ -1,7 +1,5 @@
 import AuthForm from '@/components/auth/AuthForm';
 
-const SignIn = () => {
-  return <AuthForm mode="login" />;
-};
-
-export default SignIn;
+export default function SignIn() {
+  return <AuthForm />;
+}
