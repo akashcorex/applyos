@@ -7,6 +7,7 @@ import logging
 import time
 
 from fastapi import APIRouter
+from fastapi.responses import StreamingResponse
 
 from models import (
     BoardAttempt,
@@ -21,6 +22,7 @@ from services.search_inventory import get_searchable_companies
 from services.dedup import dedupe_search_results
 from services.freshness import apply_freshness_metadata, sort_by_freshness
 from services.semantic_match import semantic_rank_jobs
+from services.sse import format_sse
 
 logger = logging.getLogger(__name__)
 
@@ -113,4 +115,58 @@ async def semantic_search(payload: SemanticSearchRequest) -> SemanticSearchRespo
         total_matches=len(ranked),
         jobs=ranked,
         board_attempts=board_attempts,
+    )
+
+
+@router.post("/semantic/stream")
+async def semantic_stream(payload: SemanticSearchRequest) -> StreamingResponse:
+    """Stream one SSE batch per company as its scrape finishes."""
+
+    async def generate():
+        companies = get_searchable_companies(payload.max_companies)
+        companies_scraped = 0
+        jobs_scraped = 0
+        for company in companies:
+            jobs_or_error, attempt = await _scrape_with_attempt(
+                company, payload.max_jobs_per_company
+            )
+            batch: list[SearchResult] = (
+                jobs_or_error if isinstance(jobs_or_error, list) else []
+            )
+            if isinstance(jobs_or_error, list):
+                companies_scraped += 1
+            ranked = await semantic_rank_jobs(
+                batch,
+                skills=payload.skills,
+                preferred_role=payload.job_title,
+                experience_years=payload.experience_years,
+                summary=payload.summary,
+                recent_role=payload.recent_role,
+                recent_highlights=payload.recent_highlights,
+                profile_embedding=payload.profile_embedding,
+                intent_override=payload.intent_override,
+                rank_all=True,
+            )
+            jobs_scraped += len(ranked)
+            yield format_sse(
+                "batch",
+                {
+                    "company": str(company.get("name", "")),
+                    "jobs": [job.model_dump() for job in ranked],
+                    "board_attempt": attempt.model_dump(),
+                },
+            )
+        yield format_sse(
+            "done",
+            {
+                "query": payload.job_title,
+                "companies_scraped": companies_scraped,
+                "jobs_scraped": jobs_scraped,
+            },
+        )
+
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )

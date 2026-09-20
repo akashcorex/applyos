@@ -228,7 +228,14 @@ async def semantic_rank_jobs(
     recent_highlights: list[str] | None = None,
     profile_embedding: list[float] | None = None,
     intent_override: str | None = None,
+    rank_all: bool = False,
 ) -> list[SemanticMatchResult]:
+    """Rank jobs by embedding cosine similarity; explain top-K with Claude.
+
+    With rank_all=True (streaming batches) nothing is truncated and the LLM
+    explanation pass is skipped; skill overlap falls back to rules so every
+    score stays comparable across batches.
+    """
     """Rank jobs by embedding cosine similarity; explain top-K with Claude."""
     if not jobs:
         return []
@@ -290,28 +297,32 @@ async def semantic_rank_jobs(
         scored.append((job, score, build_job_text(job)))
 
     scored.sort(key=lambda item: item[1], reverse=True)
-    top_k = max(1, settings.semantic_top_k)
-    scored = scored[:top_k]
+    if rank_all:
+        explain_k = 0
+        explanations: dict[int, JobExplanation] = {}
+    else:
+        top_k = max(1, settings.semantic_top_k)
+        scored = scored[:top_k]
 
-    if scored:
-        preview = ", ".join(
-            f"{job.company_name}/{job.title}={score:.3f}"
-            for job, score, _ in scored[:5]
-        )
-        logger.info(
-            "Embedding rank for role=%s top5: %s",
-            preferred_role,
-            preview,
-        )
+        if scored:
+            preview = ", ".join(
+                f"{job.company_name}/{job.title}={score:.3f}"
+                for job, score, _ in scored[:5]
+            )
+            logger.info(
+                "Embedding rank for role=%s top5: %s",
+                preferred_role,
+                preview,
+            )
 
-    explain_k = min(settings.explain_top_k, len(scored))
-    explain_jobs = [job for job, _, _ in scored[:explain_k]]
-    explanations = await _explain_top_jobs(
-        explain_jobs,
-        preferred_role=preferred_role,
-        skills=skills,
-        experience_years=experience_years,
-    )
+        explain_k = min(settings.explain_top_k, len(scored))
+        explain_jobs = [job for job, _, _ in scored[:explain_k]]
+        explanations = await _explain_top_jobs(
+            explain_jobs,
+            preferred_role=preferred_role,
+            skills=skills,
+            experience_years=experience_years,
+        )
 
     ranked: list[SemanticMatchResult] = []
     for idx, (job, score, job_text) in enumerate(scored):
@@ -333,10 +344,10 @@ async def semantic_rank_jobs(
         )
 
     logger.info(
-        "Embedding-ranked %d/%d jobs (top_k=%d, explained=%d) for role=%s",
+        "Embedding-ranked %d/%d jobs (rank_all=%s, explained=%d) for role=%s",
         len(ranked),
         len(jobs),
-        top_k,
+        rank_all,
         explain_k,
         preferred_role,
     )
