@@ -83,7 +83,7 @@ async def test_semantic_stream_emits_batches_then_done(
     monkeypatch.setattr(
         semantic_route,
         "get_searchable_companies",
-        lambda limit: [
+        lambda limit, pack=None: [
             {"name": "Acme", "domain": "acme.com"},
             {"name": "Dead", "domain": "dead.com"},
         ],

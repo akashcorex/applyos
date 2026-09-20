@@ -6,7 +6,8 @@
     "ats_slug": "stripe",
     "career_url": null,
     "source": "pilot",
-    "active": true
+    "active": true,
+    "tags": ["fintech"]
   },
   {
     "domain": "airbnb.com",
@@ -78,7 +79,8 @@
     "ats_slug": "ramp",
     "career_url": "https://ramp.com/careers",
     "source": "pilot",
-    "active": true
+    "active": true,
+    "tags": ["fintech"]
   },
   {
     "domain": "brex.com",
@@ -87,7 +89,8 @@
     "ats_slug": "brex",
     "career_url": null,
     "source": "pilot",
-    "active": true
+    "active": true,
+    "tags": ["fintech"]
   },
   {
     "domain": "plaid.com",
@@ -96,7 +99,8 @@
     "ats_slug": "plaid",
     "career_url": "https://plaid.com/careers",
     "source": "pilot",
-    "active": true
+    "active": true,
+    "tags": ["fintech"]
   },
   {
     "domain": "retool.com",
@@ -159,7 +163,8 @@
     "ats_slug": "spotify",
     "career_url": null,
     "source": "pilot",
-    "active": true
+    "active": true,
+    "tags": ["eu"]
   },
   {
     "domain": "palantir.com",
@@ -186,7 +191,8 @@
     "ats_slug": "zapier",
     "career_url": "https://zapier.com/careers",
     "source": "pilot",
-    "active": true
+    "active": true,
+    "tags": ["remote-first"]
   },
   {
     "domain": "gitlab.com",
@@ -195,7 +201,8 @@
     "ats_slug": "gitlab",
     "career_url": null,
     "source": "pilot",
-    "active": true
+    "active": true,
+    "tags": ["remote-first"]
   },
   {
     "domain": "cloudflare.com",
@@ -267,7 +274,8 @@
     "ats_slug": "mercury",
     "career_url": "https://mercury.com/careers",
     "source": "pilot",
-    "active": true
+    "active": true,
+    "tags": ["fintech"]
   },
   {
     "domain": "deel.com",
@@ -276,7 +284,8 @@
     "ats_slug": "deel",
     "career_url": "https://deel.com/careers",
     "source": "pilot",
-    "active": true
+    "active": true,
+    "tags": ["remote-first"]
   },
   {
     "domain": "replit.com",
@@ -285,7 +294,8 @@
     "ats_slug": "replit",
     "career_url": null,
     "source": "pilot",
-    "active": true
+    "active": true,
+    "tags": ["remote-first"]
   },
   {
     "domain": "huggingface.co",
@@ -303,7 +313,8 @@
     "ats_slug": "remote",
     "career_url": "https://remote.com/careers",
     "source": "pilot",
-    "active": true
+    "active": true,
+    "tags": ["remote-first"]
   },
   {
     "domain": "loom.com",
@@ -321,7 +332,8 @@
     "ats_slug": "personio",
     "career_url": null,
     "source": "pilot",
-    "active": true
+    "active": true,
+    "tags": ["eu"]
   },
   {
     "domain": "n26.com",
@@ -330,7 +342,8 @@
     "ats_slug": "n26",
     "career_url": "https://n26.com/careers",
     "source": "pilot",
-    "active": true
+    "active": true,
+    "tags": ["fintech", "eu"]
   },
   {
     "domain": "doktor.se",
@@ -339,7 +352,8 @@
     "ats_slug": "doktor",
     "career_url": "https://doktor.se/careers",
     "source": "manual",
-    "active": true
+    "active": true,
+    "tags": ["eu"]
   },
   {
     "domain": "mindler.se",
@@ -348,7 +362,8 @@
     "ats_slug": "mindler",
     "career_url": "https://mindler.se/careers",
     "source": "manual",
-    "active": true
+    "active": true,
+    "tags": ["eu"]
   },
   {
     "domain": "cambio.se",
@@ -357,7 +372,8 @@
     "ats_slug": "cambio",
     "career_url": "https://cambio.se/careers",
     "source": "manual",
-    "active": true
+    "active": true,
+    "tags": ["eu"]
   },
   {
     "domain": "apotea.se",
@@ -366,6 +382,7 @@
     "ats_slug": "apotea",
     "career_url": "https://apotea.se/careers",
     "source": "manual",
-    "active": true
+    "active": true,
+    "tags": ["eu"]
   }
 ]

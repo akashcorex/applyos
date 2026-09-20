@@ -221,6 +221,7 @@ jobsRouter.post('/discover', async (req, res) => {
     profile_seniority: profile.seniority ?? '',
     profile_work_mode: profile.workMode ?? '',
   });
+  if (parsed.data.pack?.trim()) query.set('pack', parsed.data.pack.trim());
 
   let response: Response;
   try {

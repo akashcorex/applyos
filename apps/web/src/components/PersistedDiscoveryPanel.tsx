@@ -265,6 +265,7 @@ export function PersistedDiscoveryPanel() {
   const [profileId, setProfileId] = useState<string | null>(null);
   const [profileReady, setProfileReady] = useState(false);
   const [query, setQuery] = useState('');
+  const [pack, setPack] = useState('');
   const [jobs, setJobs] = useState<Job[]>([]);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [totalJobs, setTotalJobs] = useState(0);
@@ -368,6 +369,7 @@ export function PersistedDiscoveryPanel() {
           profileId,
           query: query || undefined,
           limit: 50,
+          pack: pack || undefined,
         }),
       });
       const data = (await response.json()) as DiscoveryResponse & {
@@ -559,6 +561,17 @@ export function PersistedDiscoveryPanel() {
               if (event.key === 'Enter') void discover();
             }}
           />
+          <select
+            value={pack}
+            onChange={(event) => setPack(event.target.value)}
+            aria-label="Company pack"
+            className="h-9 shrink-0 rounded-md border border-input bg-background px-2 text-xs"
+          >
+            <option value="">All companies</option>
+            <option value="fintech">Fintech</option>
+            <option value="remote-first">Remote-first</option>
+            <option value="eu">Europe</option>
+          </select>
           <Button
             type="button"
             onClick={() => void discover()}

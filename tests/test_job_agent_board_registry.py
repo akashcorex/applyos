@@ -195,6 +195,59 @@ def test_record_board_success_reactivates(
     assert stripe["active"] is True
 
 
+def test_seed_and_sync_round_trip_tags(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from services import board_registry as registry_module
+
+    monkeypatch.setattr(registry_module, "_registry", None)
+    seed_path = tmp_path / "seed.json"
+    seed_path.write_text(
+        json.dumps(
+            [
+                {
+                    "domain": "tagged.com",
+                    "company_name": "Tagged",
+                    "ats_type": "greenhouse",
+                    "ats_slug": "tagged",
+                    "career_url": None,
+                    "source": "pilot",
+                    "active": True,
+                    "tags": ["fintech"],
+                }
+            ]
+        ),
+        encoding="utf-8",
+    )
+    registry = BoardRegistry(db_path=tmp_path / "tags.db", seed_path=seed_path)
+    registry.init_db()
+    board = registry.get_board_by_domain("tagged.com")
+    assert board is not None
+    assert board["tags"] == ["fintech"]
+
+    seed_path.write_text(
+        json.dumps(
+            [
+                {
+                    "domain": "tagged.com",
+                    "company_name": "Tagged",
+                    "ats_type": "greenhouse",
+                    "ats_slug": "tagged",
+                    "career_url": None,
+                    "source": "pilot",
+                    "active": True,
+                    "tags": ["fintech", "eu"],
+                }
+            ]
+        ),
+        encoding="utf-8",
+    )
+    BoardRegistry(db_path=tmp_path / "tags.db", seed_path=seed_path).init_db()
+    board = registry.get_board_by_domain("tagged.com")
+    assert board is not None
+    assert board["tags"] == ["eu", "fintech"]
+
+
 def test_rotation_window_advances_cursor(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

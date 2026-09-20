@@ -399,3 +399,11 @@ async def test_match_passes_flags_through() -> None:
         resume=_resume(["Python"]), resume_id="r-flags"
     )
     assert response.jobs[0].flags == ["evergreen"]
+
+
+@pytest.mark.asyncio
+async def test_match_sends_pack_through() -> None:
+    client = _FakeClient({"companies_scraped": 0, "jobs": []})
+    matcher = JobMatcher(client)
+    await matcher.match(resume=_resume(["Python"]), resume_id="r-pack", pack="fintech")
+    assert client.posted[0]["json"]["pack"] == "fintech"

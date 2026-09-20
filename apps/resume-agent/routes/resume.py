@@ -535,6 +535,7 @@ async def match_resume(
     profile_locations: str | None = None,
     profile_seniority: str | None = None,
     profile_work_mode: str | None = None,
+    pack: str | None = None,
 ) -> MatchResponse:
     state = _state(request)
     matcher: JobMatcher | None = state.matcher
@@ -561,6 +562,7 @@ async def match_resume(
         profile_seniority=profile_seniority,
         profile_work_mode=profile_work_mode,
         profile_locations=record.preferred_locations,
+        pack=pack,
     )
     response.intent_override = intent_override
 
@@ -676,6 +678,7 @@ async def match_stream_resume(
     profile_locations: str | None = None,
     profile_seniority: str | None = None,
     profile_work_mode: str | None = None,
+    pack: str | None = None,
 ) -> StreamingResponse:
     from services.matching.sse import format_sse
 
@@ -707,6 +710,7 @@ async def match_stream_resume(
             profile_seniority=profile_seniority,
             profile_work_mode=profile_work_mode,
             profile_locations=record.preferred_locations,
+            pack=pack,
         ):
             if frame["event"] == "batch":
                 collected.extend(

@@ -74,7 +74,7 @@ async def _scrape_with_attempt(
 
 @router.post("/semantic", response_model=SemanticSearchResponse)
 async def semantic_search(payload: SemanticSearchRequest) -> SemanticSearchResponse:
-    companies = get_searchable_companies(payload.max_companies)
+    companies = get_searchable_companies(payload.max_companies, pack=payload.pack)
 
     tasks = [
         _scrape_with_attempt(company, payload.max_jobs_per_company)
@@ -128,7 +128,7 @@ async def semantic_stream(payload: SemanticSearchRequest) -> StreamingResponse:
     """Stream one SSE batch per company as its scrape finishes."""
 
     async def generate():
-        companies = get_searchable_companies(payload.max_companies)
+        companies = get_searchable_companies(payload.max_companies, pack=payload.pack)
         companies_scraped = 0
         jobs_scraped = 0
         for company in companies:

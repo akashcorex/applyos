@@ -51,6 +51,7 @@ class JobMatcher:
         profile_seniority: str | None = None,
         profile_work_mode: str | None = None,
         profile_locations: list[str] | None = None,
+        pack: str | None = None,
     ) -> tuple[MatchResponse, int]:
         """Return (match response, latency_ms)."""
         started = time.perf_counter()
@@ -62,6 +63,7 @@ class JobMatcher:
             profile_seniority,
             profile_work_mode,
             profile_locations,
+            pack,
         )
 
         data = await self._fetch_jobs(payload, (resume.preferred_role or "").strip() or "Software Engineer")
@@ -123,6 +125,7 @@ class JobMatcher:
         profile_seniority: str | None = None,
         profile_work_mode: str | None = None,
         profile_locations: list[str] | None = None,
+        pack: str | None = None,
     ):
         """Yield SSE frames while job-agent streams per-company batches."""
         from services.matching.sse import parse_sse_buffer
@@ -136,6 +139,7 @@ class JobMatcher:
             profile_seniority,
             profile_work_mode,
             profile_locations,
+            pack,
         )
         role = (resume.preferred_role or "").strip() or "Software Engineer"
 
@@ -211,6 +215,7 @@ class JobMatcher:
         profile_seniority: str | None = None,
         profile_work_mode: str | None = None,
         profile_locations: list[str] | None = None,
+        pack: str | None = None,
     ) -> tuple[dict[str, Any], list[str]]:
         role = (resume.preferred_role or "").strip() or "Software Engineer"
         resume_skills = normalize_skills(resume.skills)
@@ -233,6 +238,7 @@ class JobMatcher:
             "profile_seniority": profile_seniority,
             "profile_work_mode": profile_work_mode,
             "profile_locations": profile_locations or [],
+            "pack": pack,
         }
         if intent_override and intent_override.strip():
             payload["intent_override"] = intent_override.strip()

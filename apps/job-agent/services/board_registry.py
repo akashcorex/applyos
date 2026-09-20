@@ -30,7 +30,8 @@ CREATE TABLE IF NOT EXISTS board_registry (
     active INTEGER NOT NULL DEFAULT 1,
     last_verified_at TEXT,
     created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL
+    updated_at TEXT NOT NULL,
+    tags TEXT NOT NULL DEFAULT '[]'
 );
 CREATE INDEX IF NOT EXISTS idx_board_registry_active
     ON board_registry(active);
@@ -64,6 +65,10 @@ def _reprobe_due(
 
 
 def _row_to_company(row: sqlite3.Row) -> dict[str, object]:
+    try:
+        tags = json.loads(str(row["tags"] or "[]"))
+    except (json.JSONDecodeError, KeyError, TypeError):
+        tags = []
     return {
         "name": row["company_name"],
         "domain": row["domain"],
@@ -73,6 +78,7 @@ def _row_to_company(row: sqlite3.Row) -> dict[str, object]:
         "source": row["source"],
         "active": bool(row["active"]),
         "last_verified_at": row["last_verified_at"],
+        "tags": [str(tag) for tag in tags] if isinstance(tags, list) else [],
     }
 
 
@@ -119,7 +125,7 @@ class BoardRegistry:
             ):
                 continue
             row = conn.execute(
-                "SELECT ats_type, ats_slug, career_url, source, active"
+                "SELECT ats_type, ats_slug, career_url, source, active, tags"
                 " FROM board_registry WHERE domain = ?",
                 (domain,),
             ).fetchone()
@@ -129,12 +135,31 @@ class BoardRegistry:
             ats_slug = str(entry["ats_slug"])
             seed_active = bool(entry.get("active", True))
             seed_career_url = entry.get("career_url")
+            seed_tags = sorted(
+                {str(tag) for tag in entry.get("tags", []) if isinstance(tag, str)}
+            )
+            try:
+                row_tags = sorted(
+                    {
+                        str(tag)
+                        for tag in json.loads(str(row["tags"] or "[]"))
+                        if isinstance(tag, str)
+                    }
+                )
+            except (json.JSONDecodeError, KeyError, TypeError):
+                row_tags = []
             mapping_changed = (
                 row["ats_type"] != ats_type or row["ats_slug"] != ats_slug
             )
             needs_career_url = bool(seed_career_url) and row["career_url"] is None
             needs_deactivation = bool(row["active"]) and not seed_active
-            if not mapping_changed and not needs_career_url and not needs_deactivation:
+            needs_tags = row_tags != seed_tags
+            if (
+                not mapping_changed
+                and not needs_career_url
+                and not needs_deactivation
+                and not needs_tags
+            ):
                 continue
             if mapping_changed:
                 conn.execute(
@@ -144,7 +169,8 @@ class BoardRegistry:
                         career_url = COALESCE(?, career_url),
                         company_name = ?, source = ?,
                         active = ?, failure_count = 0,
-                        last_verified_at = NULL, updated_at = ?
+                        last_verified_at = NULL, updated_at = ?,
+                        tags = ?
                     WHERE domain = ?
                     """,
                     (
@@ -155,6 +181,7 @@ class BoardRegistry:
                         str(entry.get("source", "pilot")),
                         1 if seed_active else 0,
                         _utc_now(),
+                        json.dumps(seed_tags),
                         domain,
                     ),
                 )
@@ -172,12 +199,14 @@ class BoardRegistry:
                 UPDATE board_registry
                 SET career_url = COALESCE(?, career_url),
                     active = CASE WHEN ? THEN active ELSE 0 END,
+                    tags = ?,
                     updated_at = ?
                 WHERE domain = ?
                 """,
                 (
                     seed_career_url,
                     1 if seed_active else 0,
+                    json.dumps(seed_tags),
                     _utc_now(),
                     domain,
                 ),
@@ -192,6 +221,10 @@ class BoardRegistry:
         if "failure_count" not in columns:
             conn.execute(
                 "ALTER TABLE board_registry ADD COLUMN failure_count INTEGER NOT NULL DEFAULT 0"
+            )
+        if "tags" not in columns:
+            conn.execute(
+                "ALTER TABLE board_registry ADD COLUMN tags TEXT NOT NULL DEFAULT '[]'"
             )
 
     def _seed_from_json(self, conn: sqlite3.Connection) -> None:
@@ -211,8 +244,9 @@ class BoardRegistry:
                 """
                 INSERT OR IGNORE INTO board_registry (
                     domain, company_name, ats_type, ats_slug, career_url,
-                    source, active, last_verified_at, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    source, active, last_verified_at, created_at, updated_at,
+                    tags
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     domain,
@@ -225,6 +259,9 @@ class BoardRegistry:
                     entry.get("last_verified_at"),
                     now,
                     now,
+                    json.dumps(
+                        [t for t in entry.get("tags", []) if isinstance(t, str)]
+                    ),
                 ),
             )
 
