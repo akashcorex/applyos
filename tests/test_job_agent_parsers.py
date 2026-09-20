@@ -82,6 +82,45 @@ async def test_ashby_parser_maps_fixture(monkeypatch: pytest.MonkeyPatch) -> Non
 
 
 @pytest.mark.asyncio
+async def test_ashby_parser_reads_compensation_and_fallback_location(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    seen_urls: list[str] = []
+
+    async def fake_fetch(url: str) -> object:
+        seen_urls.append(url)
+        return {
+            "jobs": [
+                {
+                    "id": "1",
+                    "title": "Engineer",
+                    "jobUrl": "https://jobs.ashbyhq.com/acme/1",
+                    "locationName": None,
+                    "secondaryLocations": [{"locationName": "Berlin, Germany"}],
+                    "compensation": [
+                        {"minValue": 120000, "maxValue": 150000, "currency": "usd"}
+                    ],
+                    "publishedAt": "2026-09-01T00:00:00Z",
+                }
+            ]
+        }
+
+    monkeypatch.setattr(
+        "services.parsers.ashby.fetch_json_with_retries",
+        fake_fetch,
+    )
+
+    jobs = await AshbyParser().fetch_jobs("acme")
+
+    assert "includeCompensation=true" in seen_urls[0]
+    assert len(jobs) == 1
+    assert jobs[0].location == "Berlin, Germany"
+    assert jobs[0].salary_min == 120000
+    assert jobs[0].salary_max == 150000
+    assert jobs[0].salary_currency == "USD"
+
+
+@pytest.mark.asyncio
 async def test_workable_parser_paginates(monkeypatch: pytest.MonkeyPatch) -> None:
     page1 = json.loads((FIXTURES / "workable_sample.json").read_text())
     page2 = json.loads((FIXTURES / "workable_page2.json").read_text())

@@ -2,6 +2,20 @@ from models import RawJob
 from services.normalizer import detect_location_type, detect_seniority, to_canonical_job
 
 
+def test_to_canonical_job_threads_salary() -> None:
+    raw = RawJob(
+        external_id="1",
+        title="Engineer",
+        salary_min=120000,
+        salary_max=150000,
+        salary_currency="USD",
+    )
+    job = to_canonical_job(raw, "ashby", "acme")
+    assert job.salary_min == 120000
+    assert job.salary_max == 150000
+    assert job.salary_currency == "USD"
+
+
 def test_detect_seniority() -> None:
     assert detect_seniority("Senior Backend Engineer") == "senior"
     assert detect_seniority("Intern Software Engineer") == "intern"
