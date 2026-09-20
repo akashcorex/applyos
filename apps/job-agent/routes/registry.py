@@ -67,6 +67,22 @@ async def list_registry_boards() -> RegistryListResponse:
     )
 
 
+@router.get("/refresh-status")
+async def refresh_status() -> dict[str, object]:
+    from config import settings
+
+    registry = get_board_registry()
+    return {
+        "enabled": settings.refresh_enabled,
+        "interval_seconds": settings.refresh_interval_seconds,
+        "batch_boards": settings.refresh_batch_boards,
+        "last_at": registry.get_meta_value("refresh_last_at"),
+        "last_boards": registry.get_meta_value("refresh_last_boards"),
+        "last_jobs": registry.get_meta_value("refresh_last_jobs"),
+        "last_errors": registry.get_meta_value("refresh_last_errors"),
+    }
+
+
 @router.post("", response_model=RegistryBoard)
 async def upsert_registry_board(payload: RegistryUpsertRequest) -> RegistryBoard:
     board = get_board_registry().upsert_board(

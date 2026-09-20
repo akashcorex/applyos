@@ -1,7 +1,10 @@
 from contextlib import asynccontextmanager
 
+import asyncio
+
 from fastapi import FastAPI
 
+from config import settings
 from logging_filters import install_health_access_filter
 from routes.detect import router as detect_router
 from routes.registry import router as registry_router
@@ -19,7 +22,14 @@ install_health_access_filter()
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     get_board_registry().init_db()
+    refresher: asyncio.Task | None = None
+    if settings.refresh_enabled:
+        from services.refresh import refresh_loop
+
+        refresher = asyncio.create_task(refresh_loop())
     yield
+    if refresher is not None:
+        refresher.cancel()
 
 
 app = FastAPI(title="job-agent", lifespan=lifespan)

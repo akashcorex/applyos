@@ -370,27 +370,34 @@ class BoardRegistry:
                 return True
         return False
 
-    def get_rotation_cursor(self) -> int:
+    def get_meta_value(self, key: str) -> str | None:
         self.init_db()
         with self._connect() as conn:
             row = conn.execute(
-                "SELECT value FROM registry_meta WHERE key = 'rotation_cursor'"
+                "SELECT value FROM registry_meta WHERE key = ?", (key,)
             ).fetchone()
-        try:
-            return max(0, int(row["value"]))
-        except (TypeError, KeyError, ValueError):
-            return 0
+        return str(row["value"]) if row is not None else None
 
-    def set_rotation_cursor(self, value: int) -> None:
+    def set_meta_value(self, key: str, value: str) -> None:
         self.init_db()
         with self._connect() as conn:
             conn.execute(
                 """
-                INSERT INTO registry_meta (key, value) VALUES ('rotation_cursor', ?)
+                INSERT INTO registry_meta (key, value) VALUES (?, ?)
                 ON CONFLICT(key) DO UPDATE SET value = excluded.value
                 """,
-                (str(max(0, value)),),
+                (key, value),
             )
+
+    def get_rotation_cursor(self) -> int:
+        value = self.get_meta_value("rotation_cursor")
+        try:
+            return max(0, int(value)) if value is not None else 0
+        except (TypeError, ValueError):
+            return 0
+
+    def set_rotation_cursor(self, value: int) -> None:
+        self.set_meta_value("rotation_cursor", str(max(0, value)))
 
     def rotation_window(
         self, boards: list[dict[str, object]], size: int
