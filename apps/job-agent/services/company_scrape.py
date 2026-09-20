@@ -54,6 +54,9 @@ def canonical_to_search_result(
         ats_slug=ats_slug,
         description=description,
         posted_at=getattr(job, "posted_at", None),
+        salary_min=getattr(job, "salary_min", None),
+        salary_max=getattr(job, "salary_max", None),
+        salary_currency=getattr(job, "salary_currency", None),
     )
 
 

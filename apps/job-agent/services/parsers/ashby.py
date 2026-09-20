@@ -2,7 +2,52 @@ from models import RawJob
 from services.dates import parse_posted_at
 from services.parsers.base import fetch_json_with_retries
 
-ASHBY_JOBS_URL = "https://api.ashbyhq.com/posting-api/job-board/{slug}"
+ASHBY_JOBS_URL = "https://api.ashbyhq.com/posting-api/job-board/{slug}?includeCompensation=true"
+
+
+def _to_int(value: object) -> int | None:
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, (int, float)):
+        return int(value)
+    if isinstance(value, str):
+        try:
+            return int(float(value.strip().replace(",", "")))
+        except ValueError:
+            return None
+    return None
+
+
+def _parse_compensation(item: dict) -> tuple[int | None, int | None, str | None]:
+    comp = item.get("compensation")
+    candidates = comp if isinstance(comp, list) else [comp]
+    for entry in candidates:
+        if not isinstance(entry, dict):
+            continue
+        salary_min = _to_int(entry.get("minValue", entry.get("min")))
+        salary_max = _to_int(entry.get("maxValue", entry.get("max")))
+        currency = entry.get("currency") or entry.get("currencyCode")
+        if salary_min is not None or salary_max is not None:
+            return (
+                salary_min,
+                salary_max,
+                str(currency).upper() if currency else None,
+            )
+    return None, None, None
+
+
+def _resolve_location(item: dict) -> str | None:
+    location = item.get("location") or item.get("locationName")
+    if location:
+        return location
+    secondary = item.get("secondaryLocations")
+    if isinstance(secondary, list) and secondary:
+        first = secondary[0]
+        if isinstance(first, dict):
+            return first.get("locationName") or first.get("location")
+        if isinstance(first, str):
+            return first
+    return None
 
 
 class AshbyParser:
@@ -36,13 +81,14 @@ class AshbyParser:
                 if external_id
                 else None
             )
+            salary_min, salary_max, currency = _parse_compensation(item)
 
             jobs.append(
                 RawJob(
                     external_id=external_id,
                     title=str(item.get("title", "")).strip(),
                     department=item.get("department") or item.get("departmentName"),
-                    location=item.get("location") or item.get("locationName"),
+                    location=_resolve_location(item),
                     description_raw=None,
                     description_html=item.get("descriptionHtml"),
                     workplace_type=item.get("workplaceType"),
@@ -50,6 +96,9 @@ class AshbyParser:
                     posted_at=parse_posted_at(
                         item.get("publishedAt") or item.get("openedAt")
                     ),
+                    salary_min=salary_min,
+                    salary_max=salary_max,
+                    salary_currency=currency,
                     raw_payload=item,
                 )
             )

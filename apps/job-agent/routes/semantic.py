@@ -108,6 +108,9 @@ async def semantic_search(payload: SemanticSearchRequest) -> SemanticSearchRespo
         recent_highlights=payload.recent_highlights,
         profile_embedding=payload.profile_embedding,
         intent_override=payload.intent_override,
+        profile_seniority=payload.profile_seniority,
+        profile_work_mode=payload.profile_work_mode,
+        profile_locations=payload.profile_locations,
     )
 
     return SemanticSearchResponse(
@@ -150,6 +153,9 @@ async def semantic_stream(payload: SemanticSearchRequest) -> StreamingResponse:
                 profile_embedding=payload.profile_embedding,
                 intent_override=payload.intent_override,
                 rank_all=True,
+                profile_seniority=payload.profile_seniority,
+                profile_work_mode=payload.profile_work_mode,
+                profile_locations=payload.profile_locations,
             )
             jobs_scraped += len(ranked)
             yield format_sse(

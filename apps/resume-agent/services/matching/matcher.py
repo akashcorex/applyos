@@ -55,7 +55,13 @@ class JobMatcher:
         """Return (match response, latency_ms)."""
         started = time.perf_counter()
         payload, resume_skills = self._build_payload(
-            resume, max_companies, max_jobs, intent_override
+            resume,
+            max_companies,
+            max_jobs,
+            intent_override,
+            profile_seniority,
+            profile_work_mode,
+            profile_locations,
         )
 
         data = await self._fetch_jobs(payload, (resume.preferred_role or "").strip() or "Software Engineer")
@@ -123,7 +129,13 @@ class JobMatcher:
 
         started = time.perf_counter()
         payload, resume_skills = self._build_payload(
-            resume, max_companies, max_jobs, intent_override
+            resume,
+            max_companies,
+            max_jobs,
+            intent_override,
+            profile_seniority,
+            profile_work_mode,
+            profile_locations,
         )
         role = (resume.preferred_role or "").strip() or "Software Engineer"
 
@@ -196,6 +208,9 @@ class JobMatcher:
         max_companies: int,
         max_jobs: int,
         intent_override: str | None,
+        profile_seniority: str | None = None,
+        profile_work_mode: str | None = None,
+        profile_locations: list[str] | None = None,
     ) -> tuple[dict[str, Any], list[str]]:
         role = (resume.preferred_role or "").strip() or "Software Engineer"
         resume_skills = normalize_skills(resume.skills)
@@ -215,6 +230,9 @@ class JobMatcher:
             "summary": resume.summary,
             "recent_role": recent_role,
             "recent_highlights": recent_highlights,
+            "profile_seniority": profile_seniority,
+            "profile_work_mode": profile_work_mode,
+            "profile_locations": profile_locations or [],
         }
         if intent_override and intent_override.strip():
             payload["intent_override"] = intent_override.strip()
@@ -374,6 +392,9 @@ class JobMatcher:
             ats_slug=job.get("ats_slug"),
             description=job.get("description"),
             posted_at=job.get("posted_at"),
+            salary_min=job.get("salary_min"),
+            salary_max=job.get("salary_max"),
+            salary_currency=job.get("salary_currency"),
             match_score=final_score,
             base_score=final_score,
             behavior_boost=0.0,

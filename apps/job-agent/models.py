@@ -158,6 +158,9 @@ class RawJob(BaseModel):
     workplace_type: str | None = None
     application_url: str | None = None
     posted_at: str | None = None
+    salary_min: int | None = None
+    salary_max: int | None = None
+    salary_currency: str | None = None
     raw_payload: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -182,6 +185,9 @@ class CanonicalJob(BaseModel):
     application_url: str | None = None
     posted_at: str | None = None
     dedup_key: str
+    salary_min: int | None = None
+    salary_max: int | None = None
+    salary_currency: str | None = None
     raw_payload: dict[str, Any] | None = None
 
 
@@ -268,6 +274,9 @@ class SearchResult(BaseModel):
     ats_slug: str
     description: str | None = None
     posted_at: str | None = None
+    salary_min: int | None = None
+    salary_max: int | None = None
+    salary_currency: str | None = None
 
 
 class BoardAttempt(BaseModel):
@@ -304,6 +313,9 @@ class SemanticSearchRequest(BaseModel):
     recent_highlights: list[str] = Field(default_factory=list)
     profile_embedding: list[float] | None = None
     intent_override: str | None = Field(default=None, max_length=256)
+    profile_seniority: str | None = None
+    profile_work_mode: str | None = None
+    profile_locations: list[str] = Field(default_factory=list)
 
 
 class SemanticMatchResult(SearchResult):

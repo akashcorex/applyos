@@ -106,6 +106,49 @@ def test_title_matches_role_aliases() -> None:
 
 
 @pytest.mark.asyncio
+async def test_pre_embed_gates_drop_before_embedding(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(semantic_module.settings, "openai_api_key", "test-key")
+    embedded: list[str] = []
+
+    async def _fake_embed(texts: list[str]) -> list[list[float]]:
+        embedded.extend(texts)
+        return [[0.9, 0.1]] * len(texts)
+
+    monkeypatch.setattr(semantic_module, "embed_texts", _fake_embed)
+
+    jobs = [
+        _make_job("Staff Engineer", "Acme", seniority="staff"),
+        _make_job("Junior Engineer", "Beta", seniority="junior"),
+        _make_job("Engineer", "Gamma", seniority=None),
+    ]
+    jobs[2] = jobs[2].model_copy(
+        update={"location": "Berlin, Germany", "location_type": "onsite"}
+    )
+    ranked = await semantic_rank_jobs(
+        jobs,
+        skills=["Python"],
+        preferred_role="Engineer",
+        experience_years=1,
+        profile_seniority="intern",
+        profile_work_mode="remote",
+        profile_locations=["Remote"],
+    )
+    assert ranked == []
+    assert embedded == []
+
+
+def test_location_allowed_mirrors_resume_agent() -> None:
+    from services.semantic_match import location_allowed
+
+    assert location_allowed("Berlin", "onsite", ["Remote"], "remote") is False
+    assert location_allowed("Remote", "remote", ["Remote"], "remote") is True
+    assert location_allowed("Berlin", "onsite", [], None) is True
+    assert location_allowed(None, None, ["Berlin"], None) is True
+
+
+@pytest.mark.asyncio
 async def test_semantic_rank_jobs_with_llm_explanation(monkeypatch: pytest.MonkeyPatch) -> None:
     from langchain_core.runnables import RunnableLambda
 

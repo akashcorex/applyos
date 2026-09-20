@@ -184,6 +184,44 @@ def _significant_tokens(text: str) -> set[str]:
     }
 
 
+def profile_seniority_allowed(
+    profile_seniority: str | None,
+    job_seniority: str | None = None,
+    title: str | None = None,
+) -> bool:
+    """Unknown profile or job seniority stays eligible."""
+    if not profile_seniority:
+        return True
+    profile_rank = SENIORITY_RANK.get(profile_seniority.lower())
+    resolved_job = infer_seniority(title, job_seniority)
+    job_rank = SENIORITY_RANK.get(resolved_job) if resolved_job else None
+    return profile_rank is None or job_rank is None or job_rank <= profile_rank
+
+
+def location_allowed(
+    location: str | None,
+    location_type: str | None,
+    preferred_locations: list[str] | None,
+    work_mode: str | None,
+) -> bool:
+    """Mirror of resume-agent matching so gates agree pre- and post-embed."""
+    normalized_type = (location_type or "").strip().lower()
+    normalized_location = (location or "").strip().lower()
+    if work_mode and normalized_type and normalized_type != work_mode.lower():
+        return False
+    if not preferred_locations or not normalized_location:
+        return True
+    if normalized_type == "remote" and any(
+        preference.strip().lower() == "remote" for preference in preferred_locations
+    ):
+        return True
+    return any(
+        preference.strip().lower() in normalized_location
+        for preference in preferred_locations
+        if preference.strip()
+    )
+
+
 def title_matches_role(preferred_role: str, title: str | None) -> bool:
     """Lenient title gate: share a significant token with the role or its aliases."""
     if not title:
@@ -275,6 +313,9 @@ async def semantic_rank_jobs(
     profile_embedding: list[float] | None = None,
     intent_override: str | None = None,
     rank_all: bool = False,
+    profile_seniority: str | None = None,
+    profile_work_mode: str | None = None,
+    profile_locations: list[str] | None = None,
 ) -> list[SemanticMatchResult]:
     """Rank jobs by embedding cosine similarity; explain top-K with Claude.
 
@@ -285,18 +326,34 @@ async def semantic_rank_jobs(
     if not jobs:
         return []
 
-    before = len(jobs)
-    jobs = [
-        job
-        for job in jobs
-        if seniority_allowed(experience_years, job.seniority, job.title)
-        and title_matches_role(preferred_role, job.title)
-    ]
-    dropped = before - len(jobs)
-    if dropped:
+    def _gate_reject(job: SearchResult) -> str | None:
+        if not seniority_allowed(experience_years, job.seniority, job.title):
+            return "seniority"
+        if not title_matches_role(preferred_role, job.title):
+            return "title"
+        if not profile_seniority_allowed(
+            profile_seniority, job.seniority, job.title
+        ):
+            return "profile_seniority"
+        if not location_allowed(
+            job.location, job.location_type, profile_locations, profile_work_mode
+        ):
+            return "location"
+        return None
+
+    gate_drops: dict[str, int] = {}
+    kept: list[SearchResult] = []
+    for job in jobs:
+        reason = _gate_reject(job)
+        if reason is None:
+            kept.append(job)
+        else:
+            gate_drops[reason] = gate_drops.get(reason, 0) + 1
+    jobs = kept
+    if gate_drops:
         logger.info(
-            "Dropped %d seniority/title-mismatched job(s) for role=%s",
-            dropped,
+            "Pre-embed gates dropped %s for role=%s",
+            gate_drops,
             preferred_role,
         )
     if not jobs:
