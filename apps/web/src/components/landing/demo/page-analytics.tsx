@@ -1,9 +1,9 @@
-"use client";
-import React from "react";
+'use client';
+import React from 'react';
 
 const pages = [
-  { pathname: "/", count: 6188 },
-  { pathname: "/components/animated-form", count: 4251 },
+  { pathname: '/', count: 6188 },
+  { pathname: '/components/animated-form', count: 4251 },
 ];
 
 const maxCount = Math.max(...pages.map((p) => p.count));

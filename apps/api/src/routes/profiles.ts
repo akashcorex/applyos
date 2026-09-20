@@ -155,9 +155,9 @@ profilesRouter.post('/me/avatar', (req, res, next) => {
     if (error) {
       const tooLarge =
         error instanceof multer.MulterError && error.code === 'LIMIT_FILE_SIZE';
-      res
-        .status(tooLarge ? 413 : 400)
-        .json({ error: tooLarge ? 'Image must be under 2 MB' : 'Upload failed' });
+      res.status(tooLarge ? 413 : 400).json({
+        error: tooLarge ? 'Image must be under 2 MB' : 'Upload failed',
+      });
       return;
     }
     void (async () => {
@@ -208,7 +208,9 @@ profilesRouter.get('/me/avatar', async (req, res, next) => {
       return;
     }
     const ext = image.slice(image.lastIndexOf('.')).toLowerCase();
-    const mime = Object.entries(AVATAR_MIME_EXT).find(([, e]) => e === ext)?.[0];
+    const mime = Object.entries(AVATAR_MIME_EXT).find(
+      ([, e]) => e === ext,
+    )?.[0];
     res.setHeader('Content-Type', mime ?? 'application/octet-stream');
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Cache-Control', 'private, max-age=60');

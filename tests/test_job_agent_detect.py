@@ -5,6 +5,7 @@ from main import app
 from services.ats_detect import (
     detect_ats_from_html,
     detect_ats_from_url,
+    infer_slug_from_html,
     infer_slug_from_url,
 )
 
@@ -16,6 +17,27 @@ def test_detect_ats_from_html_greenhouse() -> None:
 
 def test_detect_ats_from_html_unknown() -> None:
     assert detect_ats_from_html("<html><body>Careers</body></html>") is None
+
+
+def test_detect_ats_from_html_case_insensitive() -> None:
+    html = '<a href="https://JOBS.ASHBYHQ.COM/cursor/abc">Apply</a>'
+    assert detect_ats_from_html(html) == "ashby"
+
+
+def test_infer_slug_from_html_ashby_embed() -> None:
+    html = '<a href="//jobs.ashbyhq.com/cursor/00e98809/apply">Job</a>'
+    assert infer_slug_from_html(html, "ashby") == "cursor"
+
+
+def test_infer_slug_from_html_greenhouse_api() -> None:
+    html = 'fetch("https://api.greenhouse.io/v1/boards/acme/jobs")'
+    assert infer_slug_from_html(html, "greenhouse") == "acme"
+
+
+def test_infer_slug_from_html_rejects_reserved() -> None:
+    assert infer_slug_from_html("https://apply.workable.com/api/jobs", "workable") is None
+    assert infer_slug_from_html("<html>no boards</html>", "lever") is None
+    assert infer_slug_from_html("https://jobs.lever.co/netflix", None) is None
 
 
 def test_infer_slug_from_url_greenhouse() -> None:

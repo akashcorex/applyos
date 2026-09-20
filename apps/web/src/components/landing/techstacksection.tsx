@@ -1,10 +1,10 @@
-"use client";
+'use client';
 
-import { FaReact } from "react-icons/fa6";
-import { RiNextjsFill } from "react-icons/ri";
-import { BiLogoPostgresql } from "react-icons/bi";
-import { SiPrisma, SiTailwindcss, SiTypescript } from "react-icons/si";
-import { motion } from "motion/react";
+import { FaReact } from 'react-icons/fa6';
+import { RiNextjsFill } from 'react-icons/ri';
+import { BiLogoPostgresql } from 'react-icons/bi';
+import { SiPrisma, SiTailwindcss, SiTypescript } from 'react-icons/si';
+import { motion } from 'motion/react';
 
 const TechStackSection = () => {
   return (
@@ -12,17 +12,17 @@ const TechStackSection = () => {
       initial={{
         opacity: 0,
         y: 8,
-        filter: "blur(10px)",
+        filter: 'blur(10px)',
       }}
       animate={{
         opacity: 1,
         y: 0,
-        filter: "blur(0px)",
+        filter: 'blur(0px)',
       }}
       transition={{
         duration: 0.3,
         delay: 0.25,
-        ease: "easeInOut",
+        ease: 'easeInOut',
       }}
       viewport={{ once: true }}
       className="flex items-center gap-4 pt-2 text-neutral-400"

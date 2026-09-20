@@ -143,7 +143,8 @@ export function DashboardOverview({
             Dashboard Overview
           </h2>
           <p className="text-xs text-muted-foreground">
-            Monitor automated job discovery, application metrics, and recruiter response rates.
+            Monitor automated job discovery, application metrics, and recruiter
+            response rates.
           </p>
         </div>
         <TabsList className="bg-muted p-1 border border-border rounded-[8px] h-9">
@@ -296,10 +297,7 @@ export function DashboardOverview({
 
           {showRecent ? (
             <div className="lg:col-span-3">
-              <RecentActivityCard
-                title={recentTitle}
-                items={recentItems}
-              />
+              <RecentActivityCard title={recentTitle} items={recentItems} />
             </div>
           ) : null}
         </div>
@@ -310,9 +308,12 @@ export function DashboardOverview({
 
       <TabsContent value="analytics" className="mt-0">
         <Card className="shadow-sm p-6">
-          <h3 className="text-sm font-semibold mb-2">Analytics & Conversion Rates</h3>
+          <h3 className="text-sm font-semibold mb-2">
+            Analytics & Conversion Rates
+          </h3>
           <p className="text-xs text-muted-foreground mb-4">
-            Deep dive into resume match scores, submission pass rates, and recruiter response speed.
+            Deep dive into resume match scores, submission pass rates, and
+            recruiter response speed.
           </p>
           <div className="w-full h-64 border border-dashed border-border rounded-[8px] flex items-center justify-center text-xs text-muted-foreground">
             Analytics breakdown module loaded
@@ -326,9 +327,12 @@ export function DashboardOverview({
 
       <TabsContent value="activity" className="mt-0">
         <Card className="shadow-sm p-6">
-          <h3 className="text-sm font-semibold mb-2">Live Agent Activity Log</h3>
+          <h3 className="text-sm font-semibold mb-2">
+            Live Agent Activity Log
+          </h3>
           <p className="text-xs text-muted-foreground mb-4">
-            Real-time execution log of job crawlers, resume tailors, and auto-submit agents.
+            Real-time execution log of job crawlers, resume tailors, and
+            auto-submit agents.
           </p>
           <div className="w-full h-64 border border-dashed border-border rounded-[8px] flex items-center justify-center text-xs text-muted-foreground font-mono">
             Agent event stream active

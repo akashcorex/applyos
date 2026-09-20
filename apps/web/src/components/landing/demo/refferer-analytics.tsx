@@ -1,9 +1,9 @@
-"use client";
-import React from "react";
+'use client';
+import React from 'react';
 
 const pages = [
-  { pathname: "Direct", count: 16212 },
-  { pathname: "google.com", count: 12464 },
+  { pathname: 'Direct', count: 16212 },
+  { pathname: 'google.com', count: 12464 },
 ];
 
 const maxCount = Math.max(...pages.map((p) => p.count));

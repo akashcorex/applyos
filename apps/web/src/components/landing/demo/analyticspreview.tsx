@@ -1,10 +1,10 @@
-"use client";
-import React from "react";
-import SiteHeader from "./site-header";
-import PagesAnalytics from "./page-analytics";
-import ReffererAnalytics from "./refferer-analytics";
-import AnalyticsChart from "./analytics-chart";
-import Togglebutton from "./togglebutton";
+'use client';
+import React from 'react';
+import SiteHeader from './site-header';
+import PagesAnalytics from './page-analytics';
+import ReffererAnalytics from './refferer-analytics';
+import AnalyticsChart from './analytics-chart';
+import Togglebutton from './togglebutton';
 
 const AnalyticsPreview = () => {
   return (

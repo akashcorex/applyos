@@ -1,10 +1,10 @@
-"use client";
+'use client';
 
-import { cn } from "@/lib/utils";
-import { motion } from "motion/react";
-import { useEffect, useState } from "react";
-import { IoMdCheckmark } from "react-icons/io";
-import { LuLoader } from "react-icons/lu";
+import { cn } from '@/lib/utils';
+import { motion } from 'motion/react';
+import { useEffect, useState } from 'react';
+import { IoMdCheckmark } from 'react-icons/io';
+import { LuLoader } from 'react-icons/lu';
 
 interface OnboardCardProps {
   duration?: number;
@@ -15,9 +15,9 @@ interface OnboardCardProps {
 
 const OnboardCard = ({
   duration = 3000,
-  step1 = "Welcome Aboard",
-  step2 = "Verifying Details",
-  step3 = "Account Created",
+  step1 = 'Welcome Aboard',
+  step2 = 'Verifying Details',
+  step3 = 'Account Created',
 }: OnboardCardProps) => {
   const [progress, setProgress] = useState(0);
   const [animateKey, setAnimateKey] = useState(0);
@@ -37,8 +37,8 @@ const OnboardCard = ({
   return (
     <div
       className={cn(
-        "relative",
-        "mt-4 flex flex-col items-center justify-center gap-1 p-1",
+        'relative',
+        'mt-4 flex flex-col items-center justify-center gap-1 p-1',
       )}
     >
       <div className="flex w-full max-w-[250px] scale-[0.9] flex-col justify-center gap-2 rounded-md border border-neutral-800 bg-gradient-to-br from-neutral-800 to-neutral-950 py-2 pl-3 pr-16 opacity-80">
@@ -67,7 +67,7 @@ const OnboardCard = ({
             className="h-full bg-cyan-500"
             initial={{ width: 0 }}
             animate={{ width: `${progress}%` }}
-            transition={{ duration: duration / 1000, ease: "easeInOut" }}
+            transition={{ duration: duration / 1000, ease: 'easeInOut' }}
           />
         </div>
       </div>

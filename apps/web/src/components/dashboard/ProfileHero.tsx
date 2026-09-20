@@ -2,7 +2,10 @@
 
 import { useEffect, useRef, useState } from 'react';
 
-import { Camera, ExternalLink, Github, Globe, Linkedin } from 'lucide-react';
+import { Camera, ExternalLink, Globe } from 'lucide-react';
+
+import { GithubIcon } from '@/components/icons/GithubIcon';
+import { LinkedinIcon } from '@/components/icons/LinkedinIcon';
 
 import { Badge } from '@applyso/ui/badge';
 import { Button } from '@applyso/ui/button';
@@ -60,11 +63,7 @@ function useBannerPreset(): [string, (key: string) => void] {
   return [key, select];
 }
 
-function BannerPicker({
-  onSelect,
-}: {
-  onSelect: (key: string) => void;
-}) {
+function BannerPicker({ onSelect }: { onSelect: (key: string) => void }) {
   return (
     <div className="absolute right-3 top-10 z-20 w-44 rounded-[10px] border border-border bg-popover p-2 shadow-xl">
       <p className="px-1 pb-1.5 text-[10px] font-mono font-semibold uppercase tracking-wider text-muted-foreground">
@@ -126,13 +125,17 @@ export function ProfileHero({
   }, [pickerOpen]);
 
   const banner = bannerPresetByKey(bannerKey);
-  const tier = progression?.tier ?? { key: 'explorer' as const, label: 'Explorer', minLevel: 1 };
+  const tier = progression?.tier ?? {
+    key: 'explorer' as const,
+    label: 'Explorer',
+    minLevel: 1,
+  };
   const visual = tierVisual(tier.key);
   const level = progression?.level ?? 1;
 
   const links = getSafeProfileLinks([
-    { label: 'GitHub', value: githubUrl?.trim() ?? '', Icon: Github },
-    { label: 'LinkedIn', value: linkedinUrl?.trim() ?? '', Icon: Linkedin },
+    { label: 'GitHub', value: githubUrl?.trim() ?? '', Icon: GithubIcon },
+    { label: 'LinkedIn', value: linkedinUrl?.trim() ?? '', Icon: LinkedinIcon },
     { label: 'Portfolio', value: portfolioUrl?.trim() ?? '', Icon: Globe },
   ]);
 
@@ -142,7 +145,10 @@ export function ProfileHero({
       className="overflow-hidden rounded-[14px] border border-border bg-card"
     >
       {/* ── Banner ─────────────────────────────────────────── */}
-      <div className="relative h-28 sm:h-32" style={{ background: banner.background }}>
+      <div
+        className="relative h-28 sm:h-32"
+        style={{ background: banner.background }}
+      >
         <div ref={pickerRef}>
           <button
             type="button"
@@ -272,7 +278,7 @@ export function ProfileHero({
         {/* ── Actions ──────────────────────────────────────── */}
         <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
           <Button size="sm" variant="outline" onClick={onViewPublic}>
-                              <ExternalLink className="mr-1.5 h-3.5 w-3.5" />
+            <ExternalLink className="mr-1.5 h-3.5 w-3.5" />
             View public profile
           </Button>
           <Button size="sm" onClick={onEdit}>

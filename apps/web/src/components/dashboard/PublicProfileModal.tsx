@@ -83,7 +83,12 @@ export function PublicProfileModal({
               How employers see you on ApplyOS
             </p>
           </div>
-          <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onClose}
+            aria-label="Close"
+          >
             <X className="h-4 w-4" />
           </Button>
         </div>
@@ -158,7 +163,9 @@ export function PublicProfileModal({
           <div className="grid gap-4 sm:grid-cols-2">
             {roles.length > 0 ? (
               <div>
-                <p className="text-[11px] text-muted-foreground">Target roles</p>
+                <p className="text-[11px] text-muted-foreground">
+                  Target roles
+                </p>
                 <p className="mt-0.5 text-[13px] font-medium">
                   {roles.slice(0, 3).join(' · ')}
                 </p>

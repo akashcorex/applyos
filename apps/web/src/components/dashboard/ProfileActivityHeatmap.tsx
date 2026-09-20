@@ -1,7 +1,10 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@applyso/ui/card';
 import { addDateKey, heatmapLevel } from '@applyso/validation';
 
-import type { ProfileActivityDay, ProfileActivityTotals } from './profile-types';
+import type {
+  ProfileActivityDay,
+  ProfileActivityTotals,
+} from './profile-types';
 
 const LEVEL_CLASS = [
   'bg-[#ebedf0] dark:bg-[#161b22]',

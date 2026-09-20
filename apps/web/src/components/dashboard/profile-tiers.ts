@@ -126,7 +126,9 @@ export const BANNER_PRESETS: BannerPreset[] = [
 
 export const DEFAULT_BANNER_KEY = 'default';
 
-export function bannerPresetByKey(key: string | null | undefined): BannerPreset {
+export function bannerPresetByKey(
+  key: string | null | undefined,
+): BannerPreset {
   return (
     BANNER_PRESETS.find((preset) => preset.key === key) ?? BANNER_PRESETS[0]
   );

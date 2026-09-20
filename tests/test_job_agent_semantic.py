@@ -56,7 +56,7 @@ async def test_semantic_rank_jobs_with_embeddings(monkeypatch: pytest.MonkeyPatc
 
     jobs = [
         _make_job("Senior Python Engineer", "Stripe", description="Python backend"),
-        _make_job("Marketing Lead", "Notion", description="SEO and content"),
+        _make_job("Marketing Engineer", "Notion", description="SEO and content"),
     ]
 
     ranked = await semantic_rank_jobs(
@@ -72,6 +72,37 @@ async def test_semantic_rank_jobs_with_embeddings(monkeypatch: pytest.MonkeyPatc
     assert ranked[1].company_name == "Notion"
     assert ranked[0].matching_skills  # rule-based skills for all jobs
     assert ranked[1].semantic_score < 0.5
+    assert ranked[0].text_score > 0
+    assert ranked[0].title_score > 0
+
+
+@pytest.mark.asyncio
+async def test_semantic_rank_drops_title_mismatches(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(semantic_module.settings, "openai_api_key", "")
+
+    jobs = [
+        _make_job("Marketing Lead", "Acme", seniority=None),
+        _make_job("Backend Engineer", "Striple", seniority=None),
+    ]
+    ranked = await semantic_rank_jobs(
+        jobs,
+        skills=["Python"],
+        preferred_role="Software Engineer",
+        experience_years=5,
+    )
+    assert [job.company_name for job in ranked] == ["Striple"]
+
+
+def test_title_matches_role_aliases() -> None:
+    from services.semantic_match import title_matches_role
+
+    assert title_matches_role("Software Engineer", "Backend Engineer") is True
+    assert title_matches_role("SDE", "Software Development Engineer") is True
+    assert title_matches_role("Engineer", "Marketing Lead") is False
+    assert title_matches_role("Engineer", None) is True
+    assert title_matches_role("Product Manager", "Product Manager, Growth") is True
 
 
 @pytest.mark.asyncio
@@ -151,8 +182,8 @@ async def test_semantic_rank_uses_cached_profile_embedding(
         profile_embedding=cached,
     )
 
-    assert len(embedded) == 1
-    assert "Target Role" not in embedded[0]
+    assert len(embedded) == 2
+    assert all("Target Role" not in text for text in embedded)
 
 
 @pytest.mark.asyncio

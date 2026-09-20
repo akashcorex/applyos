@@ -108,7 +108,7 @@ const INITIAL_ROWS: TableRowData[] = [
   },
   {
     id: '9',
-    header: 'Overview of EMR\'s Innovative Solutions',
+    header: "Overview of EMR's Innovative Solutions",
     sectionType: 'Technical content',
     status: 'Done',
     target: 7,
@@ -138,7 +138,9 @@ export function DashboardDataTable() {
   const [rows, setRows] = useState<TableRowData[]>(INITIAL_ROWS);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [columnsMenuOpen, setColumnsMenuOpen] = useState(false);
-  const [reviewerDropdownId, setReviewerDropdownId] = useState<string | null>(null);
+  const [reviewerDropdownId, setReviewerDropdownId] = useState<string | null>(
+    null,
+  );
 
   const [visibleColumns, setVisibleColumns] = useState({
     sectionType: true,
@@ -307,9 +309,7 @@ export function DashboardDataTable() {
                 <TableRow
                   key={row.id}
                   className={`${
-                    isSelected
-                      ? 'bg-muted/60'
-                      : 'hover:bg-muted/50'
+                    isSelected ? 'bg-muted/60' : 'hover:bg-muted/50'
                   } transition-colors border-b border-border/60`}
                 >
                   <TableCell className="text-center py-2.5">
@@ -387,18 +387,20 @@ export function DashboardDataTable() {
 
                           {reviewerDropdownId === row.id ? (
                             <div className="absolute left-0 z-30 mt-1 w-44 rounded-[8px] border border-border bg-popover p-1 shadow-lg text-xs space-y-1">
-                              {['Eddie Lake', 'Jamik Tashpulatov', 'Sarah Connor'].map(
-                                (name) => (
-                                  <button
-                                    key={name}
-                                    type="button"
-                                    onClick={() => assignReviewer(row.id, name)}
-                                    className="w-full text-left px-2.5 py-1.5 rounded hover:bg-muted text-foreground"
-                                  >
-                                    {name}
-                                  </button>
-                                ),
-                              )}
+                              {[
+                                'Eddie Lake',
+                                'Jamik Tashpulatov',
+                                'Sarah Connor',
+                              ].map((name) => (
+                                <button
+                                  key={name}
+                                  type="button"
+                                  onClick={() => assignReviewer(row.id, name)}
+                                  className="w-full text-left px-2.5 py-1.5 rounded hover:bg-muted text-foreground"
+                                >
+                                  {name}
+                                </button>
+                              ))}
                             </div>
                           ) : null}
                         </div>

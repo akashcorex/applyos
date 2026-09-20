@@ -1,4 +1,5 @@
 import logging
+import re
 from urllib.parse import urlparse
 
 from models import AtsType, ConfidenceLevel
@@ -54,9 +55,46 @@ def detect_ats_from_url(career_page_url: str) -> AtsType | None:
 
 
 def detect_ats_from_html(html: str) -> AtsType | None:
+    lowered = html.lower()
     for ats_type, signatures in ATS_SIGNATURES.items():
-        if any(signature in html for signature in signatures):
+        if any(signature in lowered for signature in signatures):
             return ats_type
+    return None
+
+
+_SLUG_PATTERNS: dict[AtsType, list[str]] = {
+    "greenhouse": [
+        r"boards\.greenhouse\.io/([A-Za-z0-9._-]+)",
+        r"api\.greenhouse\.io/v1/boards/([A-Za-z0-9._-]+)",
+    ],
+    "lever": [
+        r"jobs\.lever\.co/([A-Za-z0-9._-]+)",
+        r"api\.lever\.co/v\d+/postings/([A-Za-z0-9._-]+)",
+    ],
+    "ashby": [
+        r"jobs\.ashbyhq\.com/([A-Za-z0-9._-]+)",
+        r"api\.ashbyhq\.com/posting-api/job-board/([A-Za-z0-9._-]+)",
+    ],
+    "workable": [r"apply\.workable\.com/([A-Za-z0-9._-]+)"],
+    "recruitee": [r"https?://([A-Za-z0-9._-]+)\.recruitee\.com"],
+    "personio": [r"https?://([A-Za-z0-9._-]+)\.jobs\.personio\.de"],
+    "wellfound": [r"wellfound\.com/company/([A-Za-z0-9._-]+)"],
+}
+
+_RESERVED_SLUGS = frozenset({"api", "j", "v1", "v2", "v3", "jobs", "company"})
+
+_SLUG_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
+
+
+def infer_slug_from_html(html: str, ats_type: AtsType | None) -> str | None:
+    """Extract the board slug from ATS URLs embedded in page HTML."""
+    if not ats_type:
+        return None
+    for pattern in _SLUG_PATTERNS.get(ats_type, []):
+        for match in re.findall(pattern, html, flags=re.IGNORECASE):
+            slug = match.strip().strip("/")
+            if slug and slug.lower() not in _RESERVED_SLUGS and _SLUG_RE.match(slug):
+                return slug
     return None
 
 
@@ -117,7 +155,9 @@ async def detect_ats(
         return None, None, "none"
 
     ats_type = detect_ats_from_html(html)
-    slug = infer_slug_from_url(career_page_url, ats_type)
+    slug = infer_slug_from_url(career_page_url, ats_type) or infer_slug_from_html(
+        html, ats_type
+    )
 
     if slug:
         confidence: ConfidenceLevel = "high"

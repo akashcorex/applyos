@@ -193,14 +193,14 @@ describe('Phase 2 HTTP auth + lifecycle', () => {
     expect(body.resumes).toHaveLength(1);
   });
 
-  it('GET /v1/resumes/:id is 403 for another user (IDOR)', async () => {
+  it('GET /v1/resumes/:id is 404 for another user (IDOR)', async () => {
     sessionUser = USER_A;
     resumeFile.findUnique.mockResolvedValue({
       id: 'rf-other',
       userId: 'user-b',
     });
     const res = await fetch(`${base}/v1/resumes/rf-other`);
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(404);
   });
 
   it('POST /internal/:id/complete is 401 without a service token', async () => {

@@ -1,11 +1,11 @@
-import { cn } from "@/lib/utils";
-import OnboardCard from "./onboard-card";
+import { cn } from '@/lib/utils';
+import OnboardCard from './onboard-card';
 
 const FeatureOnboard = () => {
   return (
     <div
       className={cn(
-        "flex h-[20rem] flex-col justify-between space-y-4 rounded-md border border-neutral-800/50 bg-neutral-950 p-4",
+        'flex h-[20rem] flex-col justify-between space-y-4 rounded-md border border-neutral-800/50 bg-neutral-950 p-4',
       )}
     >
       <OnboardCard />

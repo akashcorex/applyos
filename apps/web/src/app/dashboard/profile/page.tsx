@@ -43,8 +43,7 @@ async function fetchProfileBundle(): Promise<{
     error?: string;
   } | null;
   const summaryData = (await summaryRes.json().catch(() => null)) as
-    | (ProfileSummary & { error?: string })
-    | null;
+    (ProfileSummary & { error?: string }) | null;
   const historyData = (await historyRes.json().catch(() => null)) as {
     resumes?: ResumeHistoryItem[];
   } | null;
@@ -395,7 +394,8 @@ export default function ProfilePage() {
                 if (patch.linkedinUrl !== undefined) {
                   setLinkedinUrl(patch.linkedinUrl);
                 }
-                if (patch.githubUrl !== undefined) setGithubUrl(patch.githubUrl);
+                if (patch.githubUrl !== undefined)
+                  setGithubUrl(patch.githubUrl);
                 if (patch.portfolioUrl !== undefined) {
                   setPortfolioUrl(patch.portfolioUrl);
                 }
@@ -407,7 +407,8 @@ export default function ProfilePage() {
                   setPreferredLocations(patch.preferredLocations);
                 }
                 if (patch.workMode !== undefined) setWorkMode(patch.workMode);
-                if (patch.seniority !== undefined) setSeniority(patch.seniority);
+                if (patch.seniority !== undefined)
+                  setSeniority(patch.seniority);
                 if (patch.totalExperienceYears !== undefined) {
                   setExperienceYears(patch.totalExperienceYears);
                 }

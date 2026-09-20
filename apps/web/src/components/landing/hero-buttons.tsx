@@ -1,18 +1,18 @@
-import React from "react";
-import Link from "next/link";
-import { cn } from "@/lib/utils";
-import { ChevronRightIcon } from "lucide-react";
+import React from 'react';
+import Link from 'next/link';
+import { cn } from '@/lib/utils';
+import { ChevronRightIcon } from 'lucide-react';
 
 const Herobuttons = () => {
   return (
     <div className="mt-4 flex items-center gap-4 sm:gap-3">
       <Link
-        href={"/signup"}
+        href={'/signup'}
         className={cn(
-          "group relative flex h-9 w-full cursor-pointer items-center justify-center gap-1 rounded-sm bg-white px-4 py-1.5 text-[0.9rem] font-semibold text-black no-underline transition-all duration-300 hover:bg-neutral-200 md:h-10 md:px-8 md:py-2 md:text-[1rem]",
+          'group relative flex h-9 w-full cursor-pointer items-center justify-center gap-1 rounded-sm bg-white px-4 py-1.5 text-[0.9rem] font-semibold text-black no-underline transition-all duration-300 hover:bg-neutral-200 md:h-10 md:px-8 md:py-2 md:text-[1rem]',
         )}
       >
-        <TextGlitch text={"Get Started"} />
+        <TextGlitch text={'Get Started'} />
       </Link>
       <Link
         href="#features"

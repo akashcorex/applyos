@@ -190,6 +190,23 @@ export async function POST(request: Request) {
             ]
           : [],
       );
+      const requested = (body.jobs ?? []) as ApplyJobInput[];
+      if (requested.length > 0) {
+        const wanted = new Set(
+          requested.flatMap((job) => {
+            const keys: string[] = [];
+            if (job.dedup_key) keys.push(`dedup:${job.dedup_key}`);
+            if (job.job_id) keys.push(`id:${job.job_id}`);
+            return keys;
+          }),
+        );
+        const subset = clientJobs.filter(
+          (job) =>
+            (job.dedup_key && wanted.has(`dedup:${job.dedup_key}`)) ||
+            (job.job_id && wanted.has(`id:${job.job_id}`)),
+        );
+        if (subset.length > 0) clientJobs = subset;
+      }
     }
 
     let eligibleJobs: ApplyJobInput[] = clientJobs
@@ -231,8 +248,23 @@ export async function POST(request: Request) {
     }
 
     if (eligibleJobs.length === 0) {
+      const total = clientJobs.length;
+      const missingUrl = clientJobs.filter(
+        (job) => !job.application_url,
+      ).length;
+      const belowScore = clientJobs.filter((job) => {
+        if (typeof job.match_score !== 'number') return true;
+        const score =
+          job.match_score <= 1 ? job.match_score * 100 : job.match_score;
+        return score < minScore;
+      }).length;
       return Response.json(
-        { error: 'No matching jobs with application URLs found' },
+        {
+          error:
+            total > 0
+              ? `No eligible jobs out of ${total} received (${missingUrl} without an application link, ${belowScore} below the ${minScore}% minimum score). Pick a role with an application link or lower the minimum score.`
+              : 'No matching jobs with application URLs found',
+        },
         { status: 404 },
       );
     }

@@ -111,8 +111,7 @@ export function ProfileResumeCard({
         ) : null}
       </div>
       <p className="text-xs text-muted-foreground mb-3 max-w-[560px]">
-        Your primary resume. Used by ApplyOS when matching and applying to
-        jobs.
+        Your primary resume. Used by ApplyOS when matching and applying to jobs.
       </p>
 
       <div className="rounded-[12px] border border-border bg-card p-4 sm:p-5">

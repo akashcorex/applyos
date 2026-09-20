@@ -3,7 +3,15 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
-import { ArrowRight, Bookmark, BookmarkCheck, Check, Loader2, Search, X } from 'lucide-react';
+import {
+  ArrowRight,
+  Bookmark,
+  BookmarkCheck,
+  Check,
+  Loader2,
+  Search,
+  X,
+} from 'lucide-react';
 
 import { Button } from '@applyso/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@applyso/ui/card';
@@ -30,6 +38,7 @@ interface Job {
   applicationUrl: string | null;
   firstSeenAt: string;
   lastSeenAt: string;
+  isNew?: boolean;
   score?: number;
   reason?: string;
   isSaved: boolean;
@@ -97,7 +106,9 @@ const JobCard = memo(function JobCard({
       style={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 300px' }}
     >
       {/* Pastel body */}
-      <div className={`${accent.surface} flex min-h-[208px] flex-1 flex-col p-4`}>
+      <div
+        className={`${accent.surface} flex min-h-[208px] flex-1 flex-col p-4`}
+      >
         <div className="flex items-start justify-between gap-2">
           <p className="truncate text-[11px] font-semibold tracking-wide text-slate-700">
             {meta || 'Location not provided'}
@@ -135,22 +146,30 @@ const JobCard = memo(function JobCard({
         </div>
 
         <div className="mt-3 flex flex-1 items-start justify-between gap-3">
-          <h3
-            className="line-clamp-3 flex-1 cursor-pointer text-[22px] font-medium leading-[1.15] tracking-tight"
+          <button
+            type="button"
             onClick={() => onOpen(job, rankPosition)}
-            title={`${job.title} @ ${job.companyName}`}
+            title={`${job.title} @ ${job.companyName} — open details`}
+            className="line-clamp-3 flex-1 cursor-pointer bg-transparent p-0 text-left text-[22px] font-medium leading-[1.15] tracking-tight"
           >
             {job.title}
-          </h3>
+          </button>
           <button
             type="button"
             aria-label={isSelected ? 'Deselect job' : 'Select job'}
-            title={isSelected ? 'Selected for tailoring' : 'Select for tailoring'}
+            title={
+              job.applicationUrl
+                ? isSelected
+                  ? 'Selected for tailoring'
+                  : 'Select for tailoring'
+                : 'No application link — cannot queue'
+            }
+            disabled={!job.applicationUrl}
             onClick={(event) => {
               event.stopPropagation();
               onToggleSelected(job.id);
             }}
-            className={`mt-2 flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition ${
+            className={`mt-2 flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition disabled:opacity-30 ${
               isSelected
                 ? 'bg-slate-900 text-white'
                 : 'text-slate-800 hover:bg-black/5'
@@ -165,12 +184,23 @@ const JobCard = memo(function JobCard({
         </div>
 
         {job.reason ? (
-          <p className="mt-2 line-clamp-2 text-xs leading-snug text-slate-600" title={job.reason}>
+          <p
+            className="mt-2 line-clamp-2 text-xs leading-snug text-slate-600"
+            title={job.reason}
+          >
             {job.reason}
           </p>
         ) : null}
+        {!job.applicationUrl ? (
+          <p className="mt-1 text-[11px] font-medium text-amber-600">
+            No application link — cannot queue this role.
+          </p>
+        ) : null}
 
-        <div className="mt-auto flex items-center justify-center gap-1.5 pt-3" aria-hidden="true">
+        <div
+          className="mt-auto flex items-center justify-center gap-1.5 pt-3"
+          aria-hidden="true"
+        >
           {Array.from({ length: 4 }).map((_, index) => (
             <span
               key={index}
@@ -189,7 +219,14 @@ const JobCard = memo(function JobCard({
           {companyInitial(job.companyName)}
         </span>
         <span className="min-w-0 flex-1 leading-tight">
-          <span className="block truncate text-xs font-semibold">{job.companyName}</span>
+          <span className="block truncate text-xs font-semibold">
+            {job.companyName}{' '}
+            {job.isNew === true ? (
+              <span className="rounded-full bg-sky-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-sky-600">
+                NEW
+              </span>
+            ) : null}
+          </span>
           <span className="block truncate text-[11px] text-slate-500">
             {job.title}
           </span>
@@ -448,15 +485,18 @@ export function PersistedDiscoveryPanel() {
     [sessionId],
   );
 
-  const toggleSelected = useCallback((id: string) => {
-    setSelected((current) =>
-      current.includes(id)
-        ? current.filter((item) => item !== id)
-        : current.length < 10
-          ? [...current, id]
-          : current,
-    );
-  }, []);
+  const toggleSelected = useCallback(
+    (id: string) => {
+      const job = jobs.find((item) => item.id === id);
+      setSelected((current) => {
+        if (current.includes(id)) return current.filter((item) => item !== id);
+        if (job && !job.applicationUrl) return current;
+        if (current.length >= 10) return current;
+        return [...current, id];
+      });
+    },
+    [jobs],
+  );
 
   async function stageSelection() {
     if (selectedJobs.length === 0) return;
