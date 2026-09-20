@@ -11,6 +11,7 @@ def registry_db(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     db_path = tmp_path / "registry_route.db"
     monkeypatch.setattr("config.settings.registry_db_path", str(db_path))
     monkeypatch.setattr("services.board_registry.settings.registry_db_path", str(db_path))
+    monkeypatch.setattr("services.board_registry._registry", None)
     return db_path
 
 
