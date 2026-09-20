@@ -149,6 +149,9 @@ function savedJobResponse(
       (Date.now() - new Date(job.firstSeenAt).getTime()) / (24 * 3600 * 1000),
     ),
   );
+  const flags: string[] = [];
+  if (!job.descriptionRaw?.trim()) flags.push('no_description');
+  if (ageDays > 90) flags.push('evergreen');
   return {
     id: job.id,
     dedupKey: job.dedupKey,
@@ -168,6 +171,7 @@ function savedJobResponse(
     lastSeenAt: job.lastSeenAt,
     ageDays,
     isNew: ageDays <= 7,
+    flags,
     isActive: job.isActive,
     isSaved,
   };

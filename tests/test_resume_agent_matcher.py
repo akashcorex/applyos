@@ -376,3 +376,26 @@ async def test_match_sends_profile_filters_and_salary() -> None:
     assert job.salary_min == 100000
     assert job.salary_max == 140000
     assert job.salary_currency == "USD"
+
+
+@pytest.mark.asyncio
+async def test_match_passes_flags_through() -> None:
+    client = _FakeClient(
+        {
+            "companies_scraped": 1,
+            "jobs": [
+                {
+                    "title": "Engineer",
+                    "company_name": "Acme",
+                    "dedup_key": "acme::1",
+                    "semantic_score": 0.8,
+                    "flags": ["evergreen"],
+                }
+            ],
+        }
+    )
+    matcher = JobMatcher(client)
+    response, _ = await matcher.match(
+        resume=_resume(["Python"]), resume_id="r-flags"
+    )
+    assert response.jobs[0].flags == ["evergreen"]

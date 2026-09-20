@@ -8,6 +8,7 @@ from services.recency import (
     job_age_days,
     recency_score,
     sort_newest_first,
+    trust_flags,
 )
 
 
@@ -63,3 +64,11 @@ def test_recency_score_decays_linearly() -> None:
     assert recency_score(_iso(120), 120) == 0.0
     assert recency_score(_iso(400), 120) == 0.0
     assert recency_score(None, 120) == 0.5
+
+
+def test_trust_flags_evergreen_and_missing_description() -> None:
+    assert trust_flags("Great role", _iso(10), 90) == []
+    assert trust_flags("Great role", _iso(400), 90) == ["evergreen"]
+    assert trust_flags("", _iso(10), 90) == ["no_description"]
+    assert trust_flags(None, None, 90) == ["no_description"]
+    assert trust_flags("Great role", "not-a-date", 90) == []
