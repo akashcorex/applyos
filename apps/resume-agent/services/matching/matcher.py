@@ -18,7 +18,7 @@ from services.matching.seniority import (
     seniority_allowed,
 )
 from services.skills import (
-    combine_match_score,
+    combine_job_score,
     find_matching_skills,
     match_skills_in_text,
     normalize_skills,
@@ -314,6 +314,13 @@ class JobMatcher:
     def _score_job(cls, resume_skills: list[str], job: dict[str, Any]) -> MatchedJob:
         title = str(job.get("title", ""))
         semantic = float(job.get("semantic_score") or 0.0)
+        text_score = float(job.get("text_score", semantic) or 0.0)
+        title_score = float(job.get("title_score", semantic) or 0.0)
+        recency = job.get("recency_score", 0.5)
+        try:
+            recency_score = float(recency if recency is not None else 0.5)
+        except (TypeError, ValueError):
+            recency_score = 0.5
 
         api_matched = normalize_skills(job.get("matching_skills") or [])
         api_missing = normalize_skills(job.get("missing_skills") or [])
@@ -335,8 +342,10 @@ class JobMatcher:
             )
             matched = match_skills_in_text(resume_skills, haystack)
             missing = []
-            if semantic <= 0.0 and resume_skills:
-                semantic = len(matched) / max(len(resume_skills), 1)
+            if text_score <= 0.0 and resume_skills:
+                text_score = len(matched) / max(len(resume_skills), 1)
+            if title_score <= 0.0:
+                title_score = text_score
 
         if missing:
             skill_score = skill_overlap_score(matched, missing)
@@ -345,7 +354,9 @@ class JobMatcher:
         else:
             skill_score = 0.0
 
-        final_score = combine_match_score(semantic, skill_score)
+        final_score, parts = combine_job_score(
+            text_score, title_score, skill_score, recency_score
+        )
         reason = str(job.get("match_reason") or "").strip()
         if not reason:
             reason = cls._build_reason(title, matched, missing, final_score)
@@ -369,6 +380,7 @@ class JobMatcher:
             matching_skills=matched,
             missing_skills=missing,
             reason=reason,
+            score_breakdown=parts,
         )
 
     @staticmethod

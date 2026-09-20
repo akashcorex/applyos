@@ -308,6 +308,9 @@ class SemanticSearchRequest(BaseModel):
 
 class SemanticMatchResult(SearchResult):
     semantic_score: float = 0.0
+    text_score: float = 0.0
+    title_score: float = 0.0
+    recency_score: float = 0.0
     match_reason: str = ""
     matching_skills: list[str] = Field(default_factory=list)
     missing_skills: list[str] = Field(default_factory=list)

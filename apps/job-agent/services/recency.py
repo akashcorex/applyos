@@ -55,3 +55,19 @@ def filter_stale_jobs(
             continue
         fresh.append(job)
     return fresh, dropped
+
+
+def recency_score(
+    posted_at: str | None,
+    max_age_days: int,
+    *,
+    now: datetime | None = None,
+) -> float:
+    """0-1 freshness: 1.0 for new postings decaying to 0 at the age limit.
+
+    Unknown dates score neutral (0.5) so missing metadata is never punished.
+    """
+    age = job_age_days(posted_at, now=now)
+    if age is None or max_age_days <= 0:
+        return 0.5
+    return round(max(0.0, 1.0 - age / max_age_days), 4)

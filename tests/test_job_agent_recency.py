@@ -3,7 +3,12 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 
 from models import SearchResult
-from services.recency import filter_stale_jobs, job_age_days, sort_newest_first
+from services.recency import (
+    filter_stale_jobs,
+    job_age_days,
+    recency_score,
+    sort_newest_first,
+)
 
 
 def _job(key: str, posted_at: str | None) -> SearchResult:
@@ -50,3 +55,11 @@ def test_filter_stale_jobs_drops_only_known_old() -> None:
     fresh, dropped = filter_stale_jobs(jobs, 120)
     assert [job.dedup_key for job in fresh] == ["fresh", "unknown"]
     assert dropped == 1
+
+
+def test_recency_score_decays_linearly() -> None:
+    assert recency_score(_iso(0), 120) == 1.0
+    assert recency_score(_iso(60), 120) == 0.5
+    assert recency_score(_iso(120), 120) == 0.0
+    assert recency_score(_iso(400), 120) == 0.0
+    assert recency_score(None, 120) == 0.5

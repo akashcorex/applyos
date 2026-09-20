@@ -62,6 +62,7 @@ NAMED_SUITES: dict[str, tuple[str, str]] = {
     "job-agent-semantic-stream": ("job-agent", "test_job_agent_semantic_stream.py"),
     "job-agent-board-audit": ("job-agent", "test_job_agent_board_audit.py"),
     "job-agent-recency": ("job-agent", "test_job_agent_recency.py"),
+    "job-agent-skill-parity": ("job-agent", "test_job_agent_skill_parity.py"),
     "job-agent-growth": ("job-agent", "test_job_agent_growth.py"),
     "outreach-agent-message": ("outreach-agent", "test_outreach_agent_message.py"),
 }

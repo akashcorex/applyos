@@ -17,6 +17,7 @@ from pydantic import BaseModel, Field
 from config import settings
 from models import SearchResult, SemanticMatchResult
 from services.embeddings import embed_texts, embeddings_available
+from services.recency import recency_score
 from services.seniority import (
     SENIORITY_RANK,
     infer_seniority,
@@ -150,6 +151,51 @@ def build_job_text(job: SearchResult) -> str:
     return "\n".join(parts)
 
 
+def build_title_text(job: SearchResult) -> str:
+    parts = [f"Title: {job.title}", f"Company: {job.company_name}"]
+    if job.seniority:
+        parts.append(f"Seniority: {job.seniority}")
+    if job.department:
+        parts.append(f"Department: {job.department}")
+    return "\n".join(parts)
+
+
+_ROLE_ALIASES: dict[str, list[str]] = {
+    "sde": ["software", "development", "engineer"],
+    "swe": ["software", "engineer"],
+    "em": ["engineering", "manager"],
+    "pm": ["product", "manager"],
+    "tpm": ["technical", "program", "manager"],
+    "ds": ["data", "scientist"],
+    "ml": ["machine", "learning"],
+    "qa": ["quality", "assurance"],
+    "ux": ["user", "experience"],
+    "ui": ["user", "interface"],
+}
+
+_STOPWORDS = frozenset({"and", "the", "for", "with", " iii", "iii", "ii", "iv"})
+
+
+def _significant_tokens(text: str) -> set[str]:
+    return {
+        word
+        for word in re.findall(r"[a-z0-9+#.]+", text.lower())
+        if len(word) > 1 and word not in _STOPWORDS
+    }
+
+
+def title_matches_role(preferred_role: str, title: str | None) -> bool:
+    """Lenient title gate: share a significant token with the role or its aliases."""
+    if not title:
+        return True
+    role_tokens = _significant_tokens(preferred_role)
+    for word in list(role_tokens):
+        role_tokens.update(_ROLE_ALIASES.get(word, []))
+    if not role_tokens:
+        return True
+    return bool(role_tokens & _significant_tokens(title))
+
+
 def cosine_similarity(a: list[float], b: list[float]) -> float:
     """Cosine similarity clamped to [0, 1]. OpenAI vectors are L2-normalized."""
     if not a or not b or len(a) != len(b):
@@ -236,7 +282,6 @@ async def semantic_rank_jobs(
     explanation pass is skipped; skill overlap falls back to rules so every
     score stays comparable across batches.
     """
-    """Rank jobs by embedding cosine similarity; explain top-K with Claude."""
     if not jobs:
         return []
 
@@ -245,13 +290,14 @@ async def semantic_rank_jobs(
         job
         for job in jobs
         if seniority_allowed(experience_years, job.seniority, job.title)
+        and title_matches_role(preferred_role, job.title)
     ]
     dropped = before - len(jobs)
     if dropped:
         logger.info(
-            "Dropped %d over-senior job(s) for %s year(s) experience",
+            "Dropped %d seniority/title-mismatched job(s) for role=%s",
             dropped,
-            experience_years,
+            preferred_role,
         )
     if not jobs:
         return []
@@ -270,6 +316,7 @@ async def semantic_rank_jobs(
         intent_override=intent_override,
     )
     job_texts = [build_job_text(job) for job in jobs]
+    title_texts = [build_title_text(job) for job in jobs]
 
     use_cached_profile = (
         profile_embedding
@@ -279,22 +326,29 @@ async def semantic_rank_jobs(
 
     try:
         if use_cached_profile:
-            job_vectors = await embed_texts(job_texts)
+            vectors = await embed_texts([*job_texts, *title_texts])
             candidate_vec = profile_embedding  # type: ignore[assignment]
+            job_vectors = vectors[: len(jobs)]
+            title_vectors = vectors[len(jobs) :]
         else:
-            vectors = await embed_texts([candidate_text, *job_texts])
+            vectors = await embed_texts([candidate_text, *job_texts, *title_texts])
             candidate_vec = vectors[0]
-            job_vectors = vectors[1:]
+            job_vectors = vectors[1 : len(jobs) + 1]
+            title_vectors = vectors[len(jobs) + 1 :]
     except Exception as exc:
         logger.error("Embedding failed: %s", exc)
         return [SemanticMatchResult(**job.model_dump()) for job in jobs]
 
-    scored: list[tuple[SearchResult, float, str]] = []
-    for job, vec in zip(jobs, job_vectors, strict=True):
-        score = cosine_similarity(candidate_vec, vec) * _seniority_score_boost(
-            experience_years, job
+    max_age = settings.job_max_age_days
+    scored: list[tuple[SearchResult, float, float, float, float, str]] = []
+    for job, vec, title_vec in zip(jobs, job_vectors, title_vectors, strict=True):
+        text_sim = cosine_similarity(candidate_vec, vec)
+        title_sim = cosine_similarity(candidate_vec, title_vec)
+        blend = 0.5 * text_sim + 0.5 * title_sim
+        score = blend * _seniority_score_boost(experience_years, job)
+        scored.append(
+            (job, score, text_sim, title_sim, recency_score(job.posted_at, max_age), build_job_text(job))
         )
-        scored.append((job, score, build_job_text(job)))
 
     scored.sort(key=lambda item: item[1], reverse=True)
     if rank_all:
@@ -307,7 +361,7 @@ async def semantic_rank_jobs(
         if scored:
             preview = ", ".join(
                 f"{job.company_name}/{job.title}={score:.3f}"
-                for job, score, _ in scored[:5]
+                for job, score, *_ in scored[:5]
             )
             logger.info(
                 "Embedding rank for role=%s top5: %s",
@@ -316,7 +370,7 @@ async def semantic_rank_jobs(
             )
 
         explain_k = min(settings.explain_top_k, len(scored))
-        explain_jobs = [job for job, _, _ in scored[:explain_k]]
+        explain_jobs = [job for job, *_ in scored[:explain_k]]
         explanations = await _explain_top_jobs(
             explain_jobs,
             preferred_role=preferred_role,
@@ -325,7 +379,7 @@ async def semantic_rank_jobs(
         )
 
     ranked: list[SemanticMatchResult] = []
-    for idx, (job, score, job_text) in enumerate(scored):
+    for idx, (job, score, text_sim, title_sim, fresh, job_text) in enumerate(scored):
         rule_matched, rule_missing = infer_skill_overlap(skills, job_text)
         explanation = explanations.get(idx)
 
@@ -337,6 +391,9 @@ async def semantic_rank_jobs(
             SemanticMatchResult(
                 **job.model_dump(),
                 semantic_score=round(score, 4),
+                text_score=round(text_sim, 4),
+                title_score=round(title_sim, 4),
+                recency_score=fresh,
                 match_reason=reason,
                 matching_skills=matched,
                 missing_skills=missing,
