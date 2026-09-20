@@ -114,6 +114,40 @@ class RegistryFromDetectResponse(BaseModel):
     board: RegistryBoard | None = None
 
 
+class GrowthCompany(BaseModel):
+    name: str = Field(min_length=1, max_length=128)
+    domain: str = Field(min_length=1, max_length=128)
+
+
+class GrowthRequest(BaseModel):
+    companies: list[GrowthCompany] = Field(min_length=1, max_length=100)
+    source: Literal["yc", "detect"] = "yc"
+    verify: bool = True
+    dry_run: bool = False
+    concurrency: int = Field(default=4, ge=1, le=8)
+
+
+class GrowthResult(BaseModel):
+    domain: str
+    company_name: str
+    ats_type: str | None = None
+    ats_slug: str | None = None
+    career_url: str | None = None
+    status: Literal["active", "parked", "skipped", "failed"] = "parked"
+    jobs_found: int = 0
+    error: str | None = None
+    written: bool = True
+
+
+class GrowthResponse(BaseModel):
+    total: int
+    added_active: int
+    parked: int
+    skipped: int
+    failed: int
+    results: list[GrowthResult]
+
+
 class RawJob(BaseModel):
     external_id: str
     title: str
