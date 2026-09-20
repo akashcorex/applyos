@@ -14,6 +14,39 @@ export function normalizeScore(score: number): number {
   return score <= 1 ? score * 100 : score;
 }
 
+export interface SseFrame {
+  event: string;
+  data: unknown;
+}
+
+export function parseSseBuffer(text: string): {
+  frames: SseFrame[];
+  leftover: string;
+} {
+  const frames: SseFrame[] = [];
+  const parts = text.split('\n\n');
+  const leftover = parts.pop() ?? '';
+  for (const part of parts) {
+    let event: string | null = null;
+    let payload: unknown = null;
+    for (const line of part.split('\n')) {
+      if (line.startsWith('event:')) {
+        event = line.slice('event:'.length).trim();
+      } else if (line.startsWith('data:')) {
+        try {
+          payload = JSON.parse(line.slice('data:'.length));
+        } catch {
+          payload = null;
+        }
+      }
+    }
+    if (event && payload && typeof payload === 'object') {
+      frames.push({ event, data: payload });
+    }
+  }
+  return { frames, leftover };
+}
+
 export interface MergeableJob {
   dedup_key: string;
   match_score: number;

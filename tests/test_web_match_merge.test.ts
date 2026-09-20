@@ -4,6 +4,7 @@ import {
   MATCH_CHUNKS,
   mergeJobChunks,
   normalizeScore,
+  parseSseBuffer,
 } from '../apps/web/src/lib/match-merge';
 
 describe('normalizeScore', () => {
@@ -48,5 +49,31 @@ describe('mergeJobChunks', () => {
   it('drops jobs without a dedup key', () => {
     const { jobs } = mergeJobChunks([], [{ dedup_key: '', match_score: 99 }]);
     expect(jobs).toEqual([]);
+  });
+});
+
+describe('parseSseBuffer', () => {
+  it('parses complete frames and keeps the leftover', () => {
+    const text =
+      'event: batch\ndata: {"jobs": []}\n\nevent: done\ndata: {"n": 1}\n\npartial';
+    const { frames, leftover } = parseSseBuffer(text);
+    expect(frames).toEqual([
+      { event: 'batch', data: { jobs: [] } },
+      { event: 'done', data: { n: 1 } },
+    ]);
+    expect(leftover).toBe('partial');
+  });
+
+  it('reassembles frames split across reads', () => {
+    const text = 'event: batch\ndata: {"jobs": []}\n\n';
+    const first = parseSseBuffer(text.slice(0, 20));
+    expect(first.frames).toEqual([]);
+    const second = parseSseBuffer(first.leftover + text.slice(20));
+    expect(second.frames).toEqual([{ event: 'batch', data: { jobs: [] } }]);
+  });
+
+  it('drops malformed payloads', () => {
+    const { frames } = parseSseBuffer('event: batch\ndata: nope\n\n');
+    expect(frames).toEqual([]);
   });
 });

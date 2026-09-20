@@ -28,6 +28,7 @@ import {
   MATCH_CHUNKS,
   mergeJobChunks,
   normalizeScore,
+  parseSseBuffer,
 } from '@/lib/match-merge';
 
 interface ParsedResume {
@@ -95,6 +96,52 @@ function errorMessage(data: unknown, fallback: string): string {
   if (typeof detail === 'string') return detail;
   if (typeof error === 'string') return error;
   return fallback;
+}
+
+async function runStreamMatch(
+  resumeId: string,
+  controller: AbortController,
+  onBatch: (
+    incoming: MatchedJob[],
+    progress: { chunk: number; total: number },
+  ) => void,
+): Promise<'done' | 'fallback'> {
+  const res = await fetch(
+    `/api/resume/${resumeId}/match/stream?max_companies=12&max_jobs=30`,
+    { signal: controller.signal },
+  );
+  if (!res.ok || !res.body) return 'fallback';
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let companies = 0;
+  let sawBatch = false;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const parsed = parseSseBuffer(buffer);
+    buffer = parsed.leftover;
+    for (const frame of parsed.frames) {
+      const data = frame.data as {
+        jobs?: MatchedJob[];
+        error?: string;
+      };
+      if (frame.event === 'batch') {
+        sawBatch = true;
+        companies += 1;
+        onBatch(
+          (data.jobs ?? []).filter((job) => job && job.dedup_key),
+          { chunk: companies, total: 0 },
+        );
+      } else if (frame.event === 'error') {
+        throw new Error(data.error ?? 'Match stream failed');
+      } else if (frame.event === 'done') {
+        return 'done';
+      }
+    }
+  }
+  return sawBatch ? 'done' : 'fallback';
 }
 
 export function ResumeAutoApplyCard({
@@ -407,32 +454,52 @@ export function ResumeAutoApplyCard({
       if (!controller.signal.aborted) setVariantsByJob(variantMap);
 
       let merged: MatchedJob[] = [];
-      for (let index = 0; index < MATCH_CHUNKS.length; index += 1) {
-        if (controller.signal.aborted) break;
-        const chunk = MATCH_CHUNKS[index];
-        const matchRes = await fetch(
-          `/api/resume/${resume.resume_id}/match?max_companies=${chunk.companies}&max_jobs=${chunk.jobsPerCompany}`,
-          { signal: controller.signal },
-        );
-        const matchData = (await matchRes.json().catch(() => null)) as unknown;
-        if (!matchRes.ok) {
-          setError(errorMessage(matchData, 'Failed to match jobs'));
-          break;
-        }
-        const incoming = ((matchData as MatchResponse).jobs ?? []).filter(
-          (job) => Boolean(job.dedup_key),
-        );
+      const handleBatch = (
+        incoming: MatchedJob[],
+        progress: { chunk: number; total: number },
+      ) => {
         const next = mergeJobChunks(merged, incoming);
         merged = next.jobs;
-        if (controller.signal.aborted) break;
+        if (controller.signal.aborted) return;
         setJobs(merged);
         setFreshKeys(new Set(next.freshKeys));
         setMatchProgress({
-          chunk: index + 1,
-          total: MATCH_CHUNKS.length,
+          chunk: progress.chunk,
+          total: progress.total,
           jobsFound: merged.length,
           bestScore: merged.length > 0 ? merged[0].match_score : 0,
         });
+      };
+
+      let streamed: 'done' | 'fallback' = 'fallback';
+      try {
+        streamed = await runStreamMatch(
+          resume.resume_id,
+          controller,
+          handleBatch,
+        );
+      } catch {
+        if (controller.signal.aborted) return;
+        streamed = 'fallback';
+      }
+      if (streamed === 'fallback') {
+        for (let index = 0; index < MATCH_CHUNKS.length; index += 1) {
+          if (controller.signal.aborted) break;
+          const chunk = MATCH_CHUNKS[index];
+          const matchRes = await fetch(
+            `/api/resume/${resume.resume_id}/match?max_companies=${chunk.companies}&max_jobs=${chunk.jobsPerCompany}`,
+            { signal: controller.signal },
+          );
+          const matchData = (await matchRes.json().catch(() => null)) as unknown;
+          if (!matchRes.ok) {
+            setError(errorMessage(matchData, 'Failed to match jobs'));
+            break;
+          }
+          const incoming = ((matchData as MatchResponse).jobs ?? []).filter(
+            (job) => Boolean(job.dedup_key),
+          );
+          handleBatch(incoming, { chunk: index + 1, total: MATCH_CHUNKS.length });
+        }
       }
 
       if (!variantsRes.ok && !controller.signal.aborted) {
@@ -659,8 +726,18 @@ export function ResumeAutoApplyCard({
             </div>
             {matching && matchProgress ? (
               <p className="text-xs text-slate-500 dark:text-[#8a8f9d]">
-                Scraping companies… chunk {Math.max(matchProgress.chunk, 1)}/
-                {matchProgress.total} · {matchProgress.jobsFound} jobs
+                {matchProgress.total === 0 ? (
+                  <>
+                    Live · {matchProgress.chunk}{' '}
+                    {matchProgress.chunk === 1 ? 'company' : 'companies'} ·{' '}
+                    {matchProgress.jobsFound} jobs
+                  </>
+                ) : (
+                  <>
+                    Scraping companies… chunk {Math.max(matchProgress.chunk, 1)}/
+                    {matchProgress.total} · {matchProgress.jobsFound} jobs
+                  </>
+                )}
                 {matchProgress.jobsFound > 0
                   ? ` · best ${scoreLabel(matchProgress.bestScore)}`
                   : ''}
