@@ -6,7 +6,7 @@ import { type VariantProps, cva } from 'class-variance-authority';
 import { cn } from './utils';
 
 const raisedButtonVariants = cva(
-  'raised-button group inline-flex shrink-0 cursor-pointer items-center justify-start whitespace-nowrap rounded-[9px] font-medium leading-none outline-none select-none bg-transparent text-slate-600 dark:text-[#a1a1aa] shadow-none transition-[background-color,color,box-shadow,transform,border-color] duration-150 ease-power3-out focus-visible:ring-2 focus-visible:ring-ring/60 disabled:pointer-events-none disabled:opacity-50 hover:bg-slate-200/60 dark:hover:bg-[#242424] hover:text-slate-900 dark:hover:text-white data-[active=true]:bg-white data-[active=true]:dark:bg-[#2b2b2b] data-[active=true]:text-slate-950 data-[active=true]:dark:text-white data-[active=true]:border-slate-300/80 data-[active=true]:dark:border-[#4a4a4a] data-[active=true]:shadow-[0_1px_2px_rgba(0,0,0,0.08),0_4px_14px_rgba(0,0,0,0.10),inset_0_1px_0_rgba(255,255,255,0.9)] data-[active=true]:dark:shadow-[0_1px_2px_rgba(0,0,0,0.55),0_6px_18px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.10)] [&_svg]:shrink-0 [&_svg]:text-current',
+  'raised-button group inline-flex shrink-0 cursor-pointer items-center justify-start whitespace-nowrap rounded-[9px] font-medium leading-none outline-none select-none bg-transparent text-muted-foreground shadow-none transition-[background-color,color,box-shadow,transform,border-color] duration-150 ease-power3-out focus-visible:ring-2 focus-visible:ring-ring/60 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent/60 hover:text-accent-foreground data-[active=true]:bg-secondary data-[active=true]:text-secondary-foreground data-[active=true]:border-transparent data-[active=true]:shadow-[0_1px_2px_rgba(0,0,0,0.08)] data-[active=true]:dark:shadow-none [&_svg]:shrink-0 [&_svg]:text-current',
   {
     variants: {
       size: {
@@ -69,7 +69,7 @@ function RaisedChip({
   return (
     <span
       className={cn(
-        'inline-flex h-[20px] min-w-[26px] shrink-0 items-center justify-center rounded-full border px-2 text-center text-[11px] font-mono font-normal leading-none tabular-nums border-slate-300/70 bg-slate-200/50 text-slate-500 dark:border-white/10 dark:bg-white/[0.06] dark:text-[#a0a5b5] group-data-[active=true]:border-slate-300 group-data-[active=true]:bg-slate-100 group-data-[active=true]:text-slate-800 group-data-[active=true]:dark:border-white/[0.18] group-data-[active=true]:dark:bg-white/[0.09] group-data-[active=true]:dark:text-slate-200 group-data-[active=true]:dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]',
+        'inline-flex h-[20px] min-w-[26px] shrink-0 items-center justify-center rounded-full border px-2 text-center text-[11px] font-mono font-normal leading-none tabular-nums border-border bg-secondary/50 text-muted-foreground group-data-[active=true]:bg-secondary group-data-[active=true]:text-secondary-foreground',
         className,
       )}
       {...props}

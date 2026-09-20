@@ -86,9 +86,9 @@ export function ProfileResumeCard({
       </CardHeader>
       <CardContent className="space-y-3">
         {resume ? (
-          <div className="rounded-[8px] border border-slate-200 dark:border-[#26282e] px-3 py-2 text-xs">
+          <div className="rounded-[8px] border border-border px-3 py-2 text-xs">
             <p className="font-medium">{resume.fileName}</p>
-            <p className="text-slate-500 dark:text-[#8a8f9d] font-mono mt-0.5">
+            <p className="text-muted-foreground font-mono mt-0.5">
               {statusLabel(resume.status)}
               {resume.processedAt
                 ? ` · ${new Date(resume.processedAt).toLocaleString()}`
@@ -119,7 +119,7 @@ export function ProfileResumeCard({
           className={`w-full border-2 border-dashed rounded-xl p-5 flex flex-col items-center justify-center gap-2 transition-all duration-150 disabled:opacity-60 ${
             dragging
               ? 'border-emerald-400 bg-emerald-50/60 dark:bg-emerald-950/20'
-              : 'border-slate-200 dark:border-[#26282e] hover:border-slate-400 dark:hover:border-[#3e414c] hover:bg-slate-50 dark:hover:bg-[#18191c]'
+              : 'border-border hover:border-slate-400 dark:hover:border-[#3e414c] hover:bg-slate-50 dark:hover:bg-[#18191c]'
           }`}
         >
           {uploading ? (
@@ -149,7 +149,7 @@ export function ProfileResumeCard({
           }}
         />
         {parsed ? (
-          <p className="text-[11px] text-slate-500 dark:text-[#8a8f9d]">
+          <p className="text-[11px] text-muted-foreground">
             {parsed.file_name}
             {parsed.full_name ? ` · ${parsed.full_name}` : ''}
             {parsed.preferred_role ? ` · ${parsed.preferred_role}` : ''}

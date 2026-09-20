@@ -592,6 +592,7 @@ export interface EnrichedProfileData {
   preferredLocations?: string[];
   workMode?: string | null;
   seniority?: string | null;
+  totalExperienceYears?: number | null;
 }
 
 function optionalShortText(
@@ -707,33 +708,66 @@ export function validateEnrichedProfileInput(
   }
 
   if (body.workMode !== undefined) {
-    if (
-      body.workMode !== null &&
-      body.workMode !== '' &&
-      !['remote', 'hybrid', 'onsite'].includes(String(body.workMode))
-    ) {
+    if (body.workMode === null || String(body.workMode).trim() === '') {
+      data.workMode = null;
+    } else if (typeof body.workMode !== 'string') {
       return fail('Invalid workMode');
+    } else {
+      const normalized = body.workMode.trim().toLowerCase();
+      if (
+        normalized.length < 1 ||
+        normalized.length > 32 ||
+        !/^[a-z0-9][a-z0-9+\- ]*$/.test(normalized)
+      ) {
+        return fail('Invalid workMode');
+      }
+      data.workMode = normalized;
     }
-    data.workMode =
-      body.workMode === null || body.workMode === ''
-        ? null
-        : String(body.workMode);
   }
 
   if (body.seniority !== undefined) {
-    if (
-      body.seniority !== null &&
-      body.seniority !== '' &&
-      !['intern', 'junior', 'mid', 'senior', 'staff'].includes(
-        String(body.seniority),
-      )
-    ) {
+    if (body.seniority === null || String(body.seniority).trim() === '') {
+      data.seniority = null;
+    } else if (typeof body.seniority !== 'string') {
       return fail('Invalid seniority');
+    } else {
+      const normalized = body.seniority.trim().toLowerCase();
+      if (
+        normalized.length < 1 ||
+        normalized.length > 32 ||
+        !/^[a-z0-9][a-z0-9+\- ]*$/.test(normalized)
+      ) {
+        return fail('Invalid seniority');
+      }
+      data.seniority = normalized;
     }
-    data.seniority =
-      body.seniority === null || body.seniority === ''
-        ? null
-        : String(body.seniority);
+  }
+
+  if (body.totalExperienceYears !== undefined) {
+    if (
+      body.totalExperienceYears === null ||
+      (typeof body.totalExperienceYears === 'string' &&
+        body.totalExperienceYears.trim() === '')
+    ) {
+      data.totalExperienceYears = null;
+    } else {
+      let years: number | null = null;
+      if (typeof body.totalExperienceYears === 'number') {
+        years = body.totalExperienceYears;
+      } else if (typeof body.totalExperienceYears === 'string') {
+        const match = body.totalExperienceYears.trim().match(/\d+/);
+        years = match ? Number.parseInt(match[0], 10) : null;
+      }
+      if (
+        years === null ||
+        !Number.isInteger(years) ||
+        years < 0 ||
+        years > 60
+      ) {
+        return fail('Invalid totalExperienceYears');
+      }
+      data.totalExperienceYears = years;
+    }
   }
 
   return { ok: true, data };

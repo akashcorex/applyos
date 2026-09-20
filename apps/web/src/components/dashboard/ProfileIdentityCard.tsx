@@ -9,6 +9,28 @@ import {
 import { Input } from '@applyso/ui/input';
 
 import { FIELD_LABEL, TEXTAREA_CLASS } from './profile-types';
+import { ProfileCombobox } from './ProfileCombobox';
+
+const SENIORITY_OPTIONS = [
+  'intern',
+  'junior',
+  'mid',
+  'senior',
+  'staff',
+  'lead',
+];
+
+const WORK_MODE_OPTIONS = ['remote', 'hybrid', 'onsite'];
+
+const EXPERIENCE_OPTIONS = [
+  { value: '0', label: 'Fresher (0 years)' },
+  { value: '1', label: '0–1 years' },
+  { value: '2', label: '1–3 years' },
+  { value: '4', label: '3–5 years' },
+  { value: '7', label: '5–10 years' },
+  { value: '12', label: '10–15 years' },
+  { value: '15', label: '15+ years' },
+];
 
 interface ProfileIdentityCardProps {
   name: string;
@@ -25,7 +47,7 @@ interface ProfileIdentityCardProps {
   preferredLocations: string;
   workMode: string;
   seniority: string;
-  totalExperienceYears: number | null;
+  experienceYears: string;
   saving: boolean;
   saved: boolean;
   error: string | null;
@@ -48,7 +70,7 @@ export function ProfileIdentityCard({
   preferredLocations,
   workMode,
   seniority,
-  totalExperienceYears,
+  experienceYears,
   saving,
   saved,
   error,
@@ -233,53 +255,36 @@ export function ProfileIdentityCard({
               <label className={FIELD_LABEL} htmlFor="profile-seniority">
                 Seniority
               </label>
-              <select
+              <ProfileCombobox
                 id="profile-seniority"
                 value={seniority}
-                onChange={(event) =>
-                  onChange({ seniority: event.target.value })
-                }
-                className="flex h-9 w-full rounded-[6px] border border-slate-200 dark:border-[#26282e] bg-slate-50 dark:bg-[#141518] px-3 py-2 text-xs font-medium text-slate-900 dark:text-[#f1f3f9]"
-              >
-                <option value="">Not set</option>
-                {['intern', 'junior', 'mid', 'senior', 'staff'].map((value) => (
-                  <option key={value} value={value}>
-                    {value}
-                  </option>
-                ))}
-              </select>
+                items={SENIORITY_OPTIONS}
+                placeholder="e.g. senior — type or pick"
+                onChange={(next) => onChange({ seniority: next })}
+              />
             </div>
             <div>
               <label className={FIELD_LABEL} htmlFor="profile-work-mode">
                 Work mode
               </label>
-              <select
+              <ProfileCombobox
                 id="profile-work-mode"
                 value={workMode}
-                onChange={(event) => onChange({ workMode: event.target.value })}
-                className="flex h-9 w-full rounded-[6px] border border-slate-200 dark:border-[#26282e] bg-slate-50 dark:bg-[#141518] px-3 py-2 text-xs font-medium text-slate-900 dark:text-[#f1f3f9]"
-              >
-                <option value="">Not set</option>
-                {['remote', 'hybrid', 'onsite'].map((value) => (
-                  <option key={value} value={value}>
-                    {value}
-                  </option>
-                ))}
-              </select>
+                items={WORK_MODE_OPTIONS}
+                placeholder="e.g. remote — type or pick"
+                onChange={(next) => onChange({ workMode: next })}
+              />
             </div>
             <div>
               <label className={FIELD_LABEL} htmlFor="profile-experience">
-                Total experience
+                Total experience (years)
               </label>
-              <Input
+              <ProfileCombobox
                 id="profile-experience"
-                value={
-                  totalExperienceYears === null
-                    ? 'Not extracted'
-                    : `${totalExperienceYears} years`
-                }
-                disabled
-                className="cursor-not-allowed font-mono text-slate-500"
+                value={experienceYears}
+                items={EXPERIENCE_OPTIONS}
+                placeholder="e.g. Fresher or 3–5 years — type or pick"
+                onChange={(next) => onChange({ totalExperienceYears: next })}
               />
             </div>
           </div>

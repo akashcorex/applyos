@@ -52,45 +52,45 @@
   }
 
   .dark {
-    --shell: #09090a;
-    --workspace: #09090a;
-    --workspace-sidebar: #09090a;
-    --card-surface: #16171b;
-    --card-surface-hover: #1c1d23;
-    --card-surface-inset: #0e0f12;
-    --app-border: #282a32;
-    --app-border-subtle: #202228;
+    --shell: #09090b;
+    --workspace: #09090b;
+    --workspace-sidebar: #121214;
+    --card-surface: #18181b;
+    --card-surface-hover: #1f1f23;
+    --card-surface-inset: #09090b;
+    --app-border: #27272a;
+    --app-border-subtle: #1f1f23;
     --app-text-primary: #f1f3f9;
     --app-text-secondary: #8a8f9d;
     --app-text-muted: #6b7280;
 
-    --background: 240 6% 4%; /* #09090A */
+    --background: 240 6% 4%; /* #09090b */
     --foreground: 220 20% 96%; /* #f1f3f9 */
-    --card: 240 6% 9%; /* #16171b */
+    --card: 240 5% 10%; /* #18181b Ash */
     --card-foreground: 220 20% 96%;
-    --popover: 240 6% 9%;
+    --popover: 240 5% 10%;
     --popover-foreground: 220 20% 96%;
     --primary: 220 20% 96%;
     --primary-foreground: 240 5% 10%;
-    --secondary: 240 5% 13%;
+    --secondary: 240 5% 15%; /* #27272a Ash accent */
     --secondary-foreground: 220 20% 96%;
-    --muted: 240 5% 13%;
+    --muted: 240 5% 15%;
     --muted-foreground: 220 10% 60%;
-    --accent: 240 5% 13%;
+    --accent: 240 5% 15%;
     --accent-foreground: 220 20% 96%;
     --destructive: 0 62% 30%;
     --destructive-foreground: 210 40% 98%;
-    --border: 235 11% 18%; /* #282a32 */
-    --input: 235 11% 18%;
+    --border: 240 5% 15%; /* #27272a */
+    --input: 240 5% 15%;
     --ring: 220 20% 96%;
-    --sidebar-background: 240 6% 4%;
-    --sidebar-foreground: 0 0% 58%;
-    --sidebar-primary: 0 0% 11%;
-    --sidebar-primary-foreground: 0 0% 96%;
-    --sidebar-accent: 0 0% 10%;
-    --sidebar-accent-foreground: 0 0% 96%;
-    --sidebar-border: 0 0% 14%;
-    --sidebar-ring: 0 0% 96%;
+    --sidebar-background: 240 5% 7%; /* #121214 Ash sidebar */
+    --sidebar-foreground: 240 5% 78%; /* #c4c4cc Ash nav text */
+    --sidebar-primary: 240 5% 10%;
+    --sidebar-primary-foreground: 220 20% 96%;
+    --sidebar-accent: 240 5% 15%; /* #27272a Ash active */
+    --sidebar-accent-foreground: 220 20% 96%;
+    --sidebar-border: 0 0% 100%; /* used with /6-10 opacity for hairlines */
+    --sidebar-ring: 220 20% 96%;
     --raised-shadow:
       0 0 0 1px rgba(0, 0, 0, 0.4),
       inset 0 1px 0 0 rgba(255, 255, 255, 0.1),
@@ -158,15 +158,13 @@
   }
 
   .dark .linear-card {
-    background-color: #16171b;
-    border: 1px solid #282a32;
-    box-shadow:
-      0 1px 3px rgba(0, 0, 0, 0.4),
-      inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    background-color: var(--card-surface);
+    border: 1px solid var(--app-border);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
   }
 
   .dark .linear-card:hover {
-    border-color: #383b47;
+    border-color: hsl(var(--muted-foreground) / 0.4);
   }
 
   .linear-panel {

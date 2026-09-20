@@ -133,37 +133,37 @@ export function DashboardOverview({
   return (
     <Tabs defaultValue="overview" className="space-y-6">
       {/* Navigation Header Tabs */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-200/80 dark:border-[#27272a] pb-3">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-border pb-3">
         <div>
-          <h2 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">
+          <h2 className="text-xl font-bold tracking-tight text-foreground">
             Dashboard Overview
           </h2>
-          <p className="text-xs text-slate-500 dark:text-[#a1a1aa]">
+          <p className="text-xs text-muted-foreground">
             Monitor automated job discovery, application metrics, and recruiter response rates.
           </p>
         </div>
-        <TabsList className="bg-slate-100 dark:bg-[#18181b] p-1 border border-slate-200/80 dark:border-[#27272a] rounded-[8px] h-9">
+        <TabsList className="bg-slate-100 dark:bg-card p-1 border border-border rounded-[8px] h-9">
           <TabsTrigger
             value="overview"
-            className="text-xs px-3.5 py-1 text-slate-600 dark:text-[#a1a1aa] data-[state=active]:bg-white dark:data-[state=active]:bg-[#27272a] data-[state=active]:text-slate-900 dark:data-[state=active]:text-white rounded-[6px] font-medium"
+            className="text-xs px-3.5 py-1 text-muted-foreground data-[state=active]:bg-card data-[state=active]:text-foreground rounded-[6px] font-medium"
           >
             Overview
           </TabsTrigger>
           <TabsTrigger
             value="analytics"
-            className="text-xs px-3.5 py-1 text-slate-600 dark:text-[#a1a1aa] data-[state=active]:bg-white dark:data-[state=active]:bg-[#27272a] data-[state=active]:text-slate-900 dark:data-[state=active]:text-white rounded-[6px] font-medium"
+            className="text-xs px-3.5 py-1 text-muted-foreground data-[state=active]:bg-card data-[state=active]:text-foreground rounded-[6px] font-medium"
           >
             Analytics
           </TabsTrigger>
           <TabsTrigger
             value="applications"
-            className="text-xs px-3.5 py-1 text-slate-600 dark:text-[#a1a1aa] data-[state=active]:bg-white dark:data-[state=active]:bg-[#27272a] data-[state=active]:text-slate-900 dark:data-[state=active]:text-white rounded-[6px] font-medium"
+            className="text-xs px-3.5 py-1 text-muted-foreground data-[state=active]:bg-card data-[state=active]:text-foreground rounded-[6px] font-medium"
           >
             Applications
           </TabsTrigger>
           <TabsTrigger
             value="activity"
-            className="text-xs px-3.5 py-1 text-slate-600 dark:text-[#a1a1aa] data-[state=active]:bg-white dark:data-[state=active]:bg-[#27272a] data-[state=active]:text-slate-900 dark:data-[state=active]:text-white rounded-[6px] font-medium"
+            className="text-xs px-3.5 py-1 text-muted-foreground data-[state=active]:bg-card data-[state=active]:text-foreground rounded-[6px] font-medium"
           >
             Activity
           </TabsTrigger>
@@ -181,11 +181,11 @@ export function DashboardOverview({
               >
                 <div>
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs font-medium text-slate-500 dark:text-[#a1a1aa]">
+                    <span className="text-xs font-medium text-muted-foreground">
                       {stat.label}
                     </span>
                     {stat.delta ? (
-                      <span className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-mono font-medium bg-slate-100 text-slate-700 border border-slate-200 dark:bg-[#27272a] dark:text-[#f4f4f5] dark:border-[#3f3f46]">
+                      <span className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-mono font-medium bg-secondary text-secondary-foreground border border-border">
                         {stat.isNegative ? (
                           <ArrowDownRight className="h-3 w-3 text-rose-400" />
                         ) : (
@@ -196,16 +196,16 @@ export function DashboardOverview({
                     ) : null}
                   </div>
 
-                  <div className="text-3xl font-bold text-slate-900 dark:text-[#f4f4f5] tracking-tight mt-2">
+                  <div className="text-3xl font-bold text-foreground tracking-tight mt-2">
                     {stat.value}
                   </div>
                 </div>
 
-                <div className="mt-4 pt-3 border-t border-slate-100 dark:border-[#27272a]/60 space-y-0.5">
-                  <p className="text-xs font-medium text-slate-700 dark:text-[#d4d4d8] flex items-center gap-1">
+                <div className="mt-4 pt-3 border-t border-border/60 space-y-0.5">
+                  <p className="text-xs font-medium text-foreground flex items-center gap-1">
                     {stat.trendingText ?? 'Trending up this month ↗'}
                   </p>
-                  <p className="text-[11px] text-slate-400 dark:text-[#71717a]">
+                  <p className="text-[11px] text-muted-foreground">
                     {stat.subtext ?? 'Visitors for the last 6 months'}
                   </p>
                 </div>
@@ -228,7 +228,7 @@ export function DashboardOverview({
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-5 gap-3">
               <div>
                 <div className="flex items-center gap-2">
-                  <h3 className="text-base font-bold text-slate-900 dark:text-[#f4f4f5] tracking-tight">
+                  <h3 className="text-base font-bold text-foreground tracking-tight">
                     {chartTitle}
                   </h3>
                   <Badge
@@ -238,20 +238,20 @@ export function DashboardOverview({
                     {chartBadge}
                   </Badge>
                 </div>
-                <p className="text-xs text-slate-500 dark:text-[#a1a1aa] font-normal mt-0.5">
+                <p className="text-xs text-muted-foreground font-normal mt-0.5">
                   {chartDescription}
                 </p>
               </div>
 
               {/* Time Range Selector (Matching Dashboard-01 Screenshot) */}
-              <div className="inline-flex items-center rounded-lg border border-slate-200 dark:border-[#27272a] bg-slate-100 dark:bg-[#09090b] p-1 text-xs">
+              <div className="inline-flex items-center rounded-lg border border-border bg-muted p-1 text-xs">
                 <button
                   type="button"
                   onClick={() => setTimeRange('3m')}
                   className={`px-3 py-1 rounded-md font-medium transition-colors cursor-pointer ${
                     timeRange === '3m'
-                      ? 'bg-white text-slate-900 dark:bg-[#27272a] dark:text-white shadow-sm'
-                      : 'text-slate-600 dark:text-[#a1a1aa] hover:text-slate-900 dark:hover:text-white'
+                      ? 'bg-card text-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
                   }`}
                 >
                   Last 3 months
@@ -261,8 +261,8 @@ export function DashboardOverview({
                   onClick={() => setTimeRange('30d')}
                   className={`px-3 py-1 rounded-md font-medium transition-colors cursor-pointer ${
                     timeRange === '30d'
-                      ? 'bg-white text-slate-900 dark:bg-[#27272a] dark:text-white shadow-sm'
-                      : 'text-slate-600 dark:text-[#a1a1aa] hover:text-slate-900 dark:hover:text-white'
+                      ? 'bg-card text-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
                   }`}
                 >
                   Last 30 days
@@ -272,8 +272,8 @@ export function DashboardOverview({
                   onClick={() => setTimeRange('7d')}
                   className={`px-3 py-1 rounded-md font-medium transition-colors cursor-pointer ${
                     timeRange === '7d'
-                      ? 'bg-white text-slate-900 dark:bg-[#27272a] dark:text-white shadow-sm'
-                      : 'text-slate-600 dark:text-[#a1a1aa] hover:text-slate-900 dark:hover:text-white'
+                      ? 'bg-card text-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
                   }`}
                 >
                   Last 7 days
@@ -319,10 +319,10 @@ export function DashboardOverview({
       <TabsContent value="analytics" className="mt-0">
         <Card className="shadow-sm p-6">
           <h3 className="text-sm font-semibold mb-2">Analytics & Conversion Rates</h3>
-          <p className="text-xs text-slate-500 dark:text-[#a1a1aa] mb-4">
+          <p className="text-xs text-muted-foreground mb-4">
             Deep dive into resume match scores, submission pass rates, and recruiter response speed.
           </p>
-          <div className="w-full h-64 border border-dashed border-slate-200 dark:border-[#27272a] rounded-[8px] flex items-center justify-center text-xs text-slate-400">
+          <div className="w-full h-64 border border-dashed border-border rounded-[8px] flex items-center justify-center text-xs text-muted-foreground">
             Analytics breakdown module loaded
           </div>
         </Card>
@@ -335,10 +335,10 @@ export function DashboardOverview({
       <TabsContent value="activity" className="mt-0">
         <Card className="shadow-sm p-6">
           <h3 className="text-sm font-semibold mb-2">Live Agent Activity Log</h3>
-          <p className="text-xs text-slate-500 dark:text-[#a1a1aa] mb-4">
+          <p className="text-xs text-muted-foreground mb-4">
             Real-time execution log of job crawlers, resume tailors, and auto-submit agents.
           </p>
-          <div className="w-full h-64 border border-dashed border-slate-200 dark:border-[#27272a] rounded-[8px] flex items-center justify-center text-xs text-slate-400 font-mono">
+          <div className="w-full h-64 border border-dashed border-border rounded-[8px] flex items-center justify-center text-xs text-muted-foreground font-mono">
             Agent event stream active
           </div>
         </Card>

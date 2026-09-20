@@ -96,7 +96,7 @@ export function OnboardingFlow() {
 
   useEffect(() => {
     router.prefetch('/dashboard');
-    router.prefetch('/dashboard/settings');
+    router.prefetch('/dashboard/profile');
     return () => {
       if (progressTimer.current) clearInterval(progressTimer.current);
       if (redirectTimer.current) clearTimeout(redirectTimer.current);
@@ -751,11 +751,11 @@ export function OnboardingFlow() {
                     <ArrowRight className="h-4 w-4" />
                   </button>
                   <a
-                    href="/dashboard/settings"
+                    href="/dashboard/profile"
                     className="sm:w-auto px-5 bg-transparent border border-white/10 hover:bg-white/[0.04] text-white font-semibold text-sm py-3 rounded-xl transition-all flex items-center justify-center gap-2"
                   >
                     <ShieldCheck className="h-4 w-4" />
-                    Review in Settings
+                    Review profile
                   </a>
                 </div>
               </motion.div>

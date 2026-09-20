@@ -14,6 +14,15 @@ export {
   CardContent,
 } from './card';
 export { Badge, badgeVariants, type BadgeProps } from './badge';
+export {
+  Breadcrumb,
+  BreadcrumbList,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+  BreadcrumbEllipsis,
+} from './breadcrumb';
 export { Input } from './input';
 export { Separator } from './separator';
 export { Avatar, AvatarImage, AvatarFallback } from './avatar';

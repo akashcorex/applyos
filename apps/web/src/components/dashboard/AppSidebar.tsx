@@ -10,7 +10,6 @@ import {
   Activity,
   ChevronDown,
   ClipboardList,
-  CreditCard,
   FileText,
   HelpCircle,
   Inbox,
@@ -20,6 +19,7 @@ import {
   Send,
   Settings,
   Shield,
+  User,
   Users,
 } from 'lucide-react';
 
@@ -86,7 +86,11 @@ type NavItem = {
 };
 
 function navActive(pathname: string, href: string): boolean {
-  if (href === '/dashboard' || href === '/dashboard/admin') {
+  if (
+    href === '/dashboard' ||
+    href === '/dashboard/admin' ||
+    href === '/dashboard/profile'
+  ) {
     return pathname === href;
   }
   return pathname === href || pathname.startsWith(`${href}/`);
@@ -110,6 +114,7 @@ function NavLink({
       <RaisedButton
         asChild
         active={isActive}
+        noPress
         size="nav"
         className={`w-full ${isCollapsed ? 'justify-center px-0' : ''}`}
       >
@@ -143,7 +148,7 @@ function SectionLabel({
 }) {
   if (hidden) return null;
   return (
-    <span className="block px-3 pt-3 pb-1 text-[11px] font-medium uppercase tracking-wider text-slate-400 dark:text-[#71717a]">
+    <span className="block px-3 pt-3 pb-1 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
       {children}
     </span>
   );
@@ -216,11 +221,6 @@ export function AppSidebar({
     : [
         { href: '/dashboard', label: 'Overview', icon: Inbox },
         {
-          href: '/dashboard/auto-apply',
-          label: 'Profile & Resume',
-          icon: FileText,
-        },
-        {
           href: '/dashboard/discovery',
           label: 'Discover Jobs',
           icon: Search,
@@ -251,21 +251,15 @@ export function AppSidebar({
   const accountItems = isAdminNav
     ? []
     : [
-        { href: '/dashboard/settings', label: 'Settings', icon: Settings },
+        {
+          href: '/dashboard/settings/preferences',
+          label: 'Settings',
+          icon: Settings,
+        },
         {
           href: 'mailto:support@applyos.in',
           label: 'Get Help',
           icon: HelpCircle,
-        },
-        {
-          href: '/dashboard/discovery',
-          label: 'Search',
-          icon: Search,
-        },
-        {
-          href: '/dashboard/settings/billing',
-          label: 'Plans & Billing',
-          icon: CreditCard,
         },
         {
           href: '/dashboard/settings/security',
@@ -289,12 +283,12 @@ export function AppSidebar({
     <aside
       className={`${
         isCollapsed ? 'w-[60px]' : 'w-60'
-      } bg-[#f0f2f5] dark:bg-[#171717] flex flex-col h-full shrink-0 select-none text-slate-900 dark:text-[#f4f4f5] font-sans transition-all duration-200 ease-in-out`}
+      } bg-sidebar text-sidebar-foreground flex flex-col h-full shrink-0 select-none font-sans transition-all duration-200 ease-in-out border-r border-border`}
     >
       <div
         className={`h-[50px] px-3 flex items-center shrink-0 ${
           isCollapsed ? 'justify-center' : 'justify-between'
-        } bg-[#f0f2f5] dark:bg-[#171717]`}
+        } bg-sidebar`}
       >
         {isCollapsed ? (
           <button
@@ -302,7 +296,7 @@ export function AppSidebar({
             onClick={onToggleCollapse}
             aria-label="Expand sidebar"
             title="Expand sidebar"
-            className="flex h-8 w-8 items-center justify-center rounded-[8px] bg-white dark:bg-[#202020] border border-slate-200 dark:border-[#303030] p-1.5 text-slate-900 dark:text-white shadow-sm hover:border-slate-300 dark:hover:border-[#454545] hover:scale-105 transition-all cursor-pointer group"
+            className="flex h-8 w-8 items-center justify-center rounded-[8px] bg-card border border-border p-1.5 text-card-foreground shadow-sm hover:border-muted-foreground/40 hover:scale-105 transition-all cursor-pointer group"
           >
             <Image
               src="/favicon.ico"
@@ -333,7 +327,7 @@ export function AppSidebar({
                 onClick={onToggleCollapse}
                 aria-label="Collapse sidebar"
                 title="Collapse sidebar"
-                className="h-7 w-7 rounded-[6px] flex items-center justify-center text-slate-400 dark:text-[#8a8f9d] hover:text-slate-900 dark:hover:text-[#f1f3f9] hover:bg-slate-200/60 dark:hover:bg-[#16171b] border border-transparent hover:border-slate-200 dark:hover:border-[#282a32] transition-all cursor-pointer shrink-0 group ml-1"
+                className="h-7 w-7 rounded-[6px] flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent border border-transparent hover:border-border transition-all cursor-pointer shrink-0 group ml-1"
               >
                 <CollapseIcon className="w-3.5 h-3.5 transition-transform group-hover:-translate-x-0.5" />
               </button>
@@ -343,7 +337,7 @@ export function AppSidebar({
       </div>
 
       <nav aria-label="Primary" className="flex-1 overflow-y-auto">
-        <div className="flex flex-col gap-1 border-b border-slate-200/60 dark:border-[#242424] px-2.5 py-2">
+        <div className="flex flex-col gap-1 border-b border-transparent px-2.5 py-2">
           <ul className="flex flex-col gap-1">
             {workspaceItems.map((item) => (
               <NavLink
@@ -357,7 +351,7 @@ export function AppSidebar({
           </ul>
         </div>
         {workflowItems.length > 0 ? (
-          <div className="flex flex-col gap-1 border-b border-slate-200/60 dark:border-[#242424] px-2.5 py-2">
+          <div className="flex flex-col gap-1 border-b border-transparent px-2.5 py-2">
             <SectionLabel hidden={isCollapsed}>Workflow</SectionLabel>
             <ul className="flex flex-col gap-1">
               {workflowItems.map((item) => (
@@ -375,13 +369,23 @@ export function AppSidebar({
       </nav>
 
       <div
-        className={`${isCollapsed ? 'p-1.5' : 'px-3 py-3'} space-y-1 bg-[#f0f2f5] dark:bg-[#171717]`}
+        className={`${isCollapsed ? 'p-1.5' : 'px-3 py-3'} space-y-1 bg-sidebar`}
       >
         {isAdminNav ? null : (
-          <ul className="flex flex-col gap-[4px] border-b border-slate-200/60 dark:border-[#242424] pb-2 mb-2">
+          <ul className="flex flex-col gap-[4px] border-b border-transparent pb-2 mb-2">
             <NavLink
               item={{
-                href: '/dashboard/settings',
+                href: '/dashboard/profile',
+                label: 'Profile',
+                icon: User,
+              }}
+              pathname={pathname}
+              isCollapsed={isCollapsed}
+              onNavigate={onNavigate}
+            />
+            <NavLink
+              item={{
+                href: '/dashboard/settings/preferences',
                 label: 'Settings',
                 icon: Settings,
               }}
@@ -399,23 +403,13 @@ export function AppSidebar({
               isCollapsed={isCollapsed}
               onNavigate={onNavigate}
             />
-            <NavLink
-              item={{
-                href: '/dashboard/discovery',
-                label: 'Search',
-                icon: Search,
-              }}
-              pathname={pathname}
-              isCollapsed={isCollapsed}
-              onNavigate={onNavigate}
-            />
           </ul>
         )}
 
         <div ref={accountRef} className="relative">
           {accountOpen ? (
             <div
-              className={`absolute z-30 mb-2 origin-bottom overflow-hidden rounded-[10px] border border-slate-200 bg-white shadow-[var(--sidebar-nav-active-shadow)] dark:border-[#303030] dark:bg-[#202020] ${
+              className={`absolute z-30 mb-2 origin-bottom overflow-hidden rounded-[10px] border border-border bg-popover shadow-sm ${
                 isCollapsed
                   ? 'bottom-0 left-full ml-2 w-48 origin-bottom-left'
                   : 'bottom-full left-0 right-0'
@@ -431,8 +425,8 @@ export function AppSidebar({
                     onClick={closeAccount}
                     className={`flex items-center gap-2.5 px-3 py-2 text-xs font-medium transition-colors ${
                       isActive
-                        ? 'bg-slate-100 text-slate-950 dark:bg-[#303030] dark:text-white'
-                        : 'text-slate-600 hover:bg-slate-50 hover:text-slate-950 dark:text-[#a1a1aa] dark:hover:bg-[#2a2a2a] dark:hover:text-white'
+                        ? 'bg-accent text-accent-foreground'
+                        : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
                     }`}
                   >
                     <Icon className="h-3.5 w-3.5 shrink-0" />
@@ -446,9 +440,9 @@ export function AppSidebar({
                   setAccountOpen(false);
                   onSignOut();
                 }}
-                className={`flex w-full items-center gap-2.5 px-3 py-2 text-left text-xs font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-950 dark:text-[#a1a1aa] dark:hover:bg-[#2a2a2a] dark:hover:text-white ${
+                className={`flex w-full items-center gap-2.5 px-3 py-2 text-left text-xs font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground ${
                   accountItems.length > 0
-                    ? 'border-t border-slate-200 dark:border-[#303030]'
+                    ? 'border-t border-border'
                     : ''
                 }`}
               >
@@ -468,21 +462,21 @@ export function AppSidebar({
             }
             className={`w-full flex items-center ${
               isCollapsed ? 'justify-center p-1.5' : 'gap-2.5 px-2.5 py-2'
-            } rounded-[9px] bg-white dark:bg-[#202020] border border-slate-200 dark:border-[#303030] hover:border-slate-300 dark:hover:border-[#454545] shadow-sm transition-[transform,box-shadow,border-color] duration-150 ease-power3-out active:scale-[0.96]`}
+            } rounded-[9px] bg-transparent dark:bg-transparent border border-transparent dark:border-transparent hover:bg-slate-200/60 dark:hover:bg-accent/70 shadow-none transition-[background-color,color] duration-150`}
           >
             <DitherAvatar name={seedName} size={26} bloom="low" />
             {!isCollapsed && (
               <>
                 <div className="flex min-w-0 flex-1 flex-col text-left">
-                  <span className="truncate text-xs font-semibold leading-tight text-slate-900 dark:text-[#f1f3f9]">
+                  <span className="truncate text-xs font-semibold leading-tight text-foreground">
                     {firstName}
                   </span>
-                  <span className="mt-0.5 truncate text-[10px] leading-tight text-slate-500 dark:text-[#8a8f9d]">
+                  <span className="mt-0.5 truncate text-[10px] leading-tight text-muted-foreground">
                     {accountSubtitle}
                   </span>
                 </div>
                 <ChevronDown
-                  className={`h-3.5 w-3.5 shrink-0 text-slate-400 transition-transform dark:text-[#8a8f9d] ${
+                  className={`h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform ${
                     accountOpen ? 'rotate-180' : ''
                   }`}
                 />

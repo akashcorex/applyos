@@ -8,33 +8,65 @@ import { analytics } from '@applyso/analytics';
 
 import { AppSidebar } from '@/components/dashboard/AppSidebar';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
+import type { DashboardCrumb } from '@/components/dashboard/DashboardHeader';
 import { DashboardSkeleton } from '@/components/dashboard/DashboardSkeleton';
 import { fetchMe } from '@/lib/admin-api';
 import { authClient } from '@/lib/auth-client';
 import { isAdminRole } from '@/lib/rbac';
 
-const sectionTitles: Record<string, string> = {
-  '/dashboard': 'Overview',
-  '/dashboard/auto-apply': 'Profile & Resume',
-  '/dashboard/discovery': 'Discover Jobs',
-  '/dashboard/workflows': 'Job Tracker',
-  '/dashboard/applications': 'Applications',
-  '/dashboard/linkedin': 'Outreach',
-  '/dashboard/admin': 'Overview',
-  '/dashboard/admin/users': 'Users',
-  '/dashboard/admin/resumes': 'Resumes',
-  '/dashboard/admin/system': 'System',
-  '/dashboard/settings': 'Profile',
-  '/dashboard/settings/billing': 'Plans & Billing',
-  '/dashboard/settings/security': 'Security',
-  '/dashboard/settings/preferences': 'Preferences',
+
+
+const segmentLabels: Record<string, string> = {
+  'auto-apply': 'Resume & Auto-Apply',
+  discovery: 'Discover Jobs',
+  applications: 'Applications',
+  linkedin: 'Outreach',
+  workflows: 'Job Tracker',
+  profile: 'Profile',
+  settings: 'Settings',
+  preferences: 'Preferences',
+  security: 'Security',
+  billing: 'Plans & Billing',
+  admin: 'Overview',
+  users: 'Users',
+  resumes: 'Resumes',
+  system: 'System',
 };
 
-function titleFor(pathname: string): string {
-  if (pathname.startsWith('/dashboard/admin/users')) return 'Users';
-  if (pathname.startsWith('/dashboard/admin/resumes')) return 'Resumes';
-  if (pathname.startsWith('/dashboard/admin/system')) return 'System';
-  return sectionTitles[pathname] ?? 'Dashboard';
+function labelForSegment(segment: string): string {
+  const mapped = segmentLabels[segment];
+  if (mapped) return mapped;
+  // Dynamic route ids (cuid/slug) render as a generic label.
+  if (/^[A-Za-z0-9_-]{13,}$/.test(segment)) return 'Details';
+  return segment
+    .split('-')
+    .map((part) =>
+      part ? part.charAt(0).toUpperCase() + part.slice(1) : part,
+    )
+    .join(' ');
+}
+
+function trailFor(pathname: string): DashboardCrumb[] {
+  const segments = pathname.split('/').filter(Boolean).slice(1);
+  if (segments.length === 0) return [{ label: 'Overview' }];
+  const crumbs: DashboardCrumb[] = [];
+  let accumulated = '/dashboard';
+  segments.forEach((segment, index) => {
+    const isLast = index === segments.length - 1;
+    accumulated += `/${segment}`;
+    const label = labelForSegment(segment);
+    if (isLast) {
+      crumbs.push({ label });
+      return;
+    }
+    // "Settings" is a section landing that lives at preferences.
+    const href =
+      segment === 'settings'
+        ? '/dashboard/settings/preferences'
+        : accumulated;
+    crumbs.push({ label, href });
+  });
+  return crumbs;
 }
 
 export default function DashboardAppLayout({
@@ -142,10 +174,10 @@ export default function DashboardAppLayout({
     );
   }
 
-  const currentTitle = titleFor(pathname);
+  const trail = trailFor(pathname);
 
   return (
-    <div className="flex h-screen w-full bg-[#f0f2f5] dark:bg-[#171717] text-slate-900 dark:text-[#f4f4f5] overflow-hidden font-sans antialiased transition-colors duration-150">
+    <div className="flex h-screen w-full bg-background text-foreground overflow-hidden font-sans antialiased transition-colors duration-150">
       {/* Desktop Sidebar */}
       <div className="hidden md:flex h-full shrink-0">
         <AppSidebar
@@ -165,7 +197,7 @@ export default function DashboardAppLayout({
             className="fixed inset-0 bg-black/80 backdrop-blur-sm transition-opacity"
             onClick={() => setSidebarOpen(false)}
           />
-          <div className="relative z-50 w-64 h-full bg-[#f0f2f5] dark:bg-[#0c0c0e] shadow-2xl border-r border-slate-200 dark:border-[#27272a]">
+          <div className="relative z-50 w-64 h-full bg-sidebar shadow-2xl border-r border-border">
             <AppSidebar
               userName={session.user.name}
               userEmail={session.user.email}
@@ -179,10 +211,10 @@ export default function DashboardAppLayout({
       ) : null}
 
       {/* Main Workspace Area with Sidebar-Facing Corner Curves */}
-      <div className="flex-1 flex flex-col h-full md:my-2 md:h-[calc(100vh-1rem)] overflow-hidden bg-white dark:bg-[#0e0e11] md:rounded-l-2xl md:rounded-r-none md:border-l md:border-y md:border-r-0 border-slate-200/80 dark:border-[#232328] shadow-xl dark:shadow-2xl transition-colors duration-150">
+      <div className="flex-1 flex flex-col h-full md:my-2 md:h-[calc(100vh-1rem)] overflow-hidden bg-background md:rounded-l-2xl md:rounded-r-none md:border-l md:border-y md:border-r-0 border-border shadow-xl dark:shadow-2xl transition-colors duration-150">
         {/* Single Unified Linear Header Bar */}
         <DashboardHeader
-          currentTitle={currentTitle}
+          trail={trail}
           homeHref={isAdmin ? '/dashboard/admin' : '/dashboard'}
           showQuickAction={!isAdmin}
           onQuickAction={() => router.push('/dashboard/auto-apply')}
@@ -190,7 +222,7 @@ export default function DashboardAppLayout({
         />
 
         {/* Scrollable Page Workspace */}
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-6 bg-white dark:bg-[#0e0e11] transition-colors duration-150">
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-6 bg-background transition-colors duration-150">
           {children}
         </main>
       </div>

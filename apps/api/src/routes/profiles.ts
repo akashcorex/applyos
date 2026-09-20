@@ -29,6 +29,7 @@ const PROFILE_INPUT_FIELDS = new Set([
   'preferredLocations',
   'workMode',
   'seniority',
+  'totalExperienceYears',
 ]);
 
 profilesRouter.use(requireAuth);

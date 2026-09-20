@@ -8,8 +8,9 @@ const Card = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <div
     ref={ref}
+    data-slot="card"
     className={cn(
-      'rounded-[16px] border border-slate-200/80 dark:border-white/[0.08] bg-white dark:bg-gradient-to-b dark:from-[#1d1d23] dark:via-[#16161b] dark:to-[#121216] text-slate-900 dark:text-[#f4f4f5] shadow-sm dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_4px_20px_rgba(0,0,0,0.5)] transition-all duration-150 hover:border-slate-300 dark:hover:border-white/[0.15]',
+      'rounded-xl border border-border bg-card text-card-foreground shadow-xs transition-all duration-150 hover:border-muted-foreground/40',
       className,
     )}
     {...props}
@@ -36,7 +37,7 @@ const CardTitle = React.forwardRef<
   <div
     ref={ref}
     className={cn(
-      'font-semibold leading-none tracking-tight text-slate-900 dark:text-[#f1f3f9] text-sm',
+      'font-semibold leading-none tracking-tight text-card-foreground text-sm',
       className,
     )}
     {...props}
@@ -50,10 +51,7 @@ const CardDescription = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <div
     ref={ref}
-    className={cn(
-      'text-xs text-slate-500 dark:text-[#8a8f9d] font-normal',
-      className,
-    )}
+    className={cn('text-xs text-muted-foreground font-normal', className)}
     {...props}
   />
 ));

@@ -88,7 +88,7 @@ export function ProfileActivityHeatmap({
         <CardTitle>
           {totals.events} {noun} in the last year
         </CardTitle>
-        <div className="flex items-center gap-1 text-[10px] text-slate-500 dark:text-[#8a8f9d]">
+        <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
           <span>Less</span>
           {LEVEL_CLASS.map((className, level) => (
             <span
@@ -104,22 +104,22 @@ export function ProfileActivityHeatmap({
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid grid-cols-2 sm:grid-cols-4 w-full gap-3 text-xs">
-          <div className="rounded-[8px] border border-slate-200/80 dark:border-[#26282e] px-3 py-2">
-            <p className="text-slate-500 dark:text-[#8a8f9d]">Applications</p>
+          <div className="rounded-[8px] border border-slate-200/80 dark:border-border px-3 py-2">
+            <p className="text-muted-foreground">Applications</p>
             <p className="text-lg font-semibold">{totals.applications}</p>
           </div>
-          <div className="rounded-[8px] border border-slate-200/80 dark:border-[#26282e] px-3 py-2">
-            <p className="text-slate-500 dark:text-[#8a8f9d]">Submitted</p>
+          <div className="rounded-[8px] border border-slate-200/80 dark:border-border px-3 py-2">
+            <p className="text-muted-foreground">Submitted</p>
             <p className="text-lg font-semibold">{totals.submitted}</p>
           </div>
-          <div className="rounded-[8px] border border-slate-200/80 dark:border-[#26282e] px-3 py-2">
-            <p className="text-slate-500 dark:text-[#8a8f9d]">
+          <div className="rounded-[8px] border border-slate-200/80 dark:border-border px-3 py-2">
+            <p className="text-muted-foreground">
               Active workflows
             </p>
             <p className="text-lg font-semibold">{totals.activeWorkflows}</p>
           </div>
-          <div className="rounded-[8px] border border-slate-200/80 dark:border-[#26282e] px-3 py-2">
-            <p className="text-slate-500 dark:text-[#8a8f9d]">Current streak</p>
+          <div className="rounded-[8px] border border-slate-200/80 dark:border-border px-3 py-2">
+            <p className="text-muted-foreground">Current streak</p>
             <p className="text-lg font-semibold">
               {totals.currentStreak}d
               <span className="ml-1 text-[11px] font-mono text-slate-500">
@@ -130,7 +130,7 @@ export function ProfileActivityHeatmap({
         </div>
 
         {totals.events === 0 ? (
-          <p className="text-xs text-slate-500 dark:text-[#8a8f9d]">
+          <p className="text-xs text-muted-foreground">
             Apply, match, or upload a resume to see activity here.
           </p>
         ) : null}
@@ -140,7 +140,7 @@ export function ProfileActivityHeatmap({
             <div className="flex w-full gap-2 mb-1">
               <div className="w-7 shrink-0" />
               <div
-                className="grid flex-1 min-w-0 text-[10px] leading-none text-slate-500 dark:text-[#8a8f9d]"
+                className="grid flex-1 min-w-0 text-[10px] leading-none text-muted-foreground"
                 style={{ gridTemplateColumns: weekTemplate, columnGap: '3px' }}
               >
                 {weeks.map((week, weekIndex) => {
@@ -165,7 +165,7 @@ export function ProfileActivityHeatmap({
             </div>
             <div className="flex w-full items-stretch gap-2">
               <div
-                className="grid w-7 shrink-0 text-[10px] leading-none text-slate-500 dark:text-[#8a8f9d]"
+                className="grid w-7 shrink-0 text-[10px] leading-none text-muted-foreground"
                 style={{
                   gridTemplateRows: 'repeat(7, minmax(0, 1fr))',
                   rowGap: '3px',

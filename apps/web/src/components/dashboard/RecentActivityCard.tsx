@@ -79,12 +79,12 @@ export function RecentActivityCard({
   return (
     <Card className="shadow-sm p-5 h-full flex flex-col justify-between">
       <div>
-        <CardHeader className="p-0 pb-4 flex flex-row items-center justify-between border-b border-slate-100 dark:border-[#27272a]/60 pb-3">
+        <CardHeader className="p-0 pb-4 flex flex-row items-center justify-between border-b border-slate-100 dark:border-border/60 pb-3">
           <div>
-            <CardTitle className="text-sm font-semibold tracking-tight text-slate-900 dark:text-[#f4f4f5]">
+            <CardTitle className="text-sm font-semibold tracking-tight text-foreground">
               {title}
             </CardTitle>
-            <p className="text-xs text-slate-500 dark:text-[#a1a1aa] mt-0.5">
+            <p className="text-xs text-muted-foreground mt-0.5">
               {description}
             </p>
           </div>
@@ -101,16 +101,16 @@ export function RecentActivityCard({
           {items.map((item) => (
             <div
               key={item.id}
-              className="flex items-center justify-between gap-3 p-2 rounded-[8px] hover:bg-slate-100/60 dark:hover:bg-[#27272a]/60 transition-colors"
+              className="flex items-center justify-between gap-3 p-2 rounded-[8px] hover:bg-slate-100/60 dark:hover:bg-accent/60 transition-colors"
             >
               <div className="flex items-center gap-3 min-w-0">
                 <DitherAvatar name={item.company} size={32} bloom="low" />
                 <div className="min-w-0">
-                  <p className="text-xs font-semibold text-slate-900 dark:text-[#f1f3f9] truncate">
+                  <p className="text-xs font-semibold text-foreground truncate">
                     {item.role}
                   </p>
                   <div className="flex items-center gap-2 mt-0.5">
-                    <span className="text-[11px] text-slate-500 dark:text-[#8a8f9d] truncate">
+                    <span className="text-[11px] text-muted-foreground truncate">
                       {item.company}
                     </span>
                     {item.tailorScore ? (
@@ -129,7 +129,7 @@ export function RecentActivityCard({
                 >
                   {item.status}
                 </Badge>
-                <p className="text-[10px] font-mono text-slate-400 dark:text-[#8a8f9d]/70 mt-1">
+                <p className="text-[10px] font-mono text-slate-400 dark:text-muted-foreground/70 mt-1">
                   {item.time}
                 </p>
               </div>

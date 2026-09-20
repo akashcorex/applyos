@@ -32,6 +32,7 @@ function getFeatureFromPath(pathname: string): FeatureId {
     return 'settings_security';
   if (pathname.startsWith('/dashboard/settings/preferences'))
     return 'settings_preferences';
+  if (pathname.startsWith('/dashboard/profile')) return 'settings_profile';
   if (pathname.startsWith('/dashboard/settings')) return 'settings_profile';
   if (pathname === '/login' || pathname === '/signup') return 'auth';
   return 'overview';

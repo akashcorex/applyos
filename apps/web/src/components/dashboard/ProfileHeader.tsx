@@ -30,7 +30,7 @@ export function ProfileHeader({
   const next = completion?.nextAction ?? 'complete';
 
   return (
-    <section className="rounded-[12px] border border-slate-200/80 dark:border-[#282a32] bg-white dark:bg-[#16171b] p-5 sm:p-6 shadow-sm">
+    <section className="rounded-[12px] border border-slate-200/80 dark:border-border bg-white dark:bg-card p-5 sm:p-6 shadow-sm">
       <div className="flex flex-col sm:flex-row sm:items-center gap-4">
         <DitherAvatar name={email || name} size={72} bloom="high" />
         <div className="min-w-0 flex-1 space-y-1.5">
@@ -48,11 +48,11 @@ export function ProfileHeader({
               </Badge>
             ) : null}
           </div>
-          <p className="text-xs text-slate-500 dark:text-[#8a8f9d] truncate">
+          <p className="text-xs text-muted-foreground truncate">
             {[headline, location].filter(Boolean).join(' · ') || email}
           </p>
           {completion ? (
-            <p className="text-[11px] font-mono text-slate-500 dark:text-[#8a8f9d]">
+            <p className="text-[11px] font-mono text-muted-foreground">
               Profile {completion.percent}% complete · {completion.filled} of{' '}
               {completion.total} details
             </p>

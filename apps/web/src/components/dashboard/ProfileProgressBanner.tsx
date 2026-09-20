@@ -13,9 +13,9 @@ import { canApplyFromMe } from '@/lib/require-resume';
 
 function nextHref(action: ProfileCompletion['nextAction']): string {
   if (action === 'upload-resume' || action === 'review') {
-    return '/dashboard/settings';
+    return '/dashboard/profile';
   }
-  return '/dashboard/settings';
+  return '/dashboard/profile';
 }
 
 export function ProfileProgressBanner() {
@@ -99,7 +99,7 @@ export function ProfileProgressBanner() {
         {optionalMissing.length > 3 ? ', and more' : ''} for better matches.
       </p>
       <Link
-        href="/dashboard/settings"
+        href="/dashboard/profile"
         className="shrink-0 rounded-md bg-white/90 px-3 py-1.5 text-xs font-bold text-slate-950 hover:bg-white transition-colors"
       >
         Complete profile

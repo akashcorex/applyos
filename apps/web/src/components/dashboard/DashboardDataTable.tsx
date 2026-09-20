@@ -178,7 +178,7 @@ export function DashboardDataTable() {
   return (
     <Card className="shadow-sm overflow-hidden">
       {/* Top Header & Action Bar */}
-      <CardHeader className="p-4 pb-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-200/60 dark:border-[#27272a]">
+      <CardHeader className="p-4 pb-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-200/60 dark:border-border">
         {/* Category Pills */}
         <div className="flex items-center gap-1.5 flex-wrap">
           {TABS.map((tab) => {
@@ -190,8 +190,8 @@ export function DashboardDataTable() {
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-all cursor-pointer ${
                   isActive
-                    ? 'bg-slate-900 text-white dark:bg-[#27272a] dark:text-white dark:border dark:border-[#3f3f46] shadow-sm'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200/70 dark:bg-[#18181b] dark:text-[#a1a1aa] dark:hover:bg-[#27272a] dark:hover:text-white dark:border dark:border-[#27272a]'
+                    ? 'bg-slate-900 text-white dark:bg-secondary dark:text-white dark:border dark:border-border shadow-sm'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200/70 dark:bg-card dark:text-muted-foreground dark:hover:bg-accent dark:hover:text-white dark:border dark:border-border'
                 }`}
               >
                 <span>{tab.label}</span>
@@ -212,7 +212,7 @@ export function DashboardDataTable() {
               variant="outline"
               size="sm"
               onClick={() => setColumnsMenuOpen((open) => !open)}
-              className="h-8 px-2.5 text-xs border-slate-200 dark:border-[#27272a] bg-slate-50 dark:bg-[#18181b] text-slate-700 dark:text-[#a1a1aa] hover:bg-slate-100 dark:hover:bg-[#27272a] dark:hover:text-white"
+              className="h-8 px-2.5 text-xs border-border bg-card text-muted-foreground hover:bg-slate-100 dark:hover:bg-accent dark:hover:text-white"
             >
               <Columns className="h-3.5 w-3.5 mr-1.5" />
               <span>Customize Columns</span>
@@ -220,11 +220,11 @@ export function DashboardDataTable() {
             </Button>
 
             {columnsMenuOpen ? (
-              <div className="absolute right-0 z-20 mt-1 w-48 rounded-[8px] border border-slate-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] p-2 shadow-lg text-xs space-y-1">
+              <div className="absolute right-0 z-20 mt-1 w-48 rounded-[8px] border border-border bg-white dark:bg-card p-2 shadow-lg text-xs space-y-1">
                 {Object.entries(visibleColumns).map(([key, isVis]) => (
                   <label
                     key={key}
-                    className="flex items-center justify-between px-2 py-1.5 rounded hover:bg-slate-100 dark:hover:bg-[#27272a] cursor-pointer"
+                    className="flex items-center justify-between px-2 py-1.5 rounded hover:bg-slate-100 dark:hover:bg-accent cursor-pointer"
                   >
                     <span className="capitalize">{key}</span>
                     <input
@@ -236,7 +236,7 @@ export function DashboardDataTable() {
                           [key]: !isVis,
                         }))
                       }
-                      className="rounded border-slate-300 dark:border-[#3f3f46]"
+                      className="rounded border-slate-300 dark:border-border"
                     />
                   </label>
                 ))}
@@ -246,7 +246,7 @@ export function DashboardDataTable() {
 
           <Button
             size="sm"
-            className="h-8 px-3 text-xs bg-slate-900 text-white dark:bg-[#27272a] dark:hover:bg-[#3f3f46] dark:text-white rounded-[6px] dark:border dark:border-[#3f3f46]"
+            className="h-8 px-3 text-xs bg-slate-900 text-white dark:bg-secondary dark:hover:bg-[#3f3f46] dark:text-white rounded-[6px] dark:border dark:border-border"
           >
             <Plus className="h-3.5 w-3.5 mr-1" />
             <span>Add Section</span>
@@ -258,41 +258,41 @@ export function DashboardDataTable() {
       <CardContent className="p-0">
         <Table>
           <TableHeader>
-            <TableRow className="bg-slate-50/50 dark:bg-[#18181b] border-b border-slate-200/80 dark:border-[#27272a]">
+            <TableRow className="bg-slate-50/50 dark:bg-card border-b border-slate-200/80 dark:border-border">
               <TableHead className="w-10 text-center">
                 <input
                   type="checkbox"
                   checked={isAllSelected}
                   onChange={toggleSelectAll}
                   aria-label="Select all"
-                  className="rounded border-slate-300 dark:border-[#3f3f46] bg-transparent cursor-pointer"
+                  className="rounded border-slate-300 dark:border-border bg-transparent cursor-pointer"
                 />
               </TableHead>
-              <TableHead className="font-semibold text-slate-700 dark:text-[#a1a1aa]">
+              <TableHead className="font-semibold text-muted-foreground">
                 Header
               </TableHead>
               {visibleColumns.sectionType ? (
-                <TableHead className="font-semibold text-slate-700 dark:text-[#a1a1aa]">
+                <TableHead className="font-semibold text-muted-foreground">
                   Section Type
                 </TableHead>
               ) : null}
               {visibleColumns.status ? (
-                <TableHead className="font-semibold text-slate-700 dark:text-[#a1a1aa]">
+                <TableHead className="font-semibold text-muted-foreground">
                   Status
                 </TableHead>
               ) : null}
               {visibleColumns.target ? (
-                <TableHead className="text-right font-semibold text-slate-700 dark:text-[#a1a1aa]">
+                <TableHead className="text-right font-semibold text-muted-foreground">
                   Target
                 </TableHead>
               ) : null}
               {visibleColumns.limit ? (
-                <TableHead className="text-right font-semibold text-slate-700 dark:text-[#a1a1aa]">
+                <TableHead className="text-right font-semibold text-muted-foreground">
                   Limit
                 </TableHead>
               ) : null}
               {visibleColumns.reviewer ? (
-                <TableHead className="font-semibold text-slate-700 dark:text-[#a1a1aa]">
+                <TableHead className="font-semibold text-muted-foreground">
                   Reviewer
                 </TableHead>
               ) : null}
@@ -307,9 +307,9 @@ export function DashboardDataTable() {
                   key={row.id}
                   className={`${
                     isSelected
-                      ? 'bg-slate-100/80 dark:bg-[#27272a]'
-                      : 'hover:bg-slate-50 dark:hover:bg-[#27272a]/50'
-                  } transition-colors border-b border-slate-200/60 dark:border-[#27272a]/60`}
+                      ? 'bg-slate-100/80 dark:bg-secondary'
+                      : 'hover:bg-slate-50 dark:hover:bg-accent/50'
+                  } transition-colors border-b border-slate-200/60 dark:border-border/60`}
                 >
                   <TableCell className="text-center py-2.5">
                     <div className="flex items-center justify-center gap-1.5">
@@ -318,18 +318,18 @@ export function DashboardDataTable() {
                         type="checkbox"
                         checked={isSelected}
                         onChange={() => toggleSelectRow(row.id)}
-                        className="rounded border-slate-300 dark:border-[#3f3f46] bg-transparent cursor-pointer"
+                        className="rounded border-slate-300 dark:border-border bg-transparent cursor-pointer"
                       />
                     </div>
                   </TableCell>
 
-                  <TableCell className="font-medium text-slate-900 dark:text-[#f4f4f5] py-2.5">
+                  <TableCell className="font-medium text-foreground py-2.5">
                     {row.header}
                   </TableCell>
 
                   {visibleColumns.sectionType ? (
                     <TableCell className="py-2.5">
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-slate-100 text-slate-700 dark:bg-[#27272a] dark:text-[#a1a1aa] border border-slate-200 dark:border-[#3f3f46]">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-slate-100 text-slate-700 dark:bg-secondary dark:text-muted-foreground border border-border">
                         {row.sectionType}
                       </span>
                     </TableCell>
@@ -338,7 +338,7 @@ export function DashboardDataTable() {
                   {visibleColumns.status ? (
                     <TableCell className="py-2.5">
                       {row.status === 'In Process' ? (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-slate-100 text-slate-700 dark:bg-[#27272a] dark:text-[#a1a1aa] border border-slate-200 dark:border-[#3f3f46]">
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-slate-100 text-slate-700 dark:bg-secondary dark:text-muted-foreground border border-border">
                           <Settings2 className="h-3 w-3 animate-spin text-slate-400 dark:text-[#71717a]" />
                           <span>In Process</span>
                         </span>
@@ -352,13 +352,13 @@ export function DashboardDataTable() {
                   ) : null}
 
                   {visibleColumns.target ? (
-                    <TableCell className="text-right font-mono text-xs text-slate-700 dark:text-[#a0a5b5] py-2.5">
+                    <TableCell className="text-right font-mono text-xs text-muted-foreground py-2.5">
                       {row.target}
                     </TableCell>
                   ) : null}
 
                   {visibleColumns.limit ? (
-                    <TableCell className="text-right font-mono text-xs text-slate-700 dark:text-[#a0a5b5] py-2.5">
+                    <TableCell className="text-right font-mono text-xs text-muted-foreground py-2.5">
                       {row.limit}
                     </TableCell>
                   ) : null}
@@ -378,14 +378,14 @@ export function DashboardDataTable() {
                                 reviewerDropdownId === row.id ? null : row.id,
                               )
                             }
-                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[6px] text-xs font-medium border border-slate-200 dark:border-[#2a2d38] bg-slate-50 dark:bg-[#16171d] text-slate-600 dark:text-[#8a8f9d] hover:bg-slate-100 dark:hover:bg-[#20222a] transition-colors"
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[6px] text-xs font-medium border border-border bg-card text-muted-foreground hover:bg-slate-100 dark:hover:bg-accent transition-colors"
                           >
                             <span>Assign reviewer</span>
                             <ChevronDown className="h-3 w-3 text-slate-400" />
                           </button>
 
                           {reviewerDropdownId === row.id ? (
-                            <div className="absolute left-0 z-30 mt-1 w-44 rounded-[8px] border border-slate-200 dark:border-[#282a32] bg-white dark:bg-[#18191e] p-1 shadow-lg text-xs space-y-1">
+                            <div className="absolute left-0 z-30 mt-1 w-44 rounded-[8px] border border-border bg-popover p-1 shadow-lg text-xs space-y-1">
                               {['Eddie Lake', 'Jamik Tashpulatov', 'Sarah Connor'].map(
                                 (name) => (
                                   <button
