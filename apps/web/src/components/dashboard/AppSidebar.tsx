@@ -422,8 +422,8 @@ export function AppSidebar({
           {accountOpen ? (
             <div
               className={`absolute z-30 mb-2 origin-bottom overflow-hidden rounded-[10px] border border-border bg-popover shadow-sm ${isCollapsed
-                  ? 'bottom-0 left-full ml-2 w-48 origin-bottom-left'
-                  : 'bottom-full left-0 right-0'
+                ? 'bottom-0 left-full ml-2 w-48 origin-bottom-left'
+                : 'bottom-full left-0 right-0'
                 }`}
             >
               {accountItems.map((item) => {
@@ -435,8 +435,8 @@ export function AppSidebar({
                     href={item.href}
                     onClick={closeAccount}
                     className={`flex items-center gap-2.5 px-3 py-2 text-xs font-medium transition-colors ${isActive
-                        ? 'bg-accent text-accent-foreground'
-                        : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+                      ? 'bg-accent text-accent-foreground'
+                      : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
                       }`}
                   >
                     <Icon className="h-3.5 w-3.5 shrink-0" />
