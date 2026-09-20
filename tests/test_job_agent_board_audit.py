@@ -136,10 +136,12 @@ async def test_search_route_attaches_board_attempts(
 ) -> None:
     from models import SearchRequest
 
+    from services.company_scrape import CompanyScrapeResult
+
     async def fake_scrape(company, max_jobs):
         if company["domain"] == "empty.com":
-            return [], False
-        return [_search_job()], False
+            return CompanyScrapeResult()
+        return CompanyScrapeResult(jobs=[_search_job()])
 
     monkeypatch.setattr(search_route, "scrape_company_jobs", fake_scrape)
     monkeypatch.setattr(
@@ -166,8 +168,10 @@ async def test_semantic_route_attaches_board_attempts(
 ) -> None:
     from models import SemanticSearchRequest
 
+    from services.company_scrape import CompanyScrapeResult
+
     async def fake_scrape(company, max_jobs):
-        return [_search_job()], False
+        return CompanyScrapeResult(jobs=[_search_job()])
 
     async def fake_rank(jobs, **kwargs):
         from models import SemanticMatchResult
@@ -196,10 +200,12 @@ async def test_search_route_excludes_failed_boards_from_scraped_count(
 ) -> None:
     from models import SearchRequest
 
+    from services.company_scrape import CompanyScrapeResult
+
     async def fake_scrape(company, max_jobs):
         if company["domain"] == "dead.com":
             raise RuntimeError("ats down")
-        return [_search_job()], False
+        return CompanyScrapeResult(jobs=[_search_job()])
 
     monkeypatch.setattr(search_route, "scrape_company_jobs", fake_scrape)
     monkeypatch.setattr(
@@ -226,8 +232,10 @@ async def test_search_route_marks_fallback_attempts(
 ) -> None:
     from models import SearchRequest
 
+    from services.company_scrape import CompanyScrapeResult
+
     async def fake_scrape(company, max_jobs):
-        return [_search_job()], True
+        return CompanyScrapeResult(jobs=[_search_job()], via_fallback=True)
 
     monkeypatch.setattr(search_route, "scrape_company_jobs", fake_scrape)
     monkeypatch.setattr(

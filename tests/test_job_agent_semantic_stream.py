@@ -65,10 +65,15 @@ async def test_semantic_stream_emits_batches_then_done(
 ) -> None:
     from models import SemanticMatchResult
 
+    from services.company_scrape import CompanyScrapeResult
+
     async def fake_scrape(company, max_jobs):
         if company["domain"] == "dead.com":
             raise RuntimeError("ats down")
-        return ([_make_job("Backend Engineer", str(company["name"]))], True)
+        return CompanyScrapeResult(
+            jobs=[_make_job("Backend Engineer", str(company["name"]))],
+            via_fallback=True,
+        )
 
     async def fake_rank(jobs, **kwargs):
         assert kwargs.get("rank_all") is True

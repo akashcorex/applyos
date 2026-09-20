@@ -99,7 +99,7 @@ async def test_scrape_company_jobs_accepts_ashby(monkeypatch: pytest.MonkeyPatch
         )
 
     monkeypatch.setattr("services.company_scrape.scrape_jobs", fake_scrape)
-    results, via_fallback = await scrape_company_jobs(
+    scraped = await scrape_company_jobs(
         {
             "name": "Mercury",
             "domain": "mercury.com",
@@ -108,10 +108,11 @@ async def test_scrape_company_jobs_accepts_ashby(monkeypatch: pytest.MonkeyPatch
         },
         10,
     )
-    assert len(results) == 1
-    assert via_fallback is False
-    assert results[0].ats_type == "ashby"
-    assert results[0].title == "Backend Engineer"
+    assert len(scraped.jobs) == 1
+    assert scraped.via_fallback is False
+    assert scraped.dropped_stale == 0
+    assert scraped.jobs[0].ats_type == "ashby"
+    assert scraped.jobs[0].title == "Backend Engineer"
 
 
 @pytest.mark.asyncio
@@ -229,7 +230,7 @@ async def test_empty_results_are_not_cached(
     monkeypatch.setattr(
         "services.company_scrape.scrape_career_page", _empty_fallback
     )
-    results, via_fallback = await scrape_company_jobs(
+    scraped = await scrape_company_jobs(
         {
             "name": "Dry",
             "domain": "dry.com",
@@ -238,8 +239,8 @@ async def test_empty_results_are_not_cached(
         },
         10,
     )
-    assert results == []
-    assert via_fallback is False
+    assert scraped.jobs == []
+    assert scraped.via_fallback is False
     assert get_cached_jobs("dry.com") is None
 
 
@@ -304,10 +305,10 @@ async def test_fallback_serves_when_ats_fails(
 
     monkeypatch.setattr("services.company_scrape.scrape_jobs", boom)
     monkeypatch.setattr("services.company_scrape.scrape_career_page", fallback)
-    results, via_fallback = await scrape_company_jobs(_fallback_company(), 10)
+    scraped = await scrape_company_jobs(_fallback_company(), 10)
 
-    assert [job.title for job in results] == ["Support Engineer"]
-    assert via_fallback is True
+    assert [job.title for job in scraped.jobs] == ["Support Engineer"]
+    assert scraped.via_fallback is True
     assert seen_urls[0] == "https://fallback.example.com/careers"
     assert get_cached_jobs("fallback.example.com") is not None
     board = get_board_registry().get_board_by_domain("fallback.example.com")
@@ -339,10 +340,10 @@ async def test_fallback_serves_when_ats_empty(
 
     monkeypatch.setattr("services.company_scrape.scrape_jobs", empty)
     monkeypatch.setattr("services.company_scrape.scrape_career_page", fallback)
-    results, via_fallback = await scrape_company_jobs(_fallback_company(), 10)
+    scraped = await scrape_company_jobs(_fallback_company(), 10)
 
-    assert len(results) == 1
-    assert via_fallback is True
+    assert len(scraped.jobs) == 1
+    assert scraped.via_fallback is True
 
 
 @pytest.mark.asyncio
@@ -361,3 +362,74 @@ async def test_fallback_tries_domain_paths_without_stored_url(
         "https://fallback.example.com/jobs",
     ]
     assert _career_candidates({"domain": "", "career_url": ""}) == []
+
+
+def _dated_job(key: str, posted_at: str | None) -> CanonicalJob:
+    return CanonicalJob(
+        external_id=key,
+        source="greenhouse",
+        title=f"Engineer {key}",
+        title_normalized=f"engineer {key}",
+        application_url=f"https://example.com/{key}",
+        dedup_key=f"dated::{key}",
+        posted_at=posted_at,
+    )
+
+
+@pytest.mark.asyncio
+async def test_truncation_keeps_newest_and_drops_stale(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import config
+    from services import board_registry as registry_module
+    from services.board_cache import get_cached_jobs
+    from services.job_snapshots import get_first_seen_at
+
+    monkeypatch.setattr(config.settings, "registry_db_path", str(tmp_path / "r.db"))
+    monkeypatch.setattr(registry_module, "_registry", None)
+    monkeypatch.setattr(
+        "services.company_scrape.settings.job_max_age_days", 120
+    )
+
+    async def unordered(ats_type, payload):
+        from datetime import datetime, timedelta, timezone
+
+        now = datetime.now(timezone.utc)
+
+        def iso(days: int) -> str:
+            return (now - timedelta(days=days)).isoformat()
+        return ScrapeResponse(
+            ats_type="greenhouse",
+            ats_slug="dated",
+            company_id="dated.com",
+            jobs_found=4,
+            jobs=[
+                _dated_job("old", iso(400)),
+                _dated_job("undated", None),
+                _dated_job("mid", iso(30)),
+                _dated_job("new", iso(1)),
+            ],
+        )
+
+    async def no_fallback(url, **kwargs):
+        return []
+
+    monkeypatch.setattr("services.company_scrape.scrape_jobs", unordered)
+    monkeypatch.setattr("services.company_scrape.scrape_career_page", no_fallback)
+    scraped = await scrape_company_jobs(
+        {
+            "name": "Dated",
+            "domain": "dated.com",
+            "ats_type": "greenhouse",
+            "ats_slug": "dated",
+        },
+        2,
+    )
+
+    assert [job.external_id for job in scraped.jobs] == ["new", "mid"]
+    assert scraped.dropped_stale == 1
+    assert scraped.via_fallback is False
+    assert get_first_seen_at("dated::new") is not None
+    cached = get_cached_jobs("dated.com")
+    assert cached is not None
+    assert [job.external_id for job in cached] == ["new", "mid"]

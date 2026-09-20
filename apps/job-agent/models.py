@@ -282,6 +282,7 @@ class BoardAttempt(BaseModel):
     error: str | None = None
     latency_ms: int = 0
     via_fallback: bool = False
+    dropped_stale: int = 0
 
 
 class SearchResponse(BaseModel):

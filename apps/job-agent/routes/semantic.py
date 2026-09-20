@@ -17,7 +17,7 @@ from models import (
     SemanticMatchResult,
 )
 from services.board_audit import probe_url_for
-from services.company_scrape import scrape_company_jobs
+from services.company_scrape import CompanyScrapeResult, scrape_company_jobs
 from services.search_inventory import get_searchable_companies
 from services.dedup import dedupe_search_results
 from services.freshness import apply_freshness_metadata, sort_by_freshness
@@ -33,10 +33,10 @@ _ERROR_PREVIEW_CHARS = 200
 
 async def _scrape_with_attempt(
     company: dict[str, object], max_jobs: int
-) -> tuple[list[SearchResult] | BaseException, BoardAttempt]:
+) -> tuple[CompanyScrapeResult | BaseException, BoardAttempt]:
     started = time.perf_counter()
     try:
-        jobs, via_fallback = await scrape_company_jobs(company, max_jobs)
+        scraped = await scrape_company_jobs(company, max_jobs)
     except Exception as exc:
         attempt = BoardAttempt(
             domain=str(company.get("domain", "")),
@@ -52,6 +52,7 @@ async def _scrape_with_attempt(
             latency_ms=int((time.perf_counter() - started) * 1000),
         )
         return exc, attempt
+    jobs = scraped.jobs
     attempt = BoardAttempt(
         domain=str(company.get("domain", "")),
         company_name=str(company.get("name", "")),
@@ -65,9 +66,10 @@ async def _scrape_with_attempt(
         jobs_found=len(jobs),
         sample_titles=[job.title for job in jobs[:3] if job.title],
         latency_ms=int((time.perf_counter() - started) * 1000),
-        via_fallback=via_fallback,
+        via_fallback=scraped.via_fallback,
+        dropped_stale=scraped.dropped_stale,
     )
-    return jobs, attempt
+    return scraped, attempt
 
 
 @router.post("/semantic", response_model=SemanticSearchResponse)
@@ -86,11 +88,11 @@ async def semantic_search(payload: SemanticSearchRequest) -> SemanticSearchRespo
     for result in paired:
         if isinstance(result, BaseException):
             continue
-        jobs_or_error, attempt = result
+        scraped_or_error, attempt = result
         board_attempts.append(attempt)
-        if isinstance(jobs_or_error, list):
+        if isinstance(scraped_or_error, CompanyScrapeResult):
             companies_scraped += 1
-            all_results.extend(jobs_or_error)
+            all_results.extend(scraped_or_error.jobs)
 
     all_results = dedupe_search_results(all_results)
     all_results = apply_freshness_metadata(all_results)
@@ -127,13 +129,15 @@ async def semantic_stream(payload: SemanticSearchRequest) -> StreamingResponse:
         companies_scraped = 0
         jobs_scraped = 0
         for company in companies:
-            jobs_or_error, attempt = await _scrape_with_attempt(
+            scraped_or_error, attempt = await _scrape_with_attempt(
                 company, payload.max_jobs_per_company
             )
             batch: list[SearchResult] = (
-                jobs_or_error if isinstance(jobs_or_error, list) else []
+                scraped_or_error.jobs
+                if isinstance(scraped_or_error, CompanyScrapeResult)
+                else []
             )
-            if isinstance(jobs_or_error, list):
+            if isinstance(scraped_or_error, CompanyScrapeResult):
                 companies_scraped += 1
             ranked = await semantic_rank_jobs(
                 batch,

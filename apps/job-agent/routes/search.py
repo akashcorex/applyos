@@ -10,7 +10,7 @@ from fastapi import APIRouter
 
 from models import BoardAttempt, SearchRequest, SearchResponse, SearchResult
 from services.board_audit import probe_url_for
-from services.company_scrape import scrape_company_jobs
+from services.company_scrape import CompanyScrapeResult, scrape_company_jobs
 from services.dedup import dedupe_search_results
 from services.freshness import apply_freshness_metadata, sort_by_freshness
 from services.search_inventory import get_searchable_companies
@@ -34,10 +34,10 @@ def _title_matches(job_title: str, query: str) -> bool:
 
 async def _scrape_with_attempt(
     company: dict[str, object], max_jobs: int
-) -> tuple[list[SearchResult] | BaseException, BoardAttempt]:
+) -> tuple[CompanyScrapeResult | BaseException, BoardAttempt]:
     started = time.perf_counter()
     try:
-        jobs, via_fallback = await scrape_company_jobs(company, max_jobs)
+        scraped = await scrape_company_jobs(company, max_jobs)
     except Exception as exc:
         attempt = BoardAttempt(
             domain=str(company.get("domain", "")),
@@ -53,6 +53,7 @@ async def _scrape_with_attempt(
             latency_ms=int((time.perf_counter() - started) * 1000),
         )
         return exc, attempt
+    jobs = scraped.jobs
     attempt = BoardAttempt(
         domain=str(company.get("domain", "")),
         company_name=str(company.get("name", "")),
@@ -66,9 +67,10 @@ async def _scrape_with_attempt(
         jobs_found=len(jobs),
         sample_titles=[job.title for job in jobs[:3] if job.title],
         latency_ms=int((time.perf_counter() - started) * 1000),
-        via_fallback=via_fallback,
+        via_fallback=scraped.via_fallback,
+        dropped_stale=scraped.dropped_stale,
     )
-    return jobs, attempt
+    return scraped, attempt
 
 
 @router.post("", response_model=SearchResponse)
@@ -87,13 +89,13 @@ async def search_jobs(payload: SearchRequest) -> SearchResponse:
     for result in paired:
         if isinstance(result, BaseException):
             continue
-        jobs_or_error, attempt = result
+        scraped_or_error, attempt = result
         board_attempts.append(attempt)
-        if isinstance(jobs_or_error, list):
+        if isinstance(scraped_or_error, CompanyScrapeResult):
             companies_scraped += 1
             all_results.extend(
                 job
-                for job in jobs_or_error
+                for job in scraped_or_error.jobs
                 if _title_matches(job.title, payload.job_title)
             )
 

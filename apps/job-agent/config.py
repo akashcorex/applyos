@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     board_reprobe_slots: int = 2
     board_reprobe_base_hours: int = 24
     board_reprobe_max_hours: int = 168
+    job_max_age_days: int = 120
     http_timeout_seconds: float = 10.0
     http_max_retries: int = 3
     workable_max_pages: int = 50
