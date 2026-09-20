@@ -58,6 +58,7 @@ NAMED_SUITES: dict[str, tuple[str, str]] = {
         "test_ai_orchestrator_decision_policy.py",
     ),
     "job-agent-semantic": ("job-agent", "test_job_agent_semantic.py"),
+    "job-agent-board-audit": ("job-agent", "test_job_agent_board_audit.py"),
     "outreach-agent-message": ("outreach-agent", "test_outreach_agent_message.py"),
 }
 

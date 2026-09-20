@@ -236,11 +236,25 @@ class SearchResult(BaseModel):
     posted_at: str | None = None
 
 
+class BoardAttempt(BaseModel):
+    domain: str
+    company_name: str
+    ats_type: str
+    ats_slug: str
+    probe_url: str | None = None
+    status: Literal["ok", "empty", "error", "skipped"] = "ok"
+    jobs_found: int = 0
+    sample_titles: list[str] = Field(default_factory=list)
+    error: str | None = None
+    latency_ms: int = 0
+
+
 class SearchResponse(BaseModel):
     query: str
     companies_scraped: int
     total_matches: int
     jobs: list[SearchResult]
+    board_attempts: list[BoardAttempt] = Field(default_factory=list)
 
 
 class SemanticSearchRequest(BaseModel):
@@ -269,3 +283,4 @@ class SemanticSearchResponse(BaseModel):
     jobs_scraped: int = 0
     total_matches: int
     jobs: list[SemanticMatchResult]
+    board_attempts: list[BoardAttempt] = Field(default_factory=list)
