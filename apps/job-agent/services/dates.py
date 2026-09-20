@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 
 
 def to_iso_utc(value: datetime) -> str:
@@ -29,5 +30,8 @@ def parse_posted_at(raw: object) -> str | None:
     try:
         parsed = datetime.fromisoformat(text)
     except ValueError:
-        return None
+        try:
+            parsed = parsedate_to_datetime(text)
+        except (TypeError, ValueError):
+            return None
     return to_iso_utc(parsed)

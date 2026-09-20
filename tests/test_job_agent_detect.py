@@ -40,6 +40,16 @@ def test_infer_slug_from_html_rejects_reserved() -> None:
     assert infer_slug_from_html("https://jobs.lever.co/netflix", None) is None
 
 
+def test_infer_slug_from_html_teamtailor_and_breezy() -> None:
+    assert (
+        infer_slug_from_html("https://acme.teamtailor.com/jobs", "teamtailor")
+        == "acme"
+    )
+    assert (
+        infer_slug_from_html("https://acme.breezy.hr/p/123", "breezy") == "acme"
+    )
+
+
 def test_infer_slug_from_url_greenhouse() -> None:
     slug = infer_slug_from_url(
         "https://boards.greenhouse.io/stripe",

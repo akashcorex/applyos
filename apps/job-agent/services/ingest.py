@@ -1,10 +1,12 @@
 from models import AtsType, CanonicalJob, ScrapeRequest, ScrapeResponse
 from services.normalizer import to_canonical_job
 from services.parsers.ashby import AshbyParser
+from services.parsers.breezy import BreezyParser
 from services.parsers.greenhouse import GreenhouseParser
 from services.parsers.lever import LeverParser
 from services.parsers.personio import PersonioParser
 from services.parsers.recruitee import RecruiteeParser
+from services.parsers.teamtailor import TeamtailorParser
 from services.parsers.wellfound import WellfoundParser
 from services.parsers.workable import WorkableParser
 
@@ -16,6 +18,8 @@ PARSERS = {
     "recruitee": RecruiteeParser(),
     "personio": PersonioParser(),
     "wellfound": WellfoundParser(),
+    "teamtailor": TeamtailorParser(),
+    "breezy": BreezyParser(),
 }
 
 

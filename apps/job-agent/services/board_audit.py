@@ -15,10 +15,12 @@ from typing import Any
 from models import BoardAttempt, ScrapeRequest
 from services.ingest import scrape_jobs
 from services.parsers.ashby import ASHBY_JOBS_URL
+from services.parsers.breezy import BREEZY_JOBS_URL
 from services.parsers.greenhouse import GREENHOUSE_JOBS_URL
 from services.parsers.lever import LEVER_JOBS_URL
 from services.parsers.personio import PERSONIO_JOBS_URL
 from services.parsers.recruitee import RECRUITEE_JOBS_URL
+from services.parsers.teamtailor import TEAMTAILOR_JOBS_URL
 from services.parsers.wellfound import WELLFOUND_COMPANY_JOBS_URL
 from services.parsers.workable import WORKABLE_JOBS_URL
 
@@ -30,6 +32,8 @@ _PROBE_TEMPLATES = {
     "recruitee": RECRUITEE_JOBS_URL,
     "workable": WORKABLE_JOBS_URL,
     "wellfound": WELLFOUND_COMPANY_JOBS_URL,
+    "teamtailor": TEAMTAILOR_JOBS_URL,
+    "breezy": BREEZY_JOBS_URL,
 }
 
 _ERROR_PREVIEW_CHARS = 200

@@ -121,6 +121,84 @@ async def test_ashby_parser_reads_compensation_and_fallback_location(
 
 
 @pytest.mark.asyncio
+async def test_teamtailor_parser_reads_rss(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from services.parsers.teamtailor import TeamtailorParser
+
+    rss = """<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:tt="https://teamtailor.com/jobs/rss">
+  <channel>
+    <item>
+      <title>Backend Engineer</title>
+      <link>https://acme.teamtailor.com/jobs/1</link>
+      <tt:locations>
+        <tt:location>
+          <tt:city>Stockholm</tt:city>
+          <tt:country>Sweden</tt:country>
+        </tt:location>
+      </tt:locations>
+      <tt:department>Engineering</tt:department>
+      <pubDate>Mon, 01 Sep 2026 10:00:00 GMT</pubDate>
+    </item>
+    <item>
+      <title></title>
+      <link>https://acme.teamtailor.com/jobs/2</link>
+    </item>
+  </channel>
+</rss>"""
+
+    async def fake_fetch(_url: str) -> str:
+        return rss
+
+    monkeypatch.setattr(
+        "services.parsers.teamtailor.fetch_text_with_retries",
+        fake_fetch,
+    )
+
+    jobs = await TeamtailorParser().fetch_jobs("acme")
+
+    assert len(jobs) == 1
+    assert jobs[0].title == "Backend Engineer"
+    assert jobs[0].location == "Stockholm, Sweden"
+    assert jobs[0].department == "Engineering"
+    assert jobs[0].application_url == "https://acme.teamtailor.com/jobs/1"
+    assert jobs[0].posted_at is not None
+
+
+@pytest.mark.asyncio
+async def test_breezy_parser_reads_json(monkeypatch: pytest.MonkeyPatch) -> None:
+    from services.parsers.breezy import BreezyParser
+
+    async def fake_fetch(_url: str) -> object:
+        return [
+            {
+                "id": "9",
+                "name": "Frontend Engineer",
+                "url": "https://acme.breezy.hr/p/9",
+                "city": "Austin",
+                "state": "TX",
+                "is_remote": True,
+                "published_date": "2026-09-10",
+            },
+            {"name": "", "url": "https://acme.breezy.hr/p/10"},
+        ]
+
+    monkeypatch.setattr(
+        "services.parsers.breezy.fetch_json_with_retries",
+        fake_fetch,
+    )
+
+    jobs = await BreezyParser().fetch_jobs("acme")
+
+    assert len(jobs) == 1
+    assert jobs[0].title == "Frontend Engineer"
+    assert jobs[0].location == "Austin, TX (Remote)"
+    assert jobs[0].workplace_type == "remote"
+    assert jobs[0].posted_at is not None
+
+
+@pytest.mark.asyncio
 async def test_workable_parser_paginates(monkeypatch: pytest.MonkeyPatch) -> None:
     page1 = json.loads((FIXTURES / "workable_sample.json").read_text())
     page2 = json.loads((FIXTURES / "workable_page2.json").read_text())

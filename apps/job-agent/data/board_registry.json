@@ -331,5 +331,41 @@
     "career_url": "https://n26.com/careers",
     "source": "pilot",
     "active": true
+  },
+  {
+    "domain": "doktor.se",
+    "company_name": "Doktor.se",
+    "ats_type": "teamtailor",
+    "ats_slug": "doktor",
+    "career_url": "https://doktor.se/careers",
+    "source": "manual",
+    "active": true
+  },
+  {
+    "domain": "mindler.se",
+    "company_name": "Mindler",
+    "ats_type": "teamtailor",
+    "ats_slug": "mindler",
+    "career_url": "https://mindler.se/careers",
+    "source": "manual",
+    "active": true
+  },
+  {
+    "domain": "cambio.se",
+    "company_name": "Cambio",
+    "ats_type": "teamtailor",
+    "ats_slug": "cambio",
+    "career_url": "https://cambio.se/careers",
+    "source": "manual",
+    "active": true
+  },
+  {
+    "domain": "apotea.se",
+    "company_name": "Apotea",
+    "ats_type": "teamtailor",
+    "ats_slug": "apotea",
+    "career_url": "https://apotea.se/careers",
+    "source": "manual",
+    "active": true
   }
 ]
