@@ -22,7 +22,10 @@ describe('normalizeScore', () => {
 
 describe('MATCH_CHUNKS', () => {
   it('covers a dozen companies across sequential windows', () => {
-    const companies = MATCH_CHUNKS.reduce((sum, chunk) => sum + chunk.companies, 0);
+    const companies = MATCH_CHUNKS.reduce(
+      (sum, chunk) => sum + chunk.companies,
+      0,
+    );
     expect(companies).toBeGreaterThanOrEqual(10);
     expect(MATCH_CHUNKS.length).toBeGreaterThan(1);
   });
@@ -30,10 +33,13 @@ describe('MATCH_CHUNKS', () => {
 
 describe('mergeJobChunks', () => {
   it('sorts merged jobs by score descending', () => {
-    const { jobs, freshKeys } = mergeJobChunks([], [
-      { dedup_key: 'a', match_score: 20 },
-      { dedup_key: 'b', match_score: 80 },
-    ]);
+    const { jobs, freshKeys } = mergeJobChunks(
+      [],
+      [
+        { dedup_key: 'a', match_score: 20 },
+        { dedup_key: 'b', match_score: 80 },
+      ],
+    );
     expect(jobs.map((job) => job.dedup_key)).toEqual(['b', 'a']);
     expect(freshKeys).toEqual(['a', 'b']);
   });
@@ -99,20 +105,28 @@ describe('jobAgeDays / isNewJob', () => {
 
 describe('sortMatchedJobs', () => {
   const jobs = [
-    { dedup_key: 'old-high', match_score: 90, posted_at: '2026-01-01T00:00:00Z' },
-    { dedup_key: 'new-low', match_score: 30, posted_at: '2026-09-19T00:00:00Z' },
+    {
+      dedup_key: 'old-high',
+      match_score: 90,
+      posted_at: '2026-01-01T00:00:00Z',
+    },
+    {
+      dedup_key: 'new-low',
+      match_score: 30,
+      posted_at: '2026-09-19T00:00:00Z',
+    },
     { dedup_key: 'undated', match_score: 99, posted_at: null },
   ];
 
   it('keeps best order by default', () => {
-    expect(
-      sortMatchedJobs(jobs, 'best').map((job) => job.dedup_key),
-    ).toEqual(jobs.map((job) => job.dedup_key));
+    expect(sortMatchedJobs(jobs, 'best').map((job) => job.dedup_key)).toEqual(
+      jobs.map((job) => job.dedup_key),
+    );
   });
 
   it('sorts newest first with undated last', () => {
-    expect(
-      sortMatchedJobs(jobs, 'newest').map((job) => job.dedup_key),
-    ).toEqual(['new-low', 'old-high', 'undated']);
+    expect(sortMatchedJobs(jobs, 'newest').map((job) => job.dedup_key)).toEqual(
+      ['new-low', 'old-high', 'undated'],
+    );
   });
 });

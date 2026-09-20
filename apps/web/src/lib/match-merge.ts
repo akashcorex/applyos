@@ -112,6 +112,9 @@ export function sortMatchedJobs<
     }
     if (Number.isNaN(aTime)) return 1;
     if (Number.isNaN(bTime)) return -1;
-    return bTime - aTime || normalizeScore(b.match_score) - normalizeScore(a.match_score);
+    return (
+      bTime - aTime ||
+      normalizeScore(b.match_score) - normalizeScore(a.match_score)
+    );
   });
 }

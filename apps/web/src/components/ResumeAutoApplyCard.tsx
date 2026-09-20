@@ -495,7 +495,9 @@ export function ResumeAutoApplyCard({
             `/api/resume/${resume.resume_id}/match?max_companies=${chunk.companies}&max_jobs=${chunk.jobsPerCompany}`,
             { signal: controller.signal },
           );
-          const matchData = (await matchRes.json().catch(() => null)) as unknown;
+          const matchData = (await matchRes
+            .json()
+            .catch(() => null)) as unknown;
           if (!matchRes.ok) {
             setError(errorMessage(matchData, 'Failed to match jobs'));
             break;
@@ -503,7 +505,10 @@ export function ResumeAutoApplyCard({
           const incoming = ((matchData as MatchResponse).jobs ?? []).filter(
             (job) => Boolean(job.dedup_key),
           );
-          handleBatch(incoming, { chunk: index + 1, total: MATCH_CHUNKS.length });
+          handleBatch(incoming, {
+            chunk: index + 1,
+            total: MATCH_CHUNKS.length,
+          });
         }
       }
 
@@ -739,8 +744,8 @@ export function ResumeAutoApplyCard({
                   </>
                 ) : (
                   <>
-                    Scraping companies… chunk {Math.max(matchProgress.chunk, 1)}/
-                    {matchProgress.total} · {matchProgress.jobsFound} jobs
+                    Scraping companies… chunk {Math.max(matchProgress.chunk, 1)}
+                    /{matchProgress.total} · {matchProgress.jobsFound} jobs
                   </>
                 )}
                 {matchProgress.jobsFound > 0
@@ -759,7 +764,10 @@ export function ResumeAutoApplyCard({
                   value={scoreFloor}
                   onChange={(event) =>
                     setScoreFloor(
-                      Math.min(100, Math.max(0, Number(event.target.value) || 0)),
+                      Math.min(
+                        100,
+                        Math.max(0, Number(event.target.value) || 0),
+                      ),
                     )
                   }
                   className="w-16 rounded-[6px] border border-slate-300 dark:border-[#282a32] bg-white dark:bg-[#16171b] px-1.5 py-0.5 text-xs"
@@ -966,8 +974,8 @@ export function ResumeAutoApplyCard({
               <p className="text-xs text-amber-600">
                 {selectedBelowScore} selected role
                 {selectedBelowScore === 1 ? '' : 's'} is below the {minScore}%
-                minimum score and will be skipped. Lower it in Settings to
-                queue them anyway.
+                minimum score and will be skipped. Lower it in Settings to queue
+                them anyway.
               </p>
             ) : null}
             <Button
