@@ -68,6 +68,16 @@ def listing_fingerprint(
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:24]
 
 
+def _field(job, name: str, default: str = "") -> str:
+    value = getattr(job, name, None)
+    if value is not None:
+        return value
+    if isinstance(job, dict):
+        found = job.get(name, default)
+        return found if found is not None else default
+    return default
+
+
 def dedupe_search_results(jobs: list) -> list:
     """Drop duplicate listings across companies (by dedup_key + content fingerprint)."""
     seen_keys: set[str] = set()
@@ -75,13 +85,13 @@ def dedupe_search_results(jobs: list) -> list:
     unique: list = []
 
     for job in jobs:
-        dedup_key = getattr(job, "dedup_key", None) or job.get("dedup_key", "")
+        dedup_key = _field(job, "dedup_key")
         if dedup_key and dedup_key in seen_keys:
             continue
 
-        company = getattr(job, "company_name", None) or job.get("company_name", "")
-        title = getattr(job, "title", None) or job.get("title", "")
-        description = getattr(job, "description", None) or job.get("description")
+        company = _field(job, "company_name")
+        title = _field(job, "title")
+        description = _field(job, "description")
         fingerprint = listing_fingerprint(str(company), str(title), description)
         if fingerprint in seen_fingerprints:
             continue

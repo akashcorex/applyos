@@ -49,6 +49,39 @@ def test_dedupe_search_results_by_fingerprint() -> None:
     assert {j.company_name for j in unique} == {"Stripe", "Notion"}
 
 
+def test_dedupe_handles_missing_descriptions_and_dicts() -> None:
+    from models import SearchResult
+    from services.dedup import dedupe_search_results
+
+    jobs = [
+        SearchResult(
+            external_id="1",
+            source="generic",
+            title="Support Engineer",
+            company_name="Acme",
+            dedup_key="acme::support engineer",
+            ats_type="generic",
+            ats_slug="acme",
+            description=None,
+        ),
+        {
+            "dedup_key": "acme::support engineer",
+            "company_name": "Acme",
+            "title": "Support Engineer",
+            "description": None,
+        },
+        {
+            "dedup_key": "other::role",
+            "company_name": "Other",
+            "title": "Role",
+            "description": "has body",
+        },
+    ]
+    unique = dedupe_search_results(jobs)
+    assert len(unique) == 2
+    assert unique[0].title == "Support Engineer"
+
+
 def test_build_dedup_key() -> None:
     key = build_dedup_key("stripe", "senior engineer", "remote")
     assert key == "stripe::senior engineer::remote"
