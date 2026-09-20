@@ -138,8 +138,8 @@ async def test_search_route_attaches_board_attempts(
 
     async def fake_scrape(company, max_jobs):
         if company["domain"] == "empty.com":
-            return []
-        return [_search_job()]
+            return [], False
+        return [_search_job()], False
 
     monkeypatch.setattr(search_route, "scrape_company_jobs", fake_scrape)
     monkeypatch.setattr(
@@ -167,7 +167,7 @@ async def test_semantic_route_attaches_board_attempts(
     from models import SemanticSearchRequest
 
     async def fake_scrape(company, max_jobs):
-        return [_search_job()]
+        return [_search_job()], False
 
     async def fake_rank(jobs, **kwargs):
         from models import SemanticMatchResult
@@ -199,7 +199,7 @@ async def test_search_route_excludes_failed_boards_from_scraped_count(
     async def fake_scrape(company, max_jobs):
         if company["domain"] == "dead.com":
             raise RuntimeError("ats down")
-        return [_search_job()]
+        return [_search_job()], False
 
     monkeypatch.setattr(search_route, "scrape_company_jobs", fake_scrape)
     monkeypatch.setattr(
@@ -218,3 +218,26 @@ async def test_search_route_excludes_failed_boards_from_scraped_count(
     by_domain = {attempt.domain: attempt for attempt in response.board_attempts}
     assert by_domain["dead.com"].status == "error"
     assert by_domain["acme.com"].status == "ok"
+
+
+@pytest.mark.asyncio
+async def test_search_route_marks_fallback_attempts(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from models import SearchRequest
+
+    async def fake_scrape(company, max_jobs):
+        return [_search_job()], True
+
+    monkeypatch.setattr(search_route, "scrape_company_jobs", fake_scrape)
+    monkeypatch.setattr(
+        search_route, "get_searchable_companies", lambda limit: [_company()]
+    )
+    monkeypatch.setattr(search_route, "apply_freshness_metadata", lambda jobs: jobs)
+    monkeypatch.setattr(search_route, "sort_by_freshness", lambda jobs: jobs)
+
+    response = await search_route.search_jobs(
+        SearchRequest(job_title="engineer", max_companies=10)
+    )
+    assert response.board_attempts[0].via_fallback is True
+    assert response.board_attempts[0].status == "ok"

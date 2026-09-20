@@ -34,7 +34,7 @@ async def _scrape_with_attempt(
 ) -> tuple[list[SearchResult] | BaseException, BoardAttempt]:
     started = time.perf_counter()
     try:
-        jobs = await scrape_company_jobs(company, max_jobs)
+        jobs, via_fallback = await scrape_company_jobs(company, max_jobs)
     except Exception as exc:
         attempt = BoardAttempt(
             domain=str(company.get("domain", "")),
@@ -63,6 +63,7 @@ async def _scrape_with_attempt(
         jobs_found=len(jobs),
         sample_titles=[job.title for job in jobs[:3] if job.title],
         latency_ms=int((time.perf_counter() - started) * 1000),
+        via_fallback=via_fallback,
     )
     return jobs, attempt
 

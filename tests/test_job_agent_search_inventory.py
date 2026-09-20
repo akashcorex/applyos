@@ -99,7 +99,7 @@ async def test_scrape_company_jobs_accepts_ashby(monkeypatch: pytest.MonkeyPatch
         )
 
     monkeypatch.setattr("services.company_scrape.scrape_jobs", fake_scrape)
-    results = await scrape_company_jobs(
+    results, via_fallback = await scrape_company_jobs(
         {
             "name": "Mercury",
             "domain": "mercury.com",
@@ -109,6 +109,7 @@ async def test_scrape_company_jobs_accepts_ashby(monkeypatch: pytest.MonkeyPatch
         10,
     )
     assert len(results) == 1
+    assert via_fallback is False
     assert results[0].ats_type == "ashby"
     assert results[0].title == "Backend Engineer"
 
@@ -134,7 +135,11 @@ async def test_scrape_failure_raises_and_records(
     async def boom(ats_type, payload):
         raise RuntimeError("ats down")
 
+    async def no_fallback(url, **kwargs):
+        return []
+
     monkeypatch.setattr("services.company_scrape.scrape_jobs", boom)
+    monkeypatch.setattr("services.company_scrape.scrape_career_page", no_fallback)
     with pytest.raises(RuntimeError):
         await scrape_company_jobs(
             {
@@ -175,7 +180,11 @@ async def test_scrape_deactivation_logs_error(
     async def boom(ats_type, payload):
         raise RuntimeError("ats down")
 
+    async def no_fallback(url, **kwargs):
+        return []
+
     monkeypatch.setattr("services.company_scrape.scrape_jobs", boom)
+    monkeypatch.setattr("services.company_scrape.scrape_career_page", no_fallback)
     with caplog.at_level(logging.ERROR, logger="services.company_scrape"):
         with pytest.raises(RuntimeError):
             await scrape_company_jobs(
@@ -201,6 +210,9 @@ async def test_empty_results_are_not_cached(
     from services import board_registry as registry_module
     from services.board_cache import get_cached_jobs
 
+    async def _empty_fallback(url, **kwargs):
+        return []
+
     monkeypatch.setattr(config.settings, "registry_db_path", str(tmp_path / "r.db"))
     monkeypatch.setattr(registry_module, "_registry", None)
 
@@ -214,7 +226,10 @@ async def test_empty_results_are_not_cached(
         )
 
     monkeypatch.setattr("services.company_scrape.scrape_jobs", empty)
-    results = await scrape_company_jobs(
+    monkeypatch.setattr(
+        "services.company_scrape.scrape_career_page", _empty_fallback
+    )
+    results, via_fallback = await scrape_company_jobs(
         {
             "name": "Dry",
             "domain": "dry.com",
@@ -224,4 +239,125 @@ async def test_empty_results_are_not_cached(
         10,
     )
     assert results == []
+    assert via_fallback is False
     assert get_cached_jobs("dry.com") is None
+
+
+def _fallback_job():
+    from models import SearchResult
+
+    return SearchResult(
+        external_id="9",
+        source="generic",
+        title="Support Engineer",
+        company_name="Fallback Inc",
+        location="Remote",
+        location_type="remote",
+        seniority=None,
+        application_url="https://fallback.example.com/jobs/9",
+        dedup_key="Fallback Inc::support engineer::remote",
+        ats_type="generic",
+        ats_slug="fallback-inc",
+        description=None,
+    )
+
+
+def _fallback_company() -> dict:
+    return {
+        "name": "Fallback Inc",
+        "domain": "fallback.example.com",
+        "ats_type": "greenhouse",
+        "ats_slug": "fallback",
+        "career_url": "https://fallback.example.com/careers",
+    }
+
+
+@pytest.mark.asyncio
+async def test_fallback_serves_when_ats_fails(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import config
+    from services import board_registry as registry_module
+    from services.board_cache import get_cached_jobs
+    from services.board_registry import get_board_registry
+
+    monkeypatch.setattr(config.settings, "registry_db_path", str(tmp_path / "r.db"))
+    monkeypatch.setattr(registry_module, "_registry", None)
+    get_board_registry().upsert_board(
+        domain="fallback.example.com",
+        company_name="Fallback Inc",
+        ats_type="greenhouse",
+        ats_slug="fallback",
+        career_url="https://fallback.example.com/careers",
+        source="manual",
+        active=False,
+    )
+
+    async def boom(ats_type, payload):
+        raise RuntimeError("ats down")
+
+    seen_urls: list[str] = []
+
+    async def fallback(url, **kwargs):
+        seen_urls.append(url)
+        return [_fallback_job()]
+
+    monkeypatch.setattr("services.company_scrape.scrape_jobs", boom)
+    monkeypatch.setattr("services.company_scrape.scrape_career_page", fallback)
+    results, via_fallback = await scrape_company_jobs(_fallback_company(), 10)
+
+    assert [job.title for job in results] == ["Support Engineer"]
+    assert via_fallback is True
+    assert seen_urls[0] == "https://fallback.example.com/careers"
+    assert get_cached_jobs("fallback.example.com") is not None
+    board = get_board_registry().get_board_by_domain("fallback.example.com")
+    assert board is not None
+    assert board["active"] is True
+
+
+@pytest.mark.asyncio
+async def test_fallback_serves_when_ats_empty(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import config
+    from services import board_registry as registry_module
+
+    monkeypatch.setattr(config.settings, "registry_db_path", str(tmp_path / "r.db"))
+    monkeypatch.setattr(registry_module, "_registry", None)
+
+    async def empty(ats_type, payload):
+        return ScrapeResponse(
+            ats_type="greenhouse",
+            ats_slug="fallback",
+            company_id="fallback.example.com",
+            jobs_found=0,
+            jobs=[],
+        )
+
+    async def fallback(url, **kwargs):
+        return [_fallback_job()]
+
+    monkeypatch.setattr("services.company_scrape.scrape_jobs", empty)
+    monkeypatch.setattr("services.company_scrape.scrape_career_page", fallback)
+    results, via_fallback = await scrape_company_jobs(_fallback_company(), 10)
+
+    assert len(results) == 1
+    assert via_fallback is True
+
+
+@pytest.mark.asyncio
+async def test_fallback_tries_domain_paths_without_stored_url(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import config
+    from services import board_registry as registry_module
+    from services.company_scrape import _career_candidates
+
+    monkeypatch.setattr(config.settings, "registry_db_path", str(tmp_path / "r.db"))
+    monkeypatch.setattr(registry_module, "_registry", None)
+
+    assert _career_candidates(_fallback_company()) == [
+        "https://fallback.example.com/careers",
+        "https://fallback.example.com/jobs",
+    ]
+    assert _career_candidates({"domain": "", "career_url": ""}) == []

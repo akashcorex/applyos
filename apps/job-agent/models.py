@@ -247,6 +247,7 @@ class BoardAttempt(BaseModel):
     sample_titles: list[str] = Field(default_factory=list)
     error: str | None = None
     latency_ms: int = 0
+    via_fallback: bool = False
 
 
 class SearchResponse(BaseModel):
