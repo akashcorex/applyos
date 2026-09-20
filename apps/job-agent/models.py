@@ -14,6 +14,8 @@ AtsType = Literal[
     "recruitee",
     "personio",
     "wellfound",
+    "teamtailor",
+    "breezy",
     "generic",
 ]
 

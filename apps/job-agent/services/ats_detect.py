@@ -23,6 +23,8 @@ ATS_SIGNATURES: dict[AtsType, list[str]] = {
     "recruitee": ["recruitee.com"],
     "personio": ["personio.de", "personio.com", "jobs.personio.de"],
     "wellfound": ["wellfound.com", "angel.co/jobs", "angelist.com/jobs"],
+    "teamtailor": ["teamtailor.com"],
+    "breezy": ["breezy.hr"],
 }
 
 
@@ -76,6 +78,8 @@ _SLUG_PATTERNS: dict[AtsType, list[str]] = {
         r"api\.ashbyhq\.com/posting-api/job-board/([A-Za-z0-9._-]+)",
     ],
     "workable": [r"apply\.workable\.com/([A-Za-z0-9._-]+)"],
+    "teamtailor": [r"https?://([A-Za-z0-9._-]+)\.teamtailor\.com"],
+    "breezy": [r"https?://([A-Za-z0-9._-]+)\.breezy\.hr"],
     "recruitee": [r"https?://([A-Za-z0-9._-]+)\.recruitee\.com"],
     "personio": [r"https?://([A-Za-z0-9._-]+)\.jobs\.personio\.de"],
     "wellfound": [r"wellfound\.com/company/([A-Za-z0-9._-]+)"],
@@ -127,6 +131,10 @@ def infer_slug_from_url(career_page_url: str, ats_type: AtsType | None) -> str |
             return path_parts[0]
     if ats_type == "recruitee" and host.endswith(".recruitee.com"):
         return host.removesuffix(".recruitee.com")
+    if ats_type == "teamtailor" and host.endswith(".teamtailor.com"):
+        return host.removesuffix(".teamtailor.com")
+    if ats_type == "breezy" and host.endswith(".breezy.hr"):
+        return host.removesuffix(".breezy.hr")
     if ats_type == "personio" and host.endswith(".jobs.personio.de"):
         return host.removesuffix(".jobs.personio.de")
     if ats_type == "wellfound" and _wellfound_host(host):

@@ -29,6 +29,8 @@ _ATS_HOST_SUFFIXES = (
     "recruitee.com",
     "personio.de",
     "wellfound.com",
+    "teamtailor.com",
+    "breezy.hr",
 )
 
 
