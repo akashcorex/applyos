@@ -64,7 +64,9 @@ export function ProfileAchievements({
                     : 'text-muted-foreground'
                 }`}
               >
-                {achievement.earned ? `+${achievement.xp} XP` : `${achievement.xp} XP`}
+                {achievement.earned
+                  ? `+${achievement.xp} XP`
+                  : `${achievement.xp} XP`}
               </span>
             </div>
             <p className="mt-2.5 text-[13px] font-semibold tracking-tight">

@@ -111,7 +111,8 @@ export async function saveResumeUpload(args: {
 
 export async function readResumeUpload(storageKey: string): Promise<Buffer> {
   const safe = resolveSafeUploadPath(storageKey);
-  if (!safe) throw Object.assign(new Error('Resume file not found'), { code: 'ENOENT' });
+  if (!safe)
+    throw Object.assign(new Error('Resume file not found'), { code: 'ENOENT' });
   return readFile(safe);
 }
 

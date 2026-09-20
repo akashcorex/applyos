@@ -1,5 +1,5 @@
-"use client";
-import { motion } from "motion/react";
+'use client';
+import { motion } from 'motion/react';
 
 const HeroBadge = () => {
   return (
@@ -8,17 +8,17 @@ const HeroBadge = () => {
         initial={{
           opacity: 0,
           y: 8,
-          filter: "blur(10px)",
+          filter: 'blur(10px)',
         }}
         animate={{
           opacity: 1,
           y: 0,
-          filter: "blur(0px)",
+          filter: 'blur(0px)',
         }}
         transition={{
           duration: 0.3,
           delay: 0.1,
-          ease: "easeInOut",
+          ease: 'easeInOut',
         }}
         viewport={{ once: true }}
         className="relative flex max-w-fit items-center justify-center gap-3 rounded-full border border-neutral-700/80 bg-black px-3 py-1.5"
@@ -52,8 +52,8 @@ const HeroBadge = () => {
                 />
               </mask>
               <radialGradient id="ml-white-grad" fx="1">
-                <stop offset="0%" stopColor={"#3b82f6"} />
-                <stop offset="20%" stopColor={"#3b82f6"} />
+                <stop offset="0%" stopColor={'#3b82f6'} />
+                <stop offset="20%" stopColor={'#3b82f6'} />
                 <stop offset="100%" stopColor="transparent" />
               </radialGradient>
             </defs>

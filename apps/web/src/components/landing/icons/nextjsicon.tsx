@@ -1,5 +1,5 @@
-import * as React from "react";
-import type { SVGProps } from "react";
+import * as React from 'react';
+import type { SVGProps } from 'react';
 const NextjsIcon = (props: SVGProps<SVGSVGElement>) => (
   <svg
     width="1em"
@@ -12,7 +12,7 @@ const NextjsIcon = (props: SVGProps<SVGSVGElement>) => (
     <mask
       id="mask0_408_139"
       style={{
-        maskType: "alpha",
+        maskType: 'alpha',
       }}
       maskUnits="userSpaceOnUse"
       x={0}

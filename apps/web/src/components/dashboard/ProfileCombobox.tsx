@@ -231,8 +231,7 @@ export function ProfileCombobox({
                 className={cn(
                   'flex w-full items-center px-3 py-1.5 text-left font-medium text-slate-700 dark:text-[#c6cad4]',
                   highlight === index && 'bg-slate-100 dark:bg-accent',
-                  value === option.value &&
-                    'text-foreground',
+                  value === option.value && 'text-foreground',
                 )}
               >
                 {option.label}

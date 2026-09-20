@@ -1,23 +1,23 @@
-"use client";
+'use client';
 
-import { cn } from "@/lib/utils";
-import { IoIosTrendingUp } from "react-icons/io";
-import PeerlistIcon from "../icons/peerlisticon";
-import TwitterIcon from "../icons/twittericon";
-import GoogleIcon from "../icons/googleicon";
-import RedditIcon from "../icons/redditicon";
-import FlagIndiaIcon from "../icons/flagindiaicon";
-import FlagUSAIcon from "../icons/flagusicon";
-import FlagCanadaIcon from "../icons/flagcanadaicon";
-import FlagJapanIcon from "../icons/flagjapanicon";
+import { cn } from '@/lib/utils';
+import { IoIosTrendingUp } from 'react-icons/io';
+import PeerlistIcon from '../icons/peerlisticon';
+import TwitterIcon from '../icons/twittericon';
+import GoogleIcon from '../icons/googleicon';
+import RedditIcon from '../icons/redditicon';
+import FlagIndiaIcon from '../icons/flagindiaicon';
+import FlagUSAIcon from '../icons/flagusicon';
+import FlagCanadaIcon from '../icons/flagcanadaicon';
+import FlagJapanIcon from '../icons/flagjapanicon';
 
 const InsightCard = () => {
   return (
     <div
       className={cn(
-        "relative overflow-hidden",
-        "flex items-center justify-center",
-        "h-[14.7rem] w-full",
+        'relative overflow-hidden',
+        'flex items-center justify-center',
+        'h-[14.7rem] w-full',
       )}
     >
       <div className="absolute bottom-0 left-4 h-[8rem] w-[14rem] rotate-[-2deg] rounded-t-md bg-gradient-to-br from-neutral-800/40 to-neutral-800/70 px-4 py-3">

@@ -1,12 +1,12 @@
-import React from "react";
-import { RiStackLine } from "react-icons/ri";
+import React from 'react';
+import { RiStackLine } from 'react-icons/ri';
 
 const FeatureIcon = () => {
   return (
     <div className="[perspective:400px] [transform-style:preserve-3d]">
       <div
         className="relative mx-auto h-14 w-14 rounded-md bg-gradient-to-b from-neutral-800 to-neutral-950 p-[4px]"
-        style={{ transform: "rotateX(25deg)", transformOrigin: "center" }}
+        style={{ transform: 'rotateX(25deg)', transformOrigin: 'center' }}
       >
         <div className="relative z-20 flex h-full w-full items-center justify-center overflow-hidden rounded-[5px] bg-black">
           <RiStackLine className="h-6 w-6 text-cyan-500" />

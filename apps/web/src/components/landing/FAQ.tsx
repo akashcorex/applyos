@@ -1,10 +1,10 @@
-"use client";
+'use client';
 
-import { useState } from "react";
-import { ChevronDown } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
-import { cn } from "@/lib/utils";
-import FaqIcon from "./icons/faqicon";
+import { useState } from 'react';
+import { ChevronDown } from 'lucide-react';
+import { AnimatePresence, motion } from 'motion/react';
+import { cn } from '@/lib/utils';
+import FaqIcon from './icons/faqicon';
 
 interface FAQItemProps {
   question: string;
@@ -18,11 +18,11 @@ function FAQItem({ question, answer }: FAQItemProps) {
   return (
     <motion.div
       className={cn(
-        "group rounded-lg border-[0.5px] border-neutral-800/50",
-        "transition-all duration-200 ease-in-out",
+        'group rounded-lg border-[0.5px] border-neutral-800/50',
+        'transition-all duration-200 ease-in-out',
         isOpen
-          ? "bg-linear-to-br via-white/2 from-white/5 via-zinc-50/50 to-white/5"
-          : "hover:bg-white/[0.02]",
+          ? 'bg-linear-to-br via-white/2 from-white/5 via-zinc-50/50 to-white/5'
+          : 'hover:bg-white/[0.02]',
       )}
     >
       <button
@@ -32,9 +32,9 @@ function FAQItem({ question, answer }: FAQItemProps) {
       >
         <h3
           className={cn(
-            "text-left text-base font-medium transition-colors duration-200",
-            "text-zinc-300",
-            isOpen && "text-white",
+            'text-left text-base font-medium transition-colors duration-200',
+            'text-zinc-300',
+            isOpen && 'text-white',
           )}
         >
           {question}
@@ -46,12 +46,12 @@ function FAQItem({ question, answer }: FAQItemProps) {
           }}
           transition={{
             duration: 0.3,
-            ease: "easeInOut",
+            ease: 'easeInOut',
           }}
           className={cn(
-            "shrink-0 rounded-full p-0.5",
-            "transition-colors duration-200",
-            isOpen ? "text-white" : "text-zinc-500",
+            'shrink-0 rounded-full p-0.5',
+            'transition-colors duration-200',
+            isOpen ? 'text-white' : 'text-zinc-500',
           )}
         >
           <ChevronDown className="h-4 w-4" />
@@ -62,7 +62,7 @@ function FAQItem({ question, answer }: FAQItemProps) {
           <motion.div
             initial={{ height: 0, opacity: 0 }}
             animate={{
-              height: "auto",
+              height: 'auto',
               opacity: 1,
               transition: {
                 height: {
@@ -81,7 +81,7 @@ function FAQItem({ question, answer }: FAQItemProps) {
               transition: {
                 height: {
                   duration: 0.3,
-                  ease: "easeInOut",
+                  ease: 'easeInOut',
                 },
                 opacity: {
                   duration: 0.25,
@@ -96,7 +96,7 @@ function FAQItem({ question, answer }: FAQItemProps) {
                 exit={{ y: -8, opacity: 0 }}
                 transition={{
                   duration: 0.3,
-                  ease: "easeOut",
+                  ease: 'easeOut',
                 }}
                 className="text-sm leading-relaxed text-neutral-400"
               >
@@ -111,36 +111,36 @@ function FAQItem({ question, answer }: FAQItemProps) {
 }
 
 function FAQ() {
-  const faqs: Omit<FAQItemProps, "index">[] = [
+  const faqs: Omit<FAQItemProps, 'index'>[] = [
     {
-      question: "What is ApplyOS?",
+      question: 'What is ApplyOS?',
       answer:
-        "ApplyOS is an AI agent that finds high-growth roles, tailors your resume, applies for you, and reaches out to recruiters so you can keep studying.",
+        'ApplyOS is an AI agent that finds high-growth roles, tailors your resume, applies for you, and reaches out to recruiters so you can keep studying.',
     },
     {
-      question: "How does auto-apply work?",
+      question: 'How does auto-apply work?',
       answer:
-        "You upload a resume and set preferences. The agent discovers matching jobs, customizes materials for each role, and submits applications on your behalf.",
+        'You upload a resume and set preferences. The agent discovers matching jobs, customizes materials for each role, and submits applications on your behalf.',
     },
     {
-      question: "Will applications sound like me?",
+      question: 'Will applications sound like me?',
       answer:
-        "Yes. Outreach and resume edits are generated from your profile and writing. You can review them or let the agent send automatically.",
+        'Yes. Outreach and resume edits are generated from your profile and writing. You can review them or let the agent send automatically.',
     },
     {
-      question: "Is it free to start?",
+      question: 'Is it free to start?',
       answer:
-        "Yes. You can start for free, connect your accounts, and apply to roles before upgrading.",
+        'Yes. You can start for free, connect your accounts, and apply to roles before upgrading.',
     },
     {
-      question: "Do I need to stay at my computer?",
+      question: 'Do I need to stay at my computer?',
       answer:
-        "No. Once a run is going, the agent works in the background. Check status from the dashboard anytime.",
+        'No. Once a run is going, the agent works in the background. Check status from the dashboard anytime.',
     },
     {
-      question: "Is my data private?",
+      question: 'Is my data private?',
       answer:
-        "Your resumes, sessions, and application history stay in your account. We do not sell personal data.",
+        'Your resumes, sessions, and application history stay in your account. We do not sell personal data.',
     },
   ];
 
@@ -150,8 +150,8 @@ function FAQ() {
       className="bg-linear-to-b w-full scroll-mt-24 from-transparent via-white/[0.02] to-transparent py-24"
     >
       <motion.div
-        initial={{ opacity: 0, y: 20, filter: "blur(8px)" }}
-        whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+        initial={{ opacity: 0, y: 20, filter: 'blur(8px)' }}
+        whileInView={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
         viewport={{ once: true }}
         transition={{ duration: 0.8 }}
         className="container mx-auto px-4"

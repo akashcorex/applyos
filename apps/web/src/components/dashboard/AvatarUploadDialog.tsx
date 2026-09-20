@@ -56,7 +56,13 @@ export function AvatarUploadDialog({
   onChanged,
 }: AvatarUploadDialogProps) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const dragRef = useRef<{ pointerId: number; startX: number; startY: number; baseX: number; baseY: number } | null>(null);
+  const dragRef = useRef<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+    baseX: number;
+    baseY: number;
+  } | null>(null);
   const [crop, setCrop] = useState<CropState | null>(null);
   const [busy, setBusy] = useState<'upload' | 'remove' | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -331,7 +337,10 @@ export function AvatarUploadDialog({
                       if (!current) return current;
                       const zoom = Number(event.target.value);
                       const next = { ...current, zoom };
-                      return { ...next, offset: clampOffset(next.offset, next) };
+                      return {
+                        ...next,
+                        offset: clampOffset(next.offset, next),
+                      };
                     })
                   }
                   className="h-1 flex-1 accent-cyan-500"

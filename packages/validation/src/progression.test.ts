@@ -128,8 +128,8 @@ describe('computeProgression', () => {
     expect(six.achievements.find((a) => a.key === 'consistent')?.earned).toBe(
       false,
     );
-    expect(
-      seven.achievements.find((a) => a.key === 'consistent')?.earned,
-    ).toBe(true);
+    expect(seven.achievements.find((a) => a.key === 'consistent')?.earned).toBe(
+      true,
+    );
   });
 });

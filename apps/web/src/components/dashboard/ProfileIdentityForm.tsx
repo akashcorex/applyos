@@ -119,9 +119,7 @@ export function ProfileIdentityForm({
                   value={values.experienceYears}
                   items={EXPERIENCE_OPTIONS}
                   placeholder="e.g. Fresher or 3–5 years"
-                  onChange={(next) =>
-                    onChange({ totalExperienceYears: next })
-                  }
+                  onChange={(next) => onChange({ totalExperienceYears: next })}
                 />
               </div>
             </div>
@@ -216,9 +214,7 @@ export function ProfileIdentityForm({
                 <Input
                   id="profile-roles"
                   value={values.preferredRoles}
-                  onChange={(e) =>
-                    onChange({ preferredRoles: e.target.value })
-                  }
+                  onChange={(e) => onChange({ preferredRoles: e.target.value })}
                   placeholder="Full Stack Engineer, Backend Engineer"
                 />
               </div>
@@ -266,19 +262,12 @@ export function ProfileIdentityForm({
           </div>
         </section>
 
-        {error ? (
-          <p className="text-[11px] text-red-500">{error}</p>
-        ) : null}
+        {error ? <p className="text-[11px] text-red-500">{error}</p> : null}
         <div className="flex gap-2">
           <Button type="submit" size="sm" disabled={saving}>
             {saved ? 'Saved' : saving ? 'Saving…' : 'Save'}
           </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            onClick={onCancel}
-          >
+          <Button type="button" size="sm" variant="outline" onClick={onCancel}>
             Cancel
           </Button>
         </div>

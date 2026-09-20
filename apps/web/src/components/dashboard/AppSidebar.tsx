@@ -215,72 +215,73 @@ export function AppSidebar({
 
   const workspaceItems: NavItem[] = isAdminNav
     ? [
-      { href: '/dashboard/admin', label: 'Overview', icon: Inbox },
-      { href: '/dashboard/admin/users', label: 'Users', icon: Users },
-      {
-        href: '/dashboard/admin/resumes',
-        label: 'Resumes',
-        icon: FileText,
-      },
-      {
-        href: '/dashboard/admin/system',
-        label: 'System',
-        icon: Activity,
-      },
-    ]
+        { href: '/dashboard/admin', label: 'Overview', icon: Inbox },
+        { href: '/dashboard/admin/users', label: 'Users', icon: Users },
+        {
+          href: '/dashboard/admin/resumes',
+          label: 'Resumes',
+          icon: FileText,
+        },
+        {
+          href: '/dashboard/admin/system',
+          label: 'System',
+          icon: Activity,
+        },
+      ]
     : [
-      { href: '/dashboard', label: 'Overview', icon: Inbox },
-      {
-        href: '/dashboard/discovery',
-        label: 'Discover Jobs',
-        icon: Search,
-      },
-      {
-        href: '/dashboard/applications',
-        label: 'Applications',
-        icon: ClipboardList,
-        badge: attentionCount,
-      },
-      {
-        href: '/dashboard/linkedin',
-        label: 'Outreach',
-        icon: Send,
-      },
-    ];
+        { href: '/dashboard', label: 'Overview', icon: Inbox },
+        {
+          href: '/dashboard/discovery',
+          label: 'Discover Jobs',
+          icon: Search,
+        },
+        {
+          href: '/dashboard/applications',
+          label: 'Applications',
+          icon: ClipboardList,
+          badge: attentionCount,
+        },
+        {
+          href: '/dashboard/linkedin',
+          label: 'Outreach',
+          icon: Send,
+        },
+      ];
 
   const workflowItems: NavItem[] = isAdminNav
     ? []
     : [
-      {
-        href: '/dashboard/workflows',
-        label: 'Job Tracker',
-        icon: Layers,
-      },
-    ];
+        {
+          href: '/dashboard/workflows',
+          label: 'Job Tracker',
+          icon: Layers,
+        },
+      ];
 
   const accountItems = isAdminNav
     ? []
     : [
-      {
-        href: '/dashboard/settings/preferences',
-        label: 'Settings',
-        icon: Settings,
-      },
-      {
-        href: 'mailto:support@applyos.in',
-        label: 'Get Help',
-        icon: HelpCircle,
-      },
-      {
-        href: '/dashboard/settings/security',
-        label: 'Security',
-        icon: Shield,
-      },
-    ];
+        {
+          href: '/dashboard/settings/preferences',
+          label: 'Settings',
+          icon: Settings,
+        },
+        {
+          href: 'mailto:support@applyos.in',
+          label: 'Get Help',
+          icon: HelpCircle,
+        },
+        {
+          href: '/dashboard/settings/security',
+          label: 'Security',
+          icon: Shield,
+        },
+      ];
   const accountSubtitle = isAdminNav
     ? 'Admin'
-    : `${planLabel(billing?.plan ?? 'free')} plan${billing ? ` · ${billing.cycle.submitted}/${billing.cycle.limit}` : ''
-    }`;
+    : `${planLabel(billing?.plan ?? 'free')} plan${
+        billing ? ` · ${billing.cycle.submitted}/${billing.cycle.limit}` : ''
+      }`;
 
   function closeAccount() {
     setAccountOpen(false);
@@ -289,12 +290,14 @@ export function AppSidebar({
 
   return (
     <aside
-      className={`${isCollapsed ? 'w-20' : 'w-56'
-        } bg-sidebar text-sidebar-foreground flex flex-col h-full shrink-0 select-none font-sans transition-all duration-200 ease-in-out border-r-0`}
+      className={`${
+        isCollapsed ? 'w-20' : 'w-56'
+      } bg-sidebar text-sidebar-foreground flex flex-col h-full shrink-0 select-none font-sans transition-all duration-200 ease-in-out border-r-0`}
     >
       <div
-        className={`h-24 px-2 flex items-center shrink-0 ${isCollapsed ? 'justify-center' : 'justify-between'
-          } bg-sidebar`}
+        className={`h-24 px-2 flex items-center shrink-0 ${
+          isCollapsed ? 'justify-center' : 'justify-between'
+        } bg-sidebar`}
       >
         {isCollapsed ? (
           <button
@@ -344,8 +347,9 @@ export function AppSidebar({
 
       <nav aria-label="Primary" className="flex-1 overflow-y-auto">
         <div
-          className={`flex flex-col gap-0.5 border-b border-transparent py-1.5 ${isCollapsed ? 'px-1.5' : 'px-2'
-            }`}
+          className={`flex flex-col gap-0.5 border-b border-transparent py-1.5 ${
+            isCollapsed ? 'px-1.5' : 'px-2'
+          }`}
         >
           <ul className="flex flex-col gap-0.5">
             {workspaceItems.map((item) => (
@@ -361,8 +365,9 @@ export function AppSidebar({
         </div>
         {workflowItems.length > 0 ? (
           <div
-            className={`flex flex-col gap-0.5 border-b border-transparent py-1.5 ${isCollapsed ? 'px-1.5' : 'px-2'
-              }`}
+            className={`flex flex-col gap-0.5 border-b border-transparent py-1.5 ${
+              isCollapsed ? 'px-1.5' : 'px-2'
+            }`}
           >
             <SectionLabel hidden={isCollapsed}>Workflow</SectionLabel>
             <ul className="flex flex-col gap-0.5">
@@ -421,10 +426,11 @@ export function AppSidebar({
         <div ref={accountRef} className="relative">
           {accountOpen ? (
             <div
-              className={`absolute z-30 mb-2 origin-bottom overflow-hidden rounded-[10px] border border-border bg-popover shadow-sm ${isCollapsed
-                ? 'bottom-0 left-full ml-2 w-48 origin-bottom-left'
-                : 'bottom-full left-0 right-0'
-                }`}
+              className={`absolute z-30 mb-2 origin-bottom overflow-hidden rounded-[10px] border border-border bg-popover shadow-sm ${
+                isCollapsed
+                  ? 'bottom-0 left-full ml-2 w-48 origin-bottom-left'
+                  : 'bottom-full left-0 right-0'
+              }`}
             >
               {accountItems.map((item) => {
                 const Icon = item.icon;
@@ -434,10 +440,11 @@ export function AppSidebar({
                     key={item.href}
                     href={item.href}
                     onClick={closeAccount}
-                    className={`flex items-center gap-2.5 px-3 py-2 text-xs font-medium transition-colors ${isActive
-                      ? 'bg-accent text-accent-foreground'
-                      : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
-                      }`}
+                    className={`flex items-center gap-2.5 px-3 py-2 text-xs font-medium transition-colors ${
+                      isActive
+                        ? 'bg-accent text-accent-foreground'
+                        : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+                    }`}
                   >
                     <Icon className="h-3.5 w-3.5 shrink-0" />
                     {item.label}
@@ -450,8 +457,9 @@ export function AppSidebar({
                   setAccountOpen(false);
                   onSignOut();
                 }}
-                className={`flex w-full items-center gap-2.5 px-3 py-2 text-left text-xs font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground ${accountItems.length > 0 ? 'border-t border-border' : ''
-                  }`}
+                className={`flex w-full items-center gap-2.5 px-3 py-2 text-left text-xs font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground ${
+                  accountItems.length > 0 ? 'border-t border-border' : ''
+                }`}
               >
                 <LogOut className="h-3.5 w-3.5 shrink-0" />
                 Sign out
@@ -467,8 +475,9 @@ export function AppSidebar({
             title={
               isCollapsed ? `${firstName} · ${accountSubtitle}` : undefined
             }
-            className={`w-full flex items-center ${isCollapsed ? 'justify-center p-1.5' : 'gap-2.5 px-2.5 py-2'
-              } rounded-[9px] bg-transparent border border-transparent hover:bg-accent shadow-none transition-[background-color,color] duration-150`}
+            className={`w-full flex items-center ${
+              isCollapsed ? 'justify-center p-1.5' : 'gap-2.5 px-2.5 py-2'
+            } rounded-[9px] bg-transparent border border-transparent hover:bg-accent shadow-none transition-[background-color,color] duration-150`}
           >
             <UserAvatar
               name={userName ?? 'User'}
@@ -487,8 +496,9 @@ export function AppSidebar({
                   </span>
                 </div>
                 <ChevronDown
-                  className={`h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform ${accountOpen ? 'rotate-180' : ''
-                    }`}
+                  className={`h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform ${
+                    accountOpen ? 'rotate-180' : ''
+                  }`}
                 />
               </>
             )}

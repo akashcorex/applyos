@@ -1,30 +1,30 @@
-import { cn } from "@/lib/utils";
-import { IoIosTrendingUp } from "react-icons/io";
-import PeerlistIcon from "../icons/peerlisticon";
-import TwitterIcon from "../icons/twittericon";
-import GoogleIcon from "../icons/googleicon";
-import RedditIcon from "../icons/redditicon";
-import FlagIndiaIcon from "../icons/flagindiaicon";
-import FlagUSAIcon from "../icons/flagusicon";
-import FlagCanadaIcon from "../icons/flagcanadaicon";
-import FlagJapanIcon from "../icons/flagjapanicon";
+import { cn } from '@/lib/utils';
+import { IoIosTrendingUp } from 'react-icons/io';
+import PeerlistIcon from '../icons/peerlisticon';
+import TwitterIcon from '../icons/twittericon';
+import GoogleIcon from '../icons/googleicon';
+import RedditIcon from '../icons/redditicon';
+import FlagIndiaIcon from '../icons/flagindiaicon';
+import FlagUSAIcon from '../icons/flagusicon';
+import FlagCanadaIcon from '../icons/flagcanadaicon';
+import FlagJapanIcon from '../icons/flagjapanicon';
 
 const FeatureInsights = () => {
   return (
     <div
       className={cn(
-        "group relative",
-        "flex flex-col justify-between",
-        "h-[20rem] space-y-4",
-        "rounded-md border border-neutral-800/50 bg-neutral-950",
+        'group relative',
+        'flex flex-col justify-between',
+        'h-[20rem] space-y-4',
+        'rounded-md border border-neutral-800/50 bg-neutral-950',
       )}
     >
       {/*insight card */}
       <div
         className={cn(
-          "relative overflow-hidden",
-          "flex items-center justify-center",
-          "h-[14.7rem] w-full",
+          'relative overflow-hidden',
+          'flex items-center justify-center',
+          'h-[14.7rem] w-full',
         )}
       >
         <div className="absolute bottom-0 left-4 h-[8rem] w-[14rem] rotate-[-2deg] rounded-t-md bg-gradient-to-br from-neutral-800/40 to-neutral-800/70 px-4 py-3 transition-all duration-300 group-hover:bottom-1">

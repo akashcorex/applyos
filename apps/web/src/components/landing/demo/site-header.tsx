@@ -1,7 +1,7 @@
-"use client";
-import { CiGlobe } from "react-icons/ci";
-import { BiLinkExternal } from "react-icons/bi";
-import Link from "next/link";
+'use client';
+import { CiGlobe } from 'react-icons/ci';
+import { BiLinkExternal } from 'react-icons/bi';
+import Link from 'next/link';
 
 export default function SiteHeader() {
   return (
@@ -15,7 +15,7 @@ export default function SiteHeader() {
           <div className="flex items-center space-x-1 text-sm text-gray-400">
             <CiGlobe className="h-4 w-4 text-neutral-400" />
             <Link
-              href={"https://www.applyos.in"}
+              href={'https://www.applyos.in'}
               target="_blank"
               className="flex flex-row items-center gap-1 font-semibold text-white hover:underline"
             >
@@ -29,7 +29,7 @@ export default function SiteHeader() {
   );
 }
 
-const MyIcon = ({ className = "" }: { className?: string }) => (
+const MyIcon = ({ className = '' }: { className?: string }) => (
   <svg
     width="70"
     height="70"

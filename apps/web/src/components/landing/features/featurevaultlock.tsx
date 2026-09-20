@@ -1,49 +1,49 @@
-"use client";
+'use client';
 
-import { cn } from "@/lib/utils";
-import { motion, Variants } from "motion/react";
-import React, { useState } from "react";
+import { cn } from '@/lib/utils';
+import { motion, Variants } from 'motion/react';
+import React, { useState } from 'react';
 
 const FeatureVaultLock = () => {
   const [isHovered, setIsHovered] = useState(false);
 
   const vaultVariant: Variants = {
     open: {
-      transform: "translateY(-20px)",
+      transform: 'translateY(-20px)',
       transition: {
         duration: 0.3,
-        ease: "easeInOut",
+        ease: 'easeInOut',
       },
     },
     close: {
-      transform: "translateY(0px)",
+      transform: 'translateY(0px)',
       transition: {
         duration: 0.3,
-        ease: "easeInOut",
+        ease: 'easeInOut',
       },
     },
   };
 
   const inputVariant: Variants = {
     open: {
-      transform: "translateY(-12px)",
+      transform: 'translateY(-12px)',
       transition: {
         duration: 0.3,
-        ease: "easeInOut",
+        ease: 'easeInOut',
       },
     },
     close: {
-      transform: "translateY(0px)",
+      transform: 'translateY(0px)',
       transition: {
         duration: 0.3,
-        ease: "easeInOut",
+        ease: 'easeInOut',
       },
     },
   };
 
   const shineVariant: Variants = {
     open: {
-      transform: "translateX(-50%) translateY(0%) rotate(45deg)",
+      transform: 'translateX(-50%) translateY(0%) rotate(45deg)',
       scale: 1.2,
       transition: {
         duration: 0.6,
@@ -52,7 +52,7 @@ const FeatureVaultLock = () => {
       },
     },
     close: {
-      transform: "translateX(-125%) translateY(-60%) rotate(45deg)",
+      transform: 'translateX(-125%) translateY(-60%) rotate(45deg)',
       scale: 1,
       transition: {
         duration: 0.4,
@@ -63,7 +63,7 @@ const FeatureVaultLock = () => {
 
   const lockVariant: Variants = {
     open: {
-      transform: "rotate(90deg)",
+      transform: 'rotate(90deg)',
       transition: {
         duration: 0.6,
         ease: [0.65, 0, 0.35, 1],
@@ -71,7 +71,7 @@ const FeatureVaultLock = () => {
       },
     },
     close: {
-      transform: "rotate(0deg)",
+      transform: 'rotate(0deg)',
       transition: {
         duration: 0.4,
         ease: [0.65, 0, 0.35, 1],
@@ -82,22 +82,22 @@ const FeatureVaultLock = () => {
   const codeVariant: Variants = {
     open: (index: number) => ({
       opacity: 1,
-      filter: "blur(0px)",
+      filter: 'blur(0px)',
       scale: 1,
       transition: {
         duration: 0.5,
         delay: 0.3 + index * 0.15,
-        ease: "easeInOut",
+        ease: 'easeInOut',
       },
     }),
     close: {
       opacity: 0,
-      filter: "blur(10px)",
+      filter: 'blur(10px)',
       scale: 1.02,
       transition: {
         duration: 0.2,
         delay: 0,
-        ease: "easeInOut",
+        ease: 'easeInOut',
       },
     },
   };
@@ -107,30 +107,30 @@ const FeatureVaultLock = () => {
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       initial="close"
-      animate={isHovered ? "open" : "close"}
+      animate={isHovered ? 'open' : 'close'}
       className={cn(
-        "group relative",
-        "h-[20rem] w-full",
-        "rounded-md border border-neutral-800/50 bg-neutral-950",
+        'group relative',
+        'h-[20rem] w-full',
+        'rounded-md border border-neutral-800/50 bg-neutral-950',
       )}
     >
       <motion.div
         variants={vaultVariant}
         className={cn(
-          "absolute inset-x-0 mx-auto",
-          "top-[80px] h-[8rem] w-[98%] max-w-[20rem] p-6",
-          "border-t border-neutral-700/70 bg-gradient-to-b from-neutral-800 to-neutral-950 text-white shadow-lg",
+          'absolute inset-x-0 mx-auto',
+          'top-[80px] h-[8rem] w-[98%] max-w-[20rem] p-6',
+          'border-t border-neutral-700/70 bg-gradient-to-b from-neutral-800 to-neutral-950 text-white shadow-lg',
         )}
         style={{
           clipPath:
-            "polygon(30px 0%, calc(100% - 30px) 0%, 100% 30px, 100% 100%, 0% 100%, 0% 30px)",
+            'polygon(30px 0%, calc(100% - 30px) 0%, 100% 30px, 100% 100%, 0% 100%, 0% 30px)',
         }}
       />
       <motion.div
         variants={vaultVariant}
         className={cn(
-          "absolute inset-x-0 mx-auto",
-          "top-[40px] flex h-[4.5rem] w-[4.5rem] items-center justify-center overflow-hidden rounded-full bg-neutral-950 p-1",
+          'absolute inset-x-0 mx-auto',
+          'top-[40px] flex h-[4.5rem] w-[4.5rem] items-center justify-center overflow-hidden rounded-full bg-neutral-950 p-1',
         )}
       >
         <motion.div
@@ -166,15 +166,15 @@ const FeatureVaultLock = () => {
       <motion.div
         variants={inputVariant}
         className={cn(
-          "absolute inset-x-0 mx-auto",
-          "top-[135px] flex w-full max-w-[230px] items-center justify-between lg:max-w-[240px]",
-          "rounded-md border border-neutral-900 bg-neutral-800/90 p-2",
-          "drop-shadow-[0_2px_5px_rgba(15,15,15,0.50)] transition-all duration-300",
-          "group-hover:border-cyan-500 group-hover:[box-shadow:inset_0_0_5px_#06b6d4] group-hover:[filter:drop-shadow(0_0_2px_#06b6d4)]",
+          'absolute inset-x-0 mx-auto',
+          'top-[135px] flex w-full max-w-[230px] items-center justify-between lg:max-w-[240px]',
+          'rounded-md border border-neutral-900 bg-neutral-800/90 p-2',
+          'drop-shadow-[0_2px_5px_rgba(15,15,15,0.50)] transition-all duration-300',
+          'group-hover:border-cyan-500 group-hover:[box-shadow:inset_0_0_5px_#06b6d4] group-hover:[filter:drop-shadow(0_0_2px_#06b6d4)]',
         )}
       >
         <div className="ml-2 text-xs text-cyan-500 group-hover:[filter:drop-shadow(0_0_4px_#000)]">
-          {"••••••••••".split("").map((char, index) => (
+          {'••••••••••'.split('').map((char, index) => (
             <motion.span
               key={`char-${index}`}
               className="mr-1 inline-block font-[350]"
@@ -187,9 +187,7 @@ const FeatureVaultLock = () => {
         </div>
       </motion.div>
       <div className="absolute bottom-4 left-0 w-full px-4">
-        <h3 className="text-sm font-semibold text-white">
-          Private by default
-        </h3>
+        <h3 className="text-sm font-semibold text-white">Private by default</h3>
         <p className="mt-2 text-xs text-neutral-400">
           Your resumes, sessions, and application history stay in your account.
           Nothing is sold. Nothing is shared.

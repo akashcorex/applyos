@@ -26,13 +26,17 @@ export function normalizeExternalUrl(
   if (!value) return null;
   const trimmed = value.trim();
   if (!trimmed) return null;
-  if (/^https?:\/\//i.test(trimmed) || /^mailto:/i.test(trimmed)) return trimmed;
-  if (/^[^/:?\s]+\.[^/:?\s]+(\/.*)?$/.test(trimmed)) return `https://${trimmed}`;
+  if (/^https?:\/\//i.test(trimmed) || /^mailto:/i.test(trimmed))
+    return trimmed;
+  if (/^[^/:?\s]+\.[^/:?\s]+(\/.*)?$/.test(trimmed))
+    return `https://${trimmed}`;
   return null;
 }
 
-interface SafeExternalLinkProps
-  extends Omit<AnchorHTMLAttributes<HTMLAnchorElement>, 'href'> {
+interface SafeExternalLinkProps extends Omit<
+  AnchorHTMLAttributes<HTMLAnchorElement>,
+  'href'
+> {
   href: string | null | undefined;
   children: ReactNode;
 }
@@ -48,7 +52,12 @@ export function SafeExternalLink({
   const safeHref = normalizeExternalUrl(href);
   if (!safeHref) return null;
   return (
-    <a href={safeHref} target={target} rel={rel ?? 'noopener noreferrer'} {...rest}>
+    <a
+      href={safeHref}
+      target={target}
+      rel={rel ?? 'noopener noreferrer'}
+      {...rest}
+    >
       {children}
     </a>
   );

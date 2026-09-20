@@ -23,15 +23,8 @@ interface ProfileIdentityCardProps extends ProfileIdentityValues {
  * in profile-identity-helpers.
  */
 export function ProfileIdentityCard(props: ProfileIdentityCardProps) {
-  const {
-    saving,
-    saved,
-    error,
-    onChange,
-    onSave,
-    openEditSignal,
-    ...values
-  } = props;
+  const { saving, saved, error, onChange, onSave, openEditSignal, ...values } =
+    props;
 
   const [editing, setEditing] = useState(false);
   const firstSignal = useRef(openEditSignal ?? 0);
@@ -58,5 +51,7 @@ export function ProfileIdentityCard(props: ProfileIdentityCardProps) {
     );
   }
 
-  return <ProfileIdentityRead values={values} onEdit={() => setEditing(true)} />;
+  return (
+    <ProfileIdentityRead values={values} onEdit={() => setEditing(true)} />
+  );
 }
