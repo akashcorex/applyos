@@ -9,6 +9,9 @@ class Settings(BaseSettings):
     )
     board_max_failures: int = 3
     board_cache_ttl_seconds: int = 3600
+    board_reprobe_slots: int = 2
+    board_reprobe_base_hours: int = 24
+    board_reprobe_max_hours: int = 168
     http_timeout_seconds: float = 10.0
     http_max_retries: int = 3
     workable_max_pages: int = 50

@@ -34,11 +34,33 @@ CREATE TABLE IF NOT EXISTS board_registry (
 );
 CREATE INDEX IF NOT EXISTS idx_board_registry_active
     ON board_registry(active);
+CREATE TABLE IF NOT EXISTS registry_meta (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+);
 """
 
 
 def _utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def _reprobe_due(
+    row: sqlite3.Row, moment: datetime, base_hours: float, max_hours: float
+) -> bool:
+    """Backoff grows with failure count: base * max(1, failures), capped."""
+    try:
+        failures = int(row["failure_count"])
+    except (KeyError, TypeError, ValueError):
+        failures = 0
+    wait_hours = min(base_hours * max(1, failures), max_hours)
+    try:
+        updated = datetime.fromisoformat(str(row["updated_at"]))
+    except (KeyError, TypeError, ValueError):
+        return True
+    if updated.tzinfo is None:
+        updated = updated.replace(tzinfo=timezone.utc)
+    return (moment - updated).total_seconds() >= wait_hours * 3600
 
 
 def _row_to_company(row: sqlite3.Row) -> dict[str, object]:
@@ -301,16 +323,23 @@ class BoardRegistry:
         self.init_db()
         now = _utc_now()
         with self._connect() as conn:
+            row = conn.execute(
+                "SELECT active FROM board_registry WHERE domain = ?",
+                (domain.strip().lower(),),
+            ).fetchone()
             conn.execute(
                 """
                 UPDATE board_registry
                 SET failure_count = 0,
+                    active = 1,
                     last_verified_at = ?,
                     updated_at = ?
                 WHERE domain = ?
                 """,
                 (now, now, domain.strip().lower()),
             )
+        if row is not None and not row["active"]:
+            logger.info("Reactivated board %s after successful scrape", domain)
 
     def record_board_failure(self, domain: str) -> bool:
         self.init_db()
@@ -340,6 +369,70 @@ class BoardRegistry:
                 )
                 return True
         return False
+
+    def get_rotation_cursor(self) -> int:
+        self.init_db()
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT value FROM registry_meta WHERE key = 'rotation_cursor'"
+            ).fetchone()
+        try:
+            return max(0, int(row["value"]))
+        except (TypeError, KeyError, ValueError):
+            return 0
+
+    def set_rotation_cursor(self, value: int) -> None:
+        self.init_db()
+        with self._connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO registry_meta (key, value) VALUES ('rotation_cursor', ?)
+                ON CONFLICT(key) DO UPDATE SET value = excluded.value
+                """,
+                (str(max(0, value)),),
+            )
+
+    def rotation_window(
+        self, boards: list[dict[str, object]], size: int
+    ) -> list[dict[str, object]]:
+        """Serve a round-robin window over boards ordered by company name."""
+        if not boards or size <= 0:
+            return []
+        ordered = sorted(boards, key=lambda board: str(board["name"]).lower())
+        total = len(ordered)
+        if size >= total:
+            return ordered
+        cursor = self.get_rotation_cursor() % total
+        window = [ordered[(cursor + offset) % total] for offset in range(size)]
+        self.set_rotation_cursor(cursor + size)
+        return window
+
+    def get_boards_due_for_reprobe(
+        self,
+        limit: int | None = None,
+        *,
+        now: datetime | None = None,
+        base_hours: float | None = None,
+        max_hours: float | None = None,
+    ) -> list[dict[str, object]]:
+        """Inactive boards whose backoff has expired, oldest first."""
+        self.init_db()
+        base = (
+            base_hours
+            if base_hours is not None
+            else settings.board_reprobe_base_hours
+        )
+        cap = max_hours if max_hours is not None else settings.board_reprobe_max_hours
+        moment = now or datetime.now(timezone.utc)
+        with self._connect() as conn:
+            rows = conn.execute(
+                "SELECT * FROM board_registry WHERE active = 0"
+                " ORDER BY updated_at ASC"
+            ).fetchall()
+        due = [row for row in rows if _reprobe_due(row, moment, base, cap)]
+        if limit is not None:
+            due = due[: max(0, limit)]
+        return [_row_to_company(row) for row in due]
 
 
 _registry: BoardRegistry | None = None

@@ -25,6 +25,58 @@ def test_board_registry_includes_non_greenhouse_boards() -> None:
     assert "greenhouse" in types
 
 
+def _inventory_registry(
+    tmp_path, monkeypatch: pytest.MonkeyPatch, count: int = 5
+):
+    from services import search_inventory as inventory_module
+    from services.board_registry import BoardRegistry
+
+    seed_path = tmp_path / "seed.json"
+    seed_path.write_text("[]", encoding="utf-8")
+    registry = BoardRegistry(db_path=tmp_path / "inv.db", seed_path=seed_path)
+    for index in range(count):
+        registry.upsert_board(
+            domain=f"co{index}.com",
+            company_name=f"Co{index}",
+            ats_type="greenhouse",
+            ats_slug=f"co{index}",
+            source="manual",
+        )
+    monkeypatch.setattr(
+        inventory_module, "get_board_registry", lambda: registry
+    )
+    return registry
+
+
+def test_rotation_covers_all_boards_across_searches(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from services.search_inventory import get_searchable_companies
+
+    _inventory_registry(tmp_path, monkeypatch, count=5)
+    first = {str(b["domain"]) for b in get_searchable_companies(2)}
+    second = {str(b["domain"]) for b in get_searchable_companies(2)}
+    third = {str(b["domain"]) for b in get_searchable_companies(2)}
+    assert first.isdisjoint(second)
+    assert len(first | second | third) == 5
+
+
+def test_rotation_respects_budget_including_reprobe(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import config
+
+    from services.search_inventory import get_searchable_companies
+
+    registry = _inventory_registry(tmp_path, monkeypatch, count=5)
+    monkeypatch.setattr(config.settings, "board_reprobe_slots", 2)
+    monkeypatch.setattr(config.settings, "board_reprobe_base_hours", 0)
+    registry.set_active("co0.com", False)
+    boards = get_searchable_companies(3)
+    assert len(boards) <= 3
+    assert "co0.com" in {str(b["domain"]) for b in boards}
+
+
 @pytest.mark.asyncio
 async def test_scrape_company_jobs_accepts_ashby(monkeypatch: pytest.MonkeyPatch) -> None:
     async def fake_scrape(ats_type, payload):
