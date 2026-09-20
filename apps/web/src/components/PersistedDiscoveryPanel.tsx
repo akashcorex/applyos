@@ -146,21 +146,14 @@ const JobCard = memo(function JobCard({
         </div>
 
         <div className="mt-3 flex flex-1 items-start justify-between gap-3">
-          <h3
-            className="line-clamp-3 flex-1 cursor-pointer text-[22px] font-medium leading-[1.15] tracking-tight"
+          <button
+            type="button"
             onClick={() => onOpen(job, rankPosition)}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter' || event.key === ' ') {
-                event.preventDefault();
-                onOpen(job, rankPosition);
-              }
-            }}
-            tabIndex={0}
-            role="button"
-            title={`${job.title} @ ${job.companyName}`}
+            title={`${job.title} @ ${job.companyName} — open details`}
+            className="line-clamp-3 flex-1 cursor-pointer bg-transparent p-0 text-left text-[22px] font-medium leading-[1.15] tracking-tight"
           >
             {job.title}
-          </h3>
+          </button>
           <button
             type="button"
             aria-label={isSelected ? 'Deselect job' : 'Select job'}
