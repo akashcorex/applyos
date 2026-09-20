@@ -54,6 +54,149 @@ class JobMatcher:
     ) -> tuple[MatchResponse, int]:
         """Return (match response, latency_ms)."""
         started = time.perf_counter()
+        payload, resume_skills = self._build_payload(
+            resume, max_companies, max_jobs, intent_override
+        )
+
+        data = await self._fetch_jobs(payload, (resume.preferred_role or "").strip() or "Software Engineer")
+        latency_ms = int((time.perf_counter() - started) * 1000)
+
+        if data is None:
+            empty = MatchResponse(
+                resume_id=resume_id,
+                preferred_role=resume.preferred_role,
+                skills_used=resume_skills,
+                total_matches=0,
+                jobs_scraped=0,
+                companies_scraped=0,
+                jobs=[],
+            )
+            return empty, latency_ms
+
+        companies_scraped = int(data.get("companies_scraped", 0))
+        jobs_scraped = int(data.get("jobs_scraped", 0))
+        raw_jobs = data.get("jobs", []) or []
+
+        ranked = self._score_and_filter(
+            resume,
+            resume_skills,
+            raw_jobs,
+            profile_seniority=profile_seniority,
+            profile_work_mode=profile_work_mode,
+            profile_locations=profile_locations,
+        )
+        ranked.sort(key=lambda j: j.match_score, reverse=True)
+
+        if self._behavior is not None:
+            ranked = await self._behavior.apply(user_id=resume.user_id, jobs=ranked)
+
+        skills_used = sorted(
+            {s for job in ranked for s in job.matched_skills},
+            key=str.lower,
+        )
+
+        response = MatchResponse(
+            resume_id=resume_id,
+            preferred_role=resume.preferred_role,
+            skills_used=skills_used,
+            total_matches=len(ranked),
+            jobs_scraped=jobs_scraped,
+            companies_scraped=companies_scraped,
+            jobs=ranked,
+        )
+        return response, latency_ms
+
+    async def match_stream(
+        self,
+        resume: ResumeRecord,
+        resume_id: str,
+        max_companies: int = 10,
+        max_jobs: int = 50,
+        *,
+        intent_override: str | None = None,
+        profile_seniority: str | None = None,
+        profile_work_mode: str | None = None,
+        profile_locations: list[str] | None = None,
+    ):
+        """Yield SSE frames while job-agent streams per-company batches."""
+        from services.matching.sse import parse_sse_buffer
+
+        started = time.perf_counter()
+        payload, resume_skills = self._build_payload(
+            resume, max_companies, max_jobs, intent_override
+        )
+        role = (resume.preferred_role or "").strip() or "Software Engineer"
+
+        companies_scraped = 0
+        jobs_scraped = 0
+        skills_used: set[str] = set()
+        try:
+            async with self._client.stream(
+                "POST",
+                f"{self._base_url}/search/semantic/stream",
+                json=payload,
+                timeout=httpx.Timeout(10.0, read=180.0, write=10.0, pool=10.0),
+            ) as response:
+                response.raise_for_status()
+                buffer = ""
+                async for chunk in response.aiter_text():
+                    buffer += chunk
+                    frames, buffer = parse_sse_buffer(buffer)
+                    for event, data in frames:
+                        if event != "batch":
+                            continue
+                        raw_jobs = data.get("jobs", []) or []
+                        jobs = self._score_and_filter(
+                            resume,
+                            resume_skills,
+                            raw_jobs,
+                            profile_seniority=profile_seniority,
+                            profile_work_mode=profile_work_mode,
+                            profile_locations=profile_locations,
+                        )
+                        if self._behavior is not None:
+                            jobs = await self._behavior.apply(
+                                user_id=resume.user_id, jobs=jobs
+                            )
+                        companies_scraped += 1
+                        jobs_scraped += len(jobs)
+                        skills_used.update(
+                            skill for job in jobs for skill in job.matched_skills
+                        )
+                        yield {
+                            "event": "batch",
+                            "data": {
+                                "company": data.get("company"),
+                                "board_attempt": data.get("board_attempt"),
+                                "jobs": [job.model_dump() for job in jobs],
+                            },
+                        }
+        except httpx.HTTPError as exc:
+            logger.error("job-agent /search/semantic/stream failed: %s", exc)
+            yield {"event": "error", "data": {"error": "Job search stream failed"}}
+
+        latency_ms = int((time.perf_counter() - started) * 1000)
+        yield {
+            "event": "done",
+            "data": {
+                "resume_id": resume_id,
+                "preferred_role": resume.preferred_role,
+                "skills_used": sorted(skills_used, key=str.lower),
+                "total_matches": jobs_scraped,
+                "jobs_scraped": jobs_scraped,
+                "companies_scraped": companies_scraped,
+                "latency_ms": latency_ms,
+                "role": role,
+            },
+        }
+
+    def _build_payload(
+        self,
+        resume: ResumeRecord,
+        max_companies: int,
+        max_jobs: int,
+        intent_override: str | None,
+    ) -> tuple[dict[str, Any], list[str]]:
         role = (resume.preferred_role or "").strip() or "Software Engineer"
         resume_skills = normalize_skills(resume.skills)
 
@@ -77,28 +220,20 @@ class JobMatcher:
             payload["intent_override"] = intent_override.strip()
         elif cached_embedding_valid(resume) and resume.profile_embedding:
             payload["profile_embedding"] = resume.profile_embedding
+        return payload, resume_skills
 
-        data = await self._fetch_jobs(payload, role)
-        latency_ms = int((time.perf_counter() - started) * 1000)
-
-        if data is None:
-            empty = MatchResponse(
-                resume_id=resume_id,
-                preferred_role=resume.preferred_role,
-                skills_used=resume_skills,
-                total_matches=0,
-                jobs_scraped=0,
-                companies_scraped=0,
-                jobs=[],
-            )
-            return empty, latency_ms
-
-        companies_scraped = int(data.get("companies_scraped", 0))
-        jobs_scraped = int(data.get("jobs_scraped", 0))
-        raw_jobs = data.get("jobs", []) or []
-
+    def _score_and_filter(
+        self,
+        resume: ResumeRecord,
+        resume_skills: list[str],
+        raw_jobs: list[dict[str, Any]],
+        *,
+        profile_seniority: str | None,
+        profile_work_mode: str | None,
+        profile_locations: list[str] | None,
+    ) -> list[MatchedJob]:
         ranked = [self._score_job(resume_skills, job) for job in raw_jobs]
-        ranked = [
+        return [
             job
             for job in ranked
             if seniority_allowed(
@@ -114,26 +249,6 @@ class JobMatcher:
                 profile_work_mode,
             )
         ]
-        ranked.sort(key=lambda j: j.match_score, reverse=True)
-
-        if self._behavior is not None:
-            ranked = await self._behavior.apply(user_id=resume.user_id, jobs=ranked)
-
-        skills_used = sorted(
-            {s for job in ranked for s in job.matched_skills},
-            key=str.lower,
-        )
-
-        response = MatchResponse(
-            resume_id=resume_id,
-            preferred_role=resume.preferred_role,
-            skills_used=skills_used,
-            total_matches=len(ranked),
-            jobs_scraped=jobs_scraped,
-            companies_scraped=companies_scraped,
-            jobs=ranked,
-        )
-        return response, latency_ms
 
     @staticmethod
     def _location_allowed(

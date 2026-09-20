@@ -50,6 +50,7 @@ NAMED_SUITES: dict[str, tuple[str, str]] = {
     "resume-agent-parser": ("resume-agent", "test_resume_agent_parser.py"),
     "resume-agent-extractor": ("resume-agent", "test_resume_agent_extractor.py"),
     "resume-agent-matcher": ("resume-agent", "test_resume_agent_matcher.py"),
+    "resume-agent-match-stream": ("resume-agent", "test_resume_agent_match_stream.py"),
     "resume-agent-chunker": ("resume-agent", "test_resume_agent_chunker.py"),
     "resume-agent-compile-jobs": ("resume-agent", "test_resume_agent_compile_jobs.py"),
     "ai-orchestrator-graph": ("ai-orchestrator", "test_ai_orchestrator_graph.py"),

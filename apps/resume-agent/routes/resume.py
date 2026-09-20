@@ -8,7 +8,7 @@ from typing import Any
 
 import httpx
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile, status
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 
 from config import settings
 from dependencies import AppState
@@ -17,6 +17,7 @@ from models import (
     ChatResponse,
     ImproveRequest,
     ImproveResponse,
+    MatchedJob,
     MatchResponse,
     ParseResponse,
     ResumeRecord,
@@ -540,6 +541,59 @@ async def match_resume(
     if matcher is None:
         raise HTTPException(status_code=503, detail="matcher not initialised")
 
+    record, intent_override = await _prepare_match_record(
+        state,
+        resume_id,
+        request,
+        intent=intent,
+        profile_role=profile_role,
+        profile_experience_years=profile_experience_years,
+        profile_skills=profile_skills,
+        profile_locations=profile_locations,
+    )
+
+    response, latency_ms = await matcher.match(
+        resume=record,
+        resume_id=resume_id,
+        max_companies=max_companies,
+        max_jobs=max_jobs,
+        intent_override=intent_override,
+        profile_seniority=profile_seniority,
+        profile_work_mode=profile_work_mode,
+        profile_locations=record.preferred_locations,
+    )
+    response.intent_override = intent_override
+
+    session_service: MatchSessionService | None = state.match_sessions
+    if session_service is not None:
+        try:
+            session_id = await session_service.record(
+                user_id=record.user_id,
+                resume_id=resume_id,
+                response=response,
+                query_role=(record.preferred_role or "").strip() or "Software Engineer",
+                intent_override=intent_override,
+                latency_ms=latency_ms,
+            )
+            response.session_id = session_id
+            MatchSessionService.log_ranked_results(response, intent_override)
+        except Exception as exc:
+            logger.warning("Match session recording failed (non-fatal): %s", exc)
+
+    return response
+
+
+async def _prepare_match_record(
+    state,
+    resume_id: str,
+    request: Request,
+    *,
+    intent: str | None,
+    profile_role: str | None,
+    profile_experience_years: int | None,
+    profile_skills: str | None,
+    profile_locations: str | None,
+):
     record = await require_resume_owner(state.repository, resume_id, request)
     revision = (
         await state.revision_repository.ensure_revision_for_record(
@@ -581,7 +635,6 @@ async def match_resume(
         except Exception as exc:
             logger.warning("Failed to persist match intent: %s", exc)
     elif intent is not None and intent.strip() == "":
-        # Explicit clear from client.
         try:
             await state.repository.update_last_match_intent(resume_id, None)
             record.last_match_intent = None
@@ -607,35 +660,93 @@ async def match_resume(
             except Exception as exc:
                 logger.warning("Profile embedding refresh failed: %s", exc)
 
-    response, latency_ms = await matcher.match(
-        resume=record,
-        resume_id=resume_id,
-        max_companies=max_companies,
-        max_jobs=max_jobs,
-        intent_override=intent_override,
-        profile_seniority=profile_seniority,
-        profile_work_mode=profile_work_mode,
-        profile_locations=record.preferred_locations,
+    return record, intent_override
+
+
+@router.get("/resume/{resume_id}/match/stream")
+async def match_stream_resume(
+    resume_id: str,
+    request: Request,
+    max_companies: int = 10,
+    max_jobs: int = 50,
+    intent: str | None = None,
+    profile_role: str | None = None,
+    profile_experience_years: int | None = None,
+    profile_skills: str | None = None,
+    profile_locations: str | None = None,
+    profile_seniority: str | None = None,
+    profile_work_mode: str | None = None,
+) -> StreamingResponse:
+    from services.matching.sse import format_sse
+
+    state = _state(request)
+    matcher: JobMatcher | None = state.matcher
+    if matcher is None:
+        raise HTTPException(status_code=503, detail="matcher not initialised")
+
+    record, intent_override = await _prepare_match_record(
+        state,
+        resume_id,
+        request,
+        intent=intent,
+        profile_role=profile_role,
+        profile_experience_years=profile_experience_years,
+        profile_skills=profile_skills,
+        profile_locations=profile_locations,
     )
-    response.intent_override = intent_override
 
-    session_service: MatchSessionService | None = state.match_sessions
-    if session_service is not None:
-        try:
-            session_id = await session_service.record(
-                user_id=record.user_id,
-                resume_id=resume_id,
-                response=response,
-                query_role=(record.preferred_role or "").strip() or "Software Engineer",
-                intent_override=intent_override,
-                latency_ms=latency_ms,
-            )
-            response.session_id = session_id
-            MatchSessionService.log_ranked_results(response, intent_override)
-        except Exception as exc:
-            logger.warning("Match session recording failed (non-fatal): %s", exc)
+    async def generate():
+        collected: list[MatchedJob] = []
+        companies = 0
+        async for frame in matcher.match_stream(
+            resume=record,
+            resume_id=resume_id,
+            max_companies=max_companies,
+            max_jobs=max_jobs,
+            intent_override=intent_override,
+            profile_seniority=profile_seniority,
+            profile_work_mode=profile_work_mode,
+            profile_locations=record.preferred_locations,
+        ):
+            if frame["event"] == "batch":
+                collected.extend(
+                    MatchedJob.model_validate(job)
+                    for job in frame["data"].get("jobs", [])
+                )
+                companies += 1
+            yield format_sse(frame["event"], frame["data"])
+        session_service: MatchSessionService | None = state.match_sessions
+        if session_service is not None and collected:
+            try:
+                collected.sort(key=lambda job: job.match_score, reverse=True)
+                await session_service.record(
+                    user_id=record.user_id,
+                    resume_id=resume_id,
+                    response=MatchResponse(
+                        resume_id=resume_id,
+                        preferred_role=record.preferred_role,
+                        skills_used=sorted(
+                            {s for job in collected for s in job.matched_skills},
+                            key=str.lower,
+                        ),
+                        total_matches=len(collected),
+                        jobs_scraped=len(collected),
+                        companies_scraped=companies,
+                        jobs=collected,
+                    ),
+                    query_role=(record.preferred_role or "").strip()
+                    or "Software Engineer",
+                    intent_override=intent_override,
+                    latency_ms=0,
+                )
+            except Exception as exc:
+                logger.warning("Match session recording failed (non-fatal): %s", exc)
 
-    return response
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 @router.post("/resume/{resume_id}/chat", response_model=ChatResponse)
