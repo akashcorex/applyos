@@ -22,6 +22,7 @@ export * from './enums';
 export * from './auth';
 export * from './profile';
 export * from './profile-summary';
+export * from './progression';
 export * from './resume';
 export * from './preferences';
 export * from './applications';

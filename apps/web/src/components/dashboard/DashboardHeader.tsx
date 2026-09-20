@@ -18,7 +18,6 @@ import { Button } from '@applyso/ui/button';
 import { Input } from '@applyso/ui/input';
 
 import { ThemeToggle } from '@/components/dashboard/ThemeToggle';
-import { DitherButton } from '@/components/dither-kit/button';
 
 export interface DashboardCrumb {
   label: string;
@@ -109,15 +108,12 @@ export function DashboardHeader({
         </div>
 
         {showQuickAction ? (
-          <DitherButton
-            color="blue"
-            variant="gradient"
-            bloom="aura"
+          <Button
             onClick={onQuickAction}
-            className="h-7 px-2.5 text-[11px] font-semibold text-white rounded-[6px] shadow-sm flex items-center gap-1.5 cursor-pointer tactile-btn"
+            className="h-8 px-3 text-xs font-medium rounded-md bg-primary text-primary-foreground hover:bg-primary/90 tactile-btn"
           >
             <span>Auto-Apply</span>
-          </DitherButton>
+          </Button>
         ) : null}
 
         {/* Dark / Light Mode Switcher */}

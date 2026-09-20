@@ -77,9 +77,9 @@ export function RecentActivityCard({
   items?: RecentActivityItem[];
 }) {
   return (
-    <Card className="shadow-sm p-5 h-full flex flex-col justify-between">
+    <Card className="shadow-xs p-5 h-full flex flex-col justify-between">
       <div>
-        <CardHeader className="p-0 pb-4 flex flex-row items-center justify-between border-b border-slate-100 dark:border-border/60 pb-3">
+        <CardHeader className="p-0 flex flex-row items-center justify-between border-b border-border pb-3">
           <div>
             <CardTitle className="text-sm font-semibold tracking-tight text-foreground">
               {title}
@@ -90,7 +90,7 @@ export function RecentActivityCard({
           </div>
           <Link
             href="/dashboard/applications"
-            className="inline-flex items-center gap-1 text-[11px] font-mono font-medium text-blue-600 dark:text-blue-400 hover:underline"
+            className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-foreground hover:underline"
           >
             <span>View All</span>
             <ArrowUpRight className="h-3 w-3" />
@@ -101,7 +101,7 @@ export function RecentActivityCard({
           {items.map((item) => (
             <div
               key={item.id}
-              className="flex items-center justify-between gap-3 p-2 rounded-[8px] hover:bg-slate-100/60 dark:hover:bg-accent/60 transition-colors"
+              className="flex items-center justify-between gap-3 p-2 rounded-[8px] hover:bg-muted/60 transition-colors"
             >
               <div className="flex items-center gap-3 min-w-0">
                 <DitherAvatar name={item.company} size={32} bloom="low" />
@@ -114,7 +114,7 @@ export function RecentActivityCard({
                       {item.company}
                     </span>
                     {item.tailorScore ? (
-                      <span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 font-medium">
+                      <span className="text-[10px] font-mono text-muted-foreground font-medium">
                         {item.tailorScore}% Match
                       </span>
                     ) : null}
@@ -129,7 +129,7 @@ export function RecentActivityCard({
                 >
                   {item.status}
                 </Badge>
-                <p className="text-[10px] font-mono text-slate-400 dark:text-muted-foreground/70 mt-1">
+                <p className="text-[10px] font-mono text-muted-foreground mt-1">
                   {item.time}
                 </p>
               </div>

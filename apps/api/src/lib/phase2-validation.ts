@@ -744,29 +744,40 @@ export function validateEnrichedProfileInput(
   }
 
   if (body.totalExperienceYears !== undefined) {
+    const raw = body.totalExperienceYears;
     if (
-      body.totalExperienceYears === null ||
-      (typeof body.totalExperienceYears === 'string' &&
-        body.totalExperienceYears.trim() === '')
+      raw === null ||
+      (typeof raw === 'string' && raw.trim() === '') ||
+      (typeof raw === 'number' && Number.isNaN(raw))
     ) {
       data.totalExperienceYears = null;
-    } else {
-      let years: number | null = null;
-      if (typeof body.totalExperienceYears === 'number') {
-        years = body.totalExperienceYears;
-      } else if (typeof body.totalExperienceYears === 'string') {
-        const match = body.totalExperienceYears.trim().match(/\d+/);
-        years = match ? Number.parseInt(match[0], 10) : null;
+    } else if (typeof raw === 'number') {
+      if (!Number.isFinite(raw)) {
+        return fail('Invalid totalExperienceYears');
       }
-      if (
-        years === null ||
-        !Number.isInteger(years) ||
-        years < 0 ||
-        years > 60
-      ) {
+      // Resume extraction can produce floats (e.g. 2.5) — truncate.
+      const years = Math.trunc(raw);
+      if (!Number.isInteger(years) || years < 0 || years > 60) {
         return fail('Invalid totalExperienceYears');
       }
       data.totalExperienceYears = years;
+    } else if (typeof raw === 'string') {
+      // Preserve a leading minus so "-5" fails range check instead of
+      // silently becoming 5 via /\d+/.
+      const match = raw.trim().match(/-?\d+/);
+      const years = match ? Number.parseInt(match[0], 10) : null;
+      // Unparseable input (e.g. free text like "Fresher") means unknown —
+      // store null instead of rejecting the whole profile save.
+      if (years === null) {
+        data.totalExperienceYears = null;
+      } else {
+        if (!Number.isInteger(years) || years < 0 || years > 60) {
+          return fail('Invalid totalExperienceYears');
+        }
+        data.totalExperienceYears = years;
+      }
+    } else {
+      return fail('Invalid totalExperienceYears');
     }
   }
 

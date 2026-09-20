@@ -4,7 +4,7 @@ import { Skeleton } from '@applyso/ui';
 
 export function DashboardSkeleton() {
   return (
-    <div className="space-y-6 animate-fadeIn text-[#f1f3f9]">
+    <div className="space-y-6 animate-fadeIn text-foreground">
       {/* KPI Cards Skeletons */}
       <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
         {[1, 2, 3, 4].map((i) => (

@@ -3,22 +3,26 @@
 import { useState } from 'react';
 
 import {
-  ArrowDownRight,
-  ArrowUpRight,
   CheckCircle2,
   Eye,
+  TrendingDown,
   TrendingUp,
   Zap,
   type LucideIcon,
 } from 'lucide-react';
 
 import { Badge } from '@applyso/ui/badge';
-import { Card } from '@applyso/ui/card';
+import {
+  Card,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@applyso/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@applyso/ui/tabs';
 
 import { Area } from '@/components/dither-kit/area';
 import { AreaChart } from '@/components/dither-kit/area-chart';
-import { Legend } from '@/components/dither-kit/legend';
 import type { DitherColor } from '@/components/dither-kit/palette';
 import { Tooltip } from '@/components/dither-kit/tooltip';
 import { XAxis } from '@/components/dither-kit/x-axis';
@@ -142,7 +146,7 @@ export function DashboardOverview({
             Monitor automated job discovery, application metrics, and recruiter response rates.
           </p>
         </div>
-        <TabsList className="bg-slate-100 dark:bg-card p-1 border border-border rounded-[8px] h-9">
+        <TabsList className="bg-muted p-1 border border-border rounded-[8px] h-9">
           <TabsTrigger
             value="overview"
             className="text-xs px-3.5 py-1 text-muted-foreground data-[state=active]:bg-card data-[state=active]:text-foreground rounded-[6px] font-medium"
@@ -171,44 +175,38 @@ export function DashboardOverview({
       </div>
 
       <TabsContent value="overview" className="space-y-6 mt-0">
-        {/* Top 4 Stat Cards in exact Dashboard-01 Ash theme */}
+        {/* Top 4 Stat Cards */}
         <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
           {stats.map((stat) => {
+            const TrendIcon = stat.isNegative ? TrendingDown : TrendingUp;
             return (
               <Card
                 key={stat.label}
-                className="p-5 flex flex-col justify-between"
+                className="bg-gradient-to-t from-primary/5 to-card shadow-xs"
               >
-                <div>
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs font-medium text-muted-foreground">
-                      {stat.label}
-                    </span>
-                    {stat.delta ? (
-                      <span className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-mono font-medium bg-secondary text-secondary-foreground border border-border">
-                        {stat.isNegative ? (
-                          <ArrowDownRight className="h-3 w-3 text-rose-400" />
-                        ) : (
-                          <ArrowUpRight className="h-3 w-3 text-emerald-400" />
-                        )}
-                        <span>{stat.delta}</span>
-                      </span>
-                    ) : null}
-                  </div>
-
-                  <div className="text-3xl font-bold text-foreground tracking-tight mt-2">
+                <CardHeader className="relative">
+                  <CardDescription>{stat.label}</CardDescription>
+                  <CardTitle className="text-2xl font-semibold tabular-nums">
                     {stat.value}
+                  </CardTitle>
+                  {stat.delta ? (
+                    <div className="absolute right-5 top-5">
+                      <Badge variant="outline">
+                        <TrendIcon className="size-3" />
+                        {stat.delta}
+                      </Badge>
+                    </div>
+                  ) : null}
+                </CardHeader>
+                <CardFooter className="flex-col items-start gap-1.5 text-sm">
+                  <div className="line-clamp-1 flex gap-2 font-medium">
+                    {stat.trendingText ?? 'Trending up this month'}{' '}
+                    <TrendIcon className="size-4" />
                   </div>
-                </div>
-
-                <div className="mt-4 pt-3 border-t border-border/60 space-y-0.5">
-                  <p className="text-xs font-medium text-foreground flex items-center gap-1">
-                    {stat.trendingText ?? 'Trending up this month ↗'}
-                  </p>
-                  <p className="text-[11px] text-muted-foreground">
+                  <div className="text-muted-foreground">
                     {stat.subtext ?? 'Visitors for the last 6 months'}
-                  </p>
-                </div>
+                  </div>
+                </CardFooter>
               </Card>
             );
           })}
@@ -228,29 +226,24 @@ export function DashboardOverview({
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-5 gap-3">
               <div>
                 <div className="flex items-center gap-2">
-                  <h3 className="text-base font-bold text-foreground tracking-tight">
+                  <h3 className="text-base font-semibold text-foreground tracking-tight">
                     {chartTitle}
                   </h3>
-                  <Badge
-                    variant="outline"
-                    className="border-blue-500/20 bg-blue-500/10 text-blue-600 dark:text-blue-400 text-[10px] font-mono rounded-[4px] px-2 py-0.5"
-                  >
-                    {chartBadge}
-                  </Badge>
+                  <Badge variant="outline">{chartBadge}</Badge>
                 </div>
                 <p className="text-xs text-muted-foreground font-normal mt-0.5">
                   {chartDescription}
                 </p>
               </div>
 
-              {/* Time Range Selector (Matching Dashboard-01 Screenshot) */}
-              <div className="inline-flex items-center rounded-lg border border-border bg-muted p-1 text-xs">
+              {/* Time Range Selector */}
+              <div className="inline-flex items-center rounded-lg border border-border p-0.5 text-xs">
                 <button
                   type="button"
                   onClick={() => setTimeRange('3m')}
                   className={`px-3 py-1 rounded-md font-medium transition-colors cursor-pointer ${
                     timeRange === '3m'
-                      ? 'bg-card text-foreground shadow-sm'
+                      ? 'bg-muted text-foreground'
                       : 'text-muted-foreground hover:text-foreground'
                   }`}
                 >
@@ -261,7 +254,7 @@ export function DashboardOverview({
                   onClick={() => setTimeRange('30d')}
                   className={`px-3 py-1 rounded-md font-medium transition-colors cursor-pointer ${
                     timeRange === '30d'
-                      ? 'bg-card text-foreground shadow-sm'
+                      ? 'bg-muted text-foreground'
                       : 'text-muted-foreground hover:text-foreground'
                   }`}
                 >
@@ -272,7 +265,7 @@ export function DashboardOverview({
                   onClick={() => setTimeRange('7d')}
                   className={`px-3 py-1 rounded-md font-medium transition-colors cursor-pointer ${
                     timeRange === '7d'
-                      ? 'bg-card text-foreground shadow-sm'
+                      ? 'bg-muted text-foreground'
                       : 'text-muted-foreground hover:text-foreground'
                   }`}
                 >
@@ -285,12 +278,11 @@ export function DashboardOverview({
               <AreaChart
                 data={chartData}
                 config={chartConfig}
-                bloom="aura"
+                bloom="off"
                 className="h-full w-full"
               >
                 <XAxis dataKey="day" />
                 <YAxis />
-                <Legend isClickable />
                 <Tooltip labelKey="day" />
                 {chartKeys[0] ? (
                   <Area dataKey={chartKeys[0]} variant="gradient" />

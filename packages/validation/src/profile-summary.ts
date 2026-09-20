@@ -108,7 +108,10 @@ export interface ActivityDay {
 export interface ActivityTotals {
   applications: number;
   submitted: number;
+  interviews?: number;
+  offers?: number;
   activeWorkflows: number;
+  jobsDiscovered?: number;
   events: number;
   currentStreak: number;
   longestStreak: number;
@@ -347,15 +350,33 @@ export const activityDaySchema = z.object({
   kinds: z.array(z.enum(profileActivityKinds)),
 });
 
+export const profileTimelineItemSchema = z.object({
+  at: z.string().min(1),
+  kind: z.enum(profileActivityKinds),
+  label: z.string(),
+});
+
 export const profileActivitySchema = z.object({
   timeZone: z.string().min(1),
   rangeStart: z.string().regex(DATE_KEY),
   rangeEnd: z.string().regex(DATE_KEY),
   days: z.array(activityDaySchema),
+  last30Days: z
+    .array(
+      z.object({
+        date: z.string().regex(DATE_KEY),
+        count: z.number().int().min(0),
+      }),
+    )
+    .optional(),
+  timeline: z.array(profileTimelineItemSchema).optional(),
   totals: z.object({
     applications: z.number().int().min(0),
     submitted: z.number().int().min(0),
+    interviews: z.number().int().min(0).optional(),
+    offers: z.number().int().min(0).optional(),
     activeWorkflows: z.number().int().min(0),
+    jobsDiscovered: z.number().int().min(0).optional(),
     events: z.number().int().min(0),
     currentStreak: z.number().int().min(0),
     longestStreak: z.number().int().min(0),

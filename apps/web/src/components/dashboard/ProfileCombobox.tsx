@@ -61,15 +61,22 @@ export function ProfileCombobox({
     setQuery(labelFor(options, value));
   }, [options, value]);
 
+  const currentLabel = labelFor(options, value);
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return options;
+    // If the input still shows the selected option's label, the user just
+    // opened the list (focus / chevron) without typing — show everything.
+    // Otherwise the list stays narrowed to the one selection and the
+    // dropdown looks broken.
+    if (q === currentLabel.trim().toLowerCase()) return options;
     return options.filter(
       (option) =>
         option.label.toLowerCase().includes(q) ||
         option.value.toLowerCase().includes(q),
     );
-  }, [options, query]);
+  }, [options, query, currentLabel]);
 
   const trimmedQuery = query.trim();
   const showCustomOption =
@@ -180,8 +187,9 @@ export function ProfileCombobox({
       />
       <button
         type="button"
-        tabIndex={-1}
         aria-label="Toggle suggestions"
+        aria-expanded={open}
+        onMouseDown={(e) => e.preventDefault()}
         onClick={() => setOpen((o) => !o)}
         className="absolute top-1/2 right-2 -translate-y-1/2 text-slate-400 transition-colors hover:text-muted-foreground dark:hover:text-[#f1f3f9]"
       >

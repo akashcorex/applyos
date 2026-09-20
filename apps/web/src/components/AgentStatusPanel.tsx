@@ -93,9 +93,6 @@ export function AgentStatusPanel() {
                     <p className="text-sm font-medium text-slate-900 dark:text-[#f1f3f9]">
                       {agent.name}
                     </p>
-                    <p className="text-xs text-slate-500 dark:text-[#8a8f9d] font-mono">
-                      :{agent.port}
-                    </p>
                   </div>
                 </div>
                 <Badge variant="outline" className={statusColors[agent.status]}>

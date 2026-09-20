@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { createReadStream } from 'node:fs';
 
 import { Router } from 'express';
 import multer from 'multer';
@@ -27,7 +28,7 @@ import {
   validateEnrichedProfileInput,
   validateExtractionPayload,
 } from '../lib/phase2-validation';
-import { readResumeUpload, saveResumeUpload } from '../lib/resume-storage';
+import { readResumeUpload, resolveSafeUploadPath, saveResumeUpload, sniffResumeMime, statResumeUpload } from '../lib/resume-storage';
 import { requireServiceToken } from '../lib/service-token';
 
 import type { ResumeLifecycleStatus } from '../lib/phase2-validation';
@@ -394,6 +395,17 @@ resumesRouter.post(
       res.status(400).json({ error: 'mimeType is not allowed' });
       return;
     }
+    // Never trust the client-supplied MIME alone — verify magic bytes and
+    // reject mismatches (polyglots / parser confusion downstream).
+    const sniffed = sniffResumeMime(file.buffer);
+    if (!sniffed || !ALLOWED_RESUME_MIME.has(sniffed)) {
+      res.status(415).json({ error: 'File content does not match its type' });
+      return;
+    }
+    if (sniffed !== file.mimetype) {
+      res.status(415).json({ error: 'File content does not match mimeType' });
+      return;
+    }
 
     const fileName = file.originalname.trim().slice(0, 255) || 'resume.pdf';
     const resumeFileId = randomUUID();
@@ -466,7 +478,8 @@ resumesRouter.get('/:id', async (req, res) => {
     return;
   }
   if (resume.userId !== me.id) {
-    res.status(403).json({ error: 'Forbidden' });
+    // 404 (not 403) — avoids leaking whether an ID exists to non-owners.
+    res.status(404).json({ error: 'Resume not found' });
     return;
   }
   res.status(200).json({ resume });
@@ -486,7 +499,8 @@ resumesRouter.patch('/:id', async (req, res) => {
     return;
   }
   if (resume.userId !== me.id) {
-    res.status(403).json({ error: 'Forbidden' });
+    // 404 (not 403) — avoids leaking whether an ID exists to non-owners.
+    res.status(404).json({ error: 'Resume not found' });
     return;
   }
   const body = (req.body ?? {}) as Record<string, unknown>;
@@ -558,11 +572,63 @@ resumesRouter.get('/:id/status', async (req, res) => {
     return;
   }
   if (resume.userId !== me.id) {
-    res.status(403).json({ error: 'Forbidden' });
+    // 404 (not 403) — avoids leaking whether an ID exists to non-owners.
+    res.status(404).json({ error: 'Resume not found' });
     return;
   }
   const { userId: _owner, ...status } = resume;
   res.status(200).json({ status });
+});
+
+// GET /v1/resumes/:id/file — stream OWN resume file (IDOR protected).
+resumesRouter.get('/:id/file', async (req, res) => {
+  const me = authUserOf(req);
+  const { id } = req.params;
+  if (!isValidResourceId(id)) {
+    res.status(400).json({ error: 'Invalid resume id' });
+    return;
+  }
+  const resume = await prisma.resumeFile.findUnique({ where: { id } });
+  if (!resume || resume.deletedAt || resume.status === 'ARCHIVED') {
+    res.status(404).json({ error: 'Resume not found' });
+    return;
+  }
+  if (resume.userId !== me.id) {
+    // 404 (not 403) — avoids leaking whether an ID exists to non-owners.
+    res.status(404).json({ error: 'Resume not found' });
+    return;
+  }
+  try {
+    const download = req.query.download === '1';
+    // Containment: a compromised/legacy storageKey must never read
+    // arbitrary files as the node user.
+    const safePath = resolveSafeUploadPath(resume.storageKey);
+    if (!safePath) {
+      res.status(404).json({ error: 'Resume file not found' });
+      return;
+    }
+    res.setHeader('Content-Type', resume.mimeType || 'application/pdf');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    // Prefer on-disk size (no buffering); fall back to the stored column.
+    const onDisk = await statResumeUpload(resume.storageKey);
+    const length = onDisk ?? (typeof resume.fileSize === 'number' ? resume.fileSize : null);
+    if (length !== null) res.setHeader('Content-Length', String(length));
+    const safeName = resume.fileName.replace(/["\r\n]/g, '').slice(0, 200);
+    res.setHeader(
+      'Content-Disposition',
+      `${download ? 'attachment' : 'inline'}; filename="${safeName}"`,
+    );
+    res.setHeader('Cache-Control', 'private, max-age=300');
+    res.status(200);
+    createReadStream(safePath)
+      .on('error', () => {
+        if (!res.headersSent) res.status(404).json({ error: 'Resume file not found' });
+        else res.end();
+      })
+      .pipe(res);
+  } catch {
+    res.status(404).json({ error: 'Resume file not found' });
+  }
 });
 
 // GET /v1/resumes/:id/extraction — latest extraction result (validated only).
@@ -582,7 +648,8 @@ resumesRouter.get('/:id/extraction', async (req, res) => {
     return;
   }
   if (resume.userId !== me.id) {
-    res.status(403).json({ error: 'Forbidden' });
+    // 404 (not 403) — avoids leaking whether an ID exists to non-owners.
+    res.status(404).json({ error: 'Resume not found' });
     return;
   }
   const extraction = await prisma.resumeExtraction.findFirst({
@@ -610,7 +677,8 @@ resumesRouter.post('/:id/process', async (req, res) => {
     return;
   }
   if (resume.userId !== me.id) {
-    res.status(403).json({ error: 'Forbidden' });
+    // 404 (not 403) — avoids leaking whether an ID exists to non-owners.
+    res.status(404).json({ error: 'Resume not found' });
     return;
   }
   if (!canTransitionStatus(resume.status, 'PROCESSING')) {
@@ -649,7 +717,8 @@ resumesRouter.post('/:id/retry', async (req, res) => {
     return;
   }
   if (resume.userId !== me.id) {
-    res.status(403).json({ error: 'Forbidden' });
+    // 404 (not 403) — avoids leaking whether an ID exists to non-owners.
+    res.status(404).json({ error: 'Resume not found' });
     return;
   }
   if (resume.status !== 'FAILED') {

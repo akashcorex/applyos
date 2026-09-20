@@ -2,7 +2,9 @@ import { prisma } from '@applyso/database';
 import {
   bucketActivityDays,
   computeProfileCompletion,
+  computeProgression,
   computeStreaks,
+  hasNonEmptyText,
   resolveTimeZone,
   toLocalDateKey,
   trailingHeatmapRange,
@@ -10,6 +12,7 @@ import {
   type ActivityEvent,
   type ProfileActivityKind,
   type ProfileCompletion,
+  type ProfileProgression,
 } from '@applyso/validation';
 
 const ACTIVE_WORKFLOW = new Set([
@@ -28,6 +31,7 @@ type ApplicationRow = {
   createdAt: Date;
   submittedAt: Date | null;
   status: string;
+  workflowJob: { title: string; companyName: string } | null;
 };
 
 type WorkflowRow = {
@@ -41,6 +45,8 @@ export interface ProfileLatestResume {
   fileName: string;
   status: string;
   version: number;
+  fileSize: number | null;
+  mimeType: string | null;
   processedAt: string | null;
   failedAt: string | null;
   errorCode: string | null;
@@ -48,15 +54,26 @@ export interface ProfileLatestResume {
   createdAt: string;
 }
 
+export interface ProfileTimelineItem {
+  at: string;
+  kind: ProfileActivityKind;
+  label: string;
+}
+
 export interface ProfileActivityPayload {
   timeZone: string;
   rangeStart: string;
   rangeEnd: string;
   days: ReturnType<typeof bucketActivityDays>;
+  last30Days: { date: string; count: number }[];
+  timeline: ProfileTimelineItem[];
   totals: {
     applications: number;
     submitted: number;
+    interviews: number;
+    offers: number;
     activeWorkflows: number;
+    jobsDiscovered: number;
     events: number;
     currentStreak: number;
     longestStreak: number;
@@ -65,6 +82,7 @@ export interface ProfileActivityPayload {
 
 export interface ProfileSummaryPayload {
   completion: ProfileCompletion;
+  progression: ProfileProgression;
   resume: ProfileLatestResume | null;
   activity: ProfileActivityPayload;
 }
@@ -95,7 +113,10 @@ export async function loadProfileSummary(
     latestResume,
     applicationCount,
     submittedCount,
+    interviewCount,
+    offerCount,
     activeWorkflowCount,
+    jobsDiscoveredCount,
     applications,
     workflows,
     matchSessions,
@@ -112,6 +133,10 @@ export async function loadProfileSummary(
         linkedinUrl: true,
         githubUrl: true,
         portfolioUrl: true,
+        preferredRoles: true,
+        preferredLocations: true,
+        workMode: true,
+        seniority: true,
       },
     }),
     prisma.resumeFile.count({ where: { userId, deletedAt: null } }),
@@ -123,6 +148,8 @@ export async function loadProfileSummary(
         fileName: true,
         status: true,
         version: true,
+        fileSize: true,
+        mimeType: true,
         processedAt: true,
         failedAt: true,
         errorCode: true,
@@ -140,9 +167,12 @@ export async function loadProfileSummary(
         ],
       },
     }),
+    prisma.application.count({ where: { userId, outcome: 'interview' } }),
+    prisma.application.count({ where: { userId, outcome: 'offer' } }),
     prisma.workflowRun.count({
       where: { userId, status: { in: [...ACTIVE_WORKFLOW] } },
     }),
+    prisma.workflowJob.count({ where: { userId } }),
     prisma.application.findMany({
       where: {
         userId,
@@ -151,7 +181,16 @@ export async function loadProfileSummary(
           { submittedAt: { gte: rangeStartUtc } },
         ],
       },
-      select: { createdAt: true, submittedAt: true, status: true },
+      // Bounded: timeline only renders the latest 30 items, so cap rows
+      // instead of materializing an unbounded window for power users.
+      orderBy: { createdAt: 'desc' },
+      take: 500,
+      select: {
+        createdAt: true,
+        submittedAt: true,
+        status: true,
+        workflowJob: { select: { title: true, companyName: true } },
+      },
     }) as Promise<ApplicationRow[]>,
     prisma.workflowRun.findMany({
       where: {
@@ -161,14 +200,20 @@ export async function loadProfileSummary(
           { startedAt: { gte: rangeStartUtc } },
         ],
       },
+      orderBy: { createdAt: 'desc' },
+      take: 500,
       select: { createdAt: true, startedAt: true, status: true },
     }) as Promise<WorkflowRow[]>,
     prisma.matchSession.findMany({
       where: { userId, createdAt: { gte: rangeStartUtc } },
+      orderBy: { createdAt: 'desc' },
+      take: 500,
       select: { createdAt: true },
     }),
     prisma.resumeFile.findMany({
       where: { userId, deletedAt: null, createdAt: { gte: rangeStartUtc } },
+      orderBy: { createdAt: 'desc' },
+      take: 500,
       select: { createdAt: true, processedAt: true, status: true },
     }),
   ]);
@@ -187,14 +232,26 @@ export async function loadProfileSummary(
   });
 
   const events: ActivityEvent[] = [];
+  const timeline: ProfileTimelineItem[] = [];
+  const pushTimeline = (
+    at: Date | null | undefined,
+    kind: ProfileActivityKind,
+    label: string,
+  ) => {
+    if (!at || at < rangeStartUtc) return;
+    timeline.push({ at: at.toISOString(), kind, label });
+  };
   for (const row of resumeFiles) {
     pushEvent(events, row.createdAt, 'resume', rangeStartUtc);
+    pushTimeline(row.createdAt, 'resume', 'Resume uploaded');
     if (row.status === 'COMPLETED') {
       pushEvent(events, row.processedAt, 'resume', rangeStartUtc);
+      pushTimeline(row.processedAt, 'resume', 'Resume analyzed');
     }
   }
   for (const row of matchSessions) {
     pushEvent(events, row.createdAt, 'match', rangeStartUtc);
+    pushTimeline(row.createdAt, 'match', 'Job match session');
   }
   for (const row of workflows) {
     pushEvent(
@@ -203,20 +260,56 @@ export async function loadProfileSummary(
       'workflow',
       rangeStartUtc,
     );
+    pushTimeline(row.startedAt ?? row.createdAt, 'workflow', 'Workflow started');
   }
   for (const row of applications) {
     pushEvent(events, row.createdAt, 'application', rangeStartUtc);
+    const job = row.workflowJob;
+    const target = job ? `${job.title} at ${job.companyName}` : 'a job';
+    pushTimeline(row.createdAt, 'application', `Applied to ${target}`);
     pushEvent(events, row.submittedAt, 'application', rangeStartUtc);
+    pushTimeline(row.submittedAt, 'application', `Submitted application to ${target}`);
   }
+  timeline.sort((a, b) => b.at.localeCompare(a.at));
+  timeline.splice(30);
 
   const days = bucketActivityDays(events, { rangeStart, rangeEnd, timeZone });
   const streaks = computeStreaks(days, todayKey);
+  const last30Days = days.slice(-30).map((day) => ({
+    date: day.date,
+    count: day.count,
+  }));
+
+  const progression = computeProgression({
+    hasResume: resumeCount > 0,
+    identityComplete:
+      hasNonEmptyText(profile?.fullName) &&
+      hasNonEmptyText(profile?.headline) &&
+      hasNonEmptyText(profile?.location) &&
+      hasNonEmptyText(profile?.professionalSummary),
+    preferencesComplete:
+      (profile?.preferredRoles?.length ?? 0) > 0 &&
+      (profile?.preferredLocations?.length ?? 0) > 0 &&
+      hasNonEmptyText(profile?.workMode) &&
+      hasNonEmptyText(profile?.seniority),
+    profileComplete: completion.percent === 100,
+    linkedinUrl: profile?.linkedinUrl,
+    githubUrl: profile?.githubUrl,
+    portfolioUrl: profile?.portfolioUrl,
+    applications: applicationCount,
+    interviews: interviewCount,
+    offers: offerCount,
+    longestStreak: streaks.longestStreak,
+  });
 
   return {
     completion,
+    progression,
     resume: latestResume
       ? {
           ...latestResume,
+          fileSize: latestResume.fileSize ?? null,
+          mimeType: latestResume.mimeType ?? null,
           processedAt: latestResume.processedAt?.toISOString() ?? null,
           failedAt: latestResume.failedAt?.toISOString() ?? null,
           createdAt: latestResume.createdAt.toISOString(),
@@ -227,10 +320,15 @@ export async function loadProfileSummary(
       rangeStart,
       rangeEnd,
       days,
+      last30Days,
+      timeline,
       totals: {
         applications: applicationCount,
         submitted: submittedCount,
+        interviews: interviewCount,
+        offers: offerCount,
         activeWorkflows: activeWorkflowCount,
+        jobsDiscovered: jobsDiscoveredCount,
         events: days.reduce((sum, day) => sum + day.count, 0),
         currentStreak: streaks.currentStreak,
         longestStreak: streaks.longestStreak,

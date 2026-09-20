@@ -25,7 +25,8 @@ import {
 
 import { RaisedButton, RaisedChip } from '@applyso/ui/raised-button';
 
-import { DitherAvatar } from '@/components/dither-kit/avatar';
+import { UserAvatar } from '@/components/dashboard/UserAvatar';
+import { authClient } from '@/lib/auth-client';
 import { fetchBillingMe, planLabel, type BillingMe } from '@/lib/billing';
 
 interface AppSidebarProps {
@@ -110,13 +111,17 @@ function NavLink({
   const Icon = item.icon;
   const isActive = navActive(pathname, item.href);
   return (
-    <li>
+    <li className={isCollapsed ? 'flex justify-center' : undefined}>
       <RaisedButton
         asChild
         active={isActive}
         noPress
         size="nav"
-        className={`w-full ${isCollapsed ? 'justify-center px-0' : ''}`}
+        className={
+          isCollapsed
+            ? 'mx-auto flex size-9 justify-center px-0'
+            : 'w-full h-9 gap-2 px-2.5'
+        }
       >
         <Link
           href={item.href}
@@ -124,7 +129,10 @@ function NavLink({
           title={isCollapsed ? item.label : undefined}
           aria-current={isActive ? 'page' : undefined}
         >
-          <Icon strokeWidth={1.7} />
+          <Icon
+            strokeWidth={1.7}
+            className={isCollapsed ? '!size-5' : undefined}
+          />
           {!isCollapsed && (
             <span className="min-w-0 flex-1 truncate text-left">
               {item.label}
@@ -148,7 +156,7 @@ function SectionLabel({
 }) {
   if (hidden) return null;
   return (
-    <span className="block px-3 pt-3 pb-1 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+    <span className="block px-2.5 pt-2 pb-0.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
       {children}
     </span>
   );
@@ -164,12 +172,14 @@ export function AppSidebar({
   onToggleCollapse,
 }: AppSidebarProps) {
   const pathname = usePathname();
+  const { data: session } = authClient.useSession();
   const [billing, setBilling] = useState<BillingMe | null>(null);
   const [attentionCount, setAttentionCount] = useState(0);
   const [accountOpen, setAccountOpen] = useState(false);
   const accountRef = useRef<HTMLDivElement>(null);
   const firstName = (userName ?? 'User').split(' ')[0] ?? 'User';
-  const seedName = userEmail ?? userName ?? 'User';
+  const userImage = (session?.user as { image?: string | null } | undefined)
+    ?.image;
 
   useEffect(() => {
     if (variant === 'admin') return;
@@ -205,74 +215,72 @@ export function AppSidebar({
 
   const workspaceItems: NavItem[] = isAdminNav
     ? [
-        { href: '/dashboard/admin', label: 'Overview', icon: Inbox },
-        { href: '/dashboard/admin/users', label: 'Users', icon: Users },
-        {
-          href: '/dashboard/admin/resumes',
-          label: 'Resumes',
-          icon: FileText,
-        },
-        {
-          href: '/dashboard/admin/system',
-          label: 'System',
-          icon: Activity,
-        },
-      ]
+      { href: '/dashboard/admin', label: 'Overview', icon: Inbox },
+      { href: '/dashboard/admin/users', label: 'Users', icon: Users },
+      {
+        href: '/dashboard/admin/resumes',
+        label: 'Resumes',
+        icon: FileText,
+      },
+      {
+        href: '/dashboard/admin/system',
+        label: 'System',
+        icon: Activity,
+      },
+    ]
     : [
-        { href: '/dashboard', label: 'Overview', icon: Inbox },
-        {
-          href: '/dashboard/discovery',
-          label: 'Discover Jobs',
-          icon: Search,
-        },
-        {
-          href: '/dashboard/applications',
-          label: 'Applications',
-          icon: ClipboardList,
-          badge: attentionCount,
-        },
-        {
-          href: '/dashboard/linkedin',
-          label: 'Outreach',
-          icon: Send,
-        },
-      ];
+      { href: '/dashboard', label: 'Overview', icon: Inbox },
+      {
+        href: '/dashboard/discovery',
+        label: 'Discover Jobs',
+        icon: Search,
+      },
+      {
+        href: '/dashboard/applications',
+        label: 'Applications',
+        icon: ClipboardList,
+        badge: attentionCount,
+      },
+      {
+        href: '/dashboard/linkedin',
+        label: 'Outreach',
+        icon: Send,
+      },
+    ];
 
   const workflowItems: NavItem[] = isAdminNav
     ? []
     : [
-        {
-          href: '/dashboard/workflows',
-          label: 'Job Tracker',
-          icon: Layers,
-        },
-      ];
+      {
+        href: '/dashboard/workflows',
+        label: 'Job Tracker',
+        icon: Layers,
+      },
+    ];
 
   const accountItems = isAdminNav
     ? []
     : [
-        {
-          href: '/dashboard/settings/preferences',
-          label: 'Settings',
-          icon: Settings,
-        },
-        {
-          href: 'mailto:support@applyos.in',
-          label: 'Get Help',
-          icon: HelpCircle,
-        },
-        {
-          href: '/dashboard/settings/security',
-          label: 'Security',
-          icon: Shield,
-        },
-      ];
-
+      {
+        href: '/dashboard/settings/preferences',
+        label: 'Settings',
+        icon: Settings,
+      },
+      {
+        href: 'mailto:support@applyos.in',
+        label: 'Get Help',
+        icon: HelpCircle,
+      },
+      {
+        href: '/dashboard/settings/security',
+        label: 'Security',
+        icon: Shield,
+      },
+    ];
   const accountSubtitle = isAdminNav
     ? 'Admin'
-    : `${planLabel(billing?.plan ?? 'free')} plan${
-        billing ? ` · ${billing.cycle.submitted}/${billing.cycle.limit}` : ''
-      }`;
+    : `${planLabel(billing?.plan ?? 'free')} plan${billing ? ` · ${billing.cycle.submitted}/${billing.cycle.limit}` : ''
+    }`;
 
   function closeAccount() {
     setAccountOpen(false);
@@ -281,14 +289,12 @@ export function AppSidebar({
 
   return (
     <aside
-      className={`${
-        isCollapsed ? 'w-[60px]' : 'w-60'
-      } bg-sidebar text-sidebar-foreground flex flex-col h-full shrink-0 select-none font-sans transition-all duration-200 ease-in-out border-r border-border`}
+      className={`${isCollapsed ? 'w-20' : 'w-56'
+        } bg-sidebar text-sidebar-foreground flex flex-col h-full shrink-0 select-none font-sans transition-all duration-200 ease-in-out border-r-0`}
     >
       <div
-        className={`h-[50px] px-3 flex items-center shrink-0 ${
-          isCollapsed ? 'justify-center' : 'justify-between'
-        } bg-sidebar`}
+        className={`h-24 px-2 flex items-center shrink-0 ${isCollapsed ? 'justify-center' : 'justify-between'
+          } bg-sidebar`}
       >
         {isCollapsed ? (
           <button
@@ -296,16 +302,16 @@ export function AppSidebar({
             onClick={onToggleCollapse}
             aria-label="Expand sidebar"
             title="Expand sidebar"
-            className="flex h-8 w-8 items-center justify-center rounded-[8px] bg-card border border-border p-1.5 text-card-foreground shadow-sm hover:border-muted-foreground/40 hover:scale-105 transition-all cursor-pointer group"
+            className="flex h-12 w-12 items-center justify-center rounded-[8px] bg-card border border-border p-1.5 text-card-foreground shadow-sm hover:border-muted-foreground/40 hover:scale-105 transition-all cursor-pointer group"
           >
             <Image
               src="/favicon.ico"
               alt="ApplyOS"
-              width={32}
-              height={32}
-              className="h-full w-full rounded-[4px] object-contain group-hover:hidden"
+              width={24}
+              height={24}
+              className="h-6 w-6 rounded-[4px] object-contain group-hover:hidden"
             />
-            <ExpandIcon className="w-3.5 h-3.5 text-slate-700 dark:text-slate-200 hidden group-hover:block" />
+            <ExpandIcon className="w-3.5 h-3.5 text-muted-foreground hidden group-hover:block" />
           </button>
         ) : (
           <div className="flex items-center justify-between w-full">
@@ -318,7 +324,7 @@ export function AppSidebar({
                 alt="ApplyOS"
                 width={100}
                 height={16}
-                className="h-[16px] w-auto shrink-0 object-contain invert transition-transform duration-150 group-hover:scale-[1.03] dark:invert-0 pl-2"
+                className="h-[14px] w-auto shrink-0 object-contain invert transition-transform duration-150 group-hover:scale-[1.03] dark:invert-0 pl-2"
               />
             </Link>
             {onToggleCollapse ? (
@@ -337,8 +343,11 @@ export function AppSidebar({
       </div>
 
       <nav aria-label="Primary" className="flex-1 overflow-y-auto">
-        <div className="flex flex-col gap-1 border-b border-transparent px-2.5 py-2">
-          <ul className="flex flex-col gap-1">
+        <div
+          className={`flex flex-col gap-0.5 border-b border-transparent py-1.5 ${isCollapsed ? 'px-1.5' : 'px-2'
+            }`}
+        >
+          <ul className="flex flex-col gap-0.5">
             {workspaceItems.map((item) => (
               <NavLink
                 key={item.href}
@@ -351,9 +360,12 @@ export function AppSidebar({
           </ul>
         </div>
         {workflowItems.length > 0 ? (
-          <div className="flex flex-col gap-1 border-b border-transparent px-2.5 py-2">
+          <div
+            className={`flex flex-col gap-0.5 border-b border-transparent py-1.5 ${isCollapsed ? 'px-1.5' : 'px-2'
+              }`}
+          >
             <SectionLabel hidden={isCollapsed}>Workflow</SectionLabel>
-            <ul className="flex flex-col gap-1">
+            <ul className="flex flex-col gap-0.5">
               {workflowItems.map((item) => (
                 <NavLink
                   key={item.href}
@@ -369,10 +381,10 @@ export function AppSidebar({
       </nav>
 
       <div
-        className={`${isCollapsed ? 'p-1.5' : 'px-3 py-3'} space-y-1 bg-sidebar`}
+        className={`${isCollapsed ? 'p-1.5' : 'px-2 py-2'} space-y-0.5 bg-sidebar`}
       >
         {isAdminNav ? null : (
-          <ul className="flex flex-col gap-[4px] border-b border-transparent pb-2 mb-2">
+          <ul className="flex flex-col gap-0.5 border-b border-transparent pb-1.5 mb-1.5">
             <NavLink
               item={{
                 href: '/dashboard/profile',
@@ -409,11 +421,10 @@ export function AppSidebar({
         <div ref={accountRef} className="relative">
           {accountOpen ? (
             <div
-              className={`absolute z-30 mb-2 origin-bottom overflow-hidden rounded-[10px] border border-border bg-popover shadow-sm ${
-                isCollapsed
+              className={`absolute z-30 mb-2 origin-bottom overflow-hidden rounded-[10px] border border-border bg-popover shadow-sm ${isCollapsed
                   ? 'bottom-0 left-full ml-2 w-48 origin-bottom-left'
                   : 'bottom-full left-0 right-0'
-              }`}
+                }`}
             >
               {accountItems.map((item) => {
                 const Icon = item.icon;
@@ -423,11 +434,10 @@ export function AppSidebar({
                     key={item.href}
                     href={item.href}
                     onClick={closeAccount}
-                    className={`flex items-center gap-2.5 px-3 py-2 text-xs font-medium transition-colors ${
-                      isActive
+                    className={`flex items-center gap-2.5 px-3 py-2 text-xs font-medium transition-colors ${isActive
                         ? 'bg-accent text-accent-foreground'
                         : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
-                    }`}
+                      }`}
                   >
                     <Icon className="h-3.5 w-3.5 shrink-0" />
                     {item.label}
@@ -440,11 +450,8 @@ export function AppSidebar({
                   setAccountOpen(false);
                   onSignOut();
                 }}
-                className={`flex w-full items-center gap-2.5 px-3 py-2 text-left text-xs font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground ${
-                  accountItems.length > 0
-                    ? 'border-t border-border'
-                    : ''
-                }`}
+                className={`flex w-full items-center gap-2.5 px-3 py-2 text-left text-xs font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground ${accountItems.length > 0 ? 'border-t border-border' : ''
+                  }`}
               >
                 <LogOut className="h-3.5 w-3.5 shrink-0" />
                 Sign out
@@ -460,11 +467,15 @@ export function AppSidebar({
             title={
               isCollapsed ? `${firstName} · ${accountSubtitle}` : undefined
             }
-            className={`w-full flex items-center ${
-              isCollapsed ? 'justify-center p-1.5' : 'gap-2.5 px-2.5 py-2'
-            } rounded-[9px] bg-transparent dark:bg-transparent border border-transparent dark:border-transparent hover:bg-slate-200/60 dark:hover:bg-accent/70 shadow-none transition-[background-color,color] duration-150`}
+            className={`w-full flex items-center ${isCollapsed ? 'justify-center p-1.5' : 'gap-2.5 px-2.5 py-2'
+              } rounded-[9px] bg-transparent border border-transparent hover:bg-accent shadow-none transition-[background-color,color] duration-150`}
           >
-            <DitherAvatar name={seedName} size={26} bloom="low" />
+            <UserAvatar
+              name={userName ?? 'User'}
+              email={userEmail ?? undefined}
+              image={userImage}
+              size={isCollapsed ? 24 : 26}
+            />
             {!isCollapsed && (
               <>
                 <div className="flex min-w-0 flex-1 flex-col text-left">
@@ -476,9 +487,8 @@ export function AppSidebar({
                   </span>
                 </div>
                 <ChevronDown
-                  className={`h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform ${
-                    accountOpen ? 'rotate-180' : ''
-                  }`}
+                  className={`h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform ${accountOpen ? 'rotate-180' : ''
+                    }`}
                 />
               </>
             )}

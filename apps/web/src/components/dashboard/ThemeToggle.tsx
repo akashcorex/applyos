@@ -33,7 +33,7 @@ export function ThemeToggle() {
         variant="outline"
         size="icon"
         aria-label="Toggle theme"
-        className="h-7 w-7 rounded-[6px] border-[#26282e] bg-[#18191c] text-[#8a8f9d]"
+        className="h-7 w-7 rounded-[6px]"
       >
         <Moon className="h-3.5 w-3.5" />
       </Button>
@@ -49,13 +49,13 @@ export function ThemeToggle() {
       type="button"
       aria-label={`Switch to ${isDark ? 'light' : 'dark'} mode`}
       onClick={toggleTheme}
-      className="h-7 w-7 rounded-[6px] border-[#26282e] bg-[#18191c] text-[#8a8f9d] hover:text-[#f1f3f9] hover:bg-[#222429] transition-all cursor-pointer group"
+      className="h-7 w-7 rounded-[6px] transition-all cursor-pointer group"
       title={`Switch to ${isDark ? 'light' : 'dark'} mode`}
     >
       {isDark ? (
-        <Sun className="h-3.5 w-3.5 text-amber-400/90 transition-transform group-hover:rotate-45" />
+        <Sun className="h-3.5 w-3.5 transition-transform group-hover:rotate-45" />
       ) : (
-        <Moon className="h-3.5 w-3.5 text-indigo-400 transition-transform group-hover:-rotate-12" />
+        <Moon className="h-3.5 w-3.5 transition-transform group-hover:-rotate-12" />
       )}
     </Button>
   );

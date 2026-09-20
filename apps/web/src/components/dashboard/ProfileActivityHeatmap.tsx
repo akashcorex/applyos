@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@applyso/ui/card';
 import { addDateKey, heatmapLevel } from '@applyso/validation';
 
-import type { ProfileActivityDay } from './profile-types';
+import type { ProfileActivityDay, ProfileActivityTotals } from './profile-types';
 
 const LEVEL_CLASS = [
   'bg-[#ebedf0] dark:bg-[#161b22]',
@@ -13,14 +13,7 @@ const LEVEL_CLASS = [
 
 interface ProfileActivityHeatmapProps {
   days: ProfileActivityDay[];
-  totals: {
-    applications: number;
-    submitted: number;
-    activeWorkflows: number;
-    events: number;
-    currentStreak: number;
-    longestStreak: number;
-  };
+  totals: ProfileActivityTotals;
   rangeStart: string;
   rangeEnd: string;
 }
@@ -113,9 +106,7 @@ export function ProfileActivityHeatmap({
             <p className="text-lg font-semibold">{totals.submitted}</p>
           </div>
           <div className="rounded-[8px] border border-slate-200/80 dark:border-border px-3 py-2">
-            <p className="text-muted-foreground">
-              Active workflows
-            </p>
+            <p className="text-muted-foreground">Active workflows</p>
             <p className="text-lg font-semibold">{totals.activeWorkflows}</p>
           </div>
           <div className="rounded-[8px] border border-slate-200/80 dark:border-border px-3 py-2">
@@ -210,14 +201,14 @@ export function ProfileActivityHeatmap({
                           ? 'shadow-[0_0_8px_rgba(57,211,83,0.7)]'
                           : '';
                       const label = formatDayLabel(day);
+                      // Presentational cell — the grid parent carries
+                      // role="img" + aria-label. A focusable button here
+                      // would be keyboard noise (365 tab stops).
                       return (
-                        <button
+                        <span
                           key={day.date}
-                          type="button"
-                          tabIndex={-1}
                           title={label}
-                          aria-label={label}
-                          className={`min-w-0 w-full aspect-square rounded-[2px] ${LEVEL_CLASS[level]} ${glow} focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-900 dark:focus-visible:ring-[#f1f3f9]`}
+                          className={`min-w-0 w-full aspect-square rounded-[2px] ${LEVEL_CLASS[level]} ${glow}`}
                         />
                       );
                     })}

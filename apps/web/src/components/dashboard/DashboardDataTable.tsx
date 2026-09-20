@@ -176,11 +176,11 @@ export function DashboardDataTable() {
   const isAllSelected = rows.length > 0 && selectedIds.size === rows.length;
 
   return (
-    <Card className="shadow-sm overflow-hidden">
+    <Card className="shadow-xs overflow-hidden">
       {/* Top Header & Action Bar */}
-      <CardHeader className="p-4 pb-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-200/60 dark:border-border">
-        {/* Category Pills */}
-        <div className="flex items-center gap-1.5 flex-wrap">
+      <CardHeader className="p-4 pb-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-border">
+        {/* Category Tabs */}
+        <div className="inline-flex items-center gap-0.5 rounded-lg bg-muted p-1 border border-border">
           {TABS.map((tab) => {
             const isActive = activeTab === tab.id;
             return (
@@ -188,15 +188,15 @@ export function DashboardDataTable() {
                 key={tab.id}
                 type="button"
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-all cursor-pointer ${
+                className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium transition-colors cursor-pointer ${
                   isActive
-                    ? 'bg-slate-900 text-white dark:bg-secondary dark:text-white dark:border dark:border-border shadow-sm'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200/70 dark:bg-card dark:text-muted-foreground dark:hover:bg-accent dark:hover:text-white dark:border dark:border-border'
+                    ? 'bg-card text-foreground shadow-xs'
+                    : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
                 <span>{tab.label}</span>
                 {tab.badge ? (
-                  <span className="inline-flex items-center justify-center h-4 min-w-[16px] px-1 rounded-full text-[10px] font-bold bg-slate-200 text-slate-800 dark:bg-[#3f3f46] dark:text-slate-200">
+                  <span className="inline-flex items-center justify-center size-5 rounded-full text-[10px] font-medium bg-muted-foreground/30 text-muted-foreground px-1">
                     {tab.badge}
                   </span>
                 ) : null}
@@ -212,7 +212,7 @@ export function DashboardDataTable() {
               variant="outline"
               size="sm"
               onClick={() => setColumnsMenuOpen((open) => !open)}
-              className="h-8 px-2.5 text-xs border-border bg-card text-muted-foreground hover:bg-slate-100 dark:hover:bg-accent dark:hover:text-white"
+              className="h-8 px-2.5 text-xs border-border bg-card text-muted-foreground hover:text-foreground"
             >
               <Columns className="h-3.5 w-3.5 mr-1.5" />
               <span>Customize Columns</span>
@@ -220,11 +220,11 @@ export function DashboardDataTable() {
             </Button>
 
             {columnsMenuOpen ? (
-              <div className="absolute right-0 z-20 mt-1 w-48 rounded-[8px] border border-border bg-white dark:bg-card p-2 shadow-lg text-xs space-y-1">
+              <div className="absolute right-0 z-20 mt-1 w-48 rounded-[8px] border border-border bg-popover p-2 shadow-lg text-xs space-y-1">
                 {Object.entries(visibleColumns).map(([key, isVis]) => (
                   <label
                     key={key}
-                    className="flex items-center justify-between px-2 py-1.5 rounded hover:bg-slate-100 dark:hover:bg-accent cursor-pointer"
+                    className="flex items-center justify-between px-2 py-1.5 rounded hover:bg-muted cursor-pointer"
                   >
                     <span className="capitalize">{key}</span>
                     <input
@@ -236,7 +236,7 @@ export function DashboardDataTable() {
                           [key]: !isVis,
                         }))
                       }
-                      className="rounded border-slate-300 dark:border-border"
+                      className="rounded border-border bg-transparent cursor-pointer"
                     />
                   </label>
                 ))}
@@ -245,8 +245,9 @@ export function DashboardDataTable() {
           </div>
 
           <Button
+            variant="outline"
             size="sm"
-            className="h-8 px-3 text-xs bg-slate-900 text-white dark:bg-secondary dark:hover:bg-[#3f3f46] dark:text-white rounded-[6px] dark:border dark:border-border"
+            className="h-8 px-3 text-xs rounded-[6px]"
           >
             <Plus className="h-3.5 w-3.5 mr-1" />
             <span>Add Section</span>
@@ -258,14 +259,14 @@ export function DashboardDataTable() {
       <CardContent className="p-0">
         <Table>
           <TableHeader>
-            <TableRow className="bg-slate-50/50 dark:bg-card border-b border-slate-200/80 dark:border-border">
+            <TableRow className="bg-muted border-b border-border">
               <TableHead className="w-10 text-center">
                 <input
                   type="checkbox"
                   checked={isAllSelected}
                   onChange={toggleSelectAll}
                   aria-label="Select all"
-                  className="rounded border-slate-300 dark:border-border bg-transparent cursor-pointer"
+                  className="rounded border-border bg-transparent cursor-pointer"
                 />
               </TableHead>
               <TableHead className="font-semibold text-muted-foreground">
@@ -307,18 +308,18 @@ export function DashboardDataTable() {
                   key={row.id}
                   className={`${
                     isSelected
-                      ? 'bg-slate-100/80 dark:bg-secondary'
-                      : 'hover:bg-slate-50 dark:hover:bg-accent/50'
-                  } transition-colors border-b border-slate-200/60 dark:border-border/60`}
+                      ? 'bg-muted/60'
+                      : 'hover:bg-muted/50'
+                  } transition-colors border-b border-border/60`}
                 >
                   <TableCell className="text-center py-2.5">
                     <div className="flex items-center justify-center gap-1.5">
-                      <GripVertical className="h-3.5 w-3.5 text-slate-400 dark:text-[#52525b] cursor-grab" />
+                      <GripVertical className="h-3.5 w-3.5 text-muted-foreground cursor-grab" />
                       <input
                         type="checkbox"
                         checked={isSelected}
                         onChange={() => toggleSelectRow(row.id)}
-                        className="rounded border-slate-300 dark:border-border bg-transparent cursor-pointer"
+                        className="rounded border-border bg-transparent cursor-pointer"
                       />
                     </div>
                   </TableCell>
@@ -329,7 +330,7 @@ export function DashboardDataTable() {
 
                   {visibleColumns.sectionType ? (
                     <TableCell className="py-2.5">
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-slate-100 text-slate-700 dark:bg-secondary dark:text-muted-foreground border border-border">
+                      <span className="inline-flex items-center px-1.5 rounded-[4px] border border-border text-[11px] text-muted-foreground bg-card">
                         {row.sectionType}
                       </span>
                     </TableCell>
@@ -338,13 +339,13 @@ export function DashboardDataTable() {
                   {visibleColumns.status ? (
                     <TableCell className="py-2.5">
                       {row.status === 'In Process' ? (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-slate-100 text-slate-700 dark:bg-secondary dark:text-muted-foreground border border-border">
-                          <Settings2 className="h-3 w-3 animate-spin text-slate-400 dark:text-[#71717a]" />
+                        <span className="inline-flex items-center gap-1.5 px-1.5 rounded-[4px] border border-border text-[11px] text-muted-foreground bg-card">
+                          <Settings2 className="h-3 w-3 animate-spin text-muted-foreground" />
                           <span>In Process</span>
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                          <Check className="h-3 w-3 text-emerald-500" />
+                        <span className="inline-flex items-center gap-1.5 px-1.5 rounded-[4px] border border-border text-[11px] text-muted-foreground bg-card">
+                          <Check className="h-3 w-3 fill-green-500 text-green-500 dark:fill-green-400 dark:text-green-400" />
                           <span>Done</span>
                         </span>
                       )}
@@ -366,7 +367,7 @@ export function DashboardDataTable() {
                   {visibleColumns.reviewer ? (
                     <TableCell className="py-2.5 relative">
                       {row.reviewer ? (
-                        <span className="text-xs text-slate-900 dark:text-[#e1e4ed] font-medium">
+                        <span className="text-xs text-foreground font-medium">
                           {row.reviewer}
                         </span>
                       ) : (
@@ -378,10 +379,10 @@ export function DashboardDataTable() {
                                 reviewerDropdownId === row.id ? null : row.id,
                               )
                             }
-                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[6px] text-xs font-medium border border-border bg-card text-muted-foreground hover:bg-slate-100 dark:hover:bg-accent transition-colors"
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[6px] text-xs font-medium border border-border bg-card text-muted-foreground hover:text-foreground transition-colors"
                           >
                             <span>Assign reviewer</span>
-                            <ChevronDown className="h-3 w-3 text-slate-400" />
+                            <ChevronDown className="h-3 w-3 text-muted-foreground" />
                           </button>
 
                           {reviewerDropdownId === row.id ? (
@@ -392,7 +393,7 @@ export function DashboardDataTable() {
                                     key={name}
                                     type="button"
                                     onClick={() => assignReviewer(row.id, name)}
-                                    className="w-full text-left px-2.5 py-1.5 rounded hover:bg-slate-100 dark:hover:bg-[#22242b] text-slate-900 dark:text-white"
+                                    className="w-full text-left px-2.5 py-1.5 rounded hover:bg-muted text-foreground"
                                   >
                                     {name}
                                   </button>
@@ -409,7 +410,7 @@ export function DashboardDataTable() {
                     <button
                       type="button"
                       aria-label="Row actions"
-                      className="p-1 rounded text-slate-400 dark:text-[#787d8e] hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-[#22242b]"
+                      className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted"
                     >
                       <MoreHorizontal className="h-4 w-4" />
                     </button>

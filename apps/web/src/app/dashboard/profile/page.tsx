@@ -4,44 +4,65 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { Skeleton } from '@applyso/ui/skeleton';
 
+import { AvatarUploadDialog } from '@/components/dashboard/AvatarUploadDialog';
 import type {
   ProfileRecord,
   ProfileSummary,
+  ResumeHistoryItem,
 } from '@/components/dashboard/profile-types';
+import { ProfileAchievements } from '@/components/dashboard/ProfileAchievements';
 import { ProfileActivityHeatmap } from '@/components/dashboard/ProfileActivityHeatmap';
-import { ProfileHeader } from '@/components/dashboard/ProfileHeader';
+import { ProfileActivityTimeline } from '@/components/dashboard/ProfileActivityTimeline';
+import { ProfileHero } from '@/components/dashboard/ProfileHero';
 import { ProfileIdentityCard } from '@/components/dashboard/ProfileIdentityCard';
+import { ProfileProgressCard } from '@/components/dashboard/ProfileProgressCard';
 import { ProfileResumeCard } from '@/components/dashboard/ProfileResumeCard';
+import { ProfileStatsCard } from '@/components/dashboard/ProfileStatsCard';
+import {
+  ProfileTabs,
+  type ProfileTab,
+} from '@/components/dashboard/ProfileTabs';
+import { PublicProfileModal } from '@/components/dashboard/PublicProfileModal';
 import { authClient } from '@/lib/auth-client';
 
 async function fetchProfileBundle(): Promise<{
   profile: ProfileRecord | null;
   summary: ProfileSummary;
+  history: ResumeHistoryItem[];
 }> {
   const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-  const [profileRes, summaryRes] = await Promise.all([
+  const [profileRes, summaryRes, historyRes] = await Promise.all([
     fetch('/api/profiles', { cache: 'no-store' }),
     fetch(`/api/profiles/summary?timeZone=${encodeURIComponent(timeZone)}`, {
       cache: 'no-store',
     }),
+    fetch('/api/resumes?limit=10', { cache: 'no-store' }),
   ]);
   const profileData = (await profileRes.json().catch(() => null)) as {
     profile?: ProfileRecord | null;
     error?: string;
   } | null;
   const summaryData = (await summaryRes.json().catch(() => null)) as
-    (ProfileSummary & { error?: string }) | null;
+    | (ProfileSummary & { error?: string })
+    | null;
+  const historyData = (await historyRes.json().catch(() => null)) as {
+    resumes?: ResumeHistoryItem[];
+  } | null;
   if (!profileRes.ok) {
     throw new Error(profileData?.error ?? 'Could not load profile');
   }
   if (!summaryRes.ok || !summaryData) {
     throw new Error(summaryData?.error ?? 'Could not load profile activity');
   }
-  return { profile: profileData?.profile ?? null, summary: summaryData };
+  return {
+    profile: profileData?.profile ?? null,
+    summary: summaryData,
+    history: Array.isArray(historyData?.resumes) ? historyData.resumes : [],
+  };
 }
 
 export default function ProfilePage() {
-  const { data: session } = authClient.useSession();
+  const { data: session, refetch: refetchSession } = authClient.useSession();
   const identityRef = useRef<HTMLDivElement>(null);
   const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
@@ -49,6 +70,12 @@ export default function ProfilePage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [profile, setProfile] = useState<ProfileRecord | null>(null);
   const [summary, setSummary] = useState<ProfileSummary | null>(null);
+  const [history, setHistory] = useState<ResumeHistoryItem[]>([]);
+  const [editSignal, setEditSignal] = useState(0);
+  const [showPublicProfile, setShowPublicProfile] = useState(false);
+  const [showAvatarDialog, setShowAvatarDialog] = useState(false);
+  const [avatarCacheBust, setAvatarCacheBust] = useState(0);
+  const [tab, setTab] = useState<ProfileTab>('overview');
 
   const [name, setName] = useState(session?.user?.name ?? '');
   const [headline, setHeadline] = useState('');
@@ -107,6 +134,7 @@ export default function ProfilePage() {
         if (cancelled) return;
         applyProfile(bundle.profile);
         setSummary(bundle.summary);
+        setHistory(bundle.history);
         setLoadError(null);
       } catch (error) {
         if (!cancelled) {
@@ -212,6 +240,7 @@ export default function ProfilePage() {
         .then((bundle) => {
           applyProfile(bundle.profile);
           setSummary(bundle.summary);
+          setHistory(bundle.history);
         })
         .catch(() => undefined);
     } catch {
@@ -223,124 +252,221 @@ export default function ProfilePage() {
 
   const needsReview = Boolean(profile && profile.isConfirmed === false);
   const displayName = name || session?.user?.name || 'Your profile';
+  const userImage = (session?.user as { image?: string | null } | undefined)
+    ?.image;
+
+  function scrollToIdentityAndEdit() {
+    setTab('overview');
+    // Wait a tick so the overview tab is mounted before scrolling.
+    setTimeout(() => {
+      identityRef.current?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start',
+      });
+      setEditSignal((n) => n + 1);
+    }, 50);
+  }
+
+  function scrollToResume() {
+    setTab('overview');
+    setTimeout(() => {
+      document
+        .getElementById('profile-resume')
+        ?.scrollIntoView({ behavior: 'smooth' });
+    }, 50);
+  }
+
+  function handlePrimaryEdit() {
+    if (summary?.completion.nextAction === 'upload-resume') {
+      scrollToResume();
+      return;
+    }
+    scrollToIdentityAndEdit();
+  }
 
   if (loading) {
     return (
-      <div className="w-full max-w-[1240px] mx-auto space-y-6">
-        <Skeleton className="h-28 w-full rounded-[12px]" />
-        <Skeleton className="h-64 w-full rounded-[12px]" />
-        <Skeleton className="h-80 w-full rounded-[12px]" />
+      <div className="w-full max-w-[1240px] mx-auto space-y-8">
+        <Skeleton className="h-72 w-full rounded-[14px]" />
+        <Skeleton className="h-10 w-full rounded-[8px]" />
         <Skeleton className="h-48 w-full rounded-[12px]" />
+        <Skeleton className="h-64 w-full rounded-[12px]" />
       </div>
     );
   }
 
   return (
-    <div className="w-full max-w-[1240px] mx-auto space-y-6 animate-fadeIn text-slate-900 dark:text-[#f1f3f9]">
+    <div className="w-full max-w-[1240px] mx-auto space-y-6 animate-fadeIn text-slate-900 dark:text-[#f1f3f9] pb-8">
       {loadError ? (
         <div className="rounded-[12px] border border-red-500/30 bg-red-500/10 px-4 py-3 text-xs text-red-600 dark:text-red-400">
           {loadError}
         </div>
       ) : null}
 
-      <ProfileHeader
+      <ProfileHero
         name={displayName}
         email={session?.user?.email ?? ''}
+        image={userImage}
         headline={headline}
         location={location}
-        completion={summary?.completion ?? null}
+        workMode={workMode}
+        linkedinUrl={linkedinUrl}
+        githubUrl={githubUrl}
+        portfolioUrl={portfolioUrl}
+        progression={summary?.progression ?? null}
+        completionPercent={summary?.completion.percent ?? null}
         needsReview={needsReview}
-        onEdit={() => {
-          if (summary?.completion.nextAction === 'upload-resume') {
-            document
-              .getElementById('profile-resume')
-              ?.scrollIntoView({ behavior: 'smooth' });
-            return;
-          }
-          identityRef.current?.scrollIntoView({ behavior: 'smooth' });
-        }}
-        onReview={() =>
-          document
-            .getElementById('profile-resume')
-            ?.scrollIntoView({ behavior: 'smooth' })
+        avatarCacheBust={avatarCacheBust}
+        onEdit={handlePrimaryEdit}
+        onViewPublic={() => setShowPublicProfile(true)}
+        onAvatarEdit={() => setShowAvatarDialog(true)}
+      />
+
+      <ProfileTabs
+        tab={tab}
+        onChange={setTab}
+        achievementsBadge={
+          summary?.progression
+            ? `${summary.progression.earnedAchievements}/${summary.progression.achievements.length}`
+            : undefined
         }
       />
 
-      {summary ? (
-        <ProfileActivityHeatmap
-          days={summary.activity.days}
-          totals={summary.activity.totals}
-          rangeStart={summary.activity.rangeStart}
-          rangeEnd={summary.activity.rangeEnd}
+      {tab === 'overview' ? (
+        <div className="space-y-10">
+          <div className="grid gap-4 md:grid-cols-2">
+            {summary ? (
+              <ProfileProgressCard
+                completion={summary.completion}
+                onComplete={handlePrimaryEdit}
+              />
+            ) : null}
+            {summary ? (
+              <ProfileStatsCard totals={summary.activity.totals} />
+            ) : null}
+          </div>
+
+          <ProfileResumeCard
+            resume={summary?.resume ?? null}
+            history={history}
+            needsReview={needsReview}
+            confirming={confirming}
+            onUploaded={() => {
+              setReloadKey((count) => count + 1);
+            }}
+            onConfirm={() => void handleConfirm()}
+          />
+
+          <div className="w-full" ref={identityRef}>
+            {needsReview ? (
+              <p className="text-xs text-amber-600 dark:text-amber-400 mb-4">
+                Extracted from your resume — review and confirm. Saving edits
+                keeps this unconfirmed until you confirm.
+              </p>
+            ) : null}
+            <ProfileIdentityCard
+              name={name}
+              email={session?.user?.email ?? ''}
+              headline={headline}
+              location={location}
+              phone={phone}
+              summary={summaryText}
+              linkedinUrl={linkedinUrl}
+              githubUrl={githubUrl}
+              portfolioUrl={portfolioUrl}
+              skills={skills}
+              preferredRoles={preferredRoles}
+              preferredLocations={preferredLocations}
+              workMode={workMode}
+              seniority={seniority}
+              experienceYears={experienceYears}
+              saving={saving}
+              saved={saved}
+              error={sectionError}
+              openEditSignal={editSignal}
+              onChange={(patch) => {
+                if (patch.fullName !== undefined) setName(patch.fullName);
+                if (patch.headline !== undefined) setHeadline(patch.headline);
+                if (patch.location !== undefined) setLocation(patch.location);
+                if (patch.phone !== undefined) setPhone(patch.phone);
+                if (patch.professionalSummary !== undefined) {
+                  setSummaryText(patch.professionalSummary);
+                }
+                if (patch.linkedinUrl !== undefined) {
+                  setLinkedinUrl(patch.linkedinUrl);
+                }
+                if (patch.githubUrl !== undefined) setGithubUrl(patch.githubUrl);
+                if (patch.portfolioUrl !== undefined) {
+                  setPortfolioUrl(patch.portfolioUrl);
+                }
+                if (patch.skills !== undefined) setSkills(patch.skills);
+                if (patch.preferredRoles !== undefined) {
+                  setPreferredRoles(patch.preferredRoles);
+                }
+                if (patch.preferredLocations !== undefined) {
+                  setPreferredLocations(patch.preferredLocations);
+                }
+                if (patch.workMode !== undefined) setWorkMode(patch.workMode);
+                if (patch.seniority !== undefined) setSeniority(patch.seniority);
+                if (patch.totalExperienceYears !== undefined) {
+                  setExperienceYears(patch.totalExperienceYears);
+                }
+              }}
+              onSave={() => void saveIdentity()}
+            />
+          </div>
+        </div>
+      ) : null}
+
+      {tab === 'activity' ? (
+        <div className="space-y-4">
+          {summary ? (
+            <ProfileActivityHeatmap
+              days={summary.activity.days}
+              totals={summary.activity.totals}
+              rangeStart={summary.activity.rangeStart}
+              rangeEnd={summary.activity.rangeEnd}
+            />
+          ) : null}
+          <ProfileActivityTimeline items={summary?.activity.timeline ?? []} />
+        </div>
+      ) : null}
+
+      {tab === 'achievements' ? (
+        summary?.progression ? (
+          <ProfileAchievements progression={summary.progression} />
+        ) : (
+          <p className="text-xs text-muted-foreground">
+            Achievements unavailable.
+          </p>
+        )
+      ) : null}
+
+      {showPublicProfile ? (
+        <PublicProfileModal
+          profile={profile}
+          name={displayName}
+          email={session?.user?.email ?? ''}
+          image={userImage}
+          avatarCacheBust={avatarCacheBust}
+          progression={summary?.progression ?? null}
+          onClose={() => setShowPublicProfile(false)}
         />
       ) : null}
 
-      <div className="w-full space-y-6" ref={identityRef}>
-        {needsReview ? (
-          <p className="text-xs text-amber-600 dark:text-amber-400">
-            Extracted from your resume — review and confirm. Saving edits keeps
-            this unconfirmed until you confirm.
-          </p>
-        ) : null}
-        <ProfileIdentityCard
-          name={name}
+      {showAvatarDialog ? (
+        <AvatarUploadDialog
+          name={displayName}
           email={session?.user?.email ?? ''}
-          headline={headline}
-          location={location}
-          phone={phone}
-          summary={summaryText}
-          linkedinUrl={linkedinUrl}
-          githubUrl={githubUrl}
-          portfolioUrl={portfolioUrl}
-          skills={skills}
-          preferredRoles={preferredRoles}
-          preferredLocations={preferredLocations}
-          workMode={workMode}
-          seniority={seniority}
-          experienceYears={experienceYears}
-          saving={saving}
-          saved={saved}
-          error={sectionError}
-          onChange={(patch) => {
-            if (patch.fullName !== undefined) setName(patch.fullName);
-            if (patch.headline !== undefined) setHeadline(patch.headline);
-            if (patch.location !== undefined) setLocation(patch.location);
-            if (patch.phone !== undefined) setPhone(patch.phone);
-            if (patch.professionalSummary !== undefined) {
-              setSummaryText(patch.professionalSummary);
-            }
-            if (patch.linkedinUrl !== undefined) {
-              setLinkedinUrl(patch.linkedinUrl);
-            }
-            if (patch.githubUrl !== undefined) setGithubUrl(patch.githubUrl);
-            if (patch.portfolioUrl !== undefined) {
-              setPortfolioUrl(patch.portfolioUrl);
-            }
-            if (patch.skills !== undefined) setSkills(patch.skills);
-            if (patch.preferredRoles !== undefined) {
-              setPreferredRoles(patch.preferredRoles);
-            }
-            if (patch.preferredLocations !== undefined) {
-              setPreferredLocations(patch.preferredLocations);
-            }
-            if (patch.workMode !== undefined) setWorkMode(patch.workMode);
-            if (patch.seniority !== undefined) setSeniority(patch.seniority);
-            if (patch.totalExperienceYears !== undefined) {
-              setExperienceYears(patch.totalExperienceYears);
-            }
+          image={userImage}
+          cacheBust={avatarCacheBust}
+          onClose={() => setShowAvatarDialog(false)}
+          onChanged={() => {
+            setAvatarCacheBust(Date.now());
+            void refetchSession();
           }}
-          onSave={() => void saveIdentity()}
         />
-        <ProfileResumeCard
-          resume={summary?.resume ?? null}
-          needsReview={needsReview}
-          confirming={confirming}
-          onUploaded={() => {
-            setReloadKey((count) => count + 1);
-          }}
-          onConfirm={() => void handleConfirm()}
-        />
-      </div>
+      ) : null}
     </div>
   );
 }
