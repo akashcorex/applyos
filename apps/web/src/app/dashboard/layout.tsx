@@ -145,7 +145,7 @@ export default function DashboardAppLayout({
   const currentTitle = titleFor(pathname);
 
   return (
-    <div className="flex h-screen w-full bg-[#f0f2f5] dark:bg-[#070709] text-slate-900 dark:text-[#f4f4f5] overflow-hidden font-sans antialiased transition-colors duration-150">
+    <div className="flex h-screen w-full bg-[#f0f2f5] dark:bg-[#171717] text-slate-900 dark:text-[#f4f4f5] overflow-hidden font-sans antialiased transition-colors duration-150">
       {/* Desktop Sidebar */}
       <div className="hidden md:flex h-full shrink-0">
         <AppSidebar

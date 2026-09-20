@@ -16,8 +16,6 @@ import {
   Inbox,
   Layers,
   LogOut,
-  Mail,
-  Plus,
   Search,
   Send,
   Settings,
@@ -291,7 +289,7 @@ export function AppSidebar({
     <aside
       className={`${
         isCollapsed ? 'w-[60px]' : 'w-60'
-      } bg-[#f0f2f5] dark:bg-[#171717] border-r border-slate-200/80 dark:border-[#242424] flex flex-col h-full shrink-0 select-none text-slate-900 dark:text-[#f4f4f5] font-sans transition-all duration-200 ease-in-out`}
+      } bg-[#f0f2f5] dark:bg-[#171717] flex flex-col h-full shrink-0 select-none text-slate-900 dark:text-[#f4f4f5] font-sans transition-all duration-200 ease-in-out`}
     >
       <div
         className={`h-[50px] px-3 flex items-center shrink-0 ${
@@ -343,40 +341,6 @@ export function AppSidebar({
           </div>
         )}
       </div>
-
-      {/* Quick Create Button (Matching Dashboard-01 Screenshot) */}
-      {!isAdminNav ? (
-        <div className="px-3 pt-1 pb-2 shrink-0">
-          {isCollapsed ? (
-            <div className="flex justify-center">
-              <Link
-                href="/dashboard/auto-apply"
-                title="Quick Create"
-                className="h-8.5 w-8.5 flex items-center justify-center rounded-xl bg-slate-900 text-white dark:bg-[#f4f4f5] dark:text-black font-semibold text-xs shadow-sm hover:bg-slate-800 dark:hover:bg-white transition-colors"
-              >
-                <Plus className="h-4 w-4 stroke-[2.5]" />
-              </Link>
-            </div>
-          ) : (
-            <div className="flex items-center gap-1.5">
-              <Link
-                href="/dashboard/auto-apply"
-                className="flex-1 inline-flex items-center justify-center gap-1.5 h-8.5 rounded-xl bg-slate-900 text-white dark:bg-[#f4f4f5] dark:text-black font-bold text-xs shadow-sm hover:bg-slate-800 dark:hover:bg-white transition-colors px-3 py-1.5"
-              >
-                <Plus className="h-3.5 w-3.5 stroke-[2.5]" />
-                <span>Quick Create</span>
-              </Link>
-              <button
-                type="button"
-                aria-label="Quick Messages"
-                className="h-8.5 w-8.5 shrink-0 rounded-xl border border-slate-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-slate-600 dark:text-[#a1a1aa] hover:text-slate-900 dark:hover:text-white flex items-center justify-center transition-colors cursor-pointer"
-              >
-                <Mail className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          )}
-        </div>
-      ) : null}
 
       <nav aria-label="Primary" className="flex-1 overflow-y-auto">
         <div className="flex flex-col gap-1 border-b border-slate-200/60 dark:border-[#242424] px-2.5 py-2">
