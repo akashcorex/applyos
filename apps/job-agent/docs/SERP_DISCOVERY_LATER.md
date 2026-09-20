@@ -7,7 +7,7 @@ packs) ships without it.
 ## Why it matters
 
 All current discovery only scrapes boards already in the registry (31
-companies). YC/funding lists add known startups. Nothing finds *unknown*
+companies). YC/funding lists add known startups. Nothing finds _unknown_
 companies hiring for the target role. career-ops solves this with
 `site:`-scoped web-search queries per portal (e.g.
 `site:boards.greenhouse.io "AI Engineer"`, `site:jobs.ashbyhq.com
@@ -20,7 +20,7 @@ companies hiring for the target role. career-ops solves this with
   Search API, Serper. Both are paid per-query; evaluate pricing then.
 - Queries derived from the target profile: 2-3 portal scopes × top
   role titles. Hard per-run query budget (e.g. 20) + dedupe candidate
-  domains against the registry *before* any probing.
+  domains against the registry _before_ any probing.
 - Candidates feed the existing pipeline unchanged: detect ATS →
   verify live jobs → upsert-or-park via `POST /registry/grow`
   (add `source: "serp"` next to `yc`/`detect`).
