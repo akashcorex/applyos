@@ -123,6 +123,14 @@ export function ResumeAutoApplyCard({
     return variant?.status === 'ready' && Boolean(variant.artifact_id);
   });
   const selectedNeedsReview = selectedJobs.length - readySelectedJobs.length;
+  const selectedMissingUrl = selectedJobs.filter(
+    (job) => !job.application_url,
+  ).length;
+  const selectedBelowScore = selectedJobs.filter((job) => {
+    const normalized =
+      job.match_score <= 1 ? job.match_score * 100 : job.match_score;
+    return normalized < minScore;
+  }).length;
 
   useEffect(() => {
     if (!session?.user?.id || resume) return;
@@ -730,6 +738,21 @@ export function ResumeAutoApplyCard({
                 </p>
               </div>
             </div>
+            {selectedMissingUrl > 0 ? (
+              <p className="text-xs text-amber-600">
+                {selectedMissingUrl} selected role
+                {selectedMissingUrl === 1 ? '' : 's'} has no application link
+                and will be skipped.
+              </p>
+            ) : null}
+            {selectedBelowScore > 0 ? (
+              <p className="text-xs text-amber-600">
+                {selectedBelowScore} selected role
+                {selectedBelowScore === 1 ? '' : 's'} is below the {minScore}%
+                minimum score and will be skipped. Lower it in Settings to
+                queue them anyway.
+              </p>
+            ) : null}
             <Button
               className="w-full"
               disabled={applying || selectedJobs.length === 0}
