@@ -75,7 +75,7 @@ async def _scrape_with_attempt(
 
 @router.post("", response_model=SearchResponse)
 async def search_jobs(payload: SearchRequest) -> SearchResponse:
-    companies = get_searchable_companies(payload.max_companies)
+    companies = get_searchable_companies(payload.max_companies, pack=payload.pack)
 
     tasks = [
         _scrape_with_attempt(company, payload.max_jobs_per_company)

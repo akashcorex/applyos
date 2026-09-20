@@ -77,6 +77,31 @@ def test_rotation_respects_budget_including_reprobe(
     assert "co0.com" in {str(b["domain"]) for b in boards}
 
 
+def test_pack_constrains_window_to_tagged_boards(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import config
+    import sqlite3
+
+    from services.search_inventory import get_searchable_companies
+
+    _inventory_registry(tmp_path, monkeypatch, count=4)
+    monkeypatch.setattr(config.settings, "board_reprobe_slots", 0)
+    with sqlite3.connect(tmp_path / "inv.db") as conn:
+        conn.execute(
+            "UPDATE board_registry SET tags = ? WHERE domain = ?",
+            ('["fintech"]', "co0.com"),
+        )
+        conn.execute(
+            "UPDATE board_registry SET tags = ? WHERE domain = ?",
+            ('["fintech"]', "co1.com"),
+        )
+    boards = get_searchable_companies(10, pack="fintech")
+    assert {str(b["domain"]) for b in boards} == {"co0.com", "co1.com"}
+    assert get_searchable_companies(10, pack="eu") == []
+    assert len(get_searchable_companies(10)) == 4
+
+
 @pytest.mark.asyncio
 async def test_scrape_company_jobs_accepts_ashby(monkeypatch: pytest.MonkeyPatch) -> None:
     async def fake_scrape(ats_type, payload):

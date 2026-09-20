@@ -259,6 +259,7 @@ class SearchRequest(BaseModel):
     max_companies: int = Field(default=20, ge=1, le=100)
     max_jobs_per_company: int = Field(default=50, ge=1, le=200)
     experience_years: int = Field(default=0, ge=0)
+    pack: str | None = Field(default=None, max_length=32)
 
 
 class SearchResult(BaseModel):
@@ -319,6 +320,7 @@ class SemanticSearchRequest(BaseModel):
     profile_seniority: str | None = None
     profile_work_mode: str | None = None
     profile_locations: list[str] = Field(default_factory=list)
+    pack: str | None = Field(default=None, max_length=32)
 
 
 class SemanticMatchResult(SearchResult):
