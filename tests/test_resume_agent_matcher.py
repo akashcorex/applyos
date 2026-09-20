@@ -318,3 +318,26 @@ def test_combine_job_score_weights_and_breakdown() -> None:
     assert score == 45.0
     score, _ = combine_job_score(0.0, 0.0, 0.0, 0.0)
     assert score == 0.0
+
+
+@pytest.mark.asyncio
+async def test_match_passes_posted_at_through() -> None:
+    client = _FakeClient(
+        {
+            "companies_scraped": 1,
+            "jobs": [
+                {
+                    "title": "Engineer",
+                    "company_name": "Acme",
+                    "dedup_key": "acme::1",
+                    "semantic_score": 0.8,
+                    "posted_at": "2026-09-18T00:00:00+00:00",
+                }
+            ],
+        }
+    )
+    matcher = JobMatcher(client)
+    response, _ = await matcher.match(
+        resume=_resume(["Python"]), resume_id="r-posted"
+    )
+    assert response.jobs[0].posted_at == "2026-09-18T00:00:00+00:00"

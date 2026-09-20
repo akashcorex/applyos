@@ -77,3 +77,41 @@ export function mergeJobChunks<T extends MergeableJob>(
   );
   return { jobs, freshKeys };
 }
+
+export const NEW_JOB_DAYS = 7;
+
+export function jobAgeDays(
+  iso: string | null | undefined,
+  now: number = Date.now(),
+): number | null {
+  if (!iso) return null;
+  const timestamp = new Date(iso).getTime();
+  if (Number.isNaN(timestamp)) return null;
+  return Math.max(0, Math.floor((now - timestamp) / (24 * 3600 * 1000)));
+}
+
+export function isNewJob(
+  iso: string | null | undefined,
+  now: number = Date.now(),
+): boolean {
+  const age = jobAgeDays(iso, now);
+  return age !== null && age <= NEW_JOB_DAYS;
+}
+
+export type JobSortMode = 'best' | 'newest';
+
+export function sortMatchedJobs<
+  T extends MergeableJob & { posted_at?: string | null },
+>(jobs: T[], mode: JobSortMode): T[] {
+  if (mode !== 'newest') return jobs;
+  return [...jobs].sort((a, b) => {
+    const aTime = a.posted_at ? new Date(a.posted_at).getTime() : NaN;
+    const bTime = b.posted_at ? new Date(b.posted_at).getTime() : NaN;
+    if (Number.isNaN(aTime) && Number.isNaN(bTime)) {
+      return normalizeScore(b.match_score) - normalizeScore(a.match_score);
+    }
+    if (Number.isNaN(aTime)) return 1;
+    if (Number.isNaN(bTime)) return -1;
+    return bTime - aTime || normalizeScore(b.match_score) - normalizeScore(a.match_score);
+  });
+}

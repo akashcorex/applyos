@@ -373,6 +373,7 @@ class JobMatcher:
             ats_type=job.get("ats_type"),
             ats_slug=job.get("ats_slug"),
             description=job.get("description"),
+            posted_at=job.get("posted_at"),
             match_score=final_score,
             base_score=final_score,
             behavior_boost=0.0,

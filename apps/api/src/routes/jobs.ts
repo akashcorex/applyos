@@ -143,6 +143,12 @@ function savedJobResponse(
   },
   isSaved: boolean,
 ) {
+  const ageDays = Math.max(
+    0,
+    Math.floor(
+      (Date.now() - new Date(job.firstSeenAt).getTime()) / (24 * 3600 * 1000),
+    ),
+  );
   return {
     id: job.id,
     dedupKey: job.dedupKey,
@@ -160,6 +166,8 @@ function savedJobResponse(
     postedAt: job.postedAt,
     firstSeenAt: job.firstSeenAt,
     lastSeenAt: job.lastSeenAt,
+    ageDays,
+    isNew: ageDays <= 7,
     isActive: job.isActive,
     isSaved,
   };

@@ -26,9 +26,12 @@ import {
 import { authClient } from '@/lib/auth-client';
 import {
   MATCH_CHUNKS,
+  isNewJob,
   mergeJobChunks,
   normalizeScore,
   parseSseBuffer,
+  sortMatchedJobs,
+  type JobSortMode,
 } from '@/lib/match-merge';
 
 interface ParsedResume {
@@ -51,6 +54,7 @@ interface MatchedJob extends TailorJobContext {
   ats_slug?: string | null;
   match_score: number;
   reason?: string | null;
+  posted_at?: string | null;
 }
 
 interface MatchResponse {
@@ -175,6 +179,7 @@ export function ResumeAutoApplyCard({
     bestScore: number;
   } | null>(null);
   const [scoreFloor, setScoreFloor] = useState(0);
+  const [sortMode, setSortMode] = useState<JobSortMode>('best');
   const [freshKeys, setFreshKeys] = useState<Set<string>>(new Set());
   const matchAbortRef = useRef<AbortController | null>(null);
 
@@ -744,7 +749,7 @@ export function ResumeAutoApplyCard({
               </p>
             ) : null}
             {jobs.length > 0 ? (
-              <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-[#8a8f9d]">
+              <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-[#8a8f9d]">
                 <label htmlFor="score-floor">Hide below</label>
                 <input
                   id="score-floor"
@@ -760,6 +765,23 @@ export function ResumeAutoApplyCard({
                   className="w-16 rounded-[6px] border border-slate-300 dark:border-[#282a32] bg-white dark:bg-[#16171b] px-1.5 py-0.5 text-xs"
                 />
                 <span>% match</span>
+                <span className="inline-flex overflow-hidden rounded-[6px] border border-slate-300 dark:border-[#282a32]">
+                  {(['best', 'newest'] as JobSortMode[]).map((mode) => (
+                    <button
+                      key={mode}
+                      type="button"
+                      onClick={() => setSortMode(mode)}
+                      aria-pressed={sortMode === mode}
+                      className={`px-2 py-0.5 capitalize ${
+                        sortMode === mode
+                          ? 'bg-slate-900 text-white dark:bg-[#f1f3f9] dark:text-[#16171b]'
+                          : ''
+                      }`}
+                    >
+                      {mode}
+                    </button>
+                  ))}
+                </span>
                 {scoreFloor > 0 ? (
                   <span>
                     · showing{' '}
@@ -776,11 +798,13 @@ export function ResumeAutoApplyCard({
 
             {jobs.length > 0 ? (
               <div className="max-h-[28rem] space-y-2 overflow-y-auto pr-1">
-                {(scoreFloor > 0
-                  ? jobs.filter(
-                      (job) => normalizeScore(job.match_score) >= scoreFloor,
-                    )
-                  : jobs
+                {sortMatchedJobs(
+                  scoreFloor > 0
+                    ? jobs.filter(
+                        (job) => normalizeScore(job.match_score) >= scoreFloor,
+                      )
+                    : jobs,
+                  sortMode,
                 ).map((job) => {
                   const variant = variantsByJob[job.dedup_key];
                   const canApply = Boolean(job.application_url);
@@ -819,6 +843,14 @@ export function ResumeAutoApplyCard({
                                 variant?.match_score ?? job.match_score,
                               )}
                             </Badge>
+                            {isNewJob(job.posted_at) ? (
+                              <Badge
+                                variant="outline"
+                                className="text-xs bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/20"
+                              >
+                                new
+                              </Badge>
+                            ) : null}
                             {isReady ? (
                               <Badge
                                 variant="outline"

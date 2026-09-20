@@ -2,9 +2,12 @@ import { describe, expect, it } from 'bun:test';
 
 import {
   MATCH_CHUNKS,
+  isNewJob,
+  jobAgeDays,
   mergeJobChunks,
   normalizeScore,
   parseSseBuffer,
+  sortMatchedJobs,
 } from '../apps/web/src/lib/match-merge';
 
 describe('normalizeScore', () => {
@@ -75,5 +78,41 @@ describe('parseSseBuffer', () => {
   it('drops malformed payloads', () => {
     const { frames } = parseSseBuffer('event: batch\ndata: nope\n\n');
     expect(frames).toEqual([]);
+  });
+});
+
+describe('jobAgeDays / isNewJob', () => {
+  const now = new Date('2026-09-20T00:00:00Z').getTime();
+
+  it('computes whole-day ages and flags new jobs', () => {
+    expect(jobAgeDays('2026-09-18T00:00:00Z', now)).toBe(2);
+    expect(isNewJob('2026-09-18T00:00:00Z', now)).toBe(true);
+    expect(isNewJob('2026-09-01T00:00:00Z', now)).toBe(false);
+  });
+
+  it('treats missing or invalid dates as unknown, never new', () => {
+    expect(jobAgeDays(null, now)).toBe(null);
+    expect(jobAgeDays('nope', now)).toBe(null);
+    expect(isNewJob(null, now)).toBe(false);
+  });
+});
+
+describe('sortMatchedJobs', () => {
+  const jobs = [
+    { dedup_key: 'old-high', match_score: 90, posted_at: '2026-01-01T00:00:00Z' },
+    { dedup_key: 'new-low', match_score: 30, posted_at: '2026-09-19T00:00:00Z' },
+    { dedup_key: 'undated', match_score: 99, posted_at: null },
+  ];
+
+  it('keeps best order by default', () => {
+    expect(
+      sortMatchedJobs(jobs, 'best').map((job) => job.dedup_key),
+    ).toEqual(jobs.map((job) => job.dedup_key));
+  });
+
+  it('sorts newest first with undated last', () => {
+    expect(
+      sortMatchedJobs(jobs, 'newest').map((job) => job.dedup_key),
+    ).toEqual(['new-low', 'old-high', 'undated']);
   });
 });
