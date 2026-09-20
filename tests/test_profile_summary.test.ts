@@ -30,6 +30,9 @@ const workflowRun = {
   count: mock(async () => 0),
   findMany: mock(async () => [] as unknown[]),
 };
+const workflowJob = {
+  count: mock(async () => 0),
+};
 const matchSession = {
   findMany: mock(async () => [] as unknown[]),
 };
@@ -39,6 +42,7 @@ const prismaMock = {
   resumeFile,
   application,
   workflowRun,
+  workflowJob,
   matchSession,
   analyticsEvent: { create: mock(async () => ({})) },
 };
@@ -80,6 +84,7 @@ beforeEach(() => {
   application.findMany.mockReset();
   workflowRun.count.mockReset();
   workflowRun.findMany.mockReset();
+  workflowJob.count.mockReset();
   matchSession.findMany.mockReset();
   profile.findUnique.mockImplementation(async () => null);
   resumeFile.count.mockImplementation(async () => 0);
@@ -89,6 +94,7 @@ beforeEach(() => {
   application.findMany.mockImplementation(async () => []);
   workflowRun.count.mockImplementation(async () => 0);
   workflowRun.findMany.mockImplementation(async () => []);
+  workflowJob.count.mockImplementation(async () => 0);
   matchSession.findMany.mockImplementation(async () => []);
 });
 

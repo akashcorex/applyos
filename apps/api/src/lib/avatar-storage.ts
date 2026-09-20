@@ -77,7 +77,7 @@ export async function saveAvatar(args: {
     await writeFile(tmpPath, args.bytes);
     await rename(tmpPath, finalPath);
   } catch (error) {
-    await rm(tmpPath, { force: true }).catch(() => {});
+    await rm(tmpPath, { force: true }).catch(() => undefined);
     throw error;
   }
   try {

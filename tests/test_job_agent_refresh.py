@@ -80,6 +80,7 @@ async def test_refresh_status_route(
             return {"refresh_last_at": "123"} .get(key)
 
     monkeypatch.setattr(registry_route, "get_board_registry", lambda: _FakeRegistry())
+    monkeypatch.setattr("config.settings.refresh_enabled", False)
     body = await registry_route.refresh_status()
     assert body["last_at"] == "123"
     assert body["enabled"] is False
