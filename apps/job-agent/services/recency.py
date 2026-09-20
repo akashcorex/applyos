@@ -71,3 +71,29 @@ def recency_score(
     if age is None or max_age_days <= 0:
         return 0.5
     return round(max(0.0, 1.0 - age / max_age_days), 4)
+
+
+def trust_flags(
+    description: str | None,
+    first_seen_at: str | None,
+    evergreen_days: int,
+    *,
+    now: datetime | None = None,
+) -> list[str]:
+    """Warn-only signals: evergreen reposts and description-less postings."""
+    flags: list[str] = []
+    if not (description or "").strip():
+        flags.append("no_description")
+    if first_seen_at and evergreen_days > 0:
+        try:
+            first = datetime.fromisoformat(first_seen_at.strip())
+        except (ValueError, AttributeError):
+            first = None
+        if first is not None:
+            if first.tzinfo is None:
+                first = first.replace(tzinfo=timezone.utc)
+            moment = now or datetime.now(timezone.utc)
+            age = (moment - first).total_seconds() / _SECONDS_PER_DAY
+            if age > evergreen_days:
+                flags.append("evergreen")
+    return flags

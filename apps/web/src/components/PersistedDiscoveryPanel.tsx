@@ -39,6 +39,7 @@ interface Job {
   firstSeenAt: string;
   lastSeenAt: string;
   isNew?: boolean;
+  flags?: string[];
   score?: number;
   reason?: string;
   isSaved: boolean;
@@ -194,6 +195,11 @@ const JobCard = memo(function JobCard({
         {!job.applicationUrl ? (
           <p className="mt-1 text-[11px] font-medium text-amber-600">
             No application link — cannot queue this role.
+          </p>
+        ) : null}
+        {job.flags?.includes('evergreen') ? (
+          <p className="mt-1 text-[11px] text-amber-600">
+            Listed for a while — may already be filled.
           </p>
         ) : null}
 

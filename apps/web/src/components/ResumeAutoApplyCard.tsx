@@ -55,6 +55,7 @@ interface MatchedJob extends TailorJobContext {
   match_score: number;
   reason?: string | null;
   posted_at?: string | null;
+  flags?: string[] | null;
 }
 
 interface MatchResponse {
@@ -881,6 +882,11 @@ export function ResumeAutoApplyCard({
                               .filter(Boolean)
                               .join(' · ')}
                           </p>
+                          {job.flags?.includes('evergreen') ? (
+                            <p className="text-[11px] text-amber-600">
+                              Listed for a while — may already be filled.
+                            </p>
+                          ) : null}
                         </label>
                         {job.application_url ? (
                           <a

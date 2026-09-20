@@ -395,6 +395,7 @@ class JobMatcher:
             salary_min=job.get("salary_min"),
             salary_max=job.get("salary_max"),
             salary_currency=job.get("salary_currency"),
+            flags=job.get("flags"),
             match_score=final_score,
             base_score=final_score,
             behavior_boost=0.0,

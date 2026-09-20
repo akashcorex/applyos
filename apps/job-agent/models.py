@@ -277,6 +277,7 @@ class SearchResult(BaseModel):
     salary_min: int | None = None
     salary_max: int | None = None
     salary_currency: str | None = None
+    flags: list[str] = Field(default_factory=list)
 
 
 class BoardAttempt(BaseModel):

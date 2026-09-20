@@ -12,7 +12,7 @@ from services.board_registry import get_board_registry
 from services.ingest import PARSERS, scrape_jobs
 from services.job_snapshots import record_job_seen
 from services.page_scrape import scrape_career_page
-from services.recency import filter_stale_jobs, sort_newest_first
+from services.recency import filter_stale_jobs, sort_newest_first, trust_flags
 
 logger = logging.getLogger(__name__)
 
@@ -66,12 +66,16 @@ def _finalize_jobs(
     *,
     via_fallback: bool,
 ) -> CompanyScrapeResult:
-    """Stamp first-seen, drop known-stale, keep newest up to max_jobs."""
+    """Stamp first-seen, flag trust signals, drop known-stale, keep newest."""
     for job in jobs:
         try:
-            record_job_seen(job.dedup_key, job.posted_at)
+            first_seen = record_job_seen(job.dedup_key, job.posted_at)
         except Exception as exc:
             logger.warning("first_seen stamp failed for %s: %s", job.dedup_key, exc)
+            first_seen = None
+        job.flags = trust_flags(
+            job.description, first_seen, settings.trust_evergreen_days
+        )
     fresh, dropped = filter_stale_jobs(jobs, settings.job_max_age_days)
     if dropped:
         logger.info("Dropped %d stale jobs past %d days", dropped, settings.job_max_age_days)

@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     board_reprobe_base_hours: int = 24
     board_reprobe_max_hours: int = 168
     job_max_age_days: int = 120
+    trust_evergreen_days: int = 90
     refresh_enabled: bool = False
     refresh_interval_seconds: int = 600
     refresh_batch_boards: int = 8
