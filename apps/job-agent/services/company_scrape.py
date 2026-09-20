@@ -68,8 +68,12 @@ async def scrape_company_jobs(
     except Exception as exc:
         logger.warning("Failed to scrape %s (%s): %s", company_name, ats_type, exc)
         if domain:
-            registry.record_board_failure(domain)
-        return []
+            deactivated = registry.record_board_failure(domain)
+            if deactivated:
+                logger.error(
+                    "Deactivated board %s after repeated failures", domain
+                )
+        raise
 
     results = [
         canonical_to_search_result(
@@ -82,5 +86,6 @@ async def scrape_company_jobs(
     ]
     if domain:
         registry.record_board_success(domain)
-        set_cached_jobs(domain, results)
+        if results:
+            set_cached_jobs(domain, results)
     return results

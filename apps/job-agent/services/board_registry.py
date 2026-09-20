@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import json
+import logging
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Literal
 
 from config import settings
+
+logger = logging.getLogger(__name__)
 
 BoardSource = Literal["pilot", "yc", "detect", "manual"]
 
@@ -69,6 +72,96 @@ class BoardRegistry:
             count = conn.execute("SELECT COUNT(*) FROM board_registry").fetchone()[0]
             if count == 0:
                 self._seed_from_json(conn)
+            else:
+                self._sync_seed(conn)
+
+    def _sync_seed(self, conn: sqlite3.Connection) -> None:
+        """Apply seed corrections to seed-sourced rows only.
+
+        Seed entries (source pilot/yc) are the source of truth for ATS
+        mapping; manual/detect rows are never touched. A changed ATS mapping
+        resets failure counters and reactivates the board for re-verification.
+        """
+        if not self.seed_path.exists():
+            return
+        payload = json.loads(self.seed_path.read_text(encoding="utf-8"))
+        if not isinstance(payload, list):
+            return
+        for entry in payload:
+            if not isinstance(entry, dict):
+                continue
+            domain = str(entry.get("domain", "")).strip().lower()
+            if not domain or str(entry.get("source", "manual")) not in (
+                "pilot",
+                "yc",
+            ):
+                continue
+            row = conn.execute(
+                "SELECT ats_type, ats_slug, career_url, source, active"
+                " FROM board_registry WHERE domain = ?",
+                (domain,),
+            ).fetchone()
+            if row is None or row["source"] not in ("pilot", "yc"):
+                continue
+            ats_type = str(entry["ats_type"])
+            ats_slug = str(entry["ats_slug"])
+            seed_active = bool(entry.get("active", True))
+            seed_career_url = entry.get("career_url")
+            mapping_changed = (
+                row["ats_type"] != ats_type or row["ats_slug"] != ats_slug
+            )
+            needs_career_url = bool(seed_career_url) and row["career_url"] is None
+            needs_deactivation = bool(row["active"]) and not seed_active
+            if not mapping_changed and not needs_career_url and not needs_deactivation:
+                continue
+            if mapping_changed:
+                conn.execute(
+                    """
+                    UPDATE board_registry
+                    SET ats_type = ?, ats_slug = ?,
+                        career_url = COALESCE(?, career_url),
+                        company_name = ?, source = ?,
+                        active = ?, failure_count = 0,
+                        last_verified_at = NULL, updated_at = ?
+                    WHERE domain = ?
+                    """,
+                    (
+                        ats_type,
+                        ats_slug,
+                        seed_career_url,
+                        str(entry.get("company_name", domain)),
+                        str(entry.get("source", "pilot")),
+                        1 if seed_active else 0,
+                        _utc_now(),
+                        domain,
+                    ),
+                )
+                logger.info(
+                    "Seed correction applied for %s: %s/%s -> %s/%s",
+                    domain,
+                    row["ats_type"],
+                    row["ats_slug"],
+                    ats_type,
+                    ats_slug,
+                )
+                continue
+            conn.execute(
+                """
+                UPDATE board_registry
+                SET career_url = COALESCE(?, career_url),
+                    active = CASE WHEN ? THEN active ELSE 0 END,
+                    updated_at = ?
+                WHERE domain = ?
+                """,
+                (
+                    seed_career_url,
+                    1 if seed_active else 0,
+                    _utc_now(),
+                    domain,
+                ),
+            )
+            if row["active"] and not seed_active:
+                logger.info("Seed active=False applied for %s", domain)
 
     def _ensure_columns(self, conn: sqlite3.Connection) -> None:
         columns = {
