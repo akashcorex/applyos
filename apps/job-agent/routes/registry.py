@@ -5,6 +5,8 @@ from __future__ import annotations
 from fastapi import APIRouter
 
 from models import (
+    GrowthRequest,
+    GrowthResponse,
     RegistryBoard,
     RegistryFromDetectRequest,
     RegistryFromDetectResponse,
@@ -15,6 +17,7 @@ from services.ats_detect import detect_ats
 from services.board_registry import get_board_registry
 from services.http_errors import raise_bad_gateway
 from services.parsers.yc import extract_domain
+from services.registry_growth import grow_registry
 
 router = APIRouter()
 
@@ -62,6 +65,22 @@ async def list_registry_boards() -> RegistryListResponse:
         total=len(boards),
         boards=[_to_board_model(board) for board in boards],
     )
+
+
+@router.get("/refresh-status")
+async def refresh_status() -> dict[str, object]:
+    from config import settings
+
+    registry = get_board_registry()
+    return {
+        "enabled": settings.refresh_enabled,
+        "interval_seconds": settings.refresh_interval_seconds,
+        "batch_boards": settings.refresh_batch_boards,
+        "last_at": registry.get_meta_value("refresh_last_at"),
+        "last_boards": registry.get_meta_value("refresh_last_boards"),
+        "last_jobs": registry.get_meta_value("refresh_last_jobs"),
+        "last_errors": registry.get_meta_value("refresh_last_errors"),
+    }
 
 
 @router.post("", response_model=RegistryBoard)
@@ -115,4 +134,30 @@ async def upsert_registry_from_detect(
     return RegistryFromDetectResponse(
         detect=detect_response,
         board=_to_board_model(board),
+    )
+
+
+@router.post("/grow", response_model=GrowthResponse)
+async def grow_registry_boards(payload: GrowthRequest) -> GrowthResponse:
+    try:
+        results = await grow_registry(
+            [item.model_dump() for item in payload.companies],
+            source=payload.source,
+            verify=payload.verify,
+            dry_run=payload.dry_run,
+            concurrency=payload.concurrency,
+        )
+    except Exception as error:
+        raise_bad_gateway(error, public_message="Failed to grow board registry")
+        raise AssertionError("unreachable")
+    counts = {"active": 0, "parked": 0, "skipped": 0, "failed": 0}
+    for result in results:
+        counts[result.status] += 1
+    return GrowthResponse(
+        total=len(results),
+        added_active=counts["active"],
+        parked=counts["parked"],
+        skipped=counts["skipped"],
+        failed=counts["failed"],
+        results=results,
     )

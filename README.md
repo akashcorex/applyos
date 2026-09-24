@@ -1,4 +1,4 @@
-# Outreach Autometer
+# Outreach Autometer.
 
 AI-powered job application platform — a Turborepo monorepo with a Next.js frontend, Express API, and Python agent microservices.
 

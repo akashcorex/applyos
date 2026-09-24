@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import {
   LineChart,
@@ -10,23 +10,23 @@ import {
   Area,
   ReferenceLine,
   ReferenceDot,
-} from "recharts";
-import { ArrowUp, Clock } from "lucide-react";
-import { MdOutlineKeyboardArrowDown } from "react-icons/md";
+} from 'recharts';
+import { ArrowUp, Clock } from 'lucide-react';
+import { MdOutlineKeyboardArrowDown } from 'react-icons/md';
 
 const chartData = [
-  { date: "Sep 9", count: 80 },
-  { date: "Sep 10", count: 110 },
-  { date: "Sep 11", count: 255 },
-  { date: "Sep 12", count: 1011 },
-  { date: "Sep 13", count: 765 },
-  { date: "Sep 14", count: 620 },
-  { date: "Sep 15", count: 330 },
-  { date: "Sep 16", count: 300 },
+  { date: 'Sep 9', count: 80 },
+  { date: 'Sep 10', count: 110 },
+  { date: 'Sep 11', count: 255 },
+  { date: 'Sep 12', count: 1011 },
+  { date: 'Sep 13', count: 765 },
+  { date: 'Sep 14', count: 620 },
+  { date: 'Sep 15', count: 330 },
+  { date: 'Sep 16', count: 300 },
 ];
 
 export default function StaticAnalyticsChart() {
-  const sept12DataPoint = chartData.find((d) => d.date === "Sep 12");
+  const sept12DataPoint = chartData.find((d) => d.date === 'Sep 12');
 
   return (
     <div className="pointer-events-none w-full overflow-hidden rounded-xl border border-neutral-800 bg-black">
@@ -99,13 +99,13 @@ export default function StaticAnalyticsChart() {
 
               <XAxis
                 dataKey="date"
-                tick={{ fill: "#9ca3af", fontSize: 12 }}
+                tick={{ fill: '#9ca3af', fontSize: 12 }}
                 axisLine={false}
                 tickLine={false}
               />
               <YAxis
                 allowDecimals={false}
-                tick={{ fill: "#9ca3af", fontSize: 12 }}
+                tick={{ fill: '#9ca3af', fontSize: 12 }}
                 axisLine={false}
                 tickLine={false}
               />
@@ -126,8 +126,8 @@ export default function StaticAnalyticsChart() {
                 dot={false}
                 activeDot={{
                   r: 6,
-                  fill: "#5b98ff",
-                  stroke: "#fff",
+                  fill: '#5b98ff',
+                  stroke: '#fff',
                   strokeWidth: 2,
                 }}
                 isAnimationActive={false}

@@ -6,7 +6,12 @@ import pytest
 
 from models import ResumeRecord
 from services.matcher import JobMatcher
-from services.skills import combine_match_score, normalize_skills, skill_overlap_score
+from services.skills import (
+    combine_job_score,
+    combine_match_score,
+    normalize_skills,
+    skill_overlap_score,
+)
 
 
 class _FakeResponse:
@@ -123,8 +128,14 @@ async def test_match_uses_semantic_endpoint_and_weighted_score() -> None:
     assert "unrelated" in marketing.reason.lower() or "marketing" in marketing.reason.lower()
 
     vercel = next(j for j in response.jobs if j.company_name == "Vercel")
-    # 70% * 0.85 + 30% * (2/3)
-    assert vercel.match_score == combine_match_score(0.85, 2 / 3)
+    # 45% * 0.85 + 15% * 0.85 + 30% * (2/3) + 10% * 0.5 (neutral recency)
+    assert vercel.match_score == combine_job_score(0.85, 0.85, 2 / 3, 0.5)[0]
+    assert vercel.score_breakdown == {
+        "text": 0.85,
+        "title": 0.85,
+        "skill": round(2 / 3, 4),
+        "recency": 0.5,
+    }
     assert set(vercel.matched_skills) == {"TypeScript", "React"}
     assert vercel.missing_skills == []
     assert "TypeScript" in vercel.reason or "Full-stack" in vercel.reason
@@ -296,3 +307,37 @@ def test_combine_match_score_weights() -> None:
     assert combine_match_score(0.0, 1.0) == 30.0
     assert combine_match_score(1.0, 1.0) == 100.0
     assert skill_overlap_score(["Python"], ["Django"]) == 0.5
+
+
+def test_combine_job_score_weights_and_breakdown() -> None:
+    # 45% text + 15% title + 30% skill + 10% recency
+    score, parts = combine_job_score(1.0, 1.0, 1.0, 1.0)
+    assert score == 100.0
+    assert parts == {"text": 1.0, "title": 1.0, "skill": 1.0, "recency": 1.0}
+    score, _ = combine_job_score(1.0, 0.0, 0.0, 0.0)
+    assert score == 45.0
+    score, _ = combine_job_score(0.0, 0.0, 0.0, 0.0)
+    assert score == 0.0
+
+
+@pytest.mark.asyncio
+async def test_match_passes_posted_at_through() -> None:
+    client = _FakeClient(
+        {
+            "companies_scraped": 1,
+            "jobs": [
+                {
+                    "title": "Engineer",
+                    "company_name": "Acme",
+                    "dedup_key": "acme::1",
+                    "semantic_score": 0.8,
+                    "posted_at": "2026-09-18T00:00:00+00:00",
+                }
+            ],
+        }
+    )
+    matcher = JobMatcher(client)
+    response, _ = await matcher.match(
+        resume=_resume(["Python"]), resume_id="r-posted"
+    )
+    assert response.jobs[0].posted_at == "2026-09-18T00:00:00+00:00"

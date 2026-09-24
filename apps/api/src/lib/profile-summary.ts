@@ -260,7 +260,11 @@ export async function loadProfileSummary(
       'workflow',
       rangeStartUtc,
     );
-    pushTimeline(row.startedAt ?? row.createdAt, 'workflow', 'Workflow started');
+    pushTimeline(
+      row.startedAt ?? row.createdAt,
+      'workflow',
+      'Workflow started',
+    );
   }
   for (const row of applications) {
     pushEvent(events, row.createdAt, 'application', rangeStartUtc);
@@ -268,7 +272,11 @@ export async function loadProfileSummary(
     const target = job ? `${job.title} at ${job.companyName}` : 'a job';
     pushTimeline(row.createdAt, 'application', `Applied to ${target}`);
     pushEvent(events, row.submittedAt, 'application', rangeStartUtc);
-    pushTimeline(row.submittedAt, 'application', `Submitted application to ${target}`);
+    pushTimeline(
+      row.submittedAt,
+      'application',
+      `Submitted application to ${target}`,
+    );
   }
   timeline.sort((a, b) => b.at.localeCompare(a.at));
   timeline.splice(30);

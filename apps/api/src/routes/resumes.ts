@@ -28,7 +28,13 @@ import {
   validateEnrichedProfileInput,
   validateExtractionPayload,
 } from '../lib/phase2-validation';
-import { readResumeUpload, resolveSafeUploadPath, saveResumeUpload, sniffResumeMime, statResumeUpload } from '../lib/resume-storage';
+import {
+  readResumeUpload,
+  resolveSafeUploadPath,
+  saveResumeUpload,
+  sniffResumeMime,
+  statResumeUpload,
+} from '../lib/resume-storage';
 import { requireServiceToken } from '../lib/service-token';
 
 import type { ResumeLifecycleStatus } from '../lib/phase2-validation';
@@ -611,7 +617,8 @@ resumesRouter.get('/:id/file', async (req, res) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
     // Prefer on-disk size (no buffering); fall back to the stored column.
     const onDisk = await statResumeUpload(resume.storageKey);
-    const length = onDisk ?? (typeof resume.fileSize === 'number' ? resume.fileSize : null);
+    const length =
+      onDisk ?? (typeof resume.fileSize === 'number' ? resume.fileSize : null);
     if (length !== null) res.setHeader('Content-Length', String(length));
     const safeName = resume.fileName.replace(/["\r\n]/g, '').slice(0, 200);
     res.setHeader(
@@ -622,7 +629,8 @@ resumesRouter.get('/:id/file', async (req, res) => {
     res.status(200);
     createReadStream(safePath)
       .on('error', () => {
-        if (!res.headersSent) res.status(404).json({ error: 'Resume file not found' });
+        if (!res.headersSent)
+          res.status(404).json({ error: 'Resume file not found' });
         else res.end();
       })
       .pipe(res);

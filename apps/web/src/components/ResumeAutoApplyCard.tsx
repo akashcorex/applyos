@@ -10,6 +10,7 @@ import {
   FileUp,
   Loader2,
   Send,
+  X,
 } from 'lucide-react';
 
 import { analytics } from '@applyso/analytics';
@@ -23,6 +24,15 @@ import {
   type TailorJobContext,
 } from '@/components/ResumeVariantEditor';
 import { authClient } from '@/lib/auth-client';
+import {
+  MATCH_CHUNKS,
+  isNewJob,
+  mergeJobChunks,
+  normalizeScore,
+  parseSseBuffer,
+  sortMatchedJobs,
+  type JobSortMode,
+} from '@/lib/match-merge';
 
 interface ParsedResume {
   resume_id: string;
@@ -44,6 +54,7 @@ interface MatchedJob extends TailorJobContext {
   ats_slug?: string | null;
   match_score: number;
   reason?: string | null;
+  posted_at?: string | null;
 }
 
 interface MatchResponse {
@@ -91,6 +102,52 @@ function errorMessage(data: unknown, fallback: string): string {
   return fallback;
 }
 
+async function runStreamMatch(
+  resumeId: string,
+  controller: AbortController,
+  onBatch: (
+    incoming: MatchedJob[],
+    progress: { chunk: number; total: number },
+  ) => void,
+): Promise<'done' | 'fallback'> {
+  const res = await fetch(
+    `/api/resume/${resumeId}/match/stream?max_companies=12&max_jobs=30`,
+    { signal: controller.signal },
+  );
+  if (!res.ok || !res.body) return 'fallback';
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let companies = 0;
+  let sawBatch = false;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const parsed = parseSseBuffer(buffer);
+    buffer = parsed.leftover;
+    for (const frame of parsed.frames) {
+      const data = frame.data as {
+        jobs?: MatchedJob[];
+        error?: string;
+      };
+      if (frame.event === 'batch') {
+        sawBatch = true;
+        companies += 1;
+        onBatch(
+          (data.jobs ?? []).filter((job) => job && job.dedup_key),
+          { chunk: companies, total: 0 },
+        );
+      } else if (frame.event === 'error') {
+        throw new Error(data.error ?? 'Match stream failed');
+      } else if (frame.event === 'done') {
+        return 'done';
+      }
+    }
+  }
+  return sawBatch ? 'done' : 'fallback';
+}
+
 export function ResumeAutoApplyCard({
   selectionId,
   onWorkflowStarted,
@@ -115,6 +172,16 @@ export function ResumeAutoApplyCard({
   const [error, setError] = useState<string | null>(null);
   const [workflowId, setWorkflowId] = useState<string | null>(null);
   const [resumeLoading, setResumeLoading] = useState(false);
+  const [matchProgress, setMatchProgress] = useState<{
+    chunk: number;
+    total: number;
+    jobsFound: number;
+    bestScore: number;
+  } | null>(null);
+  const [scoreFloor, setScoreFloor] = useState(0);
+  const [sortMode, setSortMode] = useState<JobSortMode>('best');
+  const [freshKeys, setFreshKeys] = useState<Set<string>>(new Set());
+  const matchAbortRef = useRef<AbortController | null>(null);
 
   const activeJob = jobs.find((job) => job.dedup_key === activeJobKey) ?? null;
   const selectedJobs = jobs.filter((job) => selectedJobKeys.has(job.dedup_key));
@@ -123,6 +190,14 @@ export function ResumeAutoApplyCard({
     return variant?.status === 'ready' && Boolean(variant.artifact_id);
   });
   const selectedNeedsReview = selectedJobs.length - readySelectedJobs.length;
+  const selectedMissingUrl = selectedJobs.filter(
+    (job) => !job.application_url,
+  ).length;
+  const selectedBelowScore = selectedJobs.filter((job) => {
+    const normalized =
+      job.match_score <= 1 ? job.match_score * 100 : job.match_score;
+    return normalized < minScore;
+  }).length;
 
   useEffect(() => {
     if (!session?.user?.id || resume) return;
@@ -349,53 +424,110 @@ export function ResumeAutoApplyCard({
   async function handleMatchJobs() {
     if (!resume?.resume_id) return;
 
+    matchAbortRef.current?.abort();
+    const controller = new AbortController();
+    matchAbortRef.current = controller;
+
     setMatching(true);
     setError(null);
     setWorkflowId(null);
+    setJobs([]);
+    setSelectedJobKeys(new Set());
+    setActiveJobKey(null);
+    setFreshKeys(new Set());
+    setMatchProgress({
+      chunk: 0,
+      total: MATCH_CHUNKS.length,
+      jobsFound: 0,
+      bestScore: 0,
+    });
 
     try {
-      const [matchRes, variantsRes] = await Promise.all([
-        fetch(
-          `/api/resume/${resume.resume_id}/match?max_companies=10&max_jobs=50`,
-        ),
-        fetch(`/api/resume/${resume.resume_id}/variants`),
-      ]);
-      const matchData = (await matchRes.json().catch(() => null)) as unknown;
+      const variantsRes = await fetch(
+        `/api/resume/${resume.resume_id}/variants`,
+        { signal: controller.signal },
+      );
       const variantsData = (await variantsRes
         .json()
         .catch(() => null)) as unknown;
-
-      if (!matchRes.ok) {
-        setError(errorMessage(matchData, 'Failed to match jobs'));
-        return;
-      }
-
-      const response = matchData as MatchResponse;
-      const matchedJobs = (response.jobs ?? []).filter((job) =>
-        Boolean(job.dedup_key),
-      );
       const variantMap = (
         (variantsData as { variants?: ResumeVariant[] } | null)?.variants ?? []
       ).reduce<Record<string, ResumeVariant>>((result, variant) => {
         result[variant.dedup_key] = variant;
         return result;
       }, {});
+      if (!controller.signal.aborted) setVariantsByJob(variantMap);
 
-      setJobs(matchedJobs);
-      setSelectedJobKeys(new Set());
-      setVariantsByJob(variantMap);
-      setActiveJobKey(null);
+      let merged: MatchedJob[] = [];
+      const handleBatch = (
+        incoming: MatchedJob[],
+        progress: { chunk: number; total: number },
+      ) => {
+        const next = mergeJobChunks(merged, incoming);
+        merged = next.jobs;
+        if (controller.signal.aborted) return;
+        setJobs(merged);
+        setFreshKeys(new Set(next.freshKeys));
+        setMatchProgress({
+          chunk: progress.chunk,
+          total: progress.total,
+          jobsFound: merged.length,
+          bestScore: merged.length > 0 ? merged[0].match_score : 0,
+        });
+      };
 
-      if (!variantsRes.ok) {
+      let streamed: 'done' | 'fallback' = 'fallback';
+      try {
+        streamed = await runStreamMatch(
+          resume.resume_id,
+          controller,
+          handleBatch,
+        );
+      } catch {
+        if (controller.signal.aborted) return;
+        streamed = 'fallback';
+      }
+      if (streamed === 'fallback') {
+        for (let index = 0; index < MATCH_CHUNKS.length; index += 1) {
+          if (controller.signal.aborted) break;
+          const chunk = MATCH_CHUNKS[index];
+          const matchRes = await fetch(
+            `/api/resume/${resume.resume_id}/match?max_companies=${chunk.companies}&max_jobs=${chunk.jobsPerCompany}`,
+            { signal: controller.signal },
+          );
+          const matchData = (await matchRes
+            .json()
+            .catch(() => null)) as unknown;
+          if (!matchRes.ok) {
+            setError(errorMessage(matchData, 'Failed to match jobs'));
+            break;
+          }
+          const incoming = ((matchData as MatchResponse).jobs ?? []).filter(
+            (job) => Boolean(job.dedup_key),
+          );
+          handleBatch(incoming, {
+            chunk: index + 1,
+            total: MATCH_CHUNKS.length,
+          });
+        }
+      }
+
+      if (!variantsRes.ok && !controller.signal.aborted) {
         setError(
           'Jobs were matched, but existing tailored resumes could not be loaded.',
         );
       }
     } catch {
-      setError('Resume agent is not running');
+      if (!controller.signal.aborted) setError('Resume agent is not running');
     } finally {
+      if (matchAbortRef.current === controller) matchAbortRef.current = null;
       setMatching(false);
+      setMatchProgress(null);
     }
+  }
+
+  function cancelMatch() {
+    matchAbortRef.current?.abort();
   }
 
   function toggleJob(job: MatchedJob) {
@@ -571,28 +703,117 @@ export function ResumeAutoApplyCard({
                   </p>
                 </div>
               </div>
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={!resume || matching}
-                onClick={() => void handleMatchJobs()}
-              >
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={!resume || matching}
+                  onClick={() => void handleMatchJobs()}
+                >
+                  {matching ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <FileSearch className="h-4 w-4" />
+                  )}
+                  {matching
+                    ? 'Matching...'
+                    : jobs.length > 0
+                      ? 'Refresh'
+                      : 'Find matches'}
+                </Button>
                 {matching ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <FileSearch className="h-4 w-4" />
-                )}
-                {matching
-                  ? 'Matching...'
-                  : jobs.length > 0
-                    ? 'Refresh'
-                    : 'Find matches'}
-              </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={cancelMatch}
+                    aria-label="Stop matching"
+                  >
+                    <X className="h-4 w-4" />
+                    Stop
+                  </Button>
+                ) : null}
+              </div>
             </div>
+            {matching && matchProgress ? (
+              <p className="text-xs text-slate-500 dark:text-[#8a8f9d]">
+                {matchProgress.total === 0 ? (
+                  <>
+                    Live · {matchProgress.chunk}{' '}
+                    {matchProgress.chunk === 1 ? 'company' : 'companies'} ·{' '}
+                    {matchProgress.jobsFound} jobs
+                  </>
+                ) : (
+                  <>
+                    Scraping companies… chunk {Math.max(matchProgress.chunk, 1)}
+                    /{matchProgress.total} · {matchProgress.jobsFound} jobs
+                  </>
+                )}
+                {matchProgress.jobsFound > 0
+                  ? ` · best ${scoreLabel(matchProgress.bestScore)}`
+                  : ''}
+              </p>
+            ) : null}
+            {jobs.length > 0 ? (
+              <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-[#8a8f9d]">
+                <label htmlFor="score-floor">Hide below</label>
+                <input
+                  id="score-floor"
+                  type="number"
+                  min={0}
+                  max={100}
+                  value={scoreFloor}
+                  onChange={(event) =>
+                    setScoreFloor(
+                      Math.min(
+                        100,
+                        Math.max(0, Number(event.target.value) || 0),
+                      ),
+                    )
+                  }
+                  className="w-16 rounded-[6px] border border-slate-300 dark:border-[#282a32] bg-white dark:bg-[#16171b] px-1.5 py-0.5 text-xs"
+                />
+                <span>% match</span>
+                <span className="inline-flex overflow-hidden rounded-[6px] border border-slate-300 dark:border-[#282a32]">
+                  {(['best', 'newest'] as JobSortMode[]).map((mode) => (
+                    <button
+                      key={mode}
+                      type="button"
+                      onClick={() => setSortMode(mode)}
+                      aria-pressed={sortMode === mode}
+                      className={`px-2 py-0.5 capitalize ${
+                        sortMode === mode
+                          ? 'bg-slate-900 text-white dark:bg-[#f1f3f9] dark:text-[#16171b]'
+                          : ''
+                      }`}
+                    >
+                      {mode}
+                    </button>
+                  ))}
+                </span>
+                {scoreFloor > 0 ? (
+                  <span>
+                    · showing{' '}
+                    {
+                      jobs.filter(
+                        (job) => normalizeScore(job.match_score) >= scoreFloor,
+                      ).length
+                    }{' '}
+                    of {jobs.length}
+                  </span>
+                ) : null}
+              </div>
+            ) : null}
 
             {jobs.length > 0 ? (
               <div className="max-h-[28rem] space-y-2 overflow-y-auto pr-1">
-                {jobs.map((job) => {
+                {sortMatchedJobs(
+                  scoreFloor > 0
+                    ? jobs.filter(
+                        (job) => normalizeScore(job.match_score) >= scoreFloor,
+                      )
+                    : jobs,
+                  sortMode,
+                ).map((job) => {
                   const variant = variantsByJob[job.dedup_key];
                   const canApply = Boolean(job.application_url);
                   const isSelected = selectedJobKeys.has(job.dedup_key);
@@ -602,7 +823,11 @@ export function ResumeAutoApplyCard({
                   return (
                     <div
                       key={job.dedup_key}
-                      className="rounded-[8px] border border-slate-200 dark:border-[#22242a] bg-slate-50/50 dark:bg-[#0e0f12] p-3.5 space-y-2"
+                      className={`rounded-[8px] border border-slate-200 dark:border-[#22242a] bg-slate-50/50 dark:bg-[#0e0f12] p-3.5 space-y-2${
+                        freshKeys.has(job.dedup_key)
+                          ? ' ring-1 ring-emerald-500/50'
+                          : ''
+                      }`}
                     >
                       <div className="flex items-start gap-3">
                         <input
@@ -626,6 +851,14 @@ export function ResumeAutoApplyCard({
                                 variant?.match_score ?? job.match_score,
                               )}
                             </Badge>
+                            {isNewJob(job.posted_at) ? (
+                              <Badge
+                                variant="outline"
+                                className="text-xs bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/20"
+                              >
+                                new
+                              </Badge>
+                            ) : null}
                             {isReady ? (
                               <Badge
                                 variant="outline"
@@ -730,6 +963,21 @@ export function ResumeAutoApplyCard({
                 </p>
               </div>
             </div>
+            {selectedMissingUrl > 0 ? (
+              <p className="text-xs text-amber-600">
+                {selectedMissingUrl} selected role
+                {selectedMissingUrl === 1 ? '' : 's'} has no application link
+                and will be skipped.
+              </p>
+            ) : null}
+            {selectedBelowScore > 0 ? (
+              <p className="text-xs text-amber-600">
+                {selectedBelowScore} selected role
+                {selectedBelowScore === 1 ? '' : 's'} is below the {minScore}%
+                minimum score and will be skipped. Lower it in Settings to queue
+                them anyway.
+              </p>
+            ) : null}
             <Button
               className="w-full"
               disabled={applying || selectedJobs.length === 0}

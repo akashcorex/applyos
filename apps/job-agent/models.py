@@ -114,6 +114,40 @@ class RegistryFromDetectResponse(BaseModel):
     board: RegistryBoard | None = None
 
 
+class GrowthCompany(BaseModel):
+    name: str = Field(min_length=1, max_length=128)
+    domain: str = Field(min_length=1, max_length=128)
+
+
+class GrowthRequest(BaseModel):
+    companies: list[GrowthCompany] = Field(min_length=1, max_length=100)
+    source: Literal["yc", "detect"] = "yc"
+    verify: bool = True
+    dry_run: bool = False
+    concurrency: int = Field(default=4, ge=1, le=8)
+
+
+class GrowthResult(BaseModel):
+    domain: str
+    company_name: str
+    ats_type: str | None = None
+    ats_slug: str | None = None
+    career_url: str | None = None
+    status: Literal["active", "parked", "skipped", "failed"] = "parked"
+    jobs_found: int = 0
+    error: str | None = None
+    written: bool = True
+
+
+class GrowthResponse(BaseModel):
+    total: int
+    added_active: int
+    parked: int
+    skipped: int
+    failed: int
+    results: list[GrowthResult]
+
+
 class RawJob(BaseModel):
     external_id: str
     title: str
@@ -214,7 +248,7 @@ class FundingScrapeResponse(BaseModel):
 
 class SearchRequest(BaseModel):
     job_title: str = Field(min_length=1, max_length=128)
-    max_companies: int = Field(default=15, ge=1, le=40)
+    max_companies: int = Field(default=20, ge=1, le=100)
     max_jobs_per_company: int = Field(default=50, ge=1, le=200)
     experience_years: int = Field(default=0, ge=0)
 
@@ -236,18 +270,34 @@ class SearchResult(BaseModel):
     posted_at: str | None = None
 
 
+class BoardAttempt(BaseModel):
+    domain: str
+    company_name: str
+    ats_type: str
+    ats_slug: str
+    probe_url: str | None = None
+    status: Literal["ok", "empty", "error", "skipped"] = "ok"
+    jobs_found: int = 0
+    sample_titles: list[str] = Field(default_factory=list)
+    error: str | None = None
+    latency_ms: int = 0
+    via_fallback: bool = False
+    dropped_stale: int = 0
+
+
 class SearchResponse(BaseModel):
     query: str
     companies_scraped: int
     total_matches: int
     jobs: list[SearchResult]
+    board_attempts: list[BoardAttempt] = Field(default_factory=list)
 
 
 class SemanticSearchRequest(BaseModel):
     job_title: str = Field(min_length=1, max_length=128)
     skills: list[str] = Field(default_factory=list)
     experience_years: int = Field(default=0, ge=0)
-    max_companies: int = Field(default=15, ge=1, le=40)
+    max_companies: int = Field(default=20, ge=1, le=100)
     max_jobs_per_company: int = Field(default=50, ge=1, le=200)
     summary: str | None = None
     recent_role: str | None = None
@@ -258,6 +308,9 @@ class SemanticSearchRequest(BaseModel):
 
 class SemanticMatchResult(SearchResult):
     semantic_score: float = 0.0
+    text_score: float = 0.0
+    title_score: float = 0.0
+    recency_score: float = 0.0
     match_reason: str = ""
     matching_skills: list[str] = Field(default_factory=list)
     missing_skills: list[str] = Field(default_factory=list)
@@ -269,3 +322,4 @@ class SemanticSearchResponse(BaseModel):
     jobs_scraped: int = 0
     total_matches: int
     jobs: list[SemanticMatchResult]
+    board_attempts: list[BoardAttempt] = Field(default_factory=list)

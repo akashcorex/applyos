@@ -2,7 +2,10 @@
 
 import { addDateKey, heatmapLevel } from '@applyso/validation';
 
-import type { ProfileActivityDay, ProfileActivityTotals } from './profile-types';
+import type {
+  ProfileActivityDay,
+  ProfileActivityTotals,
+} from './profile-types';
 
 const LEVEL_CLASS = [
   'bg-neutral-800/80 dark:bg-[#161b22]',

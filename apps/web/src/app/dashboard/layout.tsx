@@ -14,8 +14,6 @@ import { fetchMe } from '@/lib/admin-api';
 import { authClient } from '@/lib/auth-client';
 import { isAdminRole } from '@/lib/rbac';
 
-
-
 const segmentLabels: Record<string, string> = {
   'auto-apply': 'Resume & Auto-Apply',
   discovery: 'Discover Jobs',
@@ -40,9 +38,7 @@ function labelForSegment(segment: string): string {
   if (/^[A-Za-z0-9_-]{13,}$/.test(segment)) return 'Details';
   return segment
     .split('-')
-    .map((part) =>
-      part ? part.charAt(0).toUpperCase() + part.slice(1) : part,
-    )
+    .map((part) => (part ? part.charAt(0).toUpperCase() + part.slice(1) : part))
     .join(' ');
 }
 
@@ -61,9 +57,7 @@ function trailFor(pathname: string): DashboardCrumb[] {
     }
     // "Settings" is a section landing that lives at preferences.
     const href =
-      segment === 'settings'
-        ? '/dashboard/settings/preferences'
-        : accumulated;
+      segment === 'settings' ? '/dashboard/settings/preferences' : accumulated;
     crumbs.push({ label, href });
   });
   return crumbs;

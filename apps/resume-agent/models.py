@@ -304,10 +304,13 @@ class MatchedJob(BaseModel):
     ats_type: str | None = None
     ats_slug: str | None = None
     description: str | None = None
-    # Final score 0–100 (70% embedding + 30% skill, then behavior adjustment).
+    posted_at: str | None = None
+    # Final score 0–100 (45% text + 15% title + 30% skill + 10% recency,
+    # then behavior adjustment).
     match_score: float = 0.0
     base_score: float | None = None
     behavior_boost: float | None = None
+    score_breakdown: dict[str, float] | None = None
     matched_skills: list[str] = Field(default_factory=list)
     # Alias kept for older clients; mirrors matched_skills.
     matching_skills: list[str] = Field(default_factory=list)

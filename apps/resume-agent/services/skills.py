@@ -68,6 +68,61 @@ _SKILL_ALIASES: dict[str, set[str]] = {
     "scikit-learn": {"scikit-learn", "sklearn", "scikit learn"},
     "LangChain": {"langchain"},
     "OpenAI": {"openai", "gpt"},
+    "Jest": {"jest"},
+    "Pytest": {"pytest"},
+    "Cypress": {"cypress"},
+    "Playwright": {"playwright"},
+    "Selenium": {"selenium"},
+    "Celery": {"celery"},
+    "gRPC": {"grpc"},
+    "OAuth": {"oauth"},
+    "JWT": {"jwt"},
+    "WebSockets": {"websocket", "websockets"},
+    "Microservices": {"microservices"},
+    "System Design": {"system design"},
+    "Agile": {"agile", "scrum"},
+    "NLP": {"nlp", "natural language processing"},
+    "LLM": {"llm", "large language model", "genai"},
+    "Anthropic": {"anthropic", "claude"},
+    "Vector Databases": {"pinecone", "weaviate", "chroma", "vector database", "vector db"},
+    "Tableau": {"tableau"},
+    "Power BI": {"power bi"},
+    "BigQuery": {"bigquery"},
+    "Snowflake": {"snowflake"},
+    "dbt": {"dbt"},
+    "Redshift": {"redshift"},
+    "DynamoDB": {"dynamodb"},
+    "SQS": {"sqs"},
+    "Lambda": {"lambda", "aws lambda"},
+    "EC2": {"ec2"},
+    "S3": {"s3"},
+    "CloudFormation": {"cloudformation"},
+    "Ansible": {"ansible"},
+    "Prometheus": {"prometheus"},
+    "Grafana": {"grafana"},
+    "Datadog": {"datadog"},
+    "Jenkins": {"jenkins"},
+    "GitHub Actions": {"github actions"},
+    "Gradle": {"gradle"},
+    "Maven": {"maven"},
+    "Bash": {"bash", "shell"},
+    "Sequelize": {"sequelize"},
+    "Mongoose": {"mongoose"},
+    "NestJS": {"nestjs", "nest.js"},
+    "React Native": {"react native"},
+    "Expo": {"expo"},
+    "Electron": {"electron"},
+    "Firebase": {"firebase"},
+    "Supabase": {"supabase"},
+    "Figma": {"figma"},
+    "Jira": {"jira"},
+    "Scala": {"scala"},
+    "Elixir": {"elixir"},
+    "Dart": {"dart"},
+    "tRPC": {"trpc"},
+    "Vite": {"vite"},
+    "Webpack": {"webpack"},
+    "Storybook": {"storybook"},
 }
 
 # Alias → canonical (built once).
@@ -184,3 +239,29 @@ def combine_match_score(semantic_score: float, skill_score: float) -> float:
     semantic = max(0.0, min(1.0, semantic_score))
     skills = max(0.0, min(1.0, skill_score))
     return round((0.7 * semantic + 0.3 * skills) * 100, 1)
+
+
+def combine_job_score(
+    text_score: float,
+    title_score: float,
+    skill_score: float,
+    recency_score: float,
+) -> tuple[float, dict[str, float]]:
+    """45% full-text + 15% title + 30% skill + 10% recency → (score, parts)."""
+    parts = {
+        "text": round(max(0.0, min(1.0, text_score)), 4),
+        "title": round(max(0.0, min(1.0, title_score)), 4),
+        "skill": round(max(0.0, min(1.0, skill_score)), 4),
+        "recency": round(max(0.0, min(1.0, recency_score)), 4),
+    }
+    final = round(
+        (
+            0.45 * parts["text"]
+            + 0.15 * parts["title"]
+            + 0.30 * parts["skill"]
+            + 0.10 * parts["recency"]
+        )
+        * 100,
+        1,
+    )
+    return final, parts

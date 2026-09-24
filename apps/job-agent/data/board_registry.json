@@ -47,9 +47,9 @@
   {
     "domain": "notion.so",
     "company_name": "Notion",
-    "ats_type": "greenhouse",
+    "ats_type": "ashby",
     "ats_slug": "notion",
-    "career_url": null,
+    "career_url": "https://notion.so/careers",
     "source": "pilot",
     "active": true
   },
@@ -74,9 +74,9 @@
   {
     "domain": "ramp.com",
     "company_name": "Ramp",
-    "ats_type": "greenhouse",
+    "ats_type": "ashby",
     "ats_slug": "ramp",
-    "career_url": null,
+    "career_url": "https://ramp.com/careers",
     "source": "pilot",
     "active": true
   },
@@ -92,9 +92,9 @@
   {
     "domain": "plaid.com",
     "company_name": "Plaid",
-    "ats_type": "greenhouse",
+    "ats_type": "ashby",
     "ats_slug": "plaid",
-    "career_url": null,
+    "career_url": "https://plaid.com/careers",
     "source": "pilot",
     "active": true
   },
@@ -103,9 +103,9 @@
     "company_name": "Retool",
     "ats_type": "greenhouse",
     "ats_slug": "retool",
-    "career_url": null,
+    "career_url": "https://retool.com/careers",
     "source": "pilot",
-    "active": true
+    "active": false
   },
   {
     "domain": "vercel.com",
@@ -119,9 +119,9 @@
   {
     "domain": "linear.app",
     "company_name": "Linear",
-    "ats_type": "greenhouse",
+    "ats_type": "ashby",
     "ats_slug": "linear",
-    "career_url": null,
+    "career_url": "https://linear.app/careers",
     "source": "pilot",
     "active": true
   },
@@ -130,16 +130,16 @@
     "company_name": "Rippling",
     "ats_type": "greenhouse",
     "ats_slug": "rippling",
-    "career_url": null,
+    "career_url": "https://rippling.com/careers",
     "source": "pilot",
-    "active": true
+    "active": false
   },
   {
     "domain": "openai.com",
     "company_name": "OpenAI",
-    "ats_type": "greenhouse",
+    "ats_type": "ashby",
     "ats_slug": "openai",
-    "career_url": null,
+    "career_url": "https://openai.com/careers",
     "source": "pilot",
     "active": true
   },
@@ -148,9 +148,9 @@
     "company_name": "Netflix",
     "ats_type": "lever",
     "ats_slug": "netflix",
-    "career_url": null,
+    "career_url": "https://netflix.com/careers",
     "source": "pilot",
-    "active": true
+    "active": false
   },
   {
     "domain": "spotify.com",
@@ -182,9 +182,9 @@
   {
     "domain": "zapier.com",
     "company_name": "Zapier",
-    "ats_type": "greenhouse",
+    "ats_type": "ashby",
     "ats_slug": "zapier",
-    "career_url": null,
+    "career_url": "https://zapier.com/careers",
     "source": "pilot",
     "active": true
   },
@@ -229,9 +229,9 @@
     "company_name": "Shopify",
     "ats_type": "greenhouse",
     "ats_slug": "shopify",
-    "career_url": null,
+    "career_url": "https://shopify.com/careers",
     "source": "pilot",
-    "active": true
+    "active": false
   },
   {
     "domain": "intercom.com",
@@ -254,18 +254,18 @@
   {
     "domain": "anthropic.com",
     "company_name": "Anthropic",
-    "ats_type": "ashby",
+    "ats_type": "greenhouse",
     "ats_slug": "anthropic",
-    "career_url": null,
+    "career_url": "https://anthropic.com/careers",
     "source": "pilot",
     "active": true
   },
   {
     "domain": "mercury.com",
     "company_name": "Mercury",
-    "ats_type": "ashby",
+    "ats_type": "greenhouse",
     "ats_slug": "mercury",
-    "career_url": null,
+    "career_url": "https://mercury.com/careers",
     "source": "pilot",
     "active": true
   },
@@ -274,7 +274,7 @@
     "company_name": "Deel",
     "ats_type": "ashby",
     "ats_slug": "deel",
-    "career_url": null,
+    "career_url": "https://deel.com/careers",
     "source": "pilot",
     "active": true
   },
@@ -292,16 +292,16 @@
     "company_name": "Hugging Face",
     "ats_type": "ashby",
     "ats_slug": "huggingface",
-    "career_url": null,
+    "career_url": "https://huggingface.co/careers",
     "source": "pilot",
-    "active": true
+    "active": false
   },
   {
     "domain": "remote.com",
     "company_name": "Remote",
-    "ats_type": "ashby",
+    "ats_type": "greenhouse",
     "ats_slug": "remote",
-    "career_url": null,
+    "career_url": "https://remote.com/careers",
     "source": "pilot",
     "active": true
   },
@@ -310,9 +310,9 @@
     "company_name": "Loom",
     "ats_type": "ashby",
     "ats_slug": "loom",
-    "career_url": null,
+    "career_url": "https://loom.com/careers",
     "source": "pilot",
-    "active": true
+    "active": false
   },
   {
     "domain": "personio.com",
@@ -326,9 +326,9 @@
   {
     "domain": "n26.com",
     "company_name": "N26",
-    "ats_type": "personio",
+    "ats_type": "greenhouse",
     "ats_slug": "n26",
-    "career_url": null,
+    "career_url": "https://n26.com/careers",
     "source": "pilot",
     "active": true
   }

@@ -50,6 +50,7 @@ NAMED_SUITES: dict[str, tuple[str, str]] = {
     "resume-agent-parser": ("resume-agent", "test_resume_agent_parser.py"),
     "resume-agent-extractor": ("resume-agent", "test_resume_agent_extractor.py"),
     "resume-agent-matcher": ("resume-agent", "test_resume_agent_matcher.py"),
+    "resume-agent-match-stream": ("resume-agent", "test_resume_agent_match_stream.py"),
     "resume-agent-chunker": ("resume-agent", "test_resume_agent_chunker.py"),
     "resume-agent-compile-jobs": ("resume-agent", "test_resume_agent_compile_jobs.py"),
     "ai-orchestrator-graph": ("ai-orchestrator", "test_ai_orchestrator_graph.py"),
@@ -58,6 +59,12 @@ NAMED_SUITES: dict[str, tuple[str, str]] = {
         "test_ai_orchestrator_decision_policy.py",
     ),
     "job-agent-semantic": ("job-agent", "test_job_agent_semantic.py"),
+    "job-agent-semantic-stream": ("job-agent", "test_job_agent_semantic_stream.py"),
+    "job-agent-board-audit": ("job-agent", "test_job_agent_board_audit.py"),
+    "job-agent-recency": ("job-agent", "test_job_agent_recency.py"),
+    "job-agent-refresh": ("job-agent", "test_job_agent_refresh.py"),
+    "job-agent-skill-parity": ("job-agent", "test_job_agent_skill_parity.py"),
+    "job-agent-growth": ("job-agent", "test_job_agent_growth.py"),
     "outreach-agent-message": ("outreach-agent", "test_outreach_agent_message.py"),
 }
 

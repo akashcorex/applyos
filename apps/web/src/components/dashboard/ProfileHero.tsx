@@ -1,6 +1,9 @@
 'use client';
 
-import { Camera, ExternalLink, Github, Globe, Linkedin } from 'lucide-react';
+import { Camera, ExternalLink, Globe } from 'lucide-react';
+
+import { GithubIcon } from '@/components/icons/GithubIcon';
+import { LinkedinIcon } from '@/components/icons/LinkedinIcon';
 
 import { Badge } from '@applyso/ui/badge';
 import { Button } from '@applyso/ui/button';
@@ -49,8 +52,8 @@ export function ProfileHero({
   onAvatarEdit,
 }: ProfileHeroProps) {
   const links = getSafeProfileLinks([
-    { label: 'GitHub', value: githubUrl?.trim() ?? '', Icon: Github },
-    { label: 'LinkedIn', value: linkedinUrl?.trim() ?? '', Icon: Linkedin },
+    { label: 'GitHub', value: githubUrl?.trim() ?? '', Icon: GithubIcon },
+    { label: 'LinkedIn', value: linkedinUrl?.trim() ?? '', Icon: LinkedinIcon },
     { label: 'Portfolio', value: portfolioUrl?.trim() ?? '', Icon: Globe },
   ]);
 

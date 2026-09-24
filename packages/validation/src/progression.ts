@@ -164,7 +164,10 @@ export interface ProfileProgression {
   earnedAchievements: number;
 }
 
-function achievementEarned(key: AchievementKey, input: ProgressionInput): boolean {
+function achievementEarned(
+  key: AchievementKey,
+  input: ProgressionInput,
+): boolean {
   switch (key) {
     case 'first-upload':
       return input.hasResume;
@@ -193,7 +196,9 @@ function hasText(value: string | null | undefined): boolean {
   return hasNonEmptyText(value);
 }
 
-export function computeProgression(input: ProgressionInput): ProfileProgression {
+export function computeProgression(
+  input: ProgressionInput,
+): ProfileProgression {
   const achievements: AchievementState[] = ACHIEVEMENT_DEFINITIONS.map(
     (definition) => ({
       ...definition,

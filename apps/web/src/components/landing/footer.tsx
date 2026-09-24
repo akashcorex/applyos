@@ -32,7 +32,9 @@ const Footer = () => {
               </p>
             </Link>
             <Link href="#faq">
-              <p className="text-neutral-300/60 hover:text-neutral-300/80">FAQ</p>
+              <p className="text-neutral-300/60 hover:text-neutral-300/80">
+                FAQ
+              </p>
             </Link>
           </div>
           <div className="mt-4 flex flex-col justify-center space-y-4">
