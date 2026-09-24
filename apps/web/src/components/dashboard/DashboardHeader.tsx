@@ -4,7 +4,7 @@ import { Fragment } from 'react';
 
 import Link from 'next/link';
 
-import { Bell, ChevronRight, Home, Menu, Search } from 'lucide-react';
+import { Bell, ChevronRight, HelpCircle, Home, Menu, Search } from 'lucide-react';
 
 import {
   Breadcrumb,
@@ -40,7 +40,7 @@ export function DashboardHeader({
   onToggleSidebar,
 }: DashboardHeaderProps) {
   return (
-    <header className="sticky top-0 z-20 h-12 w-full border-b border-border bg-background/95 backdrop-blur px-4 sm:px-6 flex items-center justify-between gap-4 text-foreground transition-colors duration-150">
+    <header className="sticky top-0 z-20 h-12 w-full border-b border-border bg-background px-4 sm:px-6 flex items-center justify-between gap-4 text-foreground transition-colors duration-150">
       {/* Left: Mobile Toggle & Breadcrumbs Navigation */}
       <div className="flex items-center gap-2 flex-1 max-w-lg">
         <Button
@@ -100,24 +100,23 @@ export function DashboardHeader({
             type="search"
             aria-label="Global search"
             placeholder="Search commands, jobs..."
-            className="w-full pl-8 pr-10 h-7 text-[11px] rounded-[6px] shadow-none"
+            className="w-full pl-8 pr-10 h-7 text-[11px] rounded-[6px] shadow-none border-border bg-transparent"
           />
           <kbd className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none inline-flex h-4 select-none items-center gap-1 rounded-[3px] border border-border bg-secondary px-1 font-mono text-[9px] font-semibold text-muted-foreground">
             ⌘K
           </kbd>
         </div>
 
-        {showQuickAction ? (
-          <Button
-            onClick={onQuickAction}
-            className="h-8 px-3 text-xs font-medium rounded-md bg-primary text-primary-foreground hover:bg-primary/90 tactile-btn"
-          >
-            <span>Auto-Apply</span>
-          </Button>
-        ) : null}
-
         {/* Dark / Light Mode Switcher */}
         <ThemeToggle />
+
+        <a
+          href="mailto:support@applyos.in"
+          aria-label="Help and documentation"
+          className="inline-flex h-7 w-7 items-center justify-center rounded-[6px] border border-border bg-background text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors cursor-pointer"
+        >
+          <HelpCircle className="h-3.5 w-3.5" />
+        </a>
 
         <Button
           variant="outline"

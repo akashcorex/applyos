@@ -34,121 +34,182 @@ export function ProfileIdentityForm({
   onCancel,
 }: ProfileIdentityFormProps) {
   return (
-    <div id="profile-identity" className="space-y-8 scroll-mt-6">
+    <section
+      aria-label="Edit candidate identity"
+      id="profile-identity"
+      className="w-full border-b border-border bg-background scroll-mt-6"
+    >
       <form
-        className="space-y-8"
         onSubmit={(e) => {
           e.preventDefault();
           onSave();
-          // Close after a tick so `saved` feedback is visible in read mode too.
-          // The parent re-fetches and updates values; keep edit closed optimistically.
           onCancel();
         }}
       >
-        {/* ── Professional profile ─────────────────────────── */}
-        <section aria-label="Professional profile">
-          <div className="flex items-baseline justify-between mb-3">
-            <h2 className="text-sm font-semibold tracking-tight">
-              Professional profile
+        {/* ── Header Bar ────────────────────────────────────────── */}
+        <div className="flex items-center justify-between border-b border-border px-6 sm:px-8 py-3.5 bg-background">
+          <div className="flex items-center gap-3">
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground font-mono">
+              Edit Candidate Identity
             </h2>
+            <span className="hidden sm:inline text-xs text-zinc-500 font-mono">
+              · Update attributes used across autonomous job matching
+            </span>
           </div>
-          <div className="space-y-4 rounded-[12px] border border-border bg-card p-4">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <label className={FIELD_LABEL} htmlFor="profile-full-name">
-                  Full name
-                </label>
-                <Input
-                  id="profile-full-name"
-                  value={values.name}
-                  onChange={(e) => onChange({ fullName: e.target.value })}
-                  placeholder="Your name"
-                />
-              </div>
-              <div>
-                <label className={FIELD_LABEL} htmlFor="profile-email">
-                  Email
-                </label>
-                <Input
-                  id="profile-email"
-                  type="email"
-                  disabled
-                  value={values.email}
-                  className="cursor-not-allowed font-mono text-slate-500"
-                />
-              </div>
-              <div>
-                <label className={FIELD_LABEL} htmlFor="profile-headline">
-                  Target role
-                </label>
-                <Input
-                  id="profile-headline"
-                  value={values.headline}
-                  onChange={(e) => onChange({ headline: e.target.value })}
-                  placeholder="e.g. Full Stack Software Engineer"
-                />
-              </div>
-              <div>
-                <label className={FIELD_LABEL} htmlFor="profile-location">
-                  Location
-                </label>
-                <Input
-                  id="profile-location"
-                  value={values.location}
-                  onChange={(e) => onChange({ location: e.target.value })}
-                  placeholder="e.g. Durgapur / Remote"
-                />
-              </div>
-              <div>
-                <label className={FIELD_LABEL} htmlFor="profile-phone">
-                  Phone
-                </label>
-                <Input
-                  id="profile-phone"
-                  value={values.phone}
-                  onChange={(e) => onChange({ phone: e.target.value })}
-                  placeholder="+91 …"
-                />
-              </div>
-              <div>
-                <label className={FIELD_LABEL} htmlFor="profile-experience">
-                  Total experience (years)
-                </label>
-                <ProfileCombobox
-                  id="profile-experience"
-                  value={values.experienceYears}
-                  items={EXPERIENCE_OPTIONS}
-                  placeholder="e.g. Fresher or 3–5 years"
-                  onChange={(next) =>
-                    onChange({ totalExperienceYears: next })
-                  }
-                />
-              </div>
-            </div>
-            <div>
-              <label className={FIELD_LABEL} htmlFor="profile-summary">
-                Professional summary
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              className="h-7 text-xs font-mono text-zinc-400 hover:text-foreground hover:bg-neutral-900"
+              onClick={onCancel}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              size="sm"
+              disabled={saving}
+              className="h-7 text-xs font-mono bg-foreground text-background hover:bg-zinc-200"
+            >
+              {saved ? 'Saved' : saving ? 'Saving…' : 'Save Changes'}
+            </Button>
+          </div>
+        </div>
+
+        {error ? (
+          <div className="border-b border-red-500/20 bg-red-500/10 px-6 sm:px-8 py-2.5 text-xs font-mono text-red-400">
+            {error}
+          </div>
+        ) : null}
+
+        <div className="divide-y divide-border">
+          {/* ── Row 1: Contact & Location ─────────────────────── */}
+          <div className="w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-border">
+            <div className="px-6 sm:px-8 py-4 space-y-1.5">
+              <label className={FIELD_LABEL} htmlFor="profile-full-name">
+                Full Name
               </label>
-              <textarea
-                id="profile-summary"
-                className={TEXTAREA_CLASS}
-                value={values.summary}
-                onChange={(e) =>
-                  onChange({ professionalSummary: e.target.value })
-                }
-                placeholder="A short professional summary"
+              <Input
+                id="profile-full-name"
+                value={values.name}
+                onChange={(e) => onChange({ fullName: e.target.value })}
+                placeholder="Your full name"
+                className="h-8 text-xs font-sans"
+              />
+            </div>
+            <div className="px-6 sm:px-8 py-4 space-y-1.5">
+              <label className={FIELD_LABEL} htmlFor="profile-email">
+                Email (read-only)
+              </label>
+              <Input
+                id="profile-email"
+                type="email"
+                disabled
+                value={values.email}
+                className="h-8 cursor-not-allowed font-mono text-xs text-zinc-500 bg-neutral-900/50"
+              />
+            </div>
+            <div className="px-6 sm:px-8 py-4 space-y-1.5">
+              <label className={FIELD_LABEL} htmlFor="profile-phone">
+                Phone
+              </label>
+              <Input
+                id="profile-phone"
+                value={values.phone}
+                onChange={(e) => onChange({ phone: e.target.value })}
+                placeholder="+91 …"
+                className="h-8 text-xs font-mono"
+              />
+            </div>
+            <div className="px-6 sm:px-8 py-4 space-y-1.5">
+              <label className={FIELD_LABEL} htmlFor="profile-location">
+                Location
+              </label>
+              <Input
+                id="profile-location"
+                value={values.location}
+                onChange={(e) => onChange({ location: e.target.value })}
+                placeholder="City, Country"
+                className="h-8 text-xs font-sans"
               />
             </div>
           </div>
-        </section>
 
-        {/* ── Skills + online presence ───────────────────────── */}
-        <section aria-label="Skills and online presence">
-          <div className="flex items-baseline justify-between mb-3">
-            <h2 className="text-sm font-semibold tracking-tight">Skills</h2>
+          {/* ── Row 2: Target Focus & Seniority ───────────────── */}
+          <div className="w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-border">
+            <div className="px-6 sm:px-8 py-4 space-y-1.5">
+              <label className={FIELD_LABEL} htmlFor="profile-headline">
+                Target Role
+              </label>
+              <Input
+                id="profile-headline"
+                value={values.headline}
+                onChange={(e) => onChange({ headline: e.target.value })}
+                placeholder="e.g. Senior Full Stack Engineer"
+                className="h-8 text-xs font-sans"
+              />
+            </div>
+            <div className="px-6 sm:px-8 py-4 space-y-1.5">
+              <label className={FIELD_LABEL} htmlFor="profile-experience">
+                Total Experience
+              </label>
+              <ProfileCombobox
+                id="profile-experience"
+                value={values.experienceYears}
+                items={EXPERIENCE_OPTIONS}
+                placeholder="Select years"
+                onChange={(next) =>
+                  onChange({ totalExperienceYears: next })
+                }
+              />
+            </div>
+            <div className="px-6 sm:px-8 py-4 space-y-1.5">
+              <label className={FIELD_LABEL} htmlFor="profile-seniority">
+                Seniority Tier
+              </label>
+              <ProfileCombobox
+                id="profile-seniority"
+                value={values.seniority}
+                items={SENIORITY_OPTIONS}
+                placeholder="e.g. senior"
+                onChange={(next) => onChange({ seniority: next })}
+              />
+            </div>
+            <div className="px-6 sm:px-8 py-4 space-y-1.5">
+              <label className={FIELD_LABEL} htmlFor="profile-work-mode">
+                Work Mode
+              </label>
+              <ProfileCombobox
+                id="profile-work-mode"
+                value={values.workMode}
+                items={WORK_MODE_OPTIONS}
+                placeholder="e.g. remote"
+                onChange={(next) => onChange({ workMode: next })}
+              />
+            </div>
           </div>
-          <div className="space-y-4 rounded-[12px] border border-border bg-card p-4">
-            <div>
+
+          {/* ── Row 3: Professional Summary ───────────────────── */}
+          <div className="px-6 sm:px-8 py-4 space-y-1.5">
+            <label className={FIELD_LABEL} htmlFor="profile-summary">
+              Professional Summary
+            </label>
+            <textarea
+              id="profile-summary"
+              className={TEXTAREA_CLASS}
+              rows={3}
+              value={values.summary}
+              onChange={(e) =>
+                onChange({ professionalSummary: e.target.value })
+              }
+              placeholder="A brief executive summary of your strengths and accomplishments"
+            />
+          </div>
+
+          {/* ── Row 4: Skills & Online Profiles ───────────────── */}
+          <div className="w-full grid grid-cols-1 lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-border">
+            <div className="px-6 sm:px-8 py-4 space-y-1.5">
               <label className={FIELD_LABEL} htmlFor="profile-skills">
                 Skills (comma-separated)
               </label>
@@ -156,133 +217,98 @@ export function ProfileIdentityForm({
                 id="profile-skills"
                 value={values.skills}
                 onChange={(e) => onChange({ skills: e.target.value })}
-                placeholder="React, TypeScript, Node.js"
+                placeholder="TypeScript, Next.js, PostgreSQL, Docker, AWS"
+                className="h-8 text-xs font-mono"
               />
             </div>
-            <div className="grid gap-4 sm:grid-cols-3">
-              <div>
-                <label className={FIELD_LABEL} htmlFor="profile-linkedin">
-                  LinkedIn
-                </label>
+            <div className="px-6 sm:px-8 py-4 space-y-2">
+              <label className={FIELD_LABEL}>Online Profiles</label>
+              <div className="grid gap-2 sm:grid-cols-3">
                 <Input
                   id="profile-linkedin"
                   type="url"
                   value={values.linkedinUrl}
                   onChange={(e) => onChange({ linkedinUrl: e.target.value })}
-                  placeholder="https://linkedin.com/in/you"
+                  placeholder="LinkedIn URL"
+                  className="h-7 text-xs font-mono"
                 />
-              </div>
-              <div>
-                <label className={FIELD_LABEL} htmlFor="profile-github">
-                  GitHub
-                </label>
                 <Input
                   id="profile-github"
                   type="url"
                   value={values.githubUrl}
                   onChange={(e) => onChange({ githubUrl: e.target.value })}
-                  placeholder="https://github.com/you"
+                  placeholder="GitHub URL"
+                  className="h-7 text-xs font-mono"
                 />
-              </div>
-              <div>
-                <label className={FIELD_LABEL} htmlFor="profile-portfolio">
-                  Portfolio
-                </label>
                 <Input
                   id="profile-portfolio"
                   type="url"
                   value={values.portfolioUrl}
                   onChange={(e) => onChange({ portfolioUrl: e.target.value })}
-                  placeholder="https://you.dev"
+                  placeholder="Portfolio URL"
+                  className="h-7 text-xs font-mono"
                 />
               </div>
             </div>
           </div>
-        </section>
 
-        {/* ── Job preferences ────────────────────────────────── */}
-        <section aria-label="Job preferences">
-          <div className="flex items-baseline justify-between mb-3">
-            <h2 className="text-sm font-semibold tracking-tight">
-              Job preferences
-            </h2>
-          </div>
-          <div className="space-y-4 rounded-[12px] border border-border bg-card p-4">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <label className={FIELD_LABEL} htmlFor="profile-roles">
-                  Preferred roles (comma-separated)
-                </label>
-                <Input
-                  id="profile-roles"
-                  value={values.preferredRoles}
-                  onChange={(e) =>
-                    onChange({ preferredRoles: e.target.value })
-                  }
-                  placeholder="Full Stack Engineer, Backend Engineer"
-                />
-              </div>
-              <div>
-                <label
-                  className={FIELD_LABEL}
-                  htmlFor="profile-preferred-locations"
-                >
-                  Preferred locations (comma-separated)
-                </label>
-                <Input
-                  id="profile-preferred-locations"
-                  value={values.preferredLocations}
-                  onChange={(e) =>
-                    onChange({ preferredLocations: e.target.value })
-                  }
-                  placeholder="Remote, Bengaluru"
-                />
-              </div>
-              <div>
-                <label className={FIELD_LABEL} htmlFor="profile-seniority">
-                  Seniority
-                </label>
-                <ProfileCombobox
-                  id="profile-seniority"
-                  value={values.seniority}
-                  items={SENIORITY_OPTIONS}
-                  placeholder="e.g. junior — type or pick"
-                  onChange={(next) => onChange({ seniority: next })}
-                />
-              </div>
-              <div>
-                <label className={FIELD_LABEL} htmlFor="profile-work-mode">
-                  Work mode
-                </label>
-                <ProfileCombobox
-                  id="profile-work-mode"
-                  value={values.workMode}
-                  items={WORK_MODE_OPTIONS}
-                  placeholder="e.g. remote — type or pick"
-                  onChange={(next) => onChange({ workMode: next })}
-                />
-              </div>
+          {/* ── Row 5: Application Preferences ────────────────── */}
+          <div className="w-full grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-border">
+            <div className="px-6 sm:px-8 py-4 space-y-1.5">
+              <label className={FIELD_LABEL} htmlFor="profile-roles">
+                Preferred Roles (comma-separated)
+              </label>
+              <Input
+                id="profile-roles"
+                value={values.preferredRoles}
+                onChange={(e) =>
+                  onChange({ preferredRoles: e.target.value })
+                }
+                placeholder="Full Stack Engineer, Backend Engineer"
+                className="h-8 text-xs font-sans"
+              />
+            </div>
+            <div className="px-6 sm:px-8 py-4 space-y-1.5">
+              <label
+                className={FIELD_LABEL}
+                htmlFor="profile-preferred-locations"
+              >
+                Preferred Locations (comma-separated)
+              </label>
+              <Input
+                id="profile-preferred-locations"
+                value={values.preferredLocations}
+                onChange={(e) =>
+                  onChange({ preferredLocations: e.target.value })
+                }
+                placeholder="Remote, Bengaluru, New York"
+                className="h-8 text-xs font-sans"
+              />
             </div>
           </div>
-        </section>
+        </div>
 
-        {error ? (
-          <p className="text-[11px] text-red-500">{error}</p>
-        ) : null}
-        <div className="flex gap-2">
-          <Button type="submit" size="sm" disabled={saving}>
-            {saved ? 'Saved' : saving ? 'Saving…' : 'Save'}
-          </Button>
+        {/* ── Footer Actions ───────────────────────────────────── */}
+        <div className="flex items-center justify-end gap-2 border-t border-border px-6 sm:px-8 py-3 bg-background">
           <Button
             type="button"
             size="sm"
-            variant="outline"
+            variant="ghost"
+            className="h-8 text-xs font-mono text-zinc-400 hover:text-foreground"
             onClick={onCancel}
           >
             Cancel
           </Button>
+          <Button
+            type="submit"
+            size="sm"
+            disabled={saving}
+            className="h-8 text-xs font-mono bg-foreground text-background hover:bg-zinc-200"
+          >
+            {saved ? 'Saved' : saving ? 'Saving…' : 'Save Changes'}
+          </Button>
         </div>
       </form>
-    </div>
+    </section>
   );
 }

@@ -119,17 +119,19 @@ export default function AdminOverviewPage() {
   }));
 
   return (
-    <div className="max-w-[1240px] mx-auto space-y-6 animate-fadeIn text-[#f1f3f9]">
-      <div className="flex flex-col sm:flex-row sm:items-center gap-3 rounded-xl border border-slate-500/30 bg-slate-500/10 px-4 py-3">
-        <Shield className="h-4 w-4 shrink-0 text-slate-300" />
-        <p className="flex-1 text-xs font-medium text-slate-200">
-          {error
-            ? error
-            : `${userTotal} accounts · ${resumeTotal} resume files · ${processing} in queue.`}
-        </p>
+    <div className="w-full animate-fadeIn text-foreground">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border bg-secondary/30 px-6 py-2.5">
+        <div className="flex items-center gap-2 min-w-0">
+          <Shield className="h-4 w-4 shrink-0 text-muted-foreground" />
+          <p className="text-xs font-medium text-muted-foreground truncate">
+            {error
+              ? error
+              : `${userTotal} accounts · ${resumeTotal} resume files · ${processing} in queue.`}
+          </p>
+        </div>
         <Link
           href="/dashboard/admin/users"
-          className="shrink-0 rounded-md bg-white/90 px-3 py-1.5 text-xs font-bold text-slate-950 hover:bg-white transition-colors"
+          className="shrink-0 rounded-[6px] border border-border bg-card px-3 py-1 text-xs font-medium text-foreground hover:bg-muted transition-colors"
         >
           Manage users
         </Link>

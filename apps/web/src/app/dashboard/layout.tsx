@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 
-import { useRouter, usePathname } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 
 import { analytics } from '@applyso/analytics';
 
@@ -74,7 +74,6 @@ export default function DashboardAppLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const router = useRouter();
   const pathname = usePathname();
   const { data: session, isPending } = authClient.useSession();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -210,19 +209,27 @@ export default function DashboardAppLayout({
         </div>
       ) : null}
 
-      {/* Main Workspace Area with Inset Corner Curves */}
-      <div className="flex-1 flex flex-col h-full md:m-2 md:h-[calc(100vh-1rem)] overflow-hidden bg-background md:rounded-xl md:border border-border shadow-xs transition-colors duration-150">
+      {/* Main Workspace Area — full-bleed pitch black, hairline divider */}
+      <div className="flex-1 flex flex-col h-full overflow-hidden bg-background text-foreground transition-colors duration-150">
         {/* Single Unified Linear Header Bar */}
         <DashboardHeader
           trail={trail}
           homeHref={isAdmin ? '/dashboard/admin' : '/dashboard'}
-          showQuickAction={!isAdmin}
-          onQuickAction={() => router.push('/dashboard/auto-apply')}
+          showQuickAction={false}
           onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
         />
 
         {/* Scrollable Page Workspace */}
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-6 bg-background transition-colors duration-150">
+        <main
+          className={`flex-1 overflow-y-auto bg-background transition-colors duration-150 ${
+            pathname === '/dashboard' ||
+            pathname === '/dashboard/admin' ||
+            pathname === '/dashboard/profile' ||
+            pathname.startsWith('/dashboard/settings')
+              ? 'p-0 space-y-0'
+              : 'p-4 sm:p-6 lg:p-8 space-y-6'
+          }`}
+        >
           {children}
         </main>
       </div>

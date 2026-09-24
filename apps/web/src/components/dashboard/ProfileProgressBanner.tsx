@@ -51,15 +51,15 @@ export function ProfileProgressBanner() {
 
   if (action === 'upload-resume' || !hasResume) {
     return (
-      <div className="flex flex-col sm:flex-row sm:items-center gap-3 rounded-xl border border-sky-400/30 bg-sky-400/10 px-4 py-3">
-        <FileUp className="h-4 w-4 shrink-0 text-sky-300" />
-        <p className="flex-1 text-xs font-medium text-sky-100">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 border-b border-sky-500/20 bg-sky-500/5 px-6 py-2.5">
+        <FileUp className="h-4 w-4 shrink-0 text-sky-400" />
+        <p className="flex-1 text-xs font-medium text-sky-200">
           Upload a resume to start applying. We use it to read your name,
           experience, and skills.
         </p>
         <Link
           href={nextHref('upload-resume')}
-          className="shrink-0 rounded-md bg-sky-300 px-3 py-1.5 text-xs font-bold text-slate-950 hover:bg-sky-200 transition-colors"
+          className="shrink-0 rounded-[6px] bg-sky-400 px-3 py-1 text-xs font-semibold text-slate-950 hover:bg-sky-300 transition-colors"
         >
           Upload resume
         </Link>
@@ -69,7 +69,7 @@ export function ProfileProgressBanner() {
 
   if (action === 'review') {
     return (
-      <div className="flex flex-col sm:flex-row sm:items-center gap-3 rounded-xl border border-amber-400/30 bg-amber-400/10 px-4 py-3">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 border-b border-amber-500/20 bg-amber-500/5 px-6 py-2.5">
         <CircleCheck className="h-4 w-4 shrink-0 text-amber-400" />
         <p className="flex-1 text-xs font-medium text-amber-200">
           Resume uploaded. Review the extracted profile so agents use the right
@@ -77,7 +77,7 @@ export function ProfileProgressBanner() {
         </p>
         <Link
           href={nextHref('review')}
-          className="shrink-0 rounded-md bg-amber-400 px-3 py-1.5 text-xs font-bold text-slate-950 hover:bg-amber-300 transition-colors"
+          className="shrink-0 rounded-[6px] bg-amber-400 px-3 py-1 text-xs font-semibold text-slate-950 hover:bg-amber-300 transition-colors"
         >
           Review profile
         </Link>
@@ -92,15 +92,15 @@ export function ProfileProgressBanner() {
 
   const labels = optionalMissing.slice(0, 3).map((item) => item.label);
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center gap-3 rounded-xl border border-slate-500/30 bg-slate-500/10 px-4 py-3">
-      <Sparkles className="h-4 w-4 shrink-0 text-slate-300" />
-      <p className="flex-1 text-xs font-medium text-slate-200">
-        You can apply now. Add {labels.join(', ')}
+    <div className="flex flex-col sm:flex-row sm:items-center gap-3 border-b border-border bg-secondary/30 px-6 py-2.5">
+      <Sparkles className="h-4 w-4 shrink-0 text-muted-foreground" />
+      <p className="flex-1 text-xs font-medium text-muted-foreground">
+        You can apply now. Add <span className="text-foreground">{labels.join(', ')}</span>
         {optionalMissing.length > 3 ? ', and more' : ''} for better matches.
       </p>
       <Link
         href="/dashboard/profile"
-        className="shrink-0 rounded-md bg-white/90 px-3 py-1.5 text-xs font-bold text-slate-950 hover:bg-white transition-colors"
+        className="shrink-0 rounded-[6px] border border-border bg-card px-3 py-1 text-xs font-medium text-foreground hover:bg-muted transition-colors"
       >
         Complete profile
       </Link>

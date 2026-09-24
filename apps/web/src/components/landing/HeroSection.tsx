@@ -5,7 +5,6 @@ import { motion } from "motion/react";
 import Image from "next/image";
 import AnalyticsPreview from "./demo/analyticspreview";
 import Herobuttons from "./hero-buttons";
-import TechStackSection from "./techstacksection";
 import HeroBadge from "./herobadge";
 
 const HeroSection = () => {
@@ -89,7 +88,6 @@ const HeroSection = () => {
               >
                 <Herobuttons />
               </motion.div>
-              <TechStackSection />
             </div>
           </div>
           <div className="relative hidden items-center overflow-hidden lg:flex lg:flex-[3]">

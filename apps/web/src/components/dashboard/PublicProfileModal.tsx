@@ -5,14 +5,12 @@ import { useEffect } from 'react';
 import { ExternalLink, X } from 'lucide-react';
 
 import { Button } from '@applyso/ui/button';
-import type { ProfileProgression } from '@applyso/validation';
 
 import {
   capitalize,
   experienceYearsLabel,
   getSafeProfileLinks,
 } from './profile-identity-helpers';
-import { tierVisual } from './profile-tiers';
 import { SafeExternalLink } from './SafeExternalLink';
 import { UserAvatar } from './UserAvatar';
 
@@ -24,7 +22,7 @@ interface PublicProfileModalProps {
   email: string;
   image?: string | null;
   avatarCacheBust?: number;
-  progression?: ProfileProgression | null;
+  progression?: unknown;
   onClose: () => void;
 }
 
@@ -34,7 +32,6 @@ export function PublicProfileModal({
   email,
   image,
   avatarCacheBust,
-  progression,
   onClose,
 }: PublicProfileModalProps) {
   useEffect(() => {
@@ -69,26 +66,34 @@ export function PublicProfileModal({
   ]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 animate-fadeIn">
       <div
-        className="flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-slate-200 bg-background shadow-2xl dark:border-[#22242a]"
+        className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-[8px] border border-border bg-background shadow-2xl"
         role="dialog"
         aria-modal="true"
         aria-label="Public profile preview"
       >
-        <div className="flex items-center justify-between border-b px-4 py-3">
+        <div className="flex items-center justify-between border-b border-border px-5 py-3.5 bg-background">
           <div>
-            <h2 className="text-sm font-semibold">Public profile</h2>
+            <h2 className="text-sm font-semibold tracking-tight text-foreground">
+              Public profile preview
+            </h2>
             <p className="text-xs text-muted-foreground">
-              How employers see you on ApplyOS
+              Candidate identity visible to verified employers on ApplyOS
             </p>
           </div>
-          <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 rounded-[6px] hover:bg-neutral-900/50 text-muted-foreground hover:text-foreground"
+            onClick={onClose}
+            aria-label="Close"
+          >
             <X className="h-4 w-4" />
           </Button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-5 space-y-6">
+        <div className="flex-1 overflow-y-auto p-6 space-y-6">
           <div className="flex items-start gap-4">
             <UserAvatar
               name={name}
@@ -97,12 +102,12 @@ export function PublicProfileModal({
               size={56}
               cacheBust={avatarCacheBust}
             />
-            <div className="min-w-0">
-              <p className="text-lg font-semibold tracking-tight truncate">
+            <div className="min-w-0 flex-1">
+              <p className="text-lg font-semibold tracking-tight text-foreground truncate">
                 {profile?.fullName?.trim() || name || 'Your profile'}
               </p>
-              <p className="text-[13px] text-slate-600 dark:text-[#c5c8d2] truncate">
-                {profile?.headline?.trim() || 'Add your target role'}
+              <p className="text-[13px] text-zinc-400 truncate">
+                {profile?.headline?.trim() || 'Target Role Not Specified'}
                 {profile?.location?.trim() ? (
                   <span className="text-muted-foreground">
                     {' '}
@@ -110,43 +115,37 @@ export function PublicProfileModal({
                   </span>
                 ) : null}
               </p>
-              <p className="mt-1 text-[11px] text-muted-foreground">
+              <p className="mt-1 text-[11px] text-muted-foreground font-mono">
                 {experienceYearsLabel(profile?.totalExperienceYears)}
                 {' · '}
-                {capitalize(profile?.seniority)}
+                {capitalize(profile?.seniority) || 'Mid-Senior'}
                 {' · '}
-                {capitalize(profile?.workMode)}
+                {capitalize(profile?.workMode) || 'Flexible'}
               </p>
-              {progression ? (
-                <span
-                  className={`mt-2 inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-semibold tracking-wide ${tierVisual(progression.tier.key).badgeClass}`}
-                >
-                  <span aria-hidden>◆</span>
-                  {progression.tier.label.toUpperCase()}
-                  <span className="font-mono font-medium opacity-80">
-                    · LEVEL {progression.level}
-                  </span>
-                </span>
-              ) : null}
             </div>
           </div>
 
           {profile?.professionalSummary?.trim() ? (
-            <p className="text-[13px] leading-relaxed text-slate-700 dark:text-[#c5c8d2]">
-              {profile.professionalSummary.trim()}
-            </p>
+            <div className="rounded-[6px] border border-border/80 bg-neutral-900/20 p-3.5">
+              <p className="text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground mb-1.5">
+                Executive Summary
+              </p>
+              <p className="text-[13px] leading-relaxed text-zinc-300">
+                {profile.professionalSummary.trim()}
+              </p>
+            </div>
           ) : null}
 
           {skills.length > 0 ? (
             <div>
               <p className="text-[11px] font-mono font-semibold uppercase tracking-[0.14em] text-muted-foreground mb-2">
-                Skills
+                Verified Skills
               </p>
               <div className="flex flex-wrap gap-1.5">
                 {skills.map((skill, i) => (
                   <span
                     key={`${skill}-${i}`}
-                    className="inline-flex items-center rounded-[6px] border border-border bg-muted px-2.5 py-1 text-xs font-medium text-slate-700 dark:text-[#c5c8d2]"
+                    className="inline-flex items-center rounded-[4px] border border-border bg-neutral-900/40 px-2 py-0.5 text-xs font-mono text-zinc-300"
                   >
                     {skill}
                   </span>
@@ -155,21 +154,23 @@ export function PublicProfileModal({
             </div>
           ) : null}
 
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-2 pt-2 border-t border-border">
             {roles.length > 0 ? (
               <div>
-                <p className="text-[11px] text-muted-foreground">Target roles</p>
-                <p className="mt-0.5 text-[13px] font-medium">
+                <p className="text-[11px] font-mono text-muted-foreground">
+                  Target roles
+                </p>
+                <p className="mt-0.5 text-[13px] font-medium text-foreground">
                   {roles.slice(0, 3).join(' · ')}
                 </p>
               </div>
             ) : null}
             {locations.length > 0 ? (
               <div>
-                <p className="text-[11px] text-muted-foreground">
+                <p className="text-[11px] font-mono text-muted-foreground">
                   Preferred locations
                 </p>
-                <p className="mt-0.5 text-[13px] font-medium">
+                <p className="mt-0.5 text-[13px] font-medium text-foreground">
                   {locations.slice(0, 3).join(' · ')}
                 </p>
               </div>
@@ -177,7 +178,7 @@ export function PublicProfileModal({
           </div>
 
           {links.length > 0 ? (
-            <div>
+            <div className="pt-2 border-t border-border">
               <p className="text-[11px] font-mono font-semibold uppercase tracking-[0.14em] text-muted-foreground mb-2">
                 Online presence
               </p>
@@ -186,12 +187,12 @@ export function PublicProfileModal({
                   <li key={link.label}>
                     <SafeExternalLink
                       href={link.value}
-                      className="group inline-flex items-center gap-1.5 text-[13px] font-medium text-cyan-700 dark:text-cyan-400 hover:underline"
+                      className="group inline-flex items-center gap-2 text-xs font-medium text-foreground hover:text-primary transition-colors"
                     >
-                      <span className="text-muted-foreground font-normal w-16">
+                      <span className="text-muted-foreground w-16 font-normal">
                         {link.label}
                       </span>
-                      <span className="truncate max-w-[320px] font-mono text-xs">
+                      <span className="truncate max-w-[320px] font-mono text-zinc-300 underline underline-offset-2">
                         {link.value.replace(/^https?:\/\//, '')}
                       </span>
                       <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />

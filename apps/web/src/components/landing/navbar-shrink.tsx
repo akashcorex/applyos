@@ -38,9 +38,9 @@ const Navbar = () => {
                 <Image
                   src="/logo-white.png"
                   alt="ApplyOS"
-                  width={120}
-                  height={32}
-                  className="mt-1 h-8 w-auto object-contain"
+                  width={72}
+                  height={24}
+                  className="mt-1 h-6 w-auto object-contain"
                 />
               </Link>
 

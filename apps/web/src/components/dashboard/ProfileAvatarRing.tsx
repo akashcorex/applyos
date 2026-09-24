@@ -2,14 +2,10 @@
 
 import { useId } from 'react';
 
-import type { ProfileTierKey } from '@applyso/validation';
-
-import { tierVisual } from './profile-tiers';
-
 interface ProfileAvatarRingProps {
   /** 0–100 fill of the ring. */
   percent: number;
-  tier: ProfileTierKey;
+  tier?: string;
   /** Avatar box size in px; the ring adds ~10px around it. */
   size: number;
   /** Screen-reader label for what the fill represents. */
@@ -17,23 +13,19 @@ interface ProfileAvatarRingProps {
   children: React.ReactNode;
 }
 
-const RING_WIDTH = 3;
-const RING_GAP = 4;
+const RING_WIDTH = 2;
+const RING_GAP = 3;
 
 /**
- * Ring around the avatar. The fill shows profile completeness; the ring
- * color/gradient shows the ApplyOS tier. SVG (not conic-gradient) for crisp
- * edges + real a11y semantics.
+ * Clean hairline ring around the avatar showing profile completeness.
  */
 export function ProfileAvatarRing({
   percent,
-  tier,
   size,
-  label = 'Progress',
+  label = 'Profile completeness',
   children,
 }: ProfileAvatarRingProps) {
   const gradientId = useId();
-  const visual = tierVisual(tier);
   const outer = size + (RING_WIDTH + RING_GAP) * 2;
   const radius = (outer - RING_WIDTH) / 2;
   const circumference = 2 * Math.PI * radius;
@@ -56,19 +48,11 @@ export function ProfileAvatarRing({
         viewBox={`0 0 ${outer} ${outer}`}
         className="absolute inset-0 -rotate-90"
         aria-hidden
-        style={
-          visual.glow
-            ? { filter: `drop-shadow(0 0 6px ${visual.glow})` }
-            : undefined
-        }
       >
         <defs>
           <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor={visual.ring[0]} />
-            {visual.ringMid ? (
-              <stop offset="50%" stopColor={visual.ringMid} />
-            ) : null}
-            <stop offset="100%" stopColor={visual.ring[1]} />
+            <stop offset="0%" stopColor="#3b82f6" />
+            <stop offset="100%" stopColor="#60a5fa" />
           </linearGradient>
         </defs>
         <circle
@@ -77,14 +61,14 @@ export function ProfileAvatarRing({
           r={radius}
           fill="none"
           strokeWidth={RING_WIDTH}
-          className="stroke-slate-200 dark:stroke-border"
+          className="stroke-border"
         />
         <circle
           cx={outer / 2}
           cy={outer / 2}
           r={radius}
           fill="none"
-          stroke={`url(#${gradientId})`}
+          stroke={clamped > 0 ? `url(#${gradientId})` : 'transparent'}
           strokeWidth={RING_WIDTH}
           strokeLinecap="round"
           strokeDasharray={`${filled} ${circumference - filled}`}

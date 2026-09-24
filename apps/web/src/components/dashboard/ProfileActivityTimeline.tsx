@@ -24,29 +24,20 @@ function dayLabel(iso: string): string {
   });
 }
 
-/**
- * Career activity timeline — replaces the old contribution-style heatmap.
- * Communicates job-search activity (resumes, matches, applications,
- * workflows), not developer commits.
- */
+function timeLabel(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toLocaleTimeString('en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
 export function ProfileActivityTimeline({
   items,
 }: {
   items: ProfileTimelineItem[];
 }) {
-  if (items.length === 0) {
-    return (
-      <div className="rounded-[12px] border border-border bg-card p-5 text-center">
-        <Briefcase className="mx-auto h-5 w-5 text-slate-400" />
-        <p className="mt-2 text-[13px] font-medium">No activity yet</p>
-        <p className="mt-0.5 text-xs text-muted-foreground">
-          Upload a resume and start a job search — your career activity will
-          show up here.
-        </p>
-      </div>
-    );
-  }
-
   const groups = new Map<string, ProfileTimelineItem[]>();
   for (const item of items) {
     const key = dayLabel(item.at);
@@ -56,34 +47,67 @@ export function ProfileActivityTimeline({
   }
 
   return (
-    <div className="rounded-[12px] border border-border bg-card p-4 sm:p-5">
-      <ol className="space-y-5">
-        {[...groups.entries()].map(([day, dayItems]) => (
-          <li key={day}>
-            <p className="text-[11px] font-mono font-semibold uppercase tracking-wider text-muted-foreground">
-              {day}
-            </p>
-            <ul className="mt-2 space-y-2">
-              {dayItems.map((item, index) => {
-                const Icon = KIND_ICON[item.kind] ?? FileText;
-                return (
-                  <li
-                    key={`${item.at}-${index}`}
-                    className="flex items-center gap-2.5 text-[13px]"
-                  >
-                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-[6px] bg-muted">
-                      <Icon className="h-3 w-3 text-slate-500 dark:text-[#8a8f9d]" />
-                    </span>
-                    <span className="min-w-0 truncate text-slate-700 dark:text-[#c5c8d2]">
-                      {item.label}
-                    </span>
-                  </li>
-                );
-              })}
-            </ul>
-          </li>
-        ))}
-      </ol>
-    </div>
+    <section
+      aria-label="Activity timeline"
+      className="w-full border-b border-border bg-background"
+    >
+      {/* ── Section Header ────────────────────────────────────── */}
+      <div className="flex items-center justify-between border-b border-border px-6 sm:px-8 py-3.5 bg-background">
+        <div className="flex items-center gap-3">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground font-mono">
+            Activity Timeline
+          </h2>
+          <span className="hidden sm:inline text-xs text-zinc-500 font-mono">
+            · Real-time audit log of matches, applications, and updates
+          </span>
+        </div>
+        <span className="text-xs font-mono text-zinc-400">
+          {items.length} {items.length === 1 ? 'event' : 'events'} logged
+        </span>
+      </div>
+
+      {/* ── Events List (Flush line-divided) ───────────────────── */}
+      {items.length === 0 ? (
+        <div className="px-6 sm:px-8 py-10 text-center space-y-2">
+          <Briefcase className="mx-auto h-5 w-5 text-zinc-600" />
+          <p className="text-xs font-mono text-muted-foreground">
+            No activity logged yet. Upload a resume or apply to jobs to track your events.
+          </p>
+        </div>
+      ) : (
+        <div className="divide-y divide-border">
+          {[...groups.entries()].map(([day, dayItems]) => (
+            <div key={day}>
+              <div className="bg-neutral-900/20 px-6 sm:px-8 py-2 text-[11px] font-mono font-semibold uppercase tracking-wider text-zinc-400 border-b border-border">
+                {day}
+              </div>
+              <div className="divide-y divide-border">
+                {dayItems.map((item, index) => {
+                  const Icon = KIND_ICON[item.kind] ?? FileText;
+                  return (
+                    <div
+                      key={`${item.at}-${index}`}
+                      className="flex items-center justify-between px-6 sm:px-8 py-3 text-xs bg-background hover:bg-neutral-900/30 transition-colors"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-[3px] border border-border bg-neutral-900/60">
+                          <Icon className="h-3.5 w-3.5 text-zinc-400" />
+                        </span>
+                        <span className="truncate font-medium text-zinc-300">
+                          {item.label}
+                        </span>
+                      </div>
+                      <span className="shrink-0 font-mono text-[11px] text-muted-foreground">
+                        {timeLabel(item.at)}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
   );
 }

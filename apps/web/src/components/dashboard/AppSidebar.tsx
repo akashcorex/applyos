@@ -1,29 +1,28 @@
 'use client';
 
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ComponentType } from 'react';
 
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 
+import { ChevronDown } from 'lucide-react';
 import {
-  Activity,
-  ChevronDown,
-  ClipboardList,
-  FileText,
-  HelpCircle,
-  Inbox,
-  Layers,
-  LogOut,
-  Search,
-  Send,
-  Settings,
-  Shield,
-  User,
-  Users,
-} from 'lucide-react';
-
-import { RaisedButton, RaisedChip } from '@applyso/ui/raised-button';
+  RiCpuLine,
+  RiCompass3Line,
+  RiDashboardLine,
+  RiFileList3Line,
+  RiFileTextLine,
+  RiGroupLine,
+  RiLogoutBoxRLine,
+  RiQuestionLine,
+  RiSendPlaneLine,
+  RiSettings3Line,
+  RiShieldKeyholeLine,
+  RiSparklingLine,
+  RiStackLine,
+  RiUser3Line,
+} from 'react-icons/ri';
 
 import { UserAvatar } from '@/components/dashboard/UserAvatar';
 import { authClient } from '@/lib/auth-client';
@@ -82,7 +81,7 @@ function ExpandIcon({ className = 'w-3.5 h-3.5' }: { className?: string }) {
 type NavItem = {
   href: string;
   label: string;
-  icon: (props: { className?: string; strokeWidth?: number }) => ReactNode;
+  icon: ComponentType<{ className?: string }>;
   badge?: number;
 };
 
@@ -90,7 +89,8 @@ function navActive(pathname: string, href: string): boolean {
   if (
     href === '/dashboard' ||
     href === '/dashboard/admin' ||
-    href === '/dashboard/profile'
+    href === '/dashboard/profile' ||
+    href === '/dashboard/auto-apply'
   ) {
     return pathname === href;
   }
@@ -110,39 +110,40 @@ function NavLink({
 }) {
   const Icon = item.icon;
   const isActive = navActive(pathname, item.href);
+
   return (
     <li className={isCollapsed ? 'flex justify-center' : undefined}>
-      <RaisedButton
-        asChild
-        active={isActive}
-        noPress
-        size="nav"
-        className={
+      <Link
+        href={item.href}
+        onClick={onNavigate}
+        title={isCollapsed ? item.label : undefined}
+        aria-current={isActive ? 'page' : undefined}
+        className={`group flex items-center rounded-[6px] text-xs font-medium transition-colors select-none ${
           isCollapsed
-            ? 'mx-auto flex size-9 justify-center px-0'
-            : 'w-full h-9 gap-2 px-2.5'
-        }
+            ? `size-8 justify-center p-0 ${
+                isActive
+                  ? 'bg-neutral-800 text-white font-semibold shadow-xs'
+                  : 'text-zinc-400 hover:bg-neutral-900 hover:text-white'
+              }`
+            : `w-full h-8 px-2.5 gap-2.5 ${
+                isActive
+                  ? 'bg-neutral-900 text-foreground font-semibold border border-border/80'
+                  : 'text-zinc-400 hover:bg-neutral-900/60 hover:text-foreground border border-transparent'
+              }`
+        }`}
       >
-        <Link
-          href={item.href}
-          onClick={onNavigate}
-          title={isCollapsed ? item.label : undefined}
-          aria-current={isActive ? 'page' : undefined}
-        >
-          <Icon
-            strokeWidth={1.7}
-            className={isCollapsed ? '!size-5' : undefined}
-          />
-          {!isCollapsed && (
-            <span className="min-w-0 flex-1 truncate text-left">
-              {item.label}
-            </span>
-          )}
-          {!isCollapsed && item.badge ? (
-            <RaisedChip>{item.badge}</RaisedChip>
-          ) : null}
-        </Link>
-      </RaisedButton>
+        <Icon className="size-4 shrink-0 text-current" />
+        {!isCollapsed && (
+          <span className="min-w-0 flex-1 truncate text-left text-xs font-medium">
+            {item.label}
+          </span>
+        )}
+        {!isCollapsed && item.badge ? (
+          <span className="px-1.5 py-0.5 rounded-[3px] bg-neutral-800 text-[10px] font-mono text-zinc-300">
+            {item.badge}
+          </span>
+        ) : null}
+      </Link>
     </li>
   );
 }
@@ -156,7 +157,7 @@ function SectionLabel({
 }) {
   if (hidden) return null;
   return (
-    <span className="block px-2.5 pt-2 pb-0.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+    <span className="block px-2.5 pt-2 pb-0.5 text-[10px] font-mono font-medium uppercase tracking-wider text-muted-foreground">
       {children}
     </span>
   );
@@ -215,72 +216,79 @@ export function AppSidebar({
 
   const workspaceItems: NavItem[] = isAdminNav
     ? [
-      { href: '/dashboard/admin', label: 'Overview', icon: Inbox },
-      { href: '/dashboard/admin/users', label: 'Users', icon: Users },
-      {
-        href: '/dashboard/admin/resumes',
-        label: 'Resumes',
-        icon: FileText,
-      },
-      {
-        href: '/dashboard/admin/system',
-        label: 'System',
-        icon: Activity,
-      },
-    ]
+        { href: '/dashboard/admin', label: 'Overview', icon: RiDashboardLine },
+        { href: '/dashboard/admin/users', label: 'Users', icon: RiGroupLine },
+        {
+          href: '/dashboard/admin/resumes',
+          label: 'Resumes',
+          icon: RiFileTextLine,
+        },
+        {
+          href: '/dashboard/admin/system',
+          label: 'System',
+          icon: RiCpuLine,
+        },
+      ]
     : [
-      { href: '/dashboard', label: 'Overview', icon: Inbox },
-      {
-        href: '/dashboard/discovery',
-        label: 'Discover Jobs',
-        icon: Search,
-      },
-      {
-        href: '/dashboard/applications',
-        label: 'Applications',
-        icon: ClipboardList,
-        badge: attentionCount,
-      },
-      {
-        href: '/dashboard/linkedin',
-        label: 'Outreach',
-        icon: Send,
-      },
-    ];
+        { href: '/dashboard', label: 'Overview', icon: RiDashboardLine },
+        {
+          href: '/dashboard/auto-apply',
+          label: 'Auto-Apply',
+          icon: RiSparklingLine,
+        },
+        {
+          href: '/dashboard/discovery',
+          label: 'Discover Jobs',
+          icon: RiCompass3Line,
+        },
+        {
+          href: '/dashboard/applications',
+          label: 'Applications',
+          icon: RiFileList3Line,
+          badge: attentionCount,
+        },
+        {
+          href: '/dashboard/linkedin',
+          label: 'Outreach',
+          icon: RiSendPlaneLine,
+        },
+      ];
 
   const workflowItems: NavItem[] = isAdminNav
     ? []
     : [
-      {
-        href: '/dashboard/workflows',
-        label: 'Job Tracker',
-        icon: Layers,
-      },
-    ];
+        {
+          href: '/dashboard/workflows',
+          label: 'Job Tracker',
+          icon: RiStackLine,
+        },
+      ];
 
   const accountItems = isAdminNav
     ? []
     : [
-      {
-        href: '/dashboard/settings/preferences',
-        label: 'Settings',
-        icon: Settings,
-      },
-      {
-        href: 'mailto:support@applyos.in',
-        label: 'Get Help',
-        icon: HelpCircle,
-      },
-      {
-        href: '/dashboard/settings/security',
-        label: 'Security',
-        icon: Shield,
-      },
-    ];
+        {
+          href: '/dashboard/settings/preferences',
+          label: 'Settings',
+          icon: RiSettings3Line,
+        },
+        {
+          href: 'mailto:support@applyos.in',
+          label: 'Get Help',
+          icon: RiQuestionLine,
+        },
+        {
+          href: '/dashboard/settings/security',
+          label: 'Security',
+          icon: RiShieldKeyholeLine,
+        },
+      ];
+
   const accountSubtitle = isAdminNav
     ? 'Admin'
-    : `${planLabel(billing?.plan ?? 'free')} plan${billing ? ` · ${billing.cycle.submitted}/${billing.cycle.limit}` : ''
-    }`;
+    : `${planLabel(billing?.plan ?? 'free')} plan${
+        billing ? ` · ${billing.cycle.submitted}/${billing.cycle.limit}` : ''
+      }`;
 
   function closeAccount() {
     setAccountOpen(false);
@@ -289,12 +297,15 @@ export function AppSidebar({
 
   return (
     <aside
-      className={`${isCollapsed ? 'w-20' : 'w-56'
-        } bg-sidebar text-sidebar-foreground flex flex-col h-full shrink-0 select-none font-sans transition-all duration-200 ease-in-out border-r-0`}
+      className={`${
+        isCollapsed ? 'w-[52px]' : 'w-56'
+      } bg-sidebar text-sidebar-foreground flex flex-col h-full shrink-0 select-none font-sans transition-[width] duration-150 ease-in-out border-r border-border`}
     >
+      {/* ── Top Header Bar (Unified h-12) ─────────────────────── */}
       <div
-        className={`h-24 px-2 flex items-center shrink-0 ${isCollapsed ? 'justify-center' : 'justify-between'
-          } bg-sidebar`}
+        className={`h-12 flex items-center shrink-0 border-b border-border ${
+          isCollapsed ? 'justify-center px-1.5' : 'justify-between px-3'
+        } bg-sidebar`}
       >
         {isCollapsed ? (
           <button
@@ -302,29 +313,29 @@ export function AppSidebar({
             onClick={onToggleCollapse}
             aria-label="Expand sidebar"
             title="Expand sidebar"
-            className="flex h-12 w-12 items-center justify-center rounded-[8px] bg-card border border-border p-1.5 text-card-foreground shadow-sm hover:border-muted-foreground/40 hover:scale-105 transition-all cursor-pointer group"
+            className="flex size-8 items-center justify-center rounded-[6px] border border-border bg-neutral-900/60 p-1 text-card-foreground shadow-none hover:border-neutral-700 transition-colors cursor-pointer group"
           >
             <Image
               src="/favicon.ico"
               alt="ApplyOS"
-              width={24}
-              height={24}
-              className="h-6 w-6 rounded-[4px] object-contain group-hover:hidden"
+              width={18}
+              height={18}
+              className="h-4 w-4 rounded-[3px] object-contain group-hover:hidden"
             />
-            <ExpandIcon className="w-3.5 h-3.5 text-muted-foreground hidden group-hover:block" />
+            <ExpandIcon className="w-3.5 h-3.5 text-zinc-400 hidden group-hover:block" />
           </button>
         ) : (
           <div className="flex items-center justify-between w-full">
             <Link
               href={isAdminNav ? '/dashboard/admin' : '/'}
-              className="flex items-center gap-2.5 group truncate min-w-0"
+              className="flex items-center gap-2 group truncate min-w-0"
             >
               <Image
                 src="/logo-white.png"
                 alt="ApplyOS"
                 width={100}
                 height={16}
-                className="h-[14px] w-auto shrink-0 object-contain invert transition-transform duration-150 group-hover:scale-[1.03] dark:invert-0 pl-2"
+                className="h-[14px] w-auto shrink-0 object-contain invert transition-transform duration-150 group-hover:scale-[1.03] dark:invert-0 pl-1"
               />
             </Link>
             {onToggleCollapse ? (
@@ -342,10 +353,12 @@ export function AppSidebar({
         )}
       </div>
 
+      {/* ── Navigation Items ─────────────────────────────────── */}
       <nav aria-label="Primary" className="flex-1 overflow-y-auto">
         <div
-          className={`flex flex-col gap-0.5 border-b border-transparent py-1.5 ${isCollapsed ? 'px-1.5' : 'px-2'
-            }`}
+          className={`flex flex-col gap-0.5 border-b border-border py-1.5 ${
+            isCollapsed ? 'px-1.5' : 'px-2'
+          }`}
         >
           <ul className="flex flex-col gap-0.5">
             {workspaceItems.map((item) => (
@@ -361,8 +374,9 @@ export function AppSidebar({
         </div>
         {workflowItems.length > 0 ? (
           <div
-            className={`flex flex-col gap-0.5 border-b border-transparent py-1.5 ${isCollapsed ? 'px-1.5' : 'px-2'
-              }`}
+            className={`flex flex-col gap-0.5 border-b border-border py-1.5 ${
+              isCollapsed ? 'px-1.5' : 'px-2'
+            }`}
           >
             <SectionLabel hidden={isCollapsed}>Workflow</SectionLabel>
             <ul className="flex flex-col gap-0.5">
@@ -380,16 +394,19 @@ export function AppSidebar({
         ) : null}
       </nav>
 
+      {/* ── Bottom Section (Profile, Settings, User Account) ──── */}
       <div
-        className={`${isCollapsed ? 'p-1.5' : 'px-2 py-2'} space-y-0.5 bg-sidebar`}
+        className={`${
+          isCollapsed ? 'p-1.5' : 'px-2 py-2'
+        } space-y-0.5 bg-sidebar border-t border-border`}
       >
         {isAdminNav ? null : (
-          <ul className="flex flex-col gap-0.5 border-b border-transparent pb-1.5 mb-1.5">
+          <ul className="flex flex-col gap-0.5 border-b border-border pb-1.5 mb-1.5">
             <NavLink
               item={{
                 href: '/dashboard/profile',
                 label: 'Profile',
-                icon: User,
+                icon: RiUser3Line,
               }}
               pathname={pathname}
               isCollapsed={isCollapsed}
@@ -399,7 +416,7 @@ export function AppSidebar({
               item={{
                 href: '/dashboard/settings/preferences',
                 label: 'Settings',
-                icon: Settings,
+                icon: RiSettings3Line,
               }}
               pathname={pathname}
               isCollapsed={isCollapsed}
@@ -409,7 +426,7 @@ export function AppSidebar({
               item={{
                 href: 'mailto:support@applyos.in',
                 label: 'Get Help',
-                icon: HelpCircle,
+                icon: RiQuestionLine,
               }}
               pathname={pathname}
               isCollapsed={isCollapsed}
@@ -421,10 +438,11 @@ export function AppSidebar({
         <div ref={accountRef} className="relative">
           {accountOpen ? (
             <div
-              className={`absolute z-30 mb-2 origin-bottom overflow-hidden rounded-[10px] border border-border bg-popover shadow-sm ${isCollapsed
-                ? 'bottom-0 left-full ml-2 w-48 origin-bottom-left'
-                : 'bottom-full left-0 right-0'
-                }`}
+              className={`absolute z-30 mb-2 origin-bottom overflow-hidden rounded-[8px] border border-border bg-popover shadow-xl ${
+                isCollapsed
+                  ? 'bottom-0 left-full ml-2 w-48 origin-bottom-left'
+                  : 'bottom-full left-0 right-0'
+              }`}
             >
               {accountItems.map((item) => {
                 const Icon = item.icon;
@@ -434,13 +452,14 @@ export function AppSidebar({
                     key={item.href}
                     href={item.href}
                     onClick={closeAccount}
-                    className={`flex items-center gap-2.5 px-3 py-2 text-xs font-medium transition-colors ${isActive
-                      ? 'bg-accent text-accent-foreground'
-                      : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
-                      }`}
+                    className={`flex items-center gap-2.5 px-3 py-2 text-xs font-medium transition-colors ${
+                      isActive
+                        ? 'bg-accent text-accent-foreground'
+                        : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+                    }`}
                   >
-                    <Icon className="h-3.5 w-3.5 shrink-0" />
-                    {item.label}
+                    <Icon className="size-4 shrink-0 text-current" />
+                    <span>{item.label}</span>
                   </Link>
                 );
               })}
@@ -450,11 +469,12 @@ export function AppSidebar({
                   setAccountOpen(false);
                   onSignOut();
                 }}
-                className={`flex w-full items-center gap-2.5 px-3 py-2 text-left text-xs font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground ${accountItems.length > 0 ? 'border-t border-border' : ''
-                  }`}
+                className={`flex w-full items-center gap-2.5 px-3 py-2 text-left text-xs font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground ${
+                  accountItems.length > 0 ? 'border-t border-border' : ''
+                }`}
               >
-                <LogOut className="h-3.5 w-3.5 shrink-0" />
-                Sign out
+                <RiLogoutBoxRLine className="size-4 shrink-0 text-current" />
+                <span>Sign out</span>
               </button>
             </div>
           ) : null}
@@ -467,28 +487,30 @@ export function AppSidebar({
             title={
               isCollapsed ? `${firstName} · ${accountSubtitle}` : undefined
             }
-            className={`w-full flex items-center ${isCollapsed ? 'justify-center p-1.5' : 'gap-2.5 px-2.5 py-2'
-              } rounded-[9px] bg-transparent border border-transparent hover:bg-accent shadow-none transition-[background-color,color] duration-150`}
+            className={`w-full flex items-center ${
+              isCollapsed ? 'justify-center p-1' : 'gap-2.5 px-2.5 py-1.5'
+            } rounded-[6px] bg-transparent border border-transparent hover:bg-neutral-900 transition-colors cursor-pointer`}
           >
             <UserAvatar
               name={userName ?? 'User'}
               email={userEmail ?? undefined}
               image={userImage}
-              size={isCollapsed ? 24 : 26}
+              size={isCollapsed ? 22 : 24}
             />
             {!isCollapsed && (
               <>
                 <div className="flex min-w-0 flex-1 flex-col text-left">
-                  <span className="truncate text-xs font-semibold leading-tight text-foreground">
+                  <span className="truncate text-xs font-medium leading-tight text-foreground">
                     {firstName}
                   </span>
-                  <span className="mt-0.5 truncate text-[10px] leading-tight text-muted-foreground">
+                  <span className="mt-0.5 truncate text-[10px] font-mono text-muted-foreground">
                     {accountSubtitle}
                   </span>
                 </div>
                 <ChevronDown
-                  className={`h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform ${accountOpen ? 'rotate-180' : ''
-                    }`}
+                  className={`size-3 shrink-0 text-muted-foreground transition-transform ${
+                    accountOpen ? 'rotate-180' : ''
+                  }`}
                 />
               </>
             )}

@@ -2,9 +2,9 @@
 
 import { ExternalLink } from 'lucide-react';
 
+import { Button } from '@applyso/ui/button';
+
 import {
-  Field,
-  SectionLabel,
   capitalize,
   experienceLabel,
   getSafeProfileLinks,
@@ -33,96 +33,158 @@ export function ProfileIdentityRead({
   ]);
 
   return (
-    <div id="profile-identity" className="space-y-8 scroll-mt-6">
-      {/* ── Professional profile ─────────────────────────────── */}
-      <section aria-label="Professional profile">
-        <div className="flex items-baseline justify-between mb-3">
-          <h2 className="text-sm font-semibold tracking-tight">
-            Professional profile
+    <section
+      aria-label="Candidate identity"
+      id="profile-identity"
+      className="w-full border-b border-border bg-background scroll-mt-6"
+    >
+      {/* ── Section Header ────────────────────────────────────── */}
+      <div className="flex items-center justify-between border-b border-border px-6 sm:px-8 py-3.5 bg-background">
+        <div className="flex items-center gap-3">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground font-mono">
+            Candidate Identity
           </h2>
-          <button
-            type="button"
-            onClick={onEdit}
-            className="text-[11px] font-semibold text-foreground hover:underline"
-          >
-            Edit
-          </button>
+          <span className="hidden sm:inline text-xs text-zinc-500 font-mono">
+            · Attributes used across autonomous job matching
+          </span>
         </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onEdit}
+          className="h-7 text-xs font-mono text-zinc-300 hover:text-foreground hover:bg-neutral-900"
+        >
+          Edit Details
+        </Button>
+      </div>
 
-        <div className="space-y-5">
-          <div className="space-y-3">
-            <SectionLabel>Personal</SectionLabel>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <Field label="Full name" value={values.name} />
-              <Field label="Email" value={values.email} mono />
-              <Field label="Phone" value={values.phone} mono />
-              <Field label="Location" value={values.location} />
-            </div>
-          </div>
-          <div className="space-y-3">
-            <SectionLabel>Professional</SectionLabel>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <Field label="Target role" value={values.headline} />
-              <Field
-                label="Experience"
-                value={
-                  values.experienceYears.trim() === ''
-                    ? '—'
-                    : experienceLabel(values.experienceYears)
-                }
-              />
-            </div>
-            <div>
-              <p className="text-[11px] text-muted-foreground mb-1">Summary</p>
-              <p className="text-[13px] leading-relaxed text-slate-700 dark:text-[#c5c8d2] max-w-[640px]">
-                {values.summary.trim() || (
-                  <span className="text-muted-foreground">
-                    No summary yet — add one so agents can tailor applications.
-                  </span>
-                )}
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ── Skills + online presence ─────────────────────────── */}
-      <section aria-label="Skills and online presence">
-        <div className="flex items-baseline justify-between mb-3">
-          <h2 className="text-sm font-semibold tracking-tight">Skills</h2>
-        </div>
-
-        <div className="space-y-4">
-          {skillList.length > 0 ? (
-            <div className="flex flex-wrap gap-1.5">
-              {skillList.map((skill, i) => (
-                <span
-                  key={`${skill}-${i}`}
-                  className="inline-flex items-center rounded-[6px] border border-border bg-muted px-2.5 py-1 text-xs font-medium text-slate-700 dark:text-[#c5c8d2]"
-                >
-                  {skill}
-                </span>
-              ))}
-            </div>
-          ) : (
-            <p className="text-[13px] text-muted-foreground">
-              No skills yet — add them so matching can rank you correctly.
+      <div className="divide-y divide-border">
+        {/* ── Row 1: Contact & Location (4 columns) ───────────── */}
+        <div className="w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-border">
+          <div className="px-6 sm:px-8 py-4">
+            <p className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground">
+              Full Name
             </p>
-          )}
-          <div className="space-y-2">
-            <SectionLabel>Online presence</SectionLabel>
+            <p className="mt-1 text-sm font-medium text-foreground">
+              {values.name || '—'}
+            </p>
+          </div>
+          <div className="px-6 sm:px-8 py-4">
+            <p className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground">
+              Email
+            </p>
+            <p className="mt-1 text-xs font-mono text-zinc-300 truncate">
+              {values.email || '—'}
+            </p>
+          </div>
+          <div className="px-6 sm:px-8 py-4">
+            <p className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground">
+              Phone
+            </p>
+            <p className="mt-1 text-xs font-mono text-zinc-300">
+              {values.phone || '—'}
+            </p>
+          </div>
+          <div className="px-6 sm:px-8 py-4">
+            <p className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground">
+              Location
+            </p>
+            <p className="mt-1 text-sm font-medium text-foreground">
+              {values.location || '—'}
+            </p>
+          </div>
+        </div>
+
+        {/* ── Row 2: Target Focus & Seniority (4 columns) ─────── */}
+        <div className="w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-border">
+          <div className="px-6 sm:px-8 py-4">
+            <p className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground">
+              Target Role
+            </p>
+            <p className="mt-1 text-sm font-medium text-foreground">
+              {values.headline || '—'}
+            </p>
+          </div>
+          <div className="px-6 sm:px-8 py-4">
+            <p className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground">
+              Total Experience
+            </p>
+            <p className="mt-1 text-sm font-medium text-foreground">
+              {values.experienceYears.trim() === ''
+                ? '—'
+                : experienceLabel(values.experienceYears)}
+            </p>
+          </div>
+          <div className="px-6 sm:px-8 py-4">
+            <p className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground">
+              Seniority Tier
+            </p>
+            <p className="mt-1 text-sm font-medium text-foreground">
+              {capitalize(values.seniority)}
+            </p>
+          </div>
+          <div className="px-6 sm:px-8 py-4">
+            <p className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground">
+              Work Mode
+            </p>
+            <p className="mt-1 text-sm font-medium text-foreground">
+              {capitalize(values.workMode)}
+            </p>
+          </div>
+        </div>
+
+        {/* ── Row 3: Professional Summary (Full Width) ─────────── */}
+        <div className="px-6 sm:px-8 py-4">
+          <p className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground mb-1">
+            Professional Summary
+          </p>
+          <p className="text-xs leading-relaxed text-zinc-300">
+            {values.summary.trim() || (
+              <span className="text-muted-foreground italic">
+                No professional summary entered.
+              </span>
+            )}
+          </p>
+        </div>
+
+        {/* ── Row 4: Skills & Online Profiles (2 columns) ─────── */}
+        <div className="w-full grid grid-cols-1 lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-border">
+          <div className="px-6 sm:px-8 py-4 space-y-2">
+            <p className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground">
+              Skills ({skillList.length})
+            </p>
+            {skillList.length > 0 ? (
+              <div className="flex flex-wrap gap-1.5">
+                {skillList.map((skill, i) => (
+                  <span
+                    key={`${skill}-${i}`}
+                    className="inline-flex items-center rounded-[3px] border border-border bg-neutral-900/50 px-2 py-0.5 text-xs font-mono text-zinc-300"
+                  >
+                    {skill}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground">No skills detected.</p>
+            )}
+          </div>
+
+          <div className="px-6 sm:px-8 py-4 space-y-2">
+            <p className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground">
+              Online Profiles
+            </p>
             {links.length > 0 ? (
               <ul className="space-y-1.5">
                 {links.map((link) => (
                   <li key={link.label}>
                     <SafeExternalLink
                       href={link.value}
-                      className="group inline-flex items-center gap-1.5 text-[13px] font-medium text-foreground hover:underline"
+                      className="group inline-flex items-center gap-2 text-xs font-medium text-foreground hover:text-primary transition-colors"
                     >
-                      <span className="text-muted-foreground font-normal w-16">
+                      <span className="text-muted-foreground font-mono text-xs w-16">
                         {link.label}
                       </span>
-                      <span className="truncate max-w-[320px] font-mono text-xs">
+                      <span className="truncate max-w-[280px] font-mono text-zinc-300 underline underline-offset-2">
                         {link.value.replace(/^https?:\/\//, '')}
                       </span>
                       <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -131,55 +193,33 @@ export function ProfileIdentityRead({
                 ))}
               </ul>
             ) : (
-              <p className="text-[13px] text-muted-foreground">No links yet.</p>
+              <p className="text-xs text-muted-foreground">
+                No external profiles linked.
+              </p>
             )}
           </div>
         </div>
-      </section>
 
-      {/* ── Job preferences ──────────────────────────────────── */}
-      <section aria-label="Job preferences">
-        <div className="flex items-baseline justify-between mb-3">
-          <h2 className="text-sm font-semibold tracking-tight">
-            Job preferences
-          </h2>
-        </div>
-
-        <dl className="space-y-2.5 max-w-[640px]">
-          <div className="flex gap-4">
-            <dt className="w-24 shrink-0 text-[11px] text-muted-foreground pt-0.5">
-              Roles
-            </dt>
-            <dd className="text-[13px] font-medium">
+        {/* ── Row 5: Application Preferences (2 columns) ───────── */}
+        <div className="w-full grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-border">
+          <div className="px-6 sm:px-8 py-4">
+            <p className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground">
+              Target Job Titles
+            </p>
+            <p className="mt-1 text-xs font-medium text-foreground">
               {roleList.length > 0 ? roleList.join(' · ') : '—'}
-            </dd>
+            </p>
           </div>
-          <div className="flex gap-4">
-            <dt className="w-24 shrink-0 text-[11px] text-muted-foreground pt-0.5">
-              Locations
-            </dt>
-            <dd className="text-[13px] font-medium">
+          <div className="px-6 sm:px-8 py-4">
+            <p className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground">
+              Target Geographies
+            </p>
+            <p className="mt-1 text-xs font-medium text-foreground">
               {locationList.length > 0 ? locationList.join(' · ') : '—'}
-            </dd>
+            </p>
           </div>
-          <div className="flex gap-4">
-            <dt className="w-24 shrink-0 text-[11px] text-muted-foreground pt-0.5">
-              Work mode
-            </dt>
-            <dd className="text-[13px] font-medium">
-              {capitalize(values.workMode.trim())}
-            </dd>
-          </div>
-          <div className="flex gap-4">
-            <dt className="w-24 shrink-0 text-[11px] text-muted-foreground pt-0.5">
-              Seniority
-            </dt>
-            <dd className="text-[13px] font-medium">
-              {capitalize(values.seniority.trim())}
-            </dd>
-          </div>
-        </dl>
-      </section>
-    </div>
+        </div>
+      </div>
+    </section>
   );
 }

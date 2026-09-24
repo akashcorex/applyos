@@ -5,10 +5,10 @@ import { ProfileProgressBanner } from '@/components/dashboard/ProfileProgressBan
 
 export default function DashboardOverviewPage() {
   return (
-    <div className="max-w-[1240px] mx-auto space-y-6 animate-fadeIn text-foreground">
+    <div className="w-full animate-fadeIn text-foreground">
       <ProfileProgressBanner />
 
-      {/* Top Overview & Dither-Kit Chart */}
+      {/* Top Overview & Chart */}
       <DashboardOverview showRecent={false} />
     </div>
   );

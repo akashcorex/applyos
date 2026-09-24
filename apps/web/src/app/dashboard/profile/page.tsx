@@ -2,22 +2,18 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { Skeleton } from '@applyso/ui/skeleton';
-
 import { AvatarUploadDialog } from '@/components/dashboard/AvatarUploadDialog';
 import type {
   ProfileRecord,
   ProfileSummary,
   ResumeHistoryItem,
 } from '@/components/dashboard/profile-types';
-import { ProfileAchievements } from '@/components/dashboard/ProfileAchievements';
 import { ProfileActivityHeatmap } from '@/components/dashboard/ProfileActivityHeatmap';
 import { ProfileActivityTimeline } from '@/components/dashboard/ProfileActivityTimeline';
 import { ProfileHero } from '@/components/dashboard/ProfileHero';
 import { ProfileIdentityCard } from '@/components/dashboard/ProfileIdentityCard';
-import { ProfileProgressCard } from '@/components/dashboard/ProfileProgressCard';
+import { ProfileMetricStrip } from '@/components/dashboard/ProfileMetricStrip';
 import { ProfileResumeCard } from '@/components/dashboard/ProfileResumeCard';
-import { ProfileStatsCard } from '@/components/dashboard/ProfileStatsCard';
 import {
   ProfileTabs,
   type ProfileTab,
@@ -257,7 +253,6 @@ export default function ProfilePage() {
 
   function scrollToIdentityAndEdit() {
     setTab('overview');
-    // Wait a tick so the overview tab is mounted before scrolling.
     setTimeout(() => {
       identityRef.current?.scrollIntoView({
         behavior: 'smooth',
@@ -286,23 +281,25 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <div className="w-full max-w-[1240px] mx-auto space-y-8">
-        <Skeleton className="h-72 w-full rounded-[14px]" />
-        <Skeleton className="h-10 w-full rounded-[8px]" />
-        <Skeleton className="h-48 w-full rounded-[12px]" />
-        <Skeleton className="h-64 w-full rounded-[12px]" />
+      <div className="w-full bg-background animate-pulse">
+        <div className="h-28 w-full border-b border-border bg-neutral-900/30" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-border border-b border-border h-24 bg-neutral-900/10" />
+        <div className="h-10 w-full border-b border-border bg-neutral-900/20" />
+        <div className="h-44 w-full border-b border-border bg-neutral-900/20" />
+        <div className="h-64 w-full border-b border-border bg-neutral-900/20" />
       </div>
     );
   }
 
   return (
-    <div className="w-full max-w-[1240px] mx-auto space-y-6 animate-fadeIn text-slate-900 dark:text-[#f1f3f9] pb-8">
+    <div className="w-full bg-background text-foreground animate-fadeIn">
       {loadError ? (
-        <div className="rounded-[12px] border border-red-500/30 bg-red-500/10 px-4 py-3 text-xs text-red-600 dark:text-red-400">
+        <div className="border-b border-red-500/20 bg-red-500/10 px-6 sm:px-8 py-3 text-xs font-mono text-red-400">
           {loadError}
         </div>
       ) : null}
 
+      {/* ── 1. Hero Identity Header (Full-bleed) ───────────────── */}
       <ProfileHero
         name={displayName}
         email={session?.user?.email ?? ''}
@@ -310,10 +307,10 @@ export default function ProfilePage() {
         headline={headline}
         location={location}
         workMode={workMode}
+        seniority={seniority}
         linkedinUrl={linkedinUrl}
         githubUrl={githubUrl}
         portfolioUrl={portfolioUrl}
-        progression={summary?.progression ?? null}
         completionPercent={summary?.completion.percent ?? null}
         needsReview={needsReview}
         avatarCacheBust={avatarCacheBust}
@@ -322,30 +319,21 @@ export default function ProfilePage() {
         onAvatarEdit={() => setShowAvatarDialog(true)}
       />
 
-      <ProfileTabs
-        tab={tab}
-        onChange={setTab}
-        achievementsBadge={
-          summary?.progression
-            ? `${summary.progression.earnedAchievements}/${summary.progression.achievements.length}`
-            : undefined
-        }
+      {/* ── 2. 4-Column KPI Metric Strip (Full-bleed) ───────────── */}
+      <ProfileMetricStrip
+        completion={summary?.completion}
+        experienceYears={experienceYears}
+        seniority={seniority}
+        totals={summary?.activity.totals}
+        onCompleteProfile={handlePrimaryEdit}
       />
 
-      {tab === 'overview' ? (
-        <div className="space-y-10">
-          <div className="grid gap-4 md:grid-cols-2">
-            {summary ? (
-              <ProfileProgressCard
-                completion={summary.completion}
-                onComplete={handlePrimaryEdit}
-              />
-            ) : null}
-            {summary ? (
-              <ProfileStatsCard totals={summary.activity.totals} />
-            ) : null}
-          </div>
+      {/* ── 3. Tabs Navigation (Full-bleed) ─────────────────────── */}
+      <ProfileTabs tab={tab} onChange={setTab} />
 
+      {/* ── 4. Tab Content: Overview (Full-bleed, 1px lines) ───── */}
+      {tab === 'overview' ? (
+        <div className="w-full bg-background">
           <ProfileResumeCard
             resume={summary?.resume ?? null}
             history={history}
@@ -357,13 +345,7 @@ export default function ProfilePage() {
             onConfirm={() => void handleConfirm()}
           />
 
-          <div className="w-full" ref={identityRef}>
-            {needsReview ? (
-              <p className="text-xs text-amber-600 dark:text-amber-400 mb-4">
-                Extracted from your resume — review and confirm. Saving edits
-                keeps this unconfirmed until you confirm.
-              </p>
-            ) : null}
+          <div ref={identityRef}>
             <ProfileIdentityCard
               name={name}
               email={session?.user?.email ?? ''}
@@ -418,8 +400,9 @@ export default function ProfilePage() {
         </div>
       ) : null}
 
+      {/* ── 5. Tab Content: Activity (Full-bleed, line-divided) ── */}
       {tab === 'activity' ? (
-        <div className="space-y-4">
+        <div className="w-full bg-background">
           {summary ? (
             <ProfileActivityHeatmap
               days={summary.activity.days}
@@ -432,16 +415,7 @@ export default function ProfilePage() {
         </div>
       ) : null}
 
-      {tab === 'achievements' ? (
-        summary?.progression ? (
-          <ProfileAchievements progression={summary.progression} />
-        ) : (
-          <p className="text-xs text-muted-foreground">
-            Achievements unavailable.
-          </p>
-        )
-      ) : null}
-
+      {/* ── Modals & Dialogs ──────────────────────────────────── */}
       {showPublicProfile ? (
         <PublicProfileModal
           profile={profile}
@@ -449,7 +423,6 @@ export default function ProfilePage() {
           email={session?.user?.email ?? ''}
           image={userImage}
           avatarCacheBust={avatarCacheBust}
-          progression={summary?.progression ?? null}
           onClose={() => setShowPublicProfile(false)}
         />
       ) : null}

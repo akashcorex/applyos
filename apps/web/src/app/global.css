@@ -57,53 +57,52 @@
   }
 
   .dark {
-    --shell: #0a0a0a;
-    --workspace: #0a0a0a;
-    --workspace-sidebar: #171717;
-    --card-surface: #171717;
-    --card-surface-hover: #262626;
-    --card-surface-inset: #0a0a0a;
-    --app-border: #262626;
-    --app-border-subtle: #212121;
+    --shell: #000000;
+    --workspace: #000000;
+    --workspace-sidebar: #000000;
+    --card-surface: #060606;
+    --card-surface-hover: #111111;
+    --card-surface-inset: #000000;
+    --app-border: #1f1f1f;
+    --app-border-subtle: #161616;
     --app-text-primary: #f9f9f9;
     --app-text-secondary: #a0a0a0;
     --app-text-muted: #737373;
 
-    --background: 0 0% 3.9%; /* #0a0a0a */
+    --background: 0 0% 0%; /* #000000 */
     --foreground: 0 0% 98%; /* #f9f9f9 */
-    --card: 0 0% 9.1%; /* #171717 */
+    --card: 0 0% 2.4%; /* #060606 */
     --card-foreground: 0 0% 98%;
-    --popover: 0 0% 9.1%;
+    --popover: 0 0% 4%; /* #0a0a0a */
     --popover-foreground: 0 0% 98%;
     --primary: 0 0% 89.8%;
     --primary-foreground: 0 0% 9.1%;
-    --secondary: 0 0% 14.9%; /* #262626 */
+    --secondary: 0 0% 8%; /* #141414 */
     --secondary-foreground: 0 0% 98%;
-    --muted: 0 0% 14.9%;
+    --muted: 0 0% 8%; /* #141414 */
     --muted-foreground: 0 0% 63%;
-    --accent: 0 0% 14.9%;
+    --accent: 0 0% 8%; /* #141414 */
     --accent-foreground: 0 0% 98%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 14.9%; /* #262626 */
-    --input: 0 0% 18%;
+    --border: 0 0% 12%; /* #1f1f1f */
+    --input: 0 0% 12%; /* #1f1f1f */
     --ring: 0 0% 45.2%;
     --chart-1: 0 0% 83.1%;
     --chart-2: 0 0% 45.2%;
     --chart-3: 0 0% 32.2%;
     --chart-4: 0 0% 25%;
     --chart-5: 0 0% 14.9%;
-    --sidebar-background: 0 0% 9.1%; /* #171717 */
+    --sidebar-background: 0 0% 0%; /* #000000 */
     --sidebar-foreground: 0 0% 98%;
     --sidebar-primary: 225 84% 49%; /* #1347e5 */
     --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 0 0% 14.9%; /* #262626 */
+    --sidebar-accent: 0 0% 8%; /* #141414 */
     --sidebar-accent-foreground: 0 0% 98%;
-    --sidebar-border: 0 0% 14.9%;
-    --sidebar-ring: 0 0% 45.2%;
-    --raised-shadow:
-      0 1px 2px rgba(0, 0, 0, 0.4);
-    --sidebar-nav-active-shadow: var(--raised-shadow);
+    --sidebar-border: 0 0% 12%; /* #1f1f1f */
+    --sidebar-ring: 0 0% 40%;
+    --raised-shadow: none;
+    --sidebar-nav-active-shadow: none;
   }
 }
 
@@ -170,11 +169,11 @@
     background-color: var(--card-surface);
     background-image: none;
     border: 1px solid var(--app-border);
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+    box-shadow: none;
   }
 
   .dark .linear-card:hover {
-    border-color: hsl(var(--muted-foreground) / 0.4);
+    border-color: hsl(var(--muted-foreground) / 0.35);
   }
 
   .linear-panel {

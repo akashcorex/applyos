@@ -1,426 +1,346 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
 import {
-  ChevronDown,
-  Columns,
-  Check,
-  GripVertical,
+  ArrowUpDown,
+  Clock,
+  Key,
+  Laptop,
+  Layers,
+  Link2,
   MoreHorizontal,
-  Plus,
-  Settings2,
+  Search,
+  Smartphone,
+  User,
+  Wifi,
 } from 'lucide-react';
 
-import { Button } from '@applyso/ui/button';
-import { Card, CardContent, CardHeader } from '@applyso/ui/card';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@applyso/ui/table';
-
-export type TableRowData = {
+export type ApiLogRow = {
   id: string;
-  header: string;
-  sectionType: string;
-  status: 'In Process' | 'Done';
-  target: number;
-  limit: number;
-  reviewer?: string | null;
+  endpoint: string;
+  source: 'Web' | 'Mobile' | 'API Key';
+  userType: 'Guest' | 'User';
+  latency: number; // in ms
+  requests: number;
+  timeAgo: string;
+  timestamp: number;
 };
 
-const INITIAL_ROWS: TableRowData[] = [
+const DEFAULT_ROWS: ApiLogRow[] = [
   {
     id: '1',
-    header: 'Cover page',
-    sectionType: 'Cover page',
-    status: 'In Process',
-    target: 18,
-    limit: 5,
-    reviewer: 'Eddie Lake',
+    endpoint: '/api/auth/login',
+    source: 'Web',
+    userType: 'Guest',
+    latency: 85,
+    requests: 12450,
+    timeAgo: '10s ago',
+    timestamp: 10,
   },
   {
     id: '2',
-    header: 'Table of contents',
-    sectionType: 'Table of contents',
-    status: 'Done',
-    target: 29,
-    limit: 24,
-    reviewer: 'Eddie Lake',
+    endpoint: '/api/user/profile',
+    source: 'Mobile',
+    userType: 'User',
+    latency: 45,
+    requests: 8920,
+    timeAgo: '5s ago',
+    timestamp: 5,
   },
   {
     id: '3',
-    header: 'Executive summary',
-    sectionType: 'Narrative',
-    status: 'Done',
-    target: 10,
-    limit: 13,
-    reviewer: 'Eddie Lake',
+    endpoint: '/api/products/list',
+    source: 'Web',
+    userType: 'User',
+    latency: 120,
+    requests: 6540,
+    timeAgo: '1m ago',
+    timestamp: 60,
   },
   {
     id: '4',
-    header: 'Technical approach',
-    sectionType: 'Narrative',
-    status: 'Done',
-    target: 27,
-    limit: 23,
-    reviewer: 'Jamik Tashpulatov',
+    endpoint: '/api/orders/create',
+    source: 'Mobile',
+    userType: 'User',
+    latency: 180,
+    requests: 3200,
+    timeAgo: '30s ago',
+    timestamp: 30,
   },
   {
     id: '5',
-    header: 'Design',
-    sectionType: 'Narrative',
-    status: 'In Process',
-    target: 2,
-    limit: 16,
-    reviewer: 'Jamik Tashpulatov',
+    endpoint: '/api/cart/update',
+    source: 'Web',
+    userType: 'User',
+    latency: 95,
+    requests: 2800,
+    timeAgo: '2m ago',
+    timestamp: 120,
   },
   {
     id: '6',
-    header: 'Capabilities',
-    sectionType: 'Narrative',
-    status: 'In Process',
-    target: 20,
-    limit: 8,
-    reviewer: 'Jamik Tashpulatov',
+    endpoint: '/api/auth/logout',
+    source: 'API Key',
+    userType: 'User',
+    latency: 32,
+    requests: 2100,
+    timeAgo: '10m ago',
+    timestamp: 600,
   },
   {
     id: '7',
-    header: 'Integration with existing systems',
-    sectionType: 'Narrative',
-    status: 'In Process',
-    target: 19,
-    limit: 21,
-    reviewer: 'Jamik Tashpulatov',
+    endpoint: '/api/search/query',
+    source: 'Web',
+    userType: 'User',
+    latency: 250,
+    requests: 5400,
+    timeAgo: '15s ago',
+    timestamp: 15,
   },
   {
     id: '8',
-    header: 'Innovation and Advantages',
-    sectionType: 'Narrative',
-    status: 'Done',
-    target: 25,
-    limit: 26,
-    reviewer: null,
-  },
-  {
-    id: '9',
-    header: 'Overview of EMR\'s Innovative Solutions',
-    sectionType: 'Technical content',
-    status: 'Done',
-    target: 7,
-    limit: 23,
-    reviewer: null,
-  },
-  {
-    id: '10',
-    header: 'Advanced Algorithms and Machine Learning',
-    sectionType: 'Narrative',
-    status: 'Done',
-    target: 30,
-    limit: 28,
-    reviewer: null,
+    endpoint: '/api/payments/process',
+    source: 'Mobile',
+    userType: 'User',
+    latency: 420,
+    requests: 890,
+    timeAgo: '3m ago',
+    timestamp: 180,
   },
 ];
 
-const TABS = [
-  { id: 'outline', label: 'Outline' },
-  { id: 'past_performance', label: 'Past Performance', badge: 3 },
-  { id: 'key_personnel', label: 'Key Personnel', badge: 2 },
-  { id: 'focus_documents', label: 'Focus Documents' },
-];
+type SortField = 'endpoint' | 'source' | 'userType' | 'latency' | 'requests' | 'time';
 
 export function DashboardDataTable() {
-  const [activeTab, setActiveTab] = useState('outline');
-  const [rows, setRows] = useState<TableRowData[]>(INITIAL_ROWS);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [columnsMenuOpen, setColumnsMenuOpen] = useState(false);
-  const [reviewerDropdownId, setReviewerDropdownId] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
+  const [sortField, setSortField] = useState<SortField>('time');
+  const [sortAsc, setSortAsc] = useState(true);
 
-  const [visibleColumns, setVisibleColumns] = useState({
-    sectionType: true,
-    status: true,
-    target: true,
-    limit: true,
-    reviewer: true,
-  });
-
-  const toggleSelectAll = () => {
-    if (selectedIds.size === rows.length) {
-      setSelectedIds(new Set());
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortAsc(!sortAsc);
     } else {
-      setSelectedIds(new Set(rows.map((r) => r.id)));
+      setSortField(field);
+      setSortAsc(true);
     }
   };
 
-  const toggleSelectRow = (id: string) => {
-    const next = new Set(selectedIds);
-    if (next.has(id)) {
-      next.delete(id);
-    } else {
-      next.add(id);
+  const filteredAndSortedRows = useMemo(() => {
+    let result = DEFAULT_ROWS.filter((row) => {
+      if (!search.trim()) return true;
+      const query = search.toLowerCase();
+      return (
+        row.endpoint.toLowerCase().includes(query) ||
+        row.source.toLowerCase().includes(query) ||
+        row.userType.toLowerCase().includes(query)
+      );
+    });
+
+    result = [...result].sort((a, b) => {
+      let cmp = 0;
+      switch (sortField) {
+        case 'endpoint':
+          cmp = a.endpoint.localeCompare(b.endpoint);
+          break;
+        case 'source':
+          cmp = a.source.localeCompare(b.source);
+          break;
+        case 'userType':
+          cmp = a.userType.localeCompare(b.userType);
+          break;
+        case 'latency':
+          cmp = a.latency - b.latency;
+          break;
+        case 'requests':
+          cmp = a.requests - b.requests;
+          break;
+        case 'time':
+          cmp = a.timestamp - b.timestamp;
+          break;
+      }
+      return sortAsc ? cmp : -cmp;
+    });
+
+    return result;
+  }, [search, sortField, sortAsc]);
+
+  const renderSourceIcon = (source: ApiLogRow['source']) => {
+    switch (source) {
+      case 'Web':
+        return <Laptop className="size-3.5 text-muted-foreground" />;
+      case 'Mobile':
+        return <Smartphone className="size-3.5 text-muted-foreground" />;
+      case 'API Key':
+        return <Key className="size-3.5 text-muted-foreground" />;
     }
-    setSelectedIds(next);
   };
 
-  const assignReviewer = (id: string, name: string) => {
-    setRows((prev) =>
-      prev.map((r) => (r.id === id ? { ...r, reviewer: name } : r)),
-    );
-    setReviewerDropdownId(null);
+  const getLatencyColor = (latency: number) => {
+    if (latency < 100) return 'text-emerald-400';
+    if (latency < 300) return 'text-amber-400';
+    return 'text-red-400';
   };
-
-  const isAllSelected = rows.length > 0 && selectedIds.size === rows.length;
 
   return (
-    <Card className="shadow-xs overflow-hidden">
-      {/* Top Header & Action Bar */}
-      <CardHeader className="p-4 pb-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-border">
-        {/* Category Tabs */}
-        <div className="inline-flex items-center gap-0.5 rounded-lg bg-muted p-1 border border-border">
-          {TABS.map((tab) => {
-            const isActive = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium transition-colors cursor-pointer ${
-                  isActive
-                    ? 'bg-card text-foreground shadow-xs'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                <span>{tab.label}</span>
-                {tab.badge ? (
-                  <span className="inline-flex items-center justify-center size-5 rounded-full text-[10px] font-medium bg-muted-foreground/30 text-muted-foreground px-1">
-                    {tab.badge}
-                  </span>
-                ) : null}
-              </button>
-            );
-          })}
-        </div>
+    <div className="w-full bg-background border-b border-border">
+      {/* Top Header of the API Logs Section */}
+      <div className="px-6 py-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-background">
+        <h3 className="text-sm font-semibold tracking-tight text-foreground">
+          API Logs
+        </h3>
 
-        {/* Action Controls */}
-        <div className="flex items-center gap-2 relative">
-          <div className="relative">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setColumnsMenuOpen((open) => !open)}
-              className="h-8 px-2.5 text-xs border-border bg-card text-muted-foreground hover:text-foreground"
-            >
-              <Columns className="h-3.5 w-3.5 mr-1.5" />
-              <span>Customize Columns</span>
-              <ChevronDown className="h-3 w-3 ml-1" />
-            </Button>
-
-            {columnsMenuOpen ? (
-              <div className="absolute right-0 z-20 mt-1 w-48 rounded-[8px] border border-border bg-popover p-2 shadow-lg text-xs space-y-1">
-                {Object.entries(visibleColumns).map(([key, isVis]) => (
-                  <label
-                    key={key}
-                    className="flex items-center justify-between px-2 py-1.5 rounded hover:bg-muted cursor-pointer"
-                  >
-                    <span className="capitalize">{key}</span>
-                    <input
-                      type="checkbox"
-                      checked={isVis}
-                      onChange={() =>
-                        setVisibleColumns((prev) => ({
-                          ...prev,
-                          [key]: !isVis,
-                        }))
-                      }
-                      className="rounded border-border bg-transparent cursor-pointer"
-                    />
-                  </label>
-                ))}
-              </div>
-            ) : null}
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <div className="relative flex-1 sm:w-64">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search endpoint..."
+              className="w-full pl-8 pr-3 h-8 text-xs rounded-[6px] border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-neutral-500 transition-colors"
+            />
           </div>
-
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 px-3 text-xs rounded-[6px]"
+          <button
+            type="button"
+            aria-label="More actions"
+            className="h-8 w-8 rounded-[6px] border border-border bg-background flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors cursor-pointer shrink-0"
           >
-            <Plus className="h-3.5 w-3.5 mr-1" />
-            <span>Add Section</span>
-          </Button>
+            <MoreHorizontal className="size-4" />
+          </button>
         </div>
-      </CardHeader>
+      </div>
 
-      {/* Main Table */}
-      <CardContent className="p-0">
-        <Table>
-          <TableHeader>
-            <TableRow className="bg-muted border-b border-border">
-              <TableHead className="w-10 text-center">
-                <input
-                  type="checkbox"
-                  checked={isAllSelected}
-                  onChange={toggleSelectAll}
-                  aria-label="Select all"
-                  className="rounded border-border bg-transparent cursor-pointer"
-                />
-              </TableHead>
-              <TableHead className="font-semibold text-muted-foreground">
-                Header
-              </TableHead>
-              {visibleColumns.sectionType ? (
-                <TableHead className="font-semibold text-muted-foreground">
-                  Section Type
-                </TableHead>
-              ) : null}
-              {visibleColumns.status ? (
-                <TableHead className="font-semibold text-muted-foreground">
-                  Status
-                </TableHead>
-              ) : null}
-              {visibleColumns.target ? (
-                <TableHead className="text-right font-semibold text-muted-foreground">
-                  Target
-                </TableHead>
-              ) : null}
-              {visibleColumns.limit ? (
-                <TableHead className="text-right font-semibold text-muted-foreground">
-                  Limit
-                </TableHead>
-              ) : null}
-              {visibleColumns.reviewer ? (
-                <TableHead className="font-semibold text-muted-foreground">
-                  Reviewer
-                </TableHead>
-              ) : null}
-              <TableHead className="w-10" />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map((row) => {
-              const isSelected = selectedIds.has(row.id);
-              return (
-                <TableRow
-                  key={row.id}
-                  className={`${
-                    isSelected
-                      ? 'bg-muted/60'
-                      : 'hover:bg-muted/50'
-                  } transition-colors border-b border-border/60`}
+      {/* Main Full-Bleed Line-Divided Table */}
+      <div className="w-full overflow-x-auto">
+        <table className="w-full text-left text-xs border-collapse">
+          <thead>
+            <tr className="border-y border-border bg-background/60 text-muted-foreground select-none">
+              <th
+                onClick={() => handleSort('endpoint')}
+                className="px-6 py-2.5 font-medium cursor-pointer hover:text-foreground transition-colors border-r border-border/80"
+              >
+                <div className="flex items-center gap-1.5">
+                  <Link2 className="size-3.5" />
+                  <span>Endpoint</span>
+                  <ArrowUpDown className="size-3 opacity-60 ml-0.5" />
+                </div>
+              </th>
+              <th
+                onClick={() => handleSort('source')}
+                className="px-5 py-2.5 font-medium cursor-pointer hover:text-foreground transition-colors border-r border-border/80"
+              >
+                <div className="flex items-center gap-1.5">
+                  <Laptop className="size-3.5" />
+                  <span>Source</span>
+                  <ArrowUpDown className="size-3 opacity-60 ml-0.5" />
+                </div>
+              </th>
+              <th
+                onClick={() => handleSort('userType')}
+                className="px-5 py-2.5 font-medium cursor-pointer hover:text-foreground transition-colors border-r border-border/80"
+              >
+                <div className="flex items-center gap-1.5">
+                  <User className="size-3.5" />
+                  <span>User Type</span>
+                  <ArrowUpDown className="size-3 opacity-60 ml-0.5" />
+                </div>
+              </th>
+              <th
+                onClick={() => handleSort('latency')}
+                className="px-5 py-2.5 font-medium cursor-pointer hover:text-foreground transition-colors border-r border-border/80"
+              >
+                <div className="flex items-center gap-1.5">
+                  <Wifi className="size-3.5" />
+                  <span>Latency</span>
+                  <ArrowUpDown className="size-3 opacity-60 ml-0.5" />
+                </div>
+              </th>
+              <th
+                onClick={() => handleSort('requests')}
+                className="px-5 py-2.5 font-medium cursor-pointer hover:text-foreground transition-colors border-r border-border/80"
+              >
+                <div className="flex items-center gap-1.5">
+                  <Layers className="size-3.5" />
+                  <span>Requests</span>
+                  <ArrowUpDown className="size-3 opacity-60 ml-0.5" />
+                </div>
+              </th>
+              <th
+                onClick={() => handleSort('time')}
+                className="px-6 py-2.5 font-medium cursor-pointer hover:text-foreground transition-colors"
+              >
+                <div className="flex items-center gap-1.5">
+                  <Clock className="size-3.5" />
+                  <span>Time</span>
+                  <ArrowUpDown className="size-3 opacity-60 ml-0.5" />
+                </div>
+              </th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border/60">
+            {filteredAndSortedRows.length === 0 ? (
+              <tr>
+                <td
+                  colSpan={6}
+                  className="px-6 py-8 text-center text-xs text-muted-foreground font-mono"
                 >
-                  <TableCell className="text-center py-2.5">
-                    <div className="flex items-center justify-center gap-1.5">
-                      <GripVertical className="h-3.5 w-3.5 text-muted-foreground cursor-grab" />
-                      <input
-                        type="checkbox"
-                        checked={isSelected}
-                        onChange={() => toggleSelectRow(row.id)}
-                        className="rounded border-border bg-transparent cursor-pointer"
-                      />
-                    </div>
-                  </TableCell>
-
-                  <TableCell className="font-medium text-foreground py-2.5">
-                    {row.header}
-                  </TableCell>
-
-                  {visibleColumns.sectionType ? (
-                    <TableCell className="py-2.5">
-                      <span className="inline-flex items-center px-1.5 rounded-[4px] border border-border text-[11px] text-muted-foreground bg-card">
-                        {row.sectionType}
-                      </span>
-                    </TableCell>
-                  ) : null}
-
-                  {visibleColumns.status ? (
-                    <TableCell className="py-2.5">
-                      {row.status === 'In Process' ? (
-                        <span className="inline-flex items-center gap-1.5 px-1.5 rounded-[4px] border border-border text-[11px] text-muted-foreground bg-card">
-                          <Settings2 className="h-3 w-3 animate-spin text-muted-foreground" />
-                          <span>In Process</span>
+                  No matching endpoints found
+                </td>
+              </tr>
+            ) : (
+              filteredAndSortedRows.map((row) => {
+                const latencyColor = getLatencyColor(row.latency);
+                return (
+                  <tr
+                    key={row.id}
+                    className="hover:bg-muted/25 transition-colors group"
+                  >
+                    <td className="px-6 py-3 border-r border-border/40 font-mono text-foreground/90 font-medium">
+                      <div className="flex items-center gap-2">
+                        <Link2 className="size-3.5 text-muted-foreground group-hover:text-foreground transition-colors" />
+                        <span>{row.endpoint}</span>
+                      </div>
+                    </td>
+                    <td className="px-5 py-3 border-r border-border/40 text-muted-foreground">
+                      <div className="flex items-center gap-2">
+                        {renderSourceIcon(row.source)}
+                        <span>{row.source}</span>
+                      </div>
+                    </td>
+                    <td className="px-5 py-3 border-r border-border/40 text-muted-foreground">
+                      <div className="flex items-center gap-2">
+                        <User className="size-3.5 text-muted-foreground" />
+                        <span>{row.userType}</span>
+                      </div>
+                    </td>
+                    <td className="px-5 py-3 border-r border-border/40 font-mono">
+                      <div className="flex items-center gap-1.5">
+                        <Wifi className={`size-3.5 ${latencyColor}`} />
+                        <span className={`font-medium ${latencyColor}`}>
+                          {row.latency}ms
                         </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1.5 px-1.5 rounded-[4px] border border-border text-[11px] text-muted-foreground bg-card">
-                          <Check className="h-3 w-3 fill-green-500 text-green-500 dark:fill-green-400 dark:text-green-400" />
-                          <span>Done</span>
-                        </span>
-                      )}
-                    </TableCell>
-                  ) : null}
-
-                  {visibleColumns.target ? (
-                    <TableCell className="text-right font-mono text-xs text-muted-foreground py-2.5">
-                      {row.target}
-                    </TableCell>
-                  ) : null}
-
-                  {visibleColumns.limit ? (
-                    <TableCell className="text-right font-mono text-xs text-muted-foreground py-2.5">
-                      {row.limit}
-                    </TableCell>
-                  ) : null}
-
-                  {visibleColumns.reviewer ? (
-                    <TableCell className="py-2.5 relative">
-                      {row.reviewer ? (
-                        <span className="text-xs text-foreground font-medium">
-                          {row.reviewer}
-                        </span>
-                      ) : (
-                        <div className="relative">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setReviewerDropdownId(
-                                reviewerDropdownId === row.id ? null : row.id,
-                              )
-                            }
-                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[6px] text-xs font-medium border border-border bg-card text-muted-foreground hover:text-foreground transition-colors"
-                          >
-                            <span>Assign reviewer</span>
-                            <ChevronDown className="h-3 w-3 text-muted-foreground" />
-                          </button>
-
-                          {reviewerDropdownId === row.id ? (
-                            <div className="absolute left-0 z-30 mt-1 w-44 rounded-[8px] border border-border bg-popover p-1 shadow-lg text-xs space-y-1">
-                              {['Eddie Lake', 'Jamik Tashpulatov', 'Sarah Connor'].map(
-                                (name) => (
-                                  <button
-                                    key={name}
-                                    type="button"
-                                    onClick={() => assignReviewer(row.id, name)}
-                                    className="w-full text-left px-2.5 py-1.5 rounded hover:bg-muted text-foreground"
-                                  >
-                                    {name}
-                                  </button>
-                                ),
-                              )}
-                            </div>
-                          ) : null}
-                        </div>
-                      )}
-                    </TableCell>
-                  ) : null}
-
-                  <TableCell className="text-right py-2.5">
-                    <button
-                      type="button"
-                      aria-label="Row actions"
-                      className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted"
-                    >
-                      <MoreHorizontal className="h-4 w-4" />
-                    </button>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
-      </CardContent>
-    </Card>
+                      </div>
+                    </td>
+                    <td className="px-5 py-3 border-r border-border/40 font-mono text-foreground/80">
+                      <div className="flex items-center gap-2">
+                        <Layers className="size-3.5 text-muted-foreground" />
+                        <span>{row.requests.toLocaleString()}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-3 text-muted-foreground font-sans">
+                      <div className="flex items-center gap-1.5">
+                        <Clock className="size-3.5 text-muted-foreground" />
+                        <span>{row.timeAgo}</span>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
   );
 }

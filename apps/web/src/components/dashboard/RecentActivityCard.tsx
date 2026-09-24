@@ -77,7 +77,7 @@ export function RecentActivityCard({
   items?: RecentActivityItem[];
 }) {
   return (
-    <Card className="shadow-xs p-5 h-full flex flex-col justify-between">
+    <Card className="p-5 h-full flex flex-col justify-between">
       <div>
         <CardHeader className="p-0 flex flex-row items-center justify-between border-b border-border pb-3">
           <div>

@@ -1,17 +1,15 @@
 'use client';
 
-export type ProfileTab = 'overview' | 'activity' | 'achievements';
+export type ProfileTab = 'overview' | 'activity';
 
 const TABS: { key: ProfileTab; label: string }[] = [
   { key: 'overview', label: 'Overview' },
   { key: 'activity', label: 'Activity' },
-  { key: 'achievements', label: 'Achievements' },
 ];
 
 export function ProfileTabs({
   tab,
   onChange,
-  achievementsBadge,
 }: {
   tab: ProfileTab;
   onChange: (tab: ProfileTab) => void;
@@ -21,7 +19,7 @@ export function ProfileTabs({
     <div
       role="tablist"
       aria-label="Profile sections"
-      className="flex gap-1 border-b border-slate-200/70 dark:border-[#1e2025]"
+      className="flex items-center gap-6 border-b border-border bg-background px-6 sm:px-8"
     >
       {TABS.map(({ key, label }) => {
         const active = tab === key;
@@ -32,20 +30,15 @@ export function ProfileTabs({
             aria-selected={active}
             type="button"
             onClick={() => onChange(key)}
-            className={`relative px-3 pb-2.5 pt-1 text-[13px] font-medium transition-colors ${
+            className={`relative py-3.5 text-xs font-medium tracking-tight transition-colors ${
               active
-                ? 'text-foreground'
+                ? 'text-foreground font-semibold'
                 : 'text-muted-foreground hover:text-foreground'
             }`}
           >
             {label}
-            {key === 'achievements' && achievementsBadge ? (
-              <span className="ml-1.5 rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-mono font-semibold text-muted-foreground">
-                {achievementsBadge}
-              </span>
-            ) : null}
             {active ? (
-              <span className="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-foreground" />
+              <span className="absolute inset-x-0 -bottom-px h-[2px] bg-foreground" />
             ) : null}
           </button>
         );

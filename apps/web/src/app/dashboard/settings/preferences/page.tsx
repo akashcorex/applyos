@@ -2,16 +2,9 @@
 
 import { useEffect, useState } from 'react';
 
-import { Sliders, Bot, Check } from 'lucide-react';
+import { Bot, Check, ShieldCheck, Sliders, Zap } from 'lucide-react';
 
 import { Button } from '@applyso/ui/button';
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from '@applyso/ui/card';
 import { Input } from '@applyso/ui/input';
 
 export default function PreferencesSettingsPage() {
@@ -46,8 +39,8 @@ export default function PreferencesSettingsPage() {
     void loadPreferences();
   }, []);
 
-  async function handleSave(e: React.FormEvent) {
-    e.preventDefault();
+  async function handleSave(e?: React.FormEvent) {
+    if (e) e.preventDefault();
     const res = await fetch('/api/preferences', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -64,151 +57,299 @@ export default function PreferencesSettingsPage() {
   }
 
   return (
-    <div className="w-full max-w-[1240px] mx-auto space-y-6 animate-fadeIn text-slate-900 dark:text-[#f1f3f9]">
-      <div>
-        <h1 className="text-xl font-semibold text-slate-900 dark:text-[#f1f3f9] tracking-tight">
-          Agent Preferences & Limits
-        </h1>
-        <p className="text-xs text-slate-500 dark:text-[#8a8f9d] mt-0.5">
-          Configure autonomous application throughput, matchmaking score
-          thresholds, and alert notifications.
-        </p>
+    <div className="w-full bg-background text-foreground animate-fadeIn">
+      {/* ── 1. Page Header Bar (Full-bleed) ───────────────────── */}
+      <div className="w-full border-b border-border bg-background px-6 sm:px-8 py-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-foreground font-sans">
+            Agent Preferences & Limits
+          </h1>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Autonomous application throughput, matchmaking score thresholds, and execution safety guardrails
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2.5">
+          <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-[4px] border border-emerald-500/25 bg-emerald-500/10 text-emerald-400 text-xs font-mono">
+            <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            ENGINE ACTIVE
+          </span>
+          <Button
+            type="button"
+            onClick={() => void handleSave()}
+            size="sm"
+            disabled={loading}
+            className="h-8 rounded-[6px] bg-foreground text-background hover:bg-zinc-200 text-xs font-mono font-medium"
+          >
+            {saved ? (
+              <>
+                <Check className="mr-1.5 h-3.5 w-3.5 text-emerald-600" />
+                Saved
+              </>
+            ) : (
+              'Save Preferences'
+            )}
+          </Button>
+        </div>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-3">
-        {/* Agent Limits Card */}
-        <Card className="md:col-span-2">
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <Sliders className="h-4 w-4 text-slate-900 dark:text-[#f1f3f9]" />
-              <CardTitle className="text-sm font-semibold text-slate-900 dark:text-[#f1f3f9]">
-                Automation Throughput
-              </CardTitle>
+      {/* ── 2. 4-Column KPI Summary Strip ─────────────────────── */}
+      <div className="w-full grid grid-cols-2 sm:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-border border-b border-border bg-background">
+        <div className="px-6 sm:px-8 py-4">
+          <p className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground">
+            Daily Cap
+          </p>
+          <p className="mt-1 text-xl sm:text-2xl font-semibold tabular-nums text-foreground font-sans">
+            {dailyLimit} / day
+          </p>
+          <p className="mt-0.5 text-[11px] font-mono text-zinc-500">
+            max 24h cycle
+          </p>
+        </div>
+
+        <div className="px-6 sm:px-8 py-4">
+          <p className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground">
+            Match Threshold
+          </p>
+          <p className="mt-1 text-xl sm:text-2xl font-semibold tabular-nums text-foreground font-sans">
+            {minScore}%
+          </p>
+          <p className="mt-0.5 text-[11px] font-mono text-zinc-500">
+            minimum fit barrier
+          </p>
+        </div>
+
+        <div className="px-6 sm:px-8 py-4">
+          <p className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground">
+            Dispatch Mode
+          </p>
+          <p className="mt-1 text-xl sm:text-2xl font-semibold tabular-nums text-foreground font-sans">
+            {autoSubmitEnabled ? 'Autonomous' : 'Semi-Auto'}
+          </p>
+          <p className="mt-0.5 text-[11px] font-mono text-zinc-500">
+            {autoSubmitEnabled ? 'Instant dispatch' : 'Review & approve'}
+          </p>
+        </div>
+
+        <div className="px-6 sm:px-8 py-4">
+          <p className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground">
+            Safety Guardrails
+          </p>
+          <p className="mt-1 text-xl sm:text-2xl font-semibold tabular-nums text-emerald-400 font-sans">
+            Enforced
+          </p>
+          <p className="mt-0.5 text-[11px] font-mono text-zinc-500">
+            2 of 2 active
+          </p>
+        </div>
+      </div>
+
+      <form onSubmit={handleSave}>
+        {/* ── 3. Section: Automation Throughput & Thresholds ───── */}
+        <section
+          aria-label="Automation throughput"
+          className="w-full border-b border-border bg-background"
+        >
+          <div className="flex items-center justify-between border-b border-border px-6 sm:px-8 py-3.5 bg-background">
+            <div className="flex items-center gap-3">
+              <Sliders className="h-3.5 w-3.5 text-zinc-400" />
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground font-mono">
+                Automation Capacity & Thresholds
+              </h2>
             </div>
-            <CardDescription className="text-xs text-slate-500 dark:text-[#8a8f9d]">
-              Control how aggressively autonomous agents apply on your behalf.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSave} className="space-y-4 text-xs">
-              <div>
-                <label className="block text-[11px] font-semibold text-slate-500 dark:text-[#8a8f9d] uppercase tracking-wider mb-1.5 font-mono">
-                  Daily Application Limit
-                </label>
+            <span className="text-xs font-mono text-zinc-500">
+              Per-candidate throughput controls
+            </span>
+          </div>
+
+          <div className="w-full grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-border">
+            <div className="px-6 sm:px-8 py-5 space-y-2">
+              <label
+                htmlFor="pref-daily-limit"
+                className="block text-[11px] font-mono font-semibold uppercase tracking-wider text-muted-foreground"
+              >
+                Daily Application Limit
+              </label>
+              <div className="flex items-center gap-3">
                 <Input
+                  id="pref-daily-limit"
                   type="number"
                   min="1"
                   max="100"
                   value={dailyLimit}
                   onChange={(e) => setDailyLimit(e.target.value)}
+                  className="h-8 w-44 text-xs font-mono bg-neutral-900/40 border-border"
                 />
-                <span className="text-[10px] text-slate-500 dark:text-[#8a8f9d] mt-1 block">
-                  Maximum applications submitted per 24-hour cycle.
+                <span className="text-xs font-mono text-zinc-400">
+                  applications / 24h
                 </span>
               </div>
+              <p className="text-xs text-muted-foreground">
+                Maximum number of automated job submissions launched per 24-hour rolling window.
+              </p>
+            </div>
 
-              <div>
-                <label className="block text-[11px] font-semibold text-slate-500 dark:text-[#8a8f9d] uppercase tracking-wider mb-1.5 font-mono">
-                  Minimum AI Match Score Threshold (%)
-                </label>
+            <div className="px-6 sm:px-8 py-5 space-y-2">
+              <label
+                htmlFor="pref-min-score"
+                className="block text-[11px] font-mono font-semibold uppercase tracking-wider text-muted-foreground"
+              >
+                Minimum AI Match Score (%)
+              </label>
+              <div className="flex items-center gap-3">
                 <Input
+                  id="pref-min-score"
                   type="number"
                   min="50"
                   max="100"
                   value={minScore}
                   onChange={(e) => setMinScore(e.target.value)}
+                  className="h-8 w-44 text-xs font-mono bg-neutral-900/40 border-border"
                 />
-                <span className="text-[10px] text-slate-500 dark:text-[#8a8f9d] mt-1 block">
-                  Jobs scoring below this threshold will be skipped.
-                </span>
+                <span className="text-xs font-mono text-zinc-400">% match</span>
               </div>
+              <p className="text-xs text-muted-foreground">
+                Jobs evaluated with semantic score below this percentage will be automatically skipped.
+              </p>
+            </div>
+          </div>
+        </section>
 
-              <div className="pt-2">
-                <label className="flex items-center gap-2 text-slate-700 dark:text-slate-300 font-medium cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={autoSubmitEnabled}
-                    disabled={loading}
-                    onChange={(e) => setAutoSubmitEnabled(e.target.checked)}
-                    className="h-3.5 w-3.5 rounded border-slate-300 dark:border-[#26282e] bg-white dark:bg-[#141518] text-slate-900 dark:text-[#f1f3f9] focus:ring-slate-900 dark:focus:ring-[#f1f3f9]"
-                  />
-                  <span>Auto-submit applications without manual approval</span>
-                </label>
-                <span className="text-[10px] text-slate-500 dark:text-[#8a8f9d] mt-1 block ml-5">
-                  When off, you review the filled form in the live browser and
-                  approve before submission.
-                </span>
-              </div>
+        {/* ── 4. Section: Dispatch Controls & Notifications ───── */}
+        <section
+          aria-label="Dispatch controls"
+          className="w-full border-b border-border bg-background"
+        >
+          <div className="flex items-center justify-between border-b border-border px-6 sm:px-8 py-3.5 bg-background">
+            <div className="flex items-center gap-3">
+              <Zap className="h-3.5 w-3.5 text-zinc-400" />
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground font-mono">
+                Dispatch Controls & Notifications
+              </h2>
+            </div>
+            <span className="text-xs font-mono text-zinc-500">
+              Manual approval & alert channels
+            </span>
+          </div>
 
-              <div className="pt-2">
-                <label className="flex items-center gap-2 text-slate-700 dark:text-slate-300 font-medium cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={emailAlerts}
-                    onChange={(e) => setEmailAlerts(e.target.checked)}
-                    className="h-3.5 w-3.5 rounded border-slate-300 dark:border-[#26282e] bg-white dark:bg-[#141518] text-slate-900 dark:text-[#f1f3f9] focus:ring-slate-900 dark:focus:ring-[#f1f3f9]"
-                  />
-                  <span>
-                    Send daily email summary of submitted applications
+          <div className="w-full grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-border">
+            <div className="px-6 sm:px-8 py-5 space-y-2">
+              <label className="flex items-start gap-3 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={autoSubmitEnabled}
+                  disabled={loading}
+                  onChange={(e) => setAutoSubmitEnabled(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded-[3px] border-border bg-neutral-900/60 text-foreground focus:ring-0 cursor-pointer"
+                />
+                <div>
+                  <span className="text-xs font-semibold text-foreground">
+                    Auto-submit applications without manual approval
                   </span>
-                </label>
-              </div>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    When disabled, the agent fills the application form in the cloud browser and waits for your confirmation before final submit.
+                  </p>
+                </div>
+              </label>
+            </div>
 
-              <div className="pt-2 flex items-center gap-3">
-                <Button type="submit" size="sm" className="rounded-[6px]">
-                  {saved ? (
-                    <>
-                      <Check className="h-3.5 w-3.5 text-emerald-400" />
-                      <span>Preferences Saved</span>
-                    </>
-                  ) : (
-                    <span>Save Agent Preferences</span>
-                  )}
-                </Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
+            <div className="px-6 sm:px-8 py-5 space-y-2">
+              <label className="flex items-start gap-3 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={emailAlerts}
+                  onChange={(e) => setEmailAlerts(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded-[3px] border-border bg-neutral-900/60 text-foreground focus:ring-0 cursor-pointer"
+                />
+                <div>
+                  <span className="text-xs font-semibold text-foreground">
+                    Send daily email digest of submitted applications
+                  </span>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Receive a consolidated summary email every morning detailing all autonomous submissions and interview alerts.
+                  </p>
+                </div>
+              </label>
+            </div>
+          </div>
+        </section>
 
-        {/* Autonomous Engine Health */}
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <Bot className="h-4 w-4 text-slate-900 dark:text-[#f1f3f9]" />
-                <CardTitle className="text-xs font-semibold text-slate-900 dark:text-[#f1f3f9]">
-                  Engine Safety Guards
-                </CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-2 text-xs text-slate-500 dark:text-[#8a8f9d]">
-              <div className="p-2 rounded-[6px] bg-slate-50 dark:bg-[#0e0f12] border border-slate-200 dark:border-[#22242a] text-[11px] space-y-1">
-                <div className="flex justify-between text-slate-900 dark:text-[#f1f3f9] font-medium">
-                  <span>Duplicate Protection</span>
-                  <span className="font-mono text-emerald-600 dark:text-emerald-400">
-                    ENABLED
+        {/* ── 5. Section: Autonomous Engine Safety Guards ─────── */}
+        <section
+          aria-label="Engine safety guards"
+          className="w-full border-b border-border bg-background"
+        >
+          <div className="flex items-center justify-between border-b border-border px-6 sm:px-8 py-3.5 bg-background">
+            <div className="flex items-center gap-3">
+              <Bot className="h-3.5 w-3.5 text-zinc-400" />
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground font-mono">
+                Autonomous Engine Safety Guards
+              </h2>
+            </div>
+            <span className="text-xs font-mono text-zinc-500">
+              System-enforced safety policies
+            </span>
+          </div>
+
+          <div className="w-full grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-border">
+            <div className="px-6 sm:px-8 py-5 space-y-1.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="h-4 w-4 text-emerald-400" />
+                  <span className="text-xs font-semibold text-foreground">
+                    Duplicate Target Protection
                   </span>
                 </div>
-                <p className="text-[10px] text-slate-500 dark:text-[#8a8f9d]">
-                  Prevents reapplying to previously targeted companies.
-                </p>
+                <span className="px-1.5 py-0.5 text-[10px] font-mono rounded-[3px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                  ENABLED
+                </span>
               </div>
+              <p className="text-xs text-muted-foreground">
+                Hashes job identifiers and employer domains to ensure you never apply twice to the same requisition.
+              </p>
+            </div>
 
-              <div className="p-2 rounded-[6px] bg-slate-50 dark:bg-[#0e0f12] border border-slate-200 dark:border-[#22242a] text-[11px] space-y-1">
-                <div className="flex justify-between text-slate-900 dark:text-[#f1f3f9] font-medium">
-                  <span>Rate Jitter</span>
-                  <span className="font-mono text-emerald-600 dark:text-emerald-400">
-                    ENABLED
+            <div className="px-6 sm:px-8 py-5 space-y-1.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="h-4 w-4 text-emerald-400" />
+                  <span className="text-xs font-semibold text-foreground">
+                    Human-Mimicking Rate Jitter
                   </span>
                 </div>
-                <p className="text-[10px] text-slate-500 dark:text-[#8a8f9d]">
-                  Randomizes submission timestamps to mimic human behavior.
-                </p>
+                <span className="px-1.5 py-0.5 text-[10px] font-mono rounded-[3px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                  ENABLED
+                </span>
               </div>
-            </CardContent>
-          </Card>
+              <p className="text-xs text-muted-foreground">
+                Randomizes keystroke delays, mouse trajectories, and navigation intervals to bypass anti-bot heuristics.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        {/* ── 6. Bottom Actions Bar ─────────────────────────────── */}
+        <div className="w-full border-b border-border bg-background px-6 sm:px-8 py-3.5 flex items-center justify-between">
+          <p className="text-xs font-mono text-zinc-500">
+            Changes take effect immediately on next automated runner cycle
+          </p>
+          <Button
+            type="submit"
+            size="sm"
+            disabled={loading}
+            className="h-8 rounded-[6px] bg-foreground text-background hover:bg-zinc-200 text-xs font-mono font-medium"
+          >
+            {saved ? (
+              <>
+                <Check className="mr-1.5 h-3.5 w-3.5 text-emerald-600" />
+                Preferences Saved
+              </>
+            ) : (
+              'Save Preferences'
+            )}
+          </Button>
         </div>
-      </div>
+      </form>
     </div>
   );
 }

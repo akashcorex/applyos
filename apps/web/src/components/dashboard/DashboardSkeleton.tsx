@@ -4,46 +4,39 @@ import { Skeleton } from '@applyso/ui';
 
 export function DashboardSkeleton() {
   return (
-    <div className="space-y-6 animate-fadeIn text-foreground">
-      {/* KPI Cards Skeletons */}
-      <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
+    <div className="w-full animate-fadeIn text-foreground bg-background">
+      {/* Stat strip skeleton — 1px line divided */}
+      <div className="w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-border border-b border-border bg-background">
         {[1, 2, 3, 4].map((i) => (
-          <div
-            key={i}
-            className="p-4 rounded-[12px] border border-[#26282e] bg-[#18191c] space-y-3"
-          >
-            <div className="flex items-center justify-between">
-              <Skeleton className="h-3 w-24 rounded-[4px] bg-[#1f2025]" />
-              <Skeleton className="h-6 w-6 rounded-[4px] bg-[#1f2025]" />
+          <div key={i} className="p-5 bg-background flex items-start justify-between">
+            <div className="space-y-2.5">
+              <Skeleton className="h-3.5 w-24 rounded-[4px] bg-secondary" />
+              <Skeleton className="h-7 w-20 rounded-[4px] bg-secondary" />
+              <Skeleton className="h-3 w-28 rounded-[4px] bg-secondary" />
             </div>
-            <Skeleton className="h-7 w-16 rounded-[4px] bg-[#1f2025]" />
-            <Skeleton className="h-3 w-24 rounded-[4px] bg-[#1f2025]" />
+            <Skeleton className="h-8 w-12 rounded-[2px] bg-secondary self-end" />
           </div>
         ))}
       </div>
 
-      {/* Main Chart Skeleton */}
-      <div className="p-5 rounded-[12px] border border-[#26282e] bg-[#18191c] space-y-4">
+      {/* Main chart skeleton — 1px line divided */}
+      <div className="w-full border-b border-border bg-background p-6 space-y-4">
         <div className="flex justify-between items-center">
-          <div className="space-y-1.5">
-            <Skeleton className="h-4 w-48 rounded-[4px] bg-[#1f2025]" />
-            <Skeleton className="h-3 w-72 rounded-[4px] bg-[#1f2025]" />
-          </div>
-          <Skeleton className="h-5 w-20 rounded-[4px] bg-[#1f2025]" />
+          <Skeleton className="h-4 w-32 rounded-[4px] bg-secondary" />
+          <Skeleton className="h-6 w-24 rounded-[4px] bg-secondary" />
         </div>
-        <Skeleton className="h-72 w-full rounded-[8px] bg-[#1f2025]" />
+        <Skeleton className="h-64 w-full rounded-[4px] bg-secondary" />
       </div>
 
-      {/* Two Column Grid Skeleton */}
-      <div className="grid gap-6 xl:grid-cols-2">
-        <div className="p-5 rounded-[12px] border border-[#26282e] bg-[#18191c] space-y-4">
-          <Skeleton className="h-5 w-40 rounded-[4px] bg-[#1f2025]" />
-          <Skeleton className="h-40 w-full rounded-[8px] bg-[#1f2025]" />
+      {/* Logs table skeleton — 1px line divided */}
+      <div className="w-full border-b border-border bg-background p-6 space-y-3">
+        <div className="flex justify-between items-center mb-4">
+          <Skeleton className="h-4 w-24 rounded-[4px] bg-secondary" />
+          <Skeleton className="h-7 w-48 rounded-[4px] bg-secondary" />
         </div>
-        <div className="p-5 rounded-[12px] border border-[#26282e] bg-[#18191c] space-y-4">
-          <Skeleton className="h-5 w-40 rounded-[4px] bg-[#1f2025]" />
-          <Skeleton className="h-40 w-full rounded-[8px] bg-[#1f2025]" />
-        </div>
+        {[1, 2, 3, 4, 5].map((i) => (
+          <Skeleton key={i} className="h-8 w-full rounded-[4px] bg-secondary" />
+        ))}
       </div>
     </div>
   );
