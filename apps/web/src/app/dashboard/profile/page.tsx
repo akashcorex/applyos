@@ -291,7 +291,7 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="w-full bg-background text-foreground animate-fadeIn">
+    <div className="w-full bg-background text-foreground ">
       {loadError ? (
         <div className="border-b border-red-500/20 bg-red-500/10 px-6 sm:px-8 py-3 text-xs font-mono text-red-400">
           {loadError}

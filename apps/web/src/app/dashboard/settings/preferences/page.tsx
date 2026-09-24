@@ -2,9 +2,8 @@
 
 import { useEffect, useState } from 'react';
 
-import { Bot, Check, ShieldCheck, Sliders, Zap } from 'lucide-react';
-
 import { Button } from '@applyso/ui/button';
+import { Bot, Check, ShieldCheck, Sliders, Zap } from '@applyso/ui/icons';
 import { Input } from '@applyso/ui/input';
 
 export default function PreferencesSettingsPage() {
@@ -57,7 +56,7 @@ export default function PreferencesSettingsPage() {
   }
 
   return (
-    <div className="w-full bg-background text-foreground animate-fadeIn">
+    <div className="w-full bg-background text-foreground ">
       {/* ── 1. Page Header Bar (Full-bleed) ───────────────────── */}
       <div className="w-full border-b border-border bg-background px-6 sm:px-8 py-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -151,9 +150,9 @@ export default function PreferencesSettingsPage() {
           className="w-full border-b border-border bg-background"
         >
           <div className="flex items-center justify-between border-b border-border px-6 sm:px-8 py-3.5 bg-background">
-            <div className="flex items-center gap-3">
-              <Sliders className="h-3.5 w-3.5 text-zinc-400" />
-              <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground font-mono">
+            <div className="flex items-center gap-2">
+              <Sliders className="size-4 text-primary" />
+              <h2 className="text-sm font-medium text-primary">
                 Automation Capacity & Thresholds
               </h2>
             </div>
@@ -221,9 +220,9 @@ export default function PreferencesSettingsPage() {
           className="w-full border-b border-border bg-background"
         >
           <div className="flex items-center justify-between border-b border-border px-6 sm:px-8 py-3.5 bg-background">
-            <div className="flex items-center gap-3">
-              <Zap className="h-3.5 w-3.5 text-zinc-400" />
-              <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground font-mono">
+            <div className="flex items-center gap-2">
+              <Zap className="size-4 text-primary" />
+              <h2 className="text-sm font-medium text-primary">
                 Dispatch Controls & Notifications
               </h2>
             </div>
@@ -280,9 +279,9 @@ export default function PreferencesSettingsPage() {
           className="w-full border-b border-border bg-background"
         >
           <div className="flex items-center justify-between border-b border-border px-6 sm:px-8 py-3.5 bg-background">
-            <div className="flex items-center gap-3">
-              <Bot className="h-3.5 w-3.5 text-zinc-400" />
-              <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground font-mono">
+            <div className="flex items-center gap-2">
+              <Bot className="size-4 text-primary" />
+              <h2 className="text-sm font-medium text-primary">
                 Autonomous Engine Safety Guards
               </h2>
             </div>

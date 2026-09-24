@@ -2,9 +2,9 @@
 
 import { useEffect } from 'react';
 
-import { ExternalLink, X } from 'lucide-react';
-
 import { Button } from '@applyso/ui/button';
+import { ExternalLink, X } from '@applyso/ui/icons';
+
 
 import {
   capitalize,
@@ -66,9 +66,9 @@ export function PublicProfileModal({
   ]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 animate-fadeIn">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
       <div
-        className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-[8px] border border-border bg-background shadow-2xl"
+        className="modal-pop flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-[8px] border border-border bg-background shadow-2xl"
         role="dialog"
         aria-modal="true"
         aria-label="Public profile preview"

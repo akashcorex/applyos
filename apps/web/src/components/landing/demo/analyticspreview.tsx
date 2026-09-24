@@ -1,9 +1,10 @@
 'use client';
 import React from 'react';
-import SiteHeader from './site-header';
+
+import AnalyticsChart from './analytics-chart';
 import PagesAnalytics from './page-analytics';
 import ReffererAnalytics from './refferer-analytics';
-import AnalyticsChart from './analytics-chart';
+import SiteHeader from './site-header';
 import Togglebutton from './togglebutton';
 
 const AnalyticsPreview = () => {

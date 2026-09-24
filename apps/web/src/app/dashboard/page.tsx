@@ -5,7 +5,7 @@ import { ProfileProgressBanner } from '@/components/dashboard/ProfileProgressBan
 
 export default function DashboardOverviewPage() {
   return (
-    <div className="w-full animate-fadeIn text-foreground">
+    <div className="w-full text-foreground">
       <ProfileProgressBanner />
 
       {/* Top Overview & Chart */}

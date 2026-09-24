@@ -1,7 +1,6 @@
 'use client';
 
-import { Briefcase, FileText, Send, Sparkles, Workflow } from 'lucide-react';
-
+import { Briefcase, FileText, Send, Sparkles, Workflow } from '@applyso/ui/icons';
 import type { ProfileActivityKind } from '@applyso/validation';
 
 import type { ProfileTimelineItem } from './profile-types';

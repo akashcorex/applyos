@@ -1,5 +1,7 @@
 // shared @applyso/* packages are listed explicitly in `content` below
 
+const defaultTheme = require('tailwindcss/defaultTheme');
+
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   darkMode: ['class'],
@@ -10,6 +12,10 @@ module.exports = {
     //     ...createGlobPatternsForDependencies(__dirname)
   ],
   theme: {
+    fontFamily: {
+      sans: ['var(--font-geist-sans)', ...defaultTheme.fontFamily.sans],
+      mono: ['var(--font-geist-mono)', ...defaultTheme.fontFamily.mono],
+    },
     container: {
       center: true,
       padding: '2rem',
@@ -91,6 +97,7 @@ module.exports = {
       },
       transitionTimingFunction: {
         'power3-out': 'cubic-bezier(0.215, 0.61, 0.355, 1)',
+        'out-strong': 'cubic-bezier(0.23, 1, 0.32, 1)',
       },
     },
   },

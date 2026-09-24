@@ -2,27 +2,29 @@
 
 import { useEffect, useRef, useState, type ComponentType } from 'react';
 
-import Link from 'next/link';
 import Image from 'next/image';
+import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
-import { ChevronDown } from 'lucide-react';
 import {
-  RiCpuLine,
+  ChevronDown,
+  PanelLeftClose,
+  PanelLeftOpen,
   RiCompass3Line,
+  RiCpuLine,
   RiDashboardLine,
   RiFileList3Line,
   RiFileTextLine,
   RiGroupLine,
   RiLogoutBoxRLine,
   RiQuestionLine,
+  Rocket,
   RiSendPlaneLine,
   RiSettings3Line,
   RiShieldKeyholeLine,
-  RiSparklingLine,
   RiStackLine,
   RiUser3Line,
-} from 'react-icons/ri';
+} from '@applyso/ui/icons';
 
 import { UserAvatar } from '@/components/dashboard/UserAvatar';
 import { authClient } from '@/lib/auth-client';
@@ -36,46 +38,6 @@ interface AppSidebarProps {
   onNavigate?: () => void;
   isCollapsed?: boolean;
   onToggleCollapse?: () => void;
-}
-
-function CollapseIcon({ className = 'w-3.5 h-3.5' }: { className?: string }) {
-  return (
-    <svg
-      width="14"
-      height="14"
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.6"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-    >
-      <line x1="2" y1="2" x2="2" y2="14" />
-      <path d="M14 8H6" />
-      <path d="M9 4L5 8L9 12" />
-    </svg>
-  );
-}
-
-function ExpandIcon({ className = 'w-3.5 h-3.5' }: { className?: string }) {
-  return (
-    <svg
-      width="14"
-      height="14"
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.6"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-    >
-      <line x1="14" y1="2" x2="14" y2="14" />
-      <path d="M2 8H10" />
-      <path d="M7 4L11 8L7 12" />
-    </svg>
-  );
 }
 
 type NavItem = {
@@ -118,23 +80,23 @@ function NavLink({
         onClick={onNavigate}
         title={isCollapsed ? item.label : undefined}
         aria-current={isActive ? 'page' : undefined}
-        className={`group flex items-center rounded-[6px] text-xs font-medium transition-colors select-none ${
+        className={`group flex items-center rounded-[6px] text-sm font-normal transition-colors select-none ${
           isCollapsed
-            ? `size-8 justify-center p-0 ${
+            ? `size-9 justify-center p-0 ${
                 isActive
-                  ? 'bg-neutral-800 text-white font-semibold shadow-xs'
-                  : 'text-zinc-400 hover:bg-neutral-900 hover:text-white'
+                  ? 'bg-neutral-800 text-white font-medium shadow-xs'
+                  : 'text-zinc-200 hover:bg-neutral-900 hover:text-white'
               }`
-            : `w-full h-8 px-2.5 gap-2.5 ${
+            : `w-full h-9 px-2.5 gap-2.5 ${
                 isActive
-                  ? 'bg-neutral-900 text-foreground font-semibold border border-border/80'
-                  : 'text-zinc-400 hover:bg-neutral-900/60 hover:text-foreground border border-transparent'
+                  ? 'bg-neutral-900 text-white font-medium border border-border/80'
+                  : 'text-zinc-200 hover:bg-neutral-900/60 hover:text-white border border-transparent'
               }`
         }`}
       >
         <Icon className="size-4 shrink-0 text-current" />
         {!isCollapsed && (
-          <span className="min-w-0 flex-1 truncate text-left text-xs font-medium">
+          <span className="min-w-0 flex-1 truncate text-left">
             {item.label}
           </span>
         )}
@@ -157,7 +119,7 @@ function SectionLabel({
 }) {
   if (hidden) return null;
   return (
-    <span className="block px-2.5 pt-2 pb-0.5 text-[10px] font-mono font-medium uppercase tracking-wider text-muted-foreground">
+    <span className="mb-1 block px-2.5 text-[10px] font-mono font-medium uppercase tracking-wider text-muted-foreground">
       {children}
     </span>
   );
@@ -234,7 +196,7 @@ export function AppSidebar({
         {
           href: '/dashboard/auto-apply',
           label: 'Auto-Apply',
-          icon: RiSparklingLine,
+          icon: Rocket,
         },
         {
           href: '/dashboard/discovery',
@@ -298,12 +260,11 @@ export function AppSidebar({
   return (
     <aside
       className={`${
-        isCollapsed ? 'w-[52px]' : 'w-56'
-      } bg-sidebar text-sidebar-foreground flex flex-col h-full shrink-0 select-none font-sans transition-[width] duration-150 ease-in-out border-r border-border`}
+        isCollapsed ? 'w-[52px]' : 'w-64'
+      } bg-sidebar text-sidebar-foreground flex flex-col h-full shrink-0 select-none font-sans border-r border-border`}
     >
-      {/* ── Top Header Bar (Unified h-12) ─────────────────────── */}
       <div
-        className={`h-12 flex items-center shrink-0 border-b border-border ${
+        className={`h-14 flex items-center shrink-0 border-b border-border ${
           isCollapsed ? 'justify-center px-1.5' : 'justify-between px-3'
         } bg-sidebar`}
       >
@@ -322,7 +283,7 @@ export function AppSidebar({
               height={18}
               className="h-4 w-4 rounded-[3px] object-contain group-hover:hidden"
             />
-            <ExpandIcon className="w-3.5 h-3.5 text-zinc-400 hidden group-hover:block" />
+            <PanelLeftOpen className="w-3.5 h-3.5 text-zinc-400 hidden group-hover:block" />
           </button>
         ) : (
           <div className="flex items-center justify-between w-full">
@@ -335,7 +296,7 @@ export function AppSidebar({
                 alt="ApplyOS"
                 width={100}
                 height={16}
-                className="h-[14px] w-auto shrink-0 object-contain invert transition-transform duration-150 group-hover:scale-[1.03] dark:invert-0 pl-1"
+                className="fine-hover-scale-sm h-4 w-auto shrink-0 object-contain invert transition-transform duration-150 ease-out-strong dark:invert-0 pl-1"
               />
             </Link>
             {onToggleCollapse ? (
@@ -344,9 +305,9 @@ export function AppSidebar({
                 onClick={onToggleCollapse}
                 aria-label="Collapse sidebar"
                 title="Collapse sidebar"
-                className="h-7 w-7 rounded-[6px] flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent border border-transparent hover:border-border transition-all cursor-pointer shrink-0 group ml-1"
+                className="pressable h-8 w-8 rounded-[6px] flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent border border-transparent hover:border-border cursor-pointer shrink-0 group ml-1"
               >
-                <CollapseIcon className="w-3.5 h-3.5 transition-transform group-hover:-translate-x-0.5" />
+                <PanelLeftClose className="fine-hover-nudge w-3.5 h-3.5 transition-transform duration-150 ease-out-strong" />
               </button>
             ) : null}
           </div>
@@ -354,32 +315,27 @@ export function AppSidebar({
       </div>
 
       {/* ── Navigation Items ─────────────────────────────────── */}
-      <nav aria-label="Primary" className="flex-1 overflow-y-auto">
-        <div
-          className={`flex flex-col gap-0.5 border-b border-border py-1.5 ${
-            isCollapsed ? 'px-1.5' : 'px-2'
-          }`}
-        >
-          <ul className="flex flex-col gap-0.5">
-            {workspaceItems.map((item) => (
-              <NavLink
-                key={item.href}
-                item={item}
-                pathname={pathname}
-                isCollapsed={isCollapsed}
-                onNavigate={onNavigate}
-              />
-            ))}
-          </ul>
-        </div>
+      <nav
+        aria-label="Primary"
+        className={`flex-1 overflow-y-auto pt-4 pb-2 ${
+          isCollapsed ? 'px-1.5' : 'px-2'
+        }`}
+      >
+        <ul className="flex flex-col gap-1">
+          {workspaceItems.map((item) => (
+            <NavLink
+              key={item.href}
+              item={item}
+              pathname={pathname}
+              isCollapsed={isCollapsed}
+              onNavigate={onNavigate}
+            />
+          ))}
+        </ul>
         {workflowItems.length > 0 ? (
-          <div
-            className={`flex flex-col gap-0.5 border-b border-border py-1.5 ${
-              isCollapsed ? 'px-1.5' : 'px-2'
-            }`}
-          >
+          <div className={isCollapsed ? 'mt-2' : 'mt-4'}>
             <SectionLabel hidden={isCollapsed}>Workflow</SectionLabel>
-            <ul className="flex flex-col gap-0.5">
+            <ul className="flex flex-col gap-1">
               {workflowItems.map((item) => (
                 <NavLink
                   key={item.href}
@@ -398,10 +354,10 @@ export function AppSidebar({
       <div
         className={`${
           isCollapsed ? 'p-1.5' : 'px-2 py-2'
-        } space-y-0.5 bg-sidebar border-t border-border`}
+        } bg-sidebar border-t border-border`}
       >
         {isAdminNav ? null : (
-          <ul className="flex flex-col gap-0.5 border-b border-border pb-1.5 mb-1.5">
+          <ul className="mb-2 flex flex-col gap-1 border-b border-border pb-2">
             <NavLink
               item={{
                 href: '/dashboard/profile',

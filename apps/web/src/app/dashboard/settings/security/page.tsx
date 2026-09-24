@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 
-import { Shield, Key, Check, Laptop } from 'lucide-react';
 
 import { Button } from '@applyso/ui/button';
 import {
@@ -12,6 +11,7 @@ import {
   CardTitle,
   CardDescription,
 } from '@applyso/ui/card';
+import { Shield, Key, Check, Laptop } from '@applyso/ui/icons';
 import { Input } from '@applyso/ui/input';
 
 export default function SecuritySettingsPage() {
@@ -30,7 +30,7 @@ export default function SecuritySettingsPage() {
   }
 
   return (
-    <div className="w-full max-w-[1240px] mx-auto space-y-6 animate-fadeIn text-slate-900 dark:text-[#f1f3f9]">
+    <div className="w-full max-w-[1240px] mx-auto space-y-6 text-slate-900 dark:text-[#f1f3f9]">
       <div>
         <h1 className="text-xl font-semibold text-slate-900 dark:text-[#f1f3f9] tracking-tight">
           Security & Authentication

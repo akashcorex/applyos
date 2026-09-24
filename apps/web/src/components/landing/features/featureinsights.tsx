@@ -1,13 +1,15 @@
+import { IoIosTrendingUp } from '@applyso/ui/icons';
+
 import { cn } from '@/lib/utils';
-import { IoIosTrendingUp } from 'react-icons/io';
-import PeerlistIcon from '../icons/peerlisticon';
-import TwitterIcon from '../icons/twittericon';
-import GoogleIcon from '../icons/googleicon';
-import RedditIcon from '../icons/redditicon';
-import FlagIndiaIcon from '../icons/flagindiaicon';
-import FlagUSAIcon from '../icons/flagusicon';
+
 import FlagCanadaIcon from '../icons/flagcanadaicon';
+import FlagIndiaIcon from '../icons/flagindiaicon';
 import FlagJapanIcon from '../icons/flagjapanicon';
+import FlagUSAIcon from '../icons/flagusicon';
+import GoogleIcon from '../icons/googleicon';
+import PeerlistIcon from '../icons/peerlisticon';
+import RedditIcon from '../icons/redditicon';
+import TwitterIcon from '../icons/twittericon';
 
 const FeatureInsights = () => {
   return (
@@ -27,7 +29,7 @@ const FeatureInsights = () => {
           'h-[14.7rem] w-full',
         )}
       >
-        <div className="absolute bottom-0 left-4 h-[8rem] w-[14rem] rotate-[-2deg] rounded-t-md bg-gradient-to-br from-neutral-800/40 to-neutral-800/70 px-4 py-3 transition-all duration-300 group-hover:bottom-1">
+        <div className="absolute bottom-0 left-4 h-[8rem] w-[14rem] rotate-[-2deg] rounded-t-md bg-gradient-to-br from-neutral-800/40 to-neutral-800/70 px-4 py-3 transition-transform duration-200 ease-out-strong motion-reduce:transition-none group-hover:-translate-y-1">
           <div className="flex h-full w-full flex-col justify-between gap-2">
             <div className="flex flex-col items-start gap-1.5">
               <div className="flex items-center text-sm text-neutral-400">
@@ -53,7 +55,7 @@ const FeatureInsights = () => {
             </div>
           </div>
         </div>
-        <div className="absolute left-[31.6rem] top-[4.4rem] h-[12.5rem] w-[20.3rem] rotate-[2deg] rounded-t-md bg-gradient-to-br from-neutral-800/40 to-neutral-900/80 transition-all duration-300 group-hover:top-[3.4rem]">
+        <div className="absolute left-[31.6rem] top-[4.4rem] h-[12.5rem] w-[20.3rem] rotate-[2deg] rounded-t-md bg-gradient-to-br from-neutral-800/40 to-neutral-900/80 transition-transform duration-200 ease-out-strong motion-reduce:transition-none group-hover:-translate-y-4">
           <div className="flex h-full w-full flex-col gap-2.5">
             <div className="flex w-full items-center px-3 pt-2 text-sm text-neutral-400">
               Countries

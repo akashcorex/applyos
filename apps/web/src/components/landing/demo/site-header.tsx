@@ -1,7 +1,7 @@
 'use client';
-import { CiGlobe } from 'react-icons/ci';
-import { BiLinkExternal } from 'react-icons/bi';
 import Link from 'next/link';
+
+import { CiGlobe , BiLinkExternal } from '@applyso/ui/icons';
 
 export default function SiteHeader() {
   return (

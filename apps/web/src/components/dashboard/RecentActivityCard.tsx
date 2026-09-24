@@ -2,10 +2,10 @@
 
 import Link from 'next/link';
 
-import { ArrowUpRight } from 'lucide-react';
 
 import { Badge } from '@applyso/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@applyso/ui/card';
+import { ArrowUpRight } from '@applyso/ui/icons';
 
 import { DitherAvatar } from '@/components/dither-kit/avatar';
 

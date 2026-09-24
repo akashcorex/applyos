@@ -14,7 +14,7 @@ import {
   Smartphone,
   User,
   Wifi,
-} from 'lucide-react';
+} from '@applyso/ui/icons';
 
 export type ApiLogRow = {
   id: string;

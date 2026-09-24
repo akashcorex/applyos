@@ -4,11 +4,11 @@ import { useCallback, useEffect, useState } from 'react';
 
 import Link from 'next/link';
 
-import { Loader2 } from 'lucide-react';
 
 import { Badge } from '@applyso/ui/badge';
 import { Button } from '@applyso/ui/button';
 import { Card, CardContent } from '@applyso/ui/card';
+import { Loader2 } from '@applyso/ui/icons';
 import { Input } from '@applyso/ui/input';
 
 import {
@@ -84,7 +84,7 @@ export default function AdminUsersPage() {
   }
 
   return (
-    <div className="max-w-[1240px] mx-auto space-y-6 animate-fadeIn">
+    <div className="max-w-[1240px] mx-auto space-y-6 ">
       <div>
         <h1 className="text-xl font-semibold text-slate-900 dark:text-[#f1f3f9] tracking-tight">
           Users

@@ -2,9 +2,9 @@
 
 import { useRef, useState } from 'react';
 
-import { Check, Download, Eye, FileText, Loader2, UploadCloud } from 'lucide-react';
-
 import { Button } from '@applyso/ui/button';
+import { Check, Download, Eye, FileText, Loader2, UploadCloud } from '@applyso/ui/icons';
+
 
 import type { ProfileLatestResume, ResumeHistoryItem } from './profile-types';
 

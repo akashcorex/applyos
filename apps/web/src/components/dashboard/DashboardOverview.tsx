@@ -1,8 +1,9 @@
 'use client';
 
-import { useId, useMemo, useState } from 'react';
+import { useId, useMemo, useState, type ComponentType } from 'react';
 
 import * as d3Shape from 'd3-shape';
+
 import {
   AlertTriangle,
   ArrowDownRight,
@@ -10,8 +11,7 @@ import {
   ArrowUpRight,
   Clock,
   Layers,
-  type LucideIcon,
-} from 'lucide-react';
+} from '@applyso/ui/icons';
 
 import { DashboardDataTable } from '@/components/dashboard/DashboardDataTable';
 import {
@@ -27,7 +27,7 @@ export type OverviewStat = {
   trendingText?: string;
   subtext?: string;
   accent?: string;
-  icon?: LucideIcon;
+  icon?: ComponentType<{ className?: string }>;
   sparkline?: number[];
   color?: 'blue' | 'orange' | 'green' | 'red' | string;
 };
@@ -104,7 +104,7 @@ function MicroBarSparkline({
         <div
           key={i}
           style={{ height: `${Math.max(12, Math.min(100, h))}%` }}
-          className={`w-[3.5px] rounded-[1px] transition-all duration-150 ${barClass}`}
+          className={`w-[3.5px] rounded-[1px] transition-colors duration-150 ${barClass}`}
         />
       ))}
     </div>
@@ -533,9 +533,9 @@ export function DashboardOverview({
               className="flex items-start justify-between p-5 bg-background hover:bg-neutral-900/20 transition-colors group"
             >
               <div className="flex flex-col justify-between h-full min-w-0 pr-2">
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
-                  {StatIcon ? <StatIcon className="size-3.5 shrink-0" /> : null}
-                  <span className="truncate">{stat.label}</span>
+                <div className="flex items-center gap-2 text-sm font-medium">
+                  {StatIcon ? <StatIcon className="size-4 shrink-0" /> : null}
+                  <span className="truncate text-primary">{stat.label}</span>
                 </div>
                 <div className="mt-2 text-2xl sm:text-[28px] font-semibold tabular-nums tracking-tight text-foreground font-sans">
                   {stat.value}

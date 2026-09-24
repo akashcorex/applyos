@@ -5,7 +5,6 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 
-import { ArrowLeft, Loader2 } from 'lucide-react';
 
 import { Badge } from '@applyso/ui/badge';
 import { Button } from '@applyso/ui/button';
@@ -16,6 +15,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@applyso/ui/card';
+import { ArrowLeft, Loader2 } from '@applyso/ui/icons';
 
 import {
   type AdminResume,

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+
 import { useRouter } from 'next/navigation';
 
 import { ResumeAutoApplyCard } from '@/components/ResumeAutoApplyCard';
@@ -16,7 +17,7 @@ export default function AutoApplyPage() {
   }, []);
 
   return (
-    <div className="w-full max-w-[1240px] mx-auto space-y-5 animate-fadeIn text-[#f1f3f9]">
+    <div className="w-full max-w-[1240px] mx-auto space-y-5 text-[#f1f3f9]">
       <div>
         <h1 className="text-xl font-semibold text-[#f1f3f9] tracking-tight">
           Resume & Auto-Apply

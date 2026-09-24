@@ -4,10 +4,10 @@ import { useEffect, useState } from 'react';
 
 import Link from 'next/link';
 
-import { CheckCircle2, FileText, Shield, Users } from 'lucide-react';
 
 import { Badge } from '@applyso/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@applyso/ui/card';
+import { CheckCircle2, FileText, Shield, Users } from '@applyso/ui/icons';
 
 import { DashboardOverview } from '@/components/dashboard/DashboardOverview';
 import { DashboardSkeleton } from '@/components/dashboard/DashboardSkeleton';
@@ -119,7 +119,7 @@ export default function AdminOverviewPage() {
   }));
 
   return (
-    <div className="w-full animate-fadeIn text-foreground">
+    <div className="w-full text-foreground">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border bg-secondary/30 px-6 py-2.5">
         <div className="flex items-center gap-2 min-w-0">
           <Shield className="h-4 w-4 shrink-0 text-muted-foreground" />

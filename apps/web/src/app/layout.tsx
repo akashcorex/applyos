@@ -3,10 +3,14 @@ import './global.css';
 import Script from 'next/script';
 
 import { Analytics } from '@vercel/analytics/next';
+import { GeistMono } from 'geist/font/mono';
+import { GeistSans } from 'geist/font/sans';
+
 
 import { Toaster } from '@applyso/ui';
 
 import { AnalyticsProvider } from '@/components/analytics/AnalyticsProvider';
+import { MotionPrefs } from '@/components/motion-prefs';
 import { ThemeProvider } from '@/components/theme-provider';
 
 import type { Metadata } from 'next';
@@ -97,7 +101,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" suppressHydrationWarning className="dark">
+    <html
+      lang="en"
+      suppressHydrationWarning
+      className={`${GeistSans.variable} ${GeistMono.variable} ${GeistSans.className} dark`}
+    >
       <head>
         <script
           dangerouslySetInnerHTML={{
@@ -136,11 +144,13 @@ export default function RootLayout({
       </head>
       <body suppressHydrationWarning>
         <ThemeProvider defaultTheme="dark" storageKey="applyos-theme">
-          <AnalyticsProvider>
-            {children}
-            <Toaster />
-            <Analytics />
-          </AnalyticsProvider>
+          <MotionPrefs>
+            <AnalyticsProvider>
+              {children}
+              <Toaster />
+              <Analytics />
+            </AnalyticsProvider>
+          </MotionPrefs>
         </ThemeProvider>
       </body>
     </html>

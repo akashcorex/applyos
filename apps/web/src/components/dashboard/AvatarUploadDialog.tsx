@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { Loader2, Trash2, UploadCloud, X } from 'lucide-react';
-
 import { Button } from '@applyso/ui/button';
+import { Loader2, Trash2, UploadCloud, X } from '@applyso/ui/icons';
+
 
 import { UserAvatar } from './UserAvatar';
 

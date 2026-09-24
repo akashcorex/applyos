@@ -1,12 +1,14 @@
 'use client';
 
 import React from 'react';
+
+import { motion } from 'motion/react';
+
 import FeatureContent from './feature-content';
 import FeatureFramework from './featureframework';
+import FeatureInsights from './featureinsights';
 import FeatureOnboard from './featureonboard';
 import FeatureVaultlock from './featurevaultlock';
-import FeatureInsights from './featureinsights';
-import { motion } from 'motion/react';
 
 const FeaturesBlock = () => {
   return (
@@ -18,18 +20,16 @@ const FeaturesBlock = () => {
       <motion.div
         initial={{
           opacity: 0,
-          y: 5,
-          filter: 'blur(10px)',
+          transform: 'translateY(8px)',
         }}
         whileInView={{
           opacity: 1,
-          y: 0,
-          filter: 'blur(0px)',
+          transform: 'translateY(0px)',
         }}
         transition={{
           duration: 0.3,
           delay: 0.2,
-          ease: 'easeInOut',
+          ease: [0.23, 1, 0.32, 1],
         }}
         viewport={{ once: true }}
         className="grid w-full grid-cols-1 gap-4 md:grid-cols-3"
@@ -44,18 +44,16 @@ const FeaturesBlock = () => {
       <motion.div
         initial={{
           opacity: 0,
-          y: 5,
-          filter: 'blur(10px)',
+          transform: 'translateY(8px)',
         }}
         whileInView={{
           opacity: 1,
-          y: 0,
-          filter: 'blur(0px)',
+          transform: 'translateY(0px)',
         }}
         transition={{
           duration: 0.3,
           delay: 0.2,
-          ease: 'easeInOut',
+          ease: [0.23, 1, 0.32, 1],
         }}
         viewport={{ once: true }}
         className="grid w-full grid-cols-1 gap-4 md:grid-cols-3"

@@ -1,8 +1,12 @@
 'use client';
 
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+
 import { useRouter } from 'next/navigation';
 
+
+import { Button } from '@applyso/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@applyso/ui/card';
 import {
   ArrowRight,
   Bookmark,
@@ -11,10 +15,7 @@ import {
   Loader2,
   Search,
   X,
-} from 'lucide-react';
-
-import { Button } from '@applyso/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@applyso/ui/card';
+} from '@applyso/ui/icons';
 import { Input } from '@applyso/ui/input';
 
 const RENDER_BATCH = 20;

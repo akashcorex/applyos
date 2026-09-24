@@ -1,5 +1,6 @@
 import React from 'react';
-import { HiOutlineChartBar } from 'react-icons/hi2';
+
+import { HiOutlineChartBar } from '@applyso/ui/icons';
 
 const CtaIcon = () => {
   return (

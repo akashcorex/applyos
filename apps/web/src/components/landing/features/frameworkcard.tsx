@@ -1,10 +1,12 @@
 'use client';
 
-import { cn } from '@/lib/utils';
 import { useState, useEffect } from 'react';
-import ReactIcon from '../icons/reacticon';
-import NextjsIcon from '../icons/nextjsicon';
+
+import { cn } from '@/lib/utils';
+
 import HTML5Icon from '../icons/htmlicon';
+import NextjsIcon from '../icons/nextjsicon';
+import ReactIcon from '../icons/reacticon';
 
 const FrameworkCard = () => {
   const [nextJsTransform, setNextJsTransform] = useState('none');

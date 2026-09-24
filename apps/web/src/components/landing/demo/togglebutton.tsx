@@ -1,6 +1,6 @@
-import { Code2 } from 'lucide-react';
 import React from 'react';
-import { IoMdCode } from 'react-icons/io';
+
+import { Code2 , IoMdCode } from '@applyso/ui/icons';
 
 const Togglebutton = () => {
   return (

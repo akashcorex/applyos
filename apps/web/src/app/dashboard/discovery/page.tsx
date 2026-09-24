@@ -4,7 +4,7 @@ import { PersistedDiscoveryPanel } from '@/components/PersistedDiscoveryPanel';
 
 export default function DiscoveryPage() {
   return (
-    <div className="max-w-[1280px] mx-auto space-y-5 animate-fadeIn text-[#f1f3f9]">
+    <div className="max-w-[1280px] mx-auto space-y-5 text-[#f1f3f9]">
       <div>
         <h1 className="text-xl font-semibold text-[#f1f3f9] tracking-tight">
           Jobs & Discovery

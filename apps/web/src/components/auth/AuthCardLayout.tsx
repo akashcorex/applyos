@@ -2,9 +2,10 @@
 
 import type { ReactNode } from 'react';
 
-import Link from 'next/link';
 import Image from 'next/image';
-import { FileSearch, MessageCircle, Zap } from 'lucide-react';
+import Link from 'next/link';
+
+import { FileSearch, MessageCircle, Zap } from '@applyso/ui/icons';
 
 const highlights = [
   {

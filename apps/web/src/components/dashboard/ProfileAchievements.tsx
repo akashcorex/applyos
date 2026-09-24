@@ -9,8 +9,7 @@ import {
   Flame,
   SlidersHorizontal,
   UserCheck,
-} from 'lucide-react';
-
+} from '@applyso/ui/icons';
 import type { ProfileProgression } from '@applyso/validation';
 
 const ACHIEVEMENT_ICON: Record<string, typeof FileText> = {

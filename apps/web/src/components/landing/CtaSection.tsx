@@ -1,7 +1,10 @@
 'use client';
 import React from 'react';
-import { motion } from 'motion/react';
+
 import Link from 'next/link';
+
+import { motion } from 'motion/react';
+
 import CtaIcon from './icons/ctaicon';
 
 const CtaSection = () => {
@@ -18,7 +21,7 @@ const CtaSection = () => {
           transition={{
             duration: 0.4,
             delay: 0,
-            ease: 'easeInOut',
+            ease: [0.23, 1, 0.32, 1],
           }}
           viewport={{ once: true }}
           className="absolute left-0 hidden h-full w-24 md:block"
@@ -80,7 +83,7 @@ const CtaSection = () => {
           transition={{
             duration: 0.4,
             delay: 0,
-            ease: 'easeInOut',
+            ease: [0.23, 1, 0.32, 1],
           }}
           viewport={{ once: true }}
           className="absolute right-0 hidden h-full w-24 md:block"
@@ -134,19 +137,17 @@ const CtaSection = () => {
         </motion.div>
         <motion.div
           initial={{
-            y: 10,
-            filter: 'blur(10px)',
+            transform: 'translateY(8px)',
             opacity: 0,
           }}
           whileInView={{
-            y: 0,
-            filter: 'blur(0px)',
+            transform: 'translateY(0px)',
             opacity: 1,
           }}
           transition={{
             duration: 0.4,
             delay: 0,
-            ease: 'easeInOut',
+            ease: [0.23, 1, 0.32, 1],
           }}
           viewport={{ once: true }}
           className="pb-8"
@@ -155,19 +156,17 @@ const CtaSection = () => {
         </motion.div>
         <motion.h1
           initial={{
-            y: 10,
-            filter: 'blur(10px)',
+            transform: 'translateY(8px)',
             opacity: 0,
           }}
           whileInView={{
-            y: 0,
-            filter: 'blur(0px)',
+            transform: 'translateY(0px)',
             opacity: 1,
           }}
           transition={{
             duration: 0.5,
             delay: 0.1,
-            ease: 'easeInOut',
+            ease: [0.23, 1, 0.32, 1],
           }}
           viewport={{ once: true }}
           className="mx-auto max-w-3xl text-balance bg-gradient-to-br from-neutral-100 via-neutral-100 via-50% to-neutral-100/30 bg-clip-text pb-3 pt-1 text-center text-5xl font-medium leading-[1.1] tracking-tighter text-transparent md:text-[4.2rem]"
@@ -176,19 +175,17 @@ const CtaSection = () => {
         </motion.h1>
         <motion.p
           initial={{
-            y: 10,
-            filter: 'blur(10px)',
+            transform: 'translateY(8px)',
             opacity: 0,
           }}
           whileInView={{
-            y: 0,
-            filter: 'blur(0px)',
+            transform: 'translateY(0px)',
             opacity: 1,
           }}
           transition={{
             duration: 0.4,
             delay: 0.3,
-            ease: 'easeInOut',
+            ease: [0.23, 1, 0.32, 1],
           }}
           viewport={{ once: true }}
           className="mb-8 max-w-sm text-balance bg-gradient-to-br from-white/70 via-white/70 to-white/30 bg-clip-text text-center text-[0.8rem] text-transparent sm:max-w-[32rem] sm:text-[0.87rem] lg:text-[1rem]"
@@ -198,25 +195,23 @@ const CtaSection = () => {
         </motion.p>
         <motion.div
           initial={{
-            y: 5,
-            filter: 'blur(5px)',
+            transform: 'translateY(8px)',
             opacity: 0,
           }}
           whileInView={{
-            y: 0,
-            filter: 'blur(0px)',
+            transform: 'translateY(0px)',
             opacity: 1,
           }}
           transition={{
             duration: 0.3,
             delay: 0.5,
-            ease: 'easeInOut',
+            ease: [0.23, 1, 0.32, 1],
           }}
           viewport={{ once: true }}
         >
           <Link
             href={'/signup'}
-            className="group mt-6 flex items-center justify-center gap-2 rounded-xl border border-neutral-600 bg-neutral-950 px-5 py-3 text-sm font-semibold text-white shadow-[inset_0px_0px_7px_1px_#535353] transition-all duration-300 hover:bg-neutral-800/50 md:text-[1rem]"
+            className="pressable group mt-6 flex items-center justify-center gap-2 rounded-xl border border-neutral-600 bg-neutral-950 px-5 py-3 text-sm font-semibold text-white shadow-[inset_0px_0px_7px_1px_#535353] hover:bg-neutral-800/50 md:text-[1rem]"
           >
             {/* Get Started */}
             <TextGlitch text={'Get Started'} />
@@ -266,10 +261,10 @@ function TextGlitch({ text }: { text: string }) {
   return (
     <div className="relative overflow-hidden">
       <span className="invisible">{text}</span>
-      <span className="absolute left-0 top-0 font-semibold transition-transform duration-500 ease-in-out hover:duration-300 group-hover:-translate-y-full">
+      <span className="absolute left-0 top-0 font-semibold transition-transform duration-150 ease-out-strong motion-reduce:transition-none group-hover:-translate-y-full">
         {text}
       </span>
-      <span className="absolute left-0 top-0 translate-y-full font-semibold transition-transform duration-500 ease-in-out hover:duration-300 group-hover:translate-y-0">
+      <span className="absolute left-0 top-0 translate-y-full font-semibold transition-transform duration-150 ease-out-strong motion-reduce:transition-none group-hover:translate-y-0">
         {text}
       </span>
     </div>

@@ -4,7 +4,7 @@ import { Skeleton } from '@applyso/ui';
 
 export function DashboardSkeleton() {
   return (
-    <div className="w-full animate-fadeIn text-foreground bg-background">
+    <div className="w-full text-foreground bg-background">
       {/* Stat strip skeleton — 1px line divided */}
       <div className="w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-border border-b border-border bg-background">
         {[1, 2, 3, 4].map((i) => (

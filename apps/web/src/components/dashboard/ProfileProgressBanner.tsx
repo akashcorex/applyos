@@ -4,8 +4,7 @@ import { useEffect, useState } from 'react';
 
 import Link from 'next/link';
 
-import { CircleCheck, FileUp, Sparkles } from 'lucide-react';
-
+import { CircleCheck, FileUp } from '@applyso/ui/icons';
 import type { ProfileCompletion } from '@applyso/validation';
 
 import type { MeResponse } from '@/lib/proxy-session';
@@ -85,25 +84,5 @@ export function ProfileProgressBanner() {
     );
   }
 
-  const optionalMissing = (completion?.missing ?? []).filter(
-    (item) => !item.required,
-  );
-  if (action === 'ready' || optionalMissing.length === 0) return null;
-
-  const labels = optionalMissing.slice(0, 3).map((item) => item.label);
-  return (
-    <div className="flex flex-col sm:flex-row sm:items-center gap-3 border-b border-border bg-secondary/30 px-6 py-2.5">
-      <Sparkles className="h-4 w-4 shrink-0 text-muted-foreground" />
-      <p className="flex-1 text-xs font-medium text-muted-foreground">
-        You can apply now. Add <span className="text-foreground">{labels.join(', ')}</span>
-        {optionalMissing.length > 3 ? ', and more' : ''} for better matches.
-      </p>
-      <Link
-        href="/dashboard/profile"
-        className="shrink-0 rounded-[6px] border border-border bg-card px-3 py-1 text-xs font-medium text-foreground hover:bg-muted transition-colors"
-      >
-        Complete profile
-      </Link>
-    </div>
-  );
+  return null;
 }

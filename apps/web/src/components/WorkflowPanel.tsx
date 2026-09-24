@@ -2,6 +2,11 @@
 
 import { useEffect, useRef, useState } from 'react';
 
+
+import { analytics } from '@applyso/analytics';
+import { Badge } from '@applyso/ui/badge';
+import { Button } from '@applyso/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@applyso/ui/card';
 import {
   ChevronDown,
   ChevronRight,
@@ -10,12 +15,7 @@ import {
   Play,
   RefreshCw,
   Square,
-} from 'lucide-react';
-
-import { analytics } from '@applyso/analytics';
-import { Badge } from '@applyso/ui/badge';
-import { Button } from '@applyso/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@applyso/ui/card';
+} from '@applyso/ui/icons';
 
 import { ApplicationModal } from '@/components/applications/ApplicationModal';
 

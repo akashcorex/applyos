@@ -40,7 +40,7 @@ export function ProfileProgressCard({
         aria-label="Profile completeness"
       >
         <div
-          className="h-full rounded-full bg-foreground transition-all duration-500"
+          className="h-full rounded-full bg-foreground transition-[width] duration-200 ease-out-strong"
           style={{ width: `${percent}%` }}
         />
       </div>

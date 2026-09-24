@@ -1,8 +1,6 @@
 'use client';
 
-import { useState } from 'react';
-
-import { AnimatePresence, motion } from 'motion/react';
+import { useRef, useState } from 'react';
 
 import { useCommonChart } from './common-context';
 import { cn } from './lib';
@@ -35,45 +33,31 @@ export function Tooltip({
   // Retain the last hovered index so the card keeps its content while fading
   // out — adjust-state-during-render (no refs in render).
   const [lastIndex, setLastIndex] = useState(0);
+  const seen = useRef(false);
   if (chart.hoverIndex != null && chart.hoverIndex !== lastIndex) {
     setLastIndex(chart.hoverIndex);
   }
+  const instant = seen.current;
+  if (show) seen.current = true;
   const index = chart.hoverIndex ?? lastIndex;
 
   const heading = chart.heading(index, labelKey);
   const items = chart.itemsAt(index);
 
+  if (!show && !seen.current) return null;
+
   return (
-    <AnimatePresence>
-      {show && items.length > 0 && (
-        <motion.div
-          key="dither-tooltip"
-          initial={{
-            opacity: 0,
-            x: '-50%',
-            y: '-115%',
-            top: chart.tooltipTop,
-            left: chart.tooltipLeft,
-          }}
-          animate={{
-            opacity: 1,
-            x: '-50%',
-            y: '-115%',
-            top: chart.tooltipTop,
-            left: chart.tooltipLeft,
-          }}
-          exit={{ opacity: 0 }}
-          transition={{
-            type: 'spring',
-            stiffness: 520,
-            damping: 38,
-            mass: 0.6,
-          }}
-          className={cn(
-            'pointer-events-none absolute z-10 rounded-md border px-2 py-1 shadow-sm',
-            VARIANT[variant],
-          )}
-        >
+    <div
+      className={cn(
+        'pointer-events-none absolute left-0 top-0 z-10 rounded-md border px-2 py-1 shadow-sm transition-opacity ease-out-strong',
+        instant ? 'duration-0' : 'duration-150',
+        show ? 'opacity-100' : 'opacity-0',
+        VARIANT[variant],
+      )}
+      style={{
+        transform: `translate3d(${chart.tooltipLeft}px, ${chart.tooltipTop}px, 0) translate(-50%, -115%)`,
+      }}
+    >
           {heading && (
             <div className="mb-0.5 font-mono text-[10px] text-muted-foreground">
               {heading}
@@ -99,9 +83,7 @@ export function Tooltip({
               </div>
             ))}
           </div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+    </div>
   );
 }
 

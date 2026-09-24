@@ -1,13 +1,12 @@
 'use client';
 
-import { cn } from '@/lib/utils';
 import { useEffect, useState, type ReactNode } from 'react';
-import { MdMarkunread } from 'react-icons/md';
-import { RiNetflixFill } from 'react-icons/ri';
-import { AiFillSpotify } from 'react-icons/ai';
+
 import { motion, type Variants } from 'motion/react';
-import { FaHeadphones, FaXTwitter } from 'react-icons/fa6';
-import { FaPhoneAlt, FaPinterest, FaSnapchatGhost } from 'react-icons/fa';
+
+import { MdMarkunread , RiNetflixFill , AiFillSpotify , FaHeadphones, FaXTwitter , FaPhoneAlt, FaPinterest, FaSnapchatGhost } from '@applyso/ui/icons';
+
+import { cn } from '@/lib/utils';
 
 export type NotificationCenterProps = {
   cardTitle?: string;

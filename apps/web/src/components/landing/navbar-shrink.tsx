@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from 'react';
 
-import Link from 'next/link';
 import Image from 'next/image';
-import { Menu, X } from 'lucide-react';
+import Link from 'next/link';
 
-import { cn } from '@/lib/utils';
+import { Menu, X } from '@applyso/ui/icons';
+
 import { navItems } from '@/constants';
+import { cn } from '@/lib/utils';
 
 const Navbar = () => {
   const [menuState, setMenuState] = useState(false);
@@ -27,7 +28,7 @@ const Navbar = () => {
       >
         <div
           className={cn(
-            'mx-auto mt-2 max-w-[95rem] border border-neutral-800/5 px-6 transition-all duration-300 lg:px-12',
+            'mx-auto mt-2 max-w-[95rem] border border-neutral-800/5 px-6 transition-[max-width,padding,border-color,background-color,border-radius] duration-200 ease-out-strong lg:px-12',
             isScrolled &&
               'max-w-7xl rounded-2xl border border-neutral-800/50 bg-neutral-900/50 backdrop-blur-lg lg:px-5',
           )}
@@ -50,8 +51,8 @@ const Navbar = () => {
                 aria-label={menuState ? 'Close Menu' : 'Open Menu'}
                 className="relative z-20 -m-2.5 -mr-4 block cursor-pointer p-2.5 text-white lg:hidden"
               >
-                <Menu className="m-auto size-6 duration-200 group-data-[state=active]:rotate-180 group-data-[state=active]:scale-0 group-data-[state=active]:opacity-0" />
-                <X className="absolute inset-0 m-auto size-6 -rotate-180 scale-0 opacity-0 duration-200 group-data-[state=active]:rotate-0 group-data-[state=active]:scale-100 group-data-[state=active]:opacity-100" />
+                <Menu className="m-auto size-6 transition-[transform,opacity] duration-150 ease-out-strong group-data-[state=active]:scale-95 group-data-[state=active]:opacity-0" />
+                <X className="absolute inset-0 m-auto size-6 scale-95 opacity-0 transition-[transform,opacity] duration-150 ease-out-strong group-data-[state=active]:scale-100 group-data-[state=active]:opacity-100" />
               </button>
             </div>
 
@@ -90,7 +91,7 @@ const Navbar = () => {
                 <Link href="/signup">
                   <button
                     type="button"
-                    className="flex h-fit min-h-[33.6px] min-w-20 items-center justify-center rounded-xl border bg-neutral-200 px-3 py-1.5 text-sm font-semibold text-black shadow-[inset_0px_1.2px_0px_#ffffff] transition-all duration-300 hover:bg-neutral-300"
+                    className="pressable flex h-fit min-h-[33.6px] min-w-20 items-center justify-center rounded-xl border bg-neutral-200 px-3 py-1.5 text-sm font-semibold text-black shadow-[inset_0px_1.2px_0px_#ffffff] hover:bg-neutral-300"
                   >
                     Sign Up
                   </button>

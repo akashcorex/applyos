@@ -2,6 +2,11 @@
 
 import { useEffect, useRef, useState } from 'react';
 
+
+import { analytics } from '@applyso/analytics';
+import { Badge } from '@applyso/ui/badge';
+import { Button } from '@applyso/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@applyso/ui/card';
 import {
   Check,
   ExternalLink,
@@ -11,12 +16,7 @@ import {
   Loader2,
   Send,
   X,
-} from 'lucide-react';
-
-import { analytics } from '@applyso/analytics';
-import { Badge } from '@applyso/ui/badge';
-import { Button } from '@applyso/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@applyso/ui/card';
+} from '@applyso/ui/icons';
 
 import {
   ResumeVariantEditor,

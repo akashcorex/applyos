@@ -4,7 +4,7 @@ import { LinkedInConnectCard } from '@/components/LinkedInConnectCard';
 
 export default function LinkedInPage() {
   return (
-    <div className="w-full max-w-[1240px] mx-auto space-y-5 animate-fadeIn text-[#f1f3f9]">
+    <div className="w-full max-w-[1240px] mx-auto space-y-5 text-[#f1f3f9]">
       <div>
         <h1 className="text-xl font-semibold text-[#f1f3f9] tracking-tight">
           Outreach & Networking

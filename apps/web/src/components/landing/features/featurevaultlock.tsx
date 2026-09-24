@@ -1,8 +1,10 @@
 'use client';
 
-import { cn } from '@/lib/utils';
-import { motion, Variants } from 'motion/react';
 import React, { useState } from 'react';
+
+import { motion, type Variants } from 'motion/react';
+
+import { cn } from '@/lib/utils';
 
 const FeatureVaultLock = () => {
   const [isHovered, setIsHovered] = useState(false);

@@ -11,8 +11,8 @@ import {
   ReferenceLine,
   ReferenceDot,
 } from 'recharts';
-import { ArrowUp, Clock } from 'lucide-react';
-import { MdOutlineKeyboardArrowDown } from 'react-icons/md';
+
+import { ArrowUp, Clock , MdOutlineKeyboardArrowDown } from '@applyso/ui/icons';
 
 const chartData = [
   { date: 'Sep 9', count: 80 },

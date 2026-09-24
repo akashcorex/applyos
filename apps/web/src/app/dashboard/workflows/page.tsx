@@ -5,7 +5,7 @@ import { WorkflowPanel } from '@/components/WorkflowPanel';
 
 export default function WorkflowsPage() {
   return (
-    <div className="max-w-[1280px] mx-auto space-y-5 animate-fadeIn text-[#f1f3f9]">
+    <div className="max-w-[1280px] mx-auto space-y-5 text-[#f1f3f9]">
       <div>
         <h1 className="text-xl font-semibold text-[#f1f3f9] tracking-tight">
           Applications Tracker

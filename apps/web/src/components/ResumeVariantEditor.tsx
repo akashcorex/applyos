@@ -1,8 +1,13 @@
 'use client';
 
-import Editor from '@monaco-editor/react';
 import { useEffect, useRef, useState } from 'react';
 
+import Editor from '@monaco-editor/react';
+
+
+import { analytics } from '@applyso/analytics';
+import { Badge } from '@applyso/ui/badge';
+import { Button } from '@applyso/ui/button';
 import {
   Check,
   Download,
@@ -12,11 +17,7 @@ import {
   RotateCcw,
   Sparkles,
   X,
-} from 'lucide-react';
-
-import { analytics } from '@applyso/analytics';
-import { Badge } from '@applyso/ui/badge';
-import { Button } from '@applyso/ui/button';
+} from '@applyso/ui/icons';
 
 import { ResumeDocumentCanvas } from '@/components/ResumeDocumentCanvas';
 import { pollCompileJob, type CompileJobState } from '@/lib/resume-compile';

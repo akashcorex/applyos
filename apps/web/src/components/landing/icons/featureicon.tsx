@@ -1,5 +1,6 @@
 import React from 'react';
-import { RiStackLine } from 'react-icons/ri';
+
+import { RiStackLine } from '@applyso/ui/icons';
 
 const FeatureIcon = () => {
   return (

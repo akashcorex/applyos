@@ -72,7 +72,7 @@ export function ProfileAvatarRing({
           strokeWidth={RING_WIDTH}
           strokeLinecap="round"
           strokeDasharray={`${filled} ${circumference - filled}`}
-          className="transition-[stroke-dasharray] duration-700 ease-out"
+          className="transition-[stroke-dasharray] duration-200 ease-out-strong"
         />
       </svg>
       <div

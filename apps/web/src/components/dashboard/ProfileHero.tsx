@@ -1,12 +1,12 @@
 'use client';
 
-import { Camera, ExternalLink, Globe } from 'lucide-react';
+import { Badge } from '@applyso/ui/badge';
+import { Button } from '@applyso/ui/button';
+import { Camera, ExternalLink, Globe } from '@applyso/ui/icons';
 
 import { GithubIcon } from '@/components/icons/GithubIcon';
 import { LinkedinIcon } from '@/components/icons/LinkedinIcon';
 
-import { Badge } from '@applyso/ui/badge';
-import { Button } from '@applyso/ui/button';
 
 import { getSafeProfileLinks } from './profile-identity-helpers';
 import { ProfileAvatarRing } from './ProfileAvatarRing';
@@ -83,7 +83,7 @@ export function ProfileHero({
               type="button"
               onClick={onAvatarEdit}
               aria-label="Change profile photo"
-              className="absolute bottom-0 right-0 flex h-6 w-6 items-center justify-center rounded-full border border-border bg-neutral-900 text-zinc-300 shadow-sm transition-all hover:text-foreground hover:scale-105"
+              className="pressable fine-hover-scale absolute bottom-0 right-0 flex h-6 w-6 items-center justify-center rounded-full border border-border bg-neutral-900 text-zinc-300 shadow-sm hover:text-foreground"
             >
               <Camera className="h-3 w-3" />
             </button>

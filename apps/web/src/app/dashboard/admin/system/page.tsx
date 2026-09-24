@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from 'react';
 
-import { Loader2 } from 'lucide-react';
-
 import { Card, CardContent, CardHeader, CardTitle } from '@applyso/ui/card';
+import { Loader2 } from '@applyso/ui/icons';
+
 
 import { fetchAdminResumes, fetchAdminUsers, fetchMe } from '@/lib/admin-api';
 
@@ -83,7 +83,7 @@ export default function AdminSystemPage() {
   }
 
   return (
-    <div className="max-w-[1240px] mx-auto space-y-6 animate-fadeIn">
+    <div className="max-w-[1240px] mx-auto space-y-6 ">
       <div>
         <h1 className="text-xl font-semibold text-slate-900 dark:text-[#f1f3f9] tracking-tight">
           System

@@ -7,18 +7,16 @@ const HeroBadge = () => {
       <motion.div
         initial={{
           opacity: 0,
-          y: 8,
-          filter: 'blur(10px)',
+          transform: 'translateY(8px)',
         }}
         animate={{
           opacity: 1,
-          y: 0,
-          filter: 'blur(0px)',
+          transform: 'translateY(0px)',
         }}
         transition={{
           duration: 0.3,
           delay: 0.1,
-          ease: 'easeInOut',
+          ease: [0.23, 1, 0.32, 1],
         }}
         viewport={{ once: true }}
         className="relative flex max-w-fit items-center justify-center gap-3 rounded-full border border-neutral-700/80 bg-black px-3 py-1.5"

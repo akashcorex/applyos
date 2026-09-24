@@ -1,8 +1,9 @@
 'use client';
 
-import Link from 'next/link';
 import Image from 'next/image';
-import { CiHeart } from 'react-icons/ci';
+import Link from 'next/link';
+
+import { CiHeart } from '@applyso/ui/icons';
 
 const Footer = () => {
   return (

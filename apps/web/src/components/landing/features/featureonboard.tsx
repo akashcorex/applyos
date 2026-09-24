@@ -1,4 +1,5 @@
 import { cn } from '@/lib/utils';
+
 import OnboardCard from './onboard-card';
 
 const FeatureOnboard = () => {

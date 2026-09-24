@@ -1,8 +1,8 @@
 'use client';
 
-import { ExternalLink } from 'lucide-react';
-
 import { Button } from '@applyso/ui/button';
+import { ExternalLink } from '@applyso/ui/icons';
+
 
 import {
   capitalize,

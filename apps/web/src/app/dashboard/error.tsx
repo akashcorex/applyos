@@ -2,9 +2,9 @@
 
 import { useEffect } from 'react';
 
-import { AlertTriangle, RefreshCw } from 'lucide-react';
-
 import { Button } from '@applyso/ui/button';
+import { AlertTriangle, RefreshCw } from '@applyso/ui/icons';
+
 
 export default function DashboardError({
   error,

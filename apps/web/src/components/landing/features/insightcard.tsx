@@ -1,15 +1,17 @@
 'use client';
 
+import { IoIosTrendingUp } from '@applyso/ui/icons';
+
 import { cn } from '@/lib/utils';
-import { IoIosTrendingUp } from 'react-icons/io';
-import PeerlistIcon from '../icons/peerlisticon';
-import TwitterIcon from '../icons/twittericon';
-import GoogleIcon from '../icons/googleicon';
-import RedditIcon from '../icons/redditicon';
-import FlagIndiaIcon from '../icons/flagindiaicon';
-import FlagUSAIcon from '../icons/flagusicon';
+
 import FlagCanadaIcon from '../icons/flagcanadaicon';
+import FlagIndiaIcon from '../icons/flagindiaicon';
 import FlagJapanIcon from '../icons/flagjapanicon';
+import FlagUSAIcon from '../icons/flagusicon';
+import GoogleIcon from '../icons/googleicon';
+import PeerlistIcon from '../icons/peerlisticon';
+import RedditIcon from '../icons/redditicon';
+import TwitterIcon from '../icons/twittericon';
 
 const InsightCard = () => {
   return (

@@ -5,6 +5,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 
+import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
+
 import {
   ArrowRight,
   CheckCircle2,
@@ -13,8 +15,7 @@ import {
   ShieldCheck,
   Sparkles,
   UploadCloud,
-} from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+} from '@applyso/ui/icons';
 
 interface ParseResult {
   resume_id: string;
@@ -64,13 +65,19 @@ function firstNameOf(fullName: string): string {
   return first || 'there';
 }
 
-const containerVariants = {
-  hidden: { opacity: 0, y: 12, filter: 'blur(8px)' },
-  visible: { opacity: 1, y: 0, filter: 'blur(0px)' },
-};
+const easeOut = [0.23, 1, 0.32, 1] as const;
+
+function enterVariants(reduce: boolean) {
+  return {
+    hidden: reduce ? { opacity: 0 } : { opacity: 0, transform: 'translateY(8px)' },
+    visible: { opacity: 1, transform: 'none' },
+  };
+}
 
 export function OnboardingFlow() {
   const router = useRouter();
+  const reduceMotion = useReducedMotion() ?? false;
+  const containerVariants = enterVariants(reduceMotion);
   const inputRef = useRef<HTMLInputElement>(null);
   const progressTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const redirectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -277,7 +284,7 @@ export function OnboardingFlow() {
           initial="hidden"
           animate="visible"
           variants={containerVariants}
-          transition={{ duration: 0.4, ease: 'easeOut' }}
+          transition={{ duration: 0.25, ease: easeOut }}
           className="flex items-center justify-center gap-2.5 mb-8"
         >
           <span className="flex h-9 w-9 items-center justify-center rounded-full bg-neutral-900 border border-white/10 shadow-md">
@@ -299,7 +306,7 @@ export function OnboardingFlow() {
           initial="hidden"
           animate="visible"
           variants={containerVariants}
-          transition={{ duration: 0.4, delay: 0.05, ease: 'easeOut' }}
+          transition={{ duration: 0.25, delay: 0.05, ease: easeOut }}
           className="space-y-3 mb-6"
         >
           {/* step 1 — completed */}
@@ -321,7 +328,7 @@ export function OnboardingFlow() {
 
           {/* step 2 — active (upload / processing / verified) */}
           <div
-            className={`relative overflow-hidden rounded-2xl border p-4 transition-all duration-500 ${
+            className={`relative overflow-hidden rounded-2xl border p-4 transition-[border-color,background-color,box-shadow] duration-200 ${
               step === 'upload'
                 ? 'border-blue-500/30 bg-blue-500/[0.06] shadow-[0_0_40px_-16px_rgba(59,130,246,0.35)]'
                 : step === 'processing' || step === 'review'
@@ -396,7 +403,7 @@ export function OnboardingFlow() {
 
           {/* step 3 — pending / active */}
           <div
-            className={`relative overflow-hidden rounded-2xl border p-4 transition-all duration-500 ${
+            className={`relative overflow-hidden rounded-2xl border p-4 transition-[border-color,background-color,box-shadow] duration-200 ${
               step === 'success'
                 ? 'border-emerald-500/20 bg-emerald-500/[0.04] shadow-[0_0_40px_-16px_rgba(16,185,129,0.25)]'
                 : 'border-white/[0.05] bg-white/[0.02] opacity-60'
@@ -437,17 +444,21 @@ export function OnboardingFlow() {
           initial="hidden"
           animate="visible"
           variants={containerVariants}
-          transition={{ duration: 0.4, delay: 0.1, ease: 'easeOut' }}
+          transition={{ duration: 0.25, delay: 0.05, ease: easeOut }}
           className="rounded-3xl border border-white/[0.08] bg-neutral-950/80 backdrop-blur-sm p-6 sm:p-8"
         >
           <AnimatePresence mode="wait">
             {step === 'upload' ? (
               <motion.div
                 key="upload"
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                transition={{ duration: 0.25 }}
+                initial={
+                  reduceMotion
+                    ? { opacity: 0 }
+                    : { opacity: 0, transform: 'translateY(8px)' }
+                }
+                animate={{ opacity: 1, transform: 'none' }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.25, ease: easeOut }}
                 className="text-center"
               >
                 <div
@@ -472,13 +483,13 @@ export function OnboardingFlow() {
                     if (file) void handleFile(file);
                   }}
                   onClick={() => inputRef.current?.click()}
-                  className={`group rounded-2xl border-2 border-dashed p-8 sm:p-10 flex flex-col items-center justify-center gap-3 text-center transition-all duration-200 cursor-pointer ${
+                  className={`group pressable rounded-2xl border-2 border-dashed p-8 sm:p-10 flex flex-col items-center justify-center gap-3 text-center cursor-pointer transition-[border-color,background-color] duration-200 ${
                     dragging
                       ? 'border-blue-400 bg-blue-500/[0.06] scale-[1.01]'
                       : 'border-white/10 bg-white/[0.02] hover:border-blue-400/60 hover:bg-blue-500/[0.04]'
                   }`}
                 >
-                  <span className="h-14 w-14 rounded-full bg-blue-500/15 text-blue-400 flex items-center justify-center shadow-[0_0_24px_-8px_rgba(59,130,246,0.35)] transition-transform duration-200 group-hover:scale-105">
+                  <span className="fine-hover-scale h-14 w-14 rounded-full bg-blue-500/15 text-blue-400 flex items-center justify-center shadow-[0_0_24px_-8px_rgba(59,130,246,0.35)] transition-transform duration-150 ease-out-strong">
                     <UploadCloud className="h-7 w-7" />
                   </span>
                   <p className="text-base sm:text-lg font-semibold text-white">
@@ -508,8 +519,13 @@ export function OnboardingFlow() {
 
                 {error ? (
                   <motion.div
-                    initial={{ opacity: 0, y: 4 }}
-                    animate={{ opacity: 1, y: 0 }}
+                    initial={
+                      reduceMotion
+                        ? { opacity: 0 }
+                        : { opacity: 0, transform: 'translateY(8px)' }
+                    }
+                    animate={{ opacity: 1, transform: 'none' }}
+                    transition={{ duration: 0.25, ease: easeOut }}
                     className="mt-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-xs text-red-200 font-medium flex items-start justify-between gap-3"
                   >
                     <span>{error}</span>
@@ -545,9 +561,14 @@ export function OnboardingFlow() {
             {step === 'review' && parsed ? (
               <motion.form
                 key="review"
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
+                initial={
+                  reduceMotion
+                    ? { opacity: 0 }
+                    : { opacity: 0, transform: 'translateY(8px)' }
+                }
+                animate={{ opacity: 1, transform: 'none' }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.25, ease: easeOut }}
                 onSubmit={(event) => {
                   event.preventDefault();
                   void handleConfirm();
@@ -599,7 +620,7 @@ export function OnboardingFlow() {
                 <button
                   type="submit"
                   disabled={confirming}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-white py-3 text-sm font-semibold text-black transition hover:bg-neutral-200 disabled:opacity-50"
+                  className="pressable flex w-full items-center justify-center gap-2 rounded-xl bg-white py-3 text-sm font-semibold text-black hover:bg-neutral-200 disabled:opacity-50"
                 >
                   {confirming ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -613,10 +634,14 @@ export function OnboardingFlow() {
             {step === 'processing' ? (
               <motion.div
                 key="processing"
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                transition={{ duration: 0.25 }}
+                initial={
+                  reduceMotion
+                    ? { opacity: 0 }
+                    : { opacity: 0, transform: 'translateY(8px)' }
+                }
+                animate={{ opacity: 1, transform: 'none' }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.25, ease: easeOut }}
                 className="text-center py-6"
               >
                 <div className="mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-full bg-blue-500/10 text-blue-400 shadow-[0_0_40px_-12px_rgba(59,130,246,0.4)]">
@@ -634,8 +659,13 @@ export function OnboardingFlow() {
 
                 {error ? (
                   <motion.div
-                    initial={{ opacity: 0, y: 4 }}
-                    animate={{ opacity: 1, y: 0 }}
+                    initial={
+                      reduceMotion
+                        ? { opacity: 0 }
+                        : { opacity: 0, transform: 'translateY(8px)' }
+                    }
+                    animate={{ opacity: 1, transform: 'none' }}
+                    transition={{ duration: 0.25, ease: easeOut }}
                     className="mt-5 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-xs text-red-200 font-medium"
                   >
                     {error}{' '}
@@ -661,10 +691,14 @@ export function OnboardingFlow() {
             {step === 'success' && summary ? (
               <motion.div
                 key="success"
-                initial={{ opacity: 0, scale: 0.98 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.98 }}
-                transition={{ duration: 0.3 }}
+                initial={
+                  reduceMotion
+                    ? { opacity: 0 }
+                    : { opacity: 0, transform: 'scale(0.98)' }
+                }
+                animate={{ opacity: 1, transform: 'none' }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.25, ease: easeOut }}
                 className="text-center py-2"
               >
                 <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-400 shadow-[0_0_40px_-12px_rgba(16,185,129,0.35)]">
@@ -745,14 +779,14 @@ export function OnboardingFlow() {
                   <button
                     type="button"
                     onClick={() => router.replace('/dashboard')}
-                    className="flex-1 bg-white hover:bg-neutral-200 text-black font-semibold text-sm py-3 rounded-xl shadow-sm transition-all flex items-center justify-center gap-2"
+                    className="pressable flex-1 bg-white hover:bg-neutral-200 text-black font-semibold text-sm py-3 rounded-xl shadow-sm flex items-center justify-center gap-2"
                   >
                     Continue to dashboard
                     <ArrowRight className="h-4 w-4" />
                   </button>
                   <a
                     href="/dashboard/profile"
-                    className="sm:w-auto px-5 bg-transparent border border-white/10 hover:bg-white/[0.04] text-white font-semibold text-sm py-3 rounded-xl transition-all flex items-center justify-center gap-2"
+                    className="pressable sm:w-auto px-5 bg-transparent border border-white/10 hover:bg-white/[0.04] text-white font-semibold text-sm py-3 rounded-xl flex items-center justify-center gap-2"
                   >
                     <ShieldCheck className="h-4 w-4" />
                     Review profile
@@ -768,7 +802,7 @@ export function OnboardingFlow() {
           initial="hidden"
           animate="visible"
           variants={containerVariants}
-          transition={{ duration: 0.4, delay: 0.15, ease: 'easeOut' }}
+          transition={{ duration: 0.25, delay: 0.08, ease: easeOut }}
           className="mt-10 text-center"
         ></motion.div>
       </div>

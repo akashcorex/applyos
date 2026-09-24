@@ -5,9 +5,9 @@ import {
   CheckCircle2,
   Send,
   Zap,
-} from 'lucide-react';
-
+} from '@applyso/ui/icons';
 import type { ProfileCompletion } from '@applyso/validation';
+
 import type { ProfileActivityTotals } from './profile-types';
 
 interface ProfileMetricStripProps {
@@ -39,7 +39,7 @@ function MicroBarSparkline({
       {bars.map((height, i) => (
         <div
           key={i}
-          className={`w-1 rounded-[1px] transition-all duration-300 ${barClass}`}
+          className={`w-1 rounded-[1px] transition-colors duration-200 ${barClass}`}
           style={{ height: `${Math.max(12, Math.min(100, height))}%` }}
         />
       ))}
@@ -90,9 +90,9 @@ export function ProfileMetricStrip({
         className="flex items-start justify-between p-5 bg-background hover:bg-neutral-900/20 transition-colors group cursor-pointer"
       >
         <div className="flex flex-col justify-between h-full min-w-0 pr-2">
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
-            <CheckCircle2 className="size-3.5 text-blue-500 shrink-0" />
-            <span className="truncate">Profile Completeness</span>
+          <div className="flex items-center gap-2 text-sm font-medium">
+            <CheckCircle2 className="size-4 text-blue-500 shrink-0" />
+            <span className="truncate text-primary">Profile Completeness</span>
           </div>
           <div className="mt-2 text-2xl sm:text-[28px] font-semibold tabular-nums tracking-tight text-foreground font-sans">
             {percent}%
@@ -112,9 +112,9 @@ export function ProfileMetricStrip({
       {/* 2. Experience & Seniority */}
       <div className="flex items-start justify-between p-5 bg-background hover:bg-neutral-900/20 transition-colors group">
         <div className="flex flex-col justify-between h-full min-w-0 pr-2">
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
-            <Briefcase className="size-3.5 text-orange-500 shrink-0" />
-            <span className="truncate">Experience Level</span>
+          <div className="flex items-center gap-2 text-sm font-medium">
+            <Briefcase className="size-4 text-orange-500 shrink-0" />
+            <span className="truncate text-primary">Experience Level</span>
           </div>
           <div className="mt-2 text-2xl sm:text-[28px] font-semibold tabular-nums tracking-tight text-foreground font-sans">
             {expLabel}
@@ -137,9 +137,9 @@ export function ProfileMetricStrip({
       {/* 3. Applications */}
       <div className="flex items-start justify-between p-5 bg-background hover:bg-neutral-900/20 transition-colors group">
         <div className="flex flex-col justify-between h-full min-w-0 pr-2">
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
-            <Send className="size-3.5 text-emerald-500 shrink-0" />
-            <span className="truncate">Active Submissions</span>
+          <div className="flex items-center gap-2 text-sm font-medium">
+            <Send className="size-4 text-emerald-500 shrink-0" />
+            <span className="truncate text-primary">Active Submissions</span>
           </div>
           <div className="mt-2 text-2xl sm:text-[28px] font-semibold tabular-nums tracking-tight text-foreground font-sans">
             {apps}
@@ -162,9 +162,9 @@ export function ProfileMetricStrip({
       {/* 4. Momentum / Streak */}
       <div className="flex items-start justify-between p-5 bg-background hover:bg-neutral-900/20 transition-colors group">
         <div className="flex flex-col justify-between h-full min-w-0 pr-2">
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
-            <Zap className="size-3.5 text-purple-500 shrink-0" />
-            <span className="truncate">Candidate Streak</span>
+          <div className="flex items-center gap-2 text-sm font-medium">
+            <Zap className="size-4 text-purple-500 shrink-0" />
+            <span className="truncate text-primary">Candidate Streak</span>
           </div>
           <div className="mt-2 text-2xl sm:text-[28px] font-semibold tabular-nums tracking-tight text-foreground font-sans">
             {streak} {streak === 1 ? 'Day' : 'Days'}

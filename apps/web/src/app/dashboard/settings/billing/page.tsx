@@ -4,9 +4,18 @@ import { Suspense, useEffect, useMemo, useState } from 'react';
 
 import { useSearchParams } from 'next/navigation';
 
-import { Check } from 'lucide-react';
 
 import { analytics } from '@applyso/analytics';
+import { Badge } from '@applyso/ui/badge';
+import { Button } from '@applyso/ui/button';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+} from '@applyso/ui/card';
+import { Check } from '@applyso/ui/icons';
+import { Input } from '@applyso/ui/input';
 import {
   ADD_ON_PACK_BONUS,
   PLAN_APPLICATION_QUOTAS,
@@ -18,15 +27,6 @@ import {
   type BillingInterval,
   type BillingPlan,
 } from '@applyso/validation';
-import { Badge } from '@applyso/ui/badge';
-import { Button } from '@applyso/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-} from '@applyso/ui/card';
-import { Input } from '@applyso/ui/input';
 
 import {
   fetchBillingMe,
@@ -146,7 +146,7 @@ function BillingPlansPage() {
   }
 
   return (
-    <div className="w-full max-w-[1240px] mx-auto space-y-6 animate-fadeIn text-slate-900 dark:text-[#f1f3f9]">
+    <div className="w-full max-w-[1240px] mx-auto space-y-6 text-slate-900 dark:text-[#f1f3f9]">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-xl font-semibold text-slate-900 dark:text-[#f1f3f9] tracking-tight">

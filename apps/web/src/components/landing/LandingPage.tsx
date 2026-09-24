@@ -3,8 +3,8 @@
 import CtaSection from './CtaSection';
 import FAQ from './FAQ';
 import FeaturesBlock from './features/features-block';
-import HeroSection from './HeroSection';
 import Footer from './footer';
+import HeroSection from './HeroSection';
 import Navbar from './navbar-shrink';
 
 export function LandingPage() {

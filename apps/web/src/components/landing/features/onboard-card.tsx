@@ -1,10 +1,12 @@
 'use client';
 
-import { cn } from '@/lib/utils';
-import { motion } from 'motion/react';
 import { useEffect, useState } from 'react';
-import { IoMdCheckmark } from 'react-icons/io';
-import { LuLoader } from 'react-icons/lu';
+
+import { motion } from 'motion/react';
+
+import { IoMdCheckmark , LuLoader } from '@applyso/ui/icons';
+
+import { cn } from '@/lib/utils';
 
 interface OnboardCardProps {
   duration?: number;

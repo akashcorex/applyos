@@ -1,5 +1,6 @@
 import React from 'react';
-import { MdOutlineQuestionAnswer } from 'react-icons/md';
+
+import { MdOutlineQuestionAnswer } from '@applyso/ui/icons';
 
 const FaqIcon = () => {
   return (
