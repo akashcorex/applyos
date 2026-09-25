@@ -1,8 +1,12 @@
 'use client';
 
-import { cn } from '@/lib/utils';
-import { motion } from 'motion/react';
 import Image from 'next/image';
+
+import { motion } from 'motion/react';
+
+import { cn } from '@/lib/utils';
+
+import AskAboutApplyOs from './ask-about';
 import AnalyticsPreview from './demo/analyticspreview';
 import Herobuttons from './hero-buttons';
 import HeroBadge from './herobadge';
@@ -84,9 +88,10 @@ const HeroSection = () => {
                   ease: 'easeInOut',
                 }}
                 viewport={{ once: true }}
-                className="flex items-start"
+                className="flex flex-col items-start"
               >
                 <Herobuttons />
+                <AskAboutApplyOs />
               </motion.div>
             </div>
           </div>

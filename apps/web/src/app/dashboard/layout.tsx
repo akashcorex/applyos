@@ -209,7 +209,6 @@ export default function DashboardAppLayout({
         <DashboardHeader
           trail={trail}
           homeHref={isAdmin ? '/dashboard/admin' : '/dashboard'}
-          showQuickAction={false}
           onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
         />
 

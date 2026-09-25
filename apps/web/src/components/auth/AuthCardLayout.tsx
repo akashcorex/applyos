@@ -30,6 +30,19 @@ export function AuthCardLayout({ children }: { children: ReactNode }) {
     <div className="min-h-screen bg-black">
       <div className="flex min-h-screen">
         <div className="relative hidden items-center justify-center overflow-hidden bg-gradient-to-br from-neutral-900 via-neutral-800 to-black p-8 md:flex md:w-1/2">
+          <Link
+            href="/"
+            aria-label="ApplyOS home"
+            className="absolute left-8 top-8 z-20 inline-flex items-center"
+          >
+            <Image
+              src="/logo-white.png"
+              alt="ApplyOS"
+              width={60}
+              height={20}
+              className="h-5 w-auto object-contain"
+            />
+          </Link>
           <div className="absolute inset-0 opacity-20">
             <div className="absolute left-20 top-20 h-32 w-32 rounded-full border border-white/10" />
             <div className="absolute bottom-32 right-16 h-24 w-24 rounded-full border border-white/10" />
@@ -37,15 +50,6 @@ export function AuthCardLayout({ children }: { children: ReactNode }) {
           </div>
 
           <div className="relative z-10 space-y-8">
-            <Link href="/" className="inline-flex items-center">
-              <Image
-                src="/logo-white.png"
-                alt="ApplyOS"
-                width={120}
-                height={32}
-                className="h-8 w-auto object-contain"
-              />
-            </Link>
             <div className="space-y-4">
               <h1 className="text-5xl font-bold leading-tight">
                 <span className="bg-gradient-to-r from-white via-neutral-300 to-white bg-clip-text text-transparent">

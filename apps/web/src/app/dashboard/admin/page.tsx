@@ -17,32 +17,10 @@ import {
   fetchAdminUsers,
 } from '@/lib/admin-api';
 
-function dayLabel(date: Date): string {
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-}
-
 function startOfDay(date: Date): number {
   const next = new Date(date);
   next.setHours(0, 0, 0, 0);
   return next.getTime();
-}
-
-function lastDays(count: number): Date[] {
-  const today = startOfDay(new Date());
-  return Array.from({ length: count }, (_, i) => {
-    const day = new Date(today);
-    day.setDate(day.getDate() - (count - 1 - i));
-    return day;
-  });
-}
-
-function countOnDay(dates: string[], day: Date): number {
-  const start = startOfDay(day);
-  const end = start + 86_400_000;
-  return dates.filter((value) => {
-    const time = new Date(value).getTime();
-    return time >= start && time < end;
-  }).length;
 }
 
 function countSince(dates: string[], since: Date): number {
@@ -110,13 +88,6 @@ export default function AdminOverviewPage() {
       ? '0%'
       : `${Math.round((completed / resumes.length) * 100)}%`;
 
-  const days = lastDays(8);
-  const chartData = days.map((day) => ({
-    day: dayLabel(day),
-    users: countOnDay(userDates, day),
-    resumes: countOnDay(resumeDates, day),
-  }));
-
   return (
     <div className="w-full text-foreground">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border bg-secondary/30 px-6 py-2.5">
@@ -168,13 +139,6 @@ export default function AdminOverviewPage() {
           },
         ]}
         chartTitle="Users & Resume Velocity"
-        chartDescription="New accounts and resume uploads across the last eight days."
-        chartBadge="ADMIN"
-        chartData={chartData}
-        chartConfig={{
-          users: { label: 'New Users', color: 'blue' },
-          resumes: { label: 'Resumes', color: 'purple' },
-        }}
       />
 
       <div className="grid gap-6 xl:grid-cols-2">

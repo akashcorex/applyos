@@ -33,16 +33,12 @@ export interface DashboardCrumb {
 interface DashboardHeaderProps {
   trail?: DashboardCrumb[];
   homeHref?: string;
-  showQuickAction?: boolean;
-  onQuickAction?: () => void;
   onToggleSidebar?: () => void;
 }
 
 export function DashboardHeader({
   trail = [{ label: 'Overview' }],
   homeHref = '/dashboard',
-  showQuickAction = true,
-  onQuickAction,
   onToggleSidebar,
 }: DashboardHeaderProps) {
   return (

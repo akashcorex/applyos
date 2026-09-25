@@ -2,9 +2,6 @@
 
 import { useEffect, useState } from 'react';
 
-import Image from 'next/image';
-import Link from 'next/link';
-
 import { Google, Loader2 } from '@applyso/ui/icons';
 
 import { AuthCardLayout } from '@/components/auth/AuthCardLayout';
@@ -55,17 +52,6 @@ export default function AuthForm() {
     <AuthCardLayout>
       <div className="space-y-8">
         <div className="text-center">
-          <div className="mb-6 flex justify-center">
-            <Link href="/">
-              <Image
-                src="/logo-white.png"
-                alt="ApplyOS"
-                width={48}
-                height={48}
-                className="h-12 w-12 object-contain"
-              />
-            </Link>
-          </div>
           <h2 className="bg-[radial-gradient(61.17%_178.53%_at_38.83%_-13.54%,#3B3B3B_0%,#888787_12.61%,#FFFFFF_50%,#888787_80%,#3B3B3B_100%)] bg-clip-text text-4xl font-bold tracking-tight text-transparent">
             Welcome to ApplyOS
           </h2>

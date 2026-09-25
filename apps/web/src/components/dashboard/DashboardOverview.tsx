@@ -32,15 +32,6 @@ export type OverviewStat = {
   color?: 'blue' | 'orange' | 'green' | 'red' | string;
 };
 
-export type OverviewChartPoint = Record<string, string | number> & {
-  day: string;
-};
-
-export type OverviewChartConfig = Record<
-  string,
-  { label: string; color: string }
->;
-
 const FORGE_DEFAULT_STATS: OverviewStat[] = [
   {
     label: 'API Requests',
@@ -576,20 +567,12 @@ function SystemMetricsChart({
 export function DashboardOverview({
   stats,
   chartTitle = 'System Metrics',
-  chartDescription = 'Total for the last 3 months',
-  chartBadge = 'LIVE STREAM',
-  chartData,
-  chartConfig,
   showRecent = false,
   recentTitle = 'Recent Applications',
   recentItems,
 }: {
   stats?: OverviewStat[];
   chartTitle?: string;
-  chartDescription?: string;
-  chartBadge?: string;
-  chartData?: OverviewChartPoint[];
-  chartConfig?: OverviewChartConfig;
   showRecent?: boolean;
   recentTitle?: string;
   recentItems?: RecentActivityItem[];
