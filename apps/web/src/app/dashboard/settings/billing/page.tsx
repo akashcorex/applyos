@@ -4,7 +4,6 @@ import { Suspense, useEffect, useMemo, useState } from 'react';
 
 import { useSearchParams } from 'next/navigation';
 
-
 import { analytics } from '@applyso/analytics';
 import { Badge } from '@applyso/ui/badge';
 import { Button } from '@applyso/ui/button';
@@ -18,6 +17,7 @@ import { Check } from '@applyso/ui/icons';
 import { Input } from '@applyso/ui/input';
 import {
   ADD_ON_PACK_BONUS,
+  FREE_APPLICATION_QUOTA,
   PLAN_APPLICATION_QUOTAS,
   PLAN_INTERVAL_SAVINGS,
   PLAN_PRICES_INR,
@@ -196,7 +196,7 @@ function BillingPlansPage() {
                 {billing?.cycle.submitted ?? '—'}
               </span>
               <span className="text-xs text-slate-500 dark:text-[#8a8f9d] font-medium">
-                / {billing?.cycle.limit ?? 25}
+                / {billing?.cycle.limit ?? FREE_APPLICATION_QUOTA}
               </span>
             </div>
             <p className="text-[10px] text-slate-500 dark:text-[#8a8f9d]">
@@ -221,8 +221,8 @@ function BillingPlansPage() {
             </div>
             <p className="text-[10px] text-slate-500 dark:text-[#8a8f9d]">
               {billing?.interval
-                ? `${billing.interval} · 25 free apps included before you pay`
-                : '25 free submitted applications. No card required.'}
+                ? `${billing.interval} · ${FREE_APPLICATION_QUOTA} free apps included before you pay`
+                : `${FREE_APPLICATION_QUOTA} free submitted applications. No card required.`}
             </p>
           </CardContent>
         </Card>
@@ -383,8 +383,8 @@ function BillingPlansPage() {
       ) : null}
 
       <p className="text-[11px] text-center text-slate-500 dark:text-[#8a8f9d]">
-        Cancel any time. 25 free submitted applications. You pay only for jobs
-        actually submitted.
+        Cancel any time. {FREE_APPLICATION_QUOTA} free submitted applications.
+        You pay only for jobs actually submitted.
       </p>
     </div>
   );

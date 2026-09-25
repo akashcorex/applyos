@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 
-import { CiGlobe , BiLinkExternal } from '@applyso/ui/icons';
+import { CiGlobe, BiLinkExternal } from '@applyso/ui/icons';
 
 export default function SiteHeader() {
   return (

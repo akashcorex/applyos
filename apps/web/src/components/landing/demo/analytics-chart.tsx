@@ -12,7 +12,7 @@ import {
   ReferenceDot,
 } from 'recharts';
 
-import { ArrowUp, Clock , MdOutlineKeyboardArrowDown } from '@applyso/ui/icons';
+import { ArrowUp, Clock, MdOutlineKeyboardArrowDown } from '@applyso/ui/icons';
 
 const chartData = [
   { date: 'Sep 9', count: 80 },

@@ -94,6 +94,51 @@ class DurableWorkflowClient:
             )
             return None
 
+    async def sync_application_result(
+        self,
+        workflow_id: str,
+        job_id: str,
+        status: str,
+        *,
+        error_detail: str | None = None,
+        page_url: str | None = None,
+        screenshot_path: str | None = None,
+    ) -> bool:
+        """Write an apply result straight to durable storage when the live run is gone."""
+        if not self.enabled:
+            return False
+        body: dict[str, Any] = {
+            "eventType": "application.status_changed",
+            "applications": [
+                {
+                    "jobId": job_id,
+                    "status": status,
+                    "errorDetail": error_detail,
+                    "pageUrl": page_url,
+                    "screenshotPath": screenshot_path,
+                }
+            ],
+        }
+        try:
+            async with httpx.AsyncClient(timeout=settings.http_timeout_seconds) as client:
+                response = await client.post(
+                    f"{self._base_url}/v1/workflows/internal/{workflow_id}/status",
+                    json=body,
+                    headers={"X-Agent-Service-Token": self._token},
+                )
+                if response.status_code == 404:
+                    return False
+                response.raise_for_status()
+                return True
+        except httpx.HTTPError as exc:
+            logger.warning(
+                "Durable application result sync failed workflow=%s job_id=%s: %s",
+                workflow_id,
+                job_id,
+                exc,
+            )
+            return False
+
     async def sync_status(
         self,
         workflow_id: str,

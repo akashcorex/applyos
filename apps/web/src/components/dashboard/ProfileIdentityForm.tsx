@@ -159,9 +159,7 @@ export function ProfileIdentityForm({
                 value={values.experienceYears}
                 items={EXPERIENCE_OPTIONS}
                 placeholder="Select years"
-                onChange={(next) =>
-                  onChange({ totalExperienceYears: next })
-                }
+                onChange={(next) => onChange({ totalExperienceYears: next })}
               />
             </div>
             <div className="px-6 sm:px-8 py-4 space-y-1.5">
@@ -261,9 +259,7 @@ export function ProfileIdentityForm({
               <Input
                 id="profile-roles"
                 value={values.preferredRoles}
-                onChange={(e) =>
-                  onChange({ preferredRoles: e.target.value })
-                }
+                onChange={(e) => onChange({ preferredRoles: e.target.value })}
                 placeholder="Full Stack Engineer, Backend Engineer"
                 className="h-8 text-xs font-sans"
               />

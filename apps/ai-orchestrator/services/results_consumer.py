@@ -16,8 +16,14 @@ from typing import Any
 import redis.asyncio as redis
 
 from config import settings
-from models import ApplyResultEvent, ConnectResultEvent, WorkflowStatus
+from models import (
+    TERMINAL_APPLY_STATUSES,
+    ApplyResultEvent,
+    ConnectResultEvent,
+    WorkflowStatus,
+)
 from services.apply_client import ApplyAgentClient
+from services.durable_workflow_client import DurableWorkflowClient
 from services.workflow_store import WorkflowStore
 
 logger = logging.getLogger(__name__)
@@ -46,12 +52,14 @@ class ResultsConsumer:
         client: redis.Redis,
         store: WorkflowStore,
         apply_client: ApplyAgentClient | None = None,
+        durable_client: DurableWorkflowClient | None = None,
         *,
         consumer_name: str = "orchestrator-1",
     ) -> None:
         self._redis = client
         self._store = store
         self._apply_client = apply_client or ApplyAgentClient()
+        self._durable = durable_client or DurableWorkflowClient()
         self._consumer_name = consumer_name
         self._task: asyncio.Task[None] | None = None
         self._timeout_task: asyncio.Task[None] | None = None
@@ -243,11 +251,43 @@ class ResultsConsumer:
                 exc,
             )
 
+    @staticmethod
+    def _workflow_id_from_job_id(job_id: str) -> str | None:
+        # Apply job ids are namespaced as `{workflow_id}:{dedup_key}`.
+        workflow_id, sep, dedup_key = job_id.partition(":")
+        return workflow_id if sep and dedup_key else None
+
+    async def _finalize_durable_if_complete(self, workflow_id: str) -> None:
+        """Mirror finalize_if_complete for runs whose live Redis state expired."""
+        durable = await self._durable.get_workflow(workflow_id)
+        if not durable:
+            return
+        applications = durable.get("applications") or []
+        if not applications:
+            return
+        statuses = [app.get("status") for app in applications]
+        if any(status not in TERMINAL_APPLY_STATUSES for status in statuses):
+            return
+        success_statuses = {"submitted", "already_applied"}
+        final_status = (
+            WorkflowStatus.completed
+            if all(status in success_statuses for status in statuses)
+            else WorkflowStatus.partial
+        )
+        await self._durable.sync_status(
+            workflow_id,
+            final_status.value,
+            event_type="workflow.status_changed",
+            payload={"status": final_status.value},
+        )
+
     async def _handle_connect_result(self, event: ConnectResultEvent) -> bool:
         if not event.job_id:
             return True
 
         workflow_id = await self._store.resolve_workflow_id(event.job_id)
+        if workflow_id is None:
+            workflow_id = self._workflow_id_from_job_id(event.job_id)
         if workflow_id is None:
             logger.warning("No workflow found for connect job_id=%s", event.job_id)
             return False
@@ -285,6 +325,8 @@ class ResultsConsumer:
     async def _handle_apply_result(self, event: ApplyResultEvent) -> bool:
         workflow_id = await self._store.resolve_workflow_id(event.job_id)
         if workflow_id is None:
+            workflow_id = self._workflow_id_from_job_id(event.job_id)
+        if workflow_id is None:
             logger.warning("No workflow found for job_id=%s", event.job_id)
             return False
 
@@ -297,6 +339,25 @@ class ResultsConsumer:
             screenshot_path=event.screenshot_path,
         )
         if updated is None:
+            run = await self._store.get(workflow_id)
+            if run is None:
+                synced = await self._durable.sync_application_result(
+                    workflow_id,
+                    event.job_id,
+                    event.status,
+                    error_detail=event.error_detail,
+                    page_url=event.page_url,
+                    screenshot_path=event.screenshot_path,
+                )
+                if synced:
+                    logger.info(
+                        "Synced durable result workflow=%s job_id=%s status=%s",
+                        workflow_id,
+                        event.job_id,
+                        event.status,
+                    )
+                    await self._finalize_durable_if_complete(workflow_id)
+                    return True
             logger.warning(
                 "Apply task not indexed yet workflow=%s job_id=%s",
                 workflow_id,

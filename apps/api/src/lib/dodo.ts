@@ -32,8 +32,20 @@ const ADD_ON_ENV: Record<BillingAddOnPack, string> = {
   plus_150: 'DODO_PRODUCT_ADDON_PLUS_150',
 };
 
+let envWarningShown = false;
+
 export function dodoEnvironment(): 'test_mode' | 'live_mode' {
-  return process.env.DODO_ENVIRONMENT === 'live' ? 'live_mode' : 'test_mode';
+  const raw = process.env.DODO_ENVIRONMENT?.trim().toLowerCase();
+  if (!raw) {
+    if (!envWarningShown) {
+      envWarningShown = true;
+      console.warn(
+        '[billing] DODO_ENVIRONMENT is unset — defaulting to test_mode. Set it to "live" in production.',
+      );
+    }
+    return 'test_mode';
+  }
+  return raw === 'live' ? 'live_mode' : 'test_mode';
 }
 
 export function getDodoClient(): DodoPayments {

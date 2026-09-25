@@ -4,7 +4,6 @@ import { Fragment } from 'react';
 
 import Link from 'next/link';
 
-
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -14,7 +13,14 @@ import {
   BreadcrumbSeparator,
 } from '@applyso/ui/breadcrumb';
 import { Button } from '@applyso/ui/button';
-import { Bell, ChevronRight, HelpCircle, Home, Menu, Search } from '@applyso/ui/icons';
+import {
+  Bell,
+  ChevronRight,
+  HelpCircle,
+  Home,
+  Menu,
+  Search,
+} from '@applyso/ui/icons';
 import { Input } from '@applyso/ui/input';
 
 import { ThemeToggle } from '@/components/dashboard/ThemeToggle';

@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from 'react';
 
-
 import { analytics } from '@applyso/analytics';
 import { Badge } from '@applyso/ui/badge';
 import { Button } from '@applyso/ui/button';
@@ -516,7 +515,7 @@ export function WorkflowPanel({
           'workflow_cancelled',
           {
             completed_count:
-              detail?.apply_tasks?.filter((t) => t.status === 'completed')
+              detail?.apply_tasks?.filter((t) => t.status === 'submitted')
                 .length ?? 0,
             total_count: detail?.apply_tasks?.length ?? 0,
           },
@@ -879,6 +878,7 @@ export function WorkflowPanel({
                                       <OutcomeSelect
                                         workflowId={detail.id}
                                         jobId={task.job_id}
+                                        applicationId={task.application_id}
                                         value={task.outcome ?? null}
                                         onChange={(outcome) => {
                                           setDetail((current) => {
@@ -980,11 +980,13 @@ function ScreenshotLink({
 function OutcomeSelect({
   workflowId,
   jobId,
+  applicationId,
   value,
   onChange,
 }: {
   workflowId: string;
   jobId: string;
+  applicationId?: string | null;
   value: string | null;
   onChange: (outcome: string) => void;
 }) {
@@ -993,7 +995,11 @@ function OutcomeSelect({
     await fetch(`/api/workflows/${encodeURIComponent(workflowId)}/outcome`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ jobId, outcome }),
+      body: JSON.stringify({
+        jobId,
+        applicationId: applicationId ?? undefined,
+        outcome,
+      }),
     }).catch(() => undefined);
   }
 
@@ -1004,7 +1010,7 @@ function OutcomeSelect({
         className="h-7 rounded border bg-background px-1 text-xs text-foreground"
         value={value ?? ''}
         onChange={(event) => {
-          if (event.target.value) void handleChange(event.target.value);
+          void handleChange(event.target.value);
         }}
       >
         <option value="">Not tracked</option>

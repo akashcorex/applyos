@@ -3,8 +3,14 @@
 import { useRef, useState } from 'react';
 
 import { Button } from '@applyso/ui/button';
-import { Check, Download, Eye, FileText, Loader2, UploadCloud } from '@applyso/ui/icons';
-
+import {
+  Check,
+  Download,
+  Eye,
+  FileText,
+  Loader2,
+  UploadCloud,
+} from '@applyso/ui/icons';
 
 import type { ProfileLatestResume, ResumeHistoryItem } from './profile-types';
 
@@ -131,7 +137,8 @@ export function ProfileResumeCard({
               No resume uploaded
             </p>
             <p className="text-xs text-muted-foreground">
-              Upload your resume in PDF or DOCX format to populate candidate parameters and enable 1-click matching.
+              Upload your resume in PDF or DOCX format to populate candidate
+              parameters and enable 1-click matching.
             </p>
           </div>
         ) : (
@@ -181,10 +188,12 @@ export function ProfileResumeCard({
                 {isCompleted ? (
                   <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs font-mono text-muted-foreground">
                     <span className="inline-flex items-center gap-1 text-zinc-300">
-                      <Check className="h-3 w-3 text-emerald-500" /> Contact Info
+                      <Check className="h-3 w-3 text-emerald-500" /> Contact
+                      Info
                     </span>
                     <span className="inline-flex items-center gap-1 text-zinc-300">
-                      <Check className="h-3 w-3 text-emerald-500" /> Experience History
+                      <Check className="h-3 w-3 text-emerald-500" /> Experience
+                      History
                     </span>
                     <span className="inline-flex items-center gap-1 text-zinc-300">
                       <Check className="h-3 w-3 text-emerald-500" /> Core Skills
@@ -309,7 +318,8 @@ export function ProfileResumeCard({
         {needsReview ? (
           <div className="rounded-[4px] bg-amber-500/10 border border-amber-500/20 px-4 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <p className="text-xs text-amber-300">
-              Resume parsed. Review candidate details below and confirm to lock in for automated submissions.
+              Resume parsed. Review candidate details below and confirm to lock
+              in for automated submissions.
             </p>
             <Button
               type="button"

@@ -5,7 +5,6 @@ import { useCallback, useEffect, useState } from 'react';
 import { Button } from '@applyso/ui/button';
 import { Loader2, X } from '@applyso/ui/icons';
 
-
 import { ApplicationActivityPanel } from '@/components/applications/ApplicationActivityPanel';
 import { ApplicationStatusBadge } from '@/components/applications/ApplicationStatusBadge';
 import { HumanInterventionBanner } from '@/components/applications/HumanInterventionBanner';

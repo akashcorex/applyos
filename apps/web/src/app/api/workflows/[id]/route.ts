@@ -72,6 +72,102 @@ function pickWorkflowStatus(
   return orchestratorStatus;
 }
 
+interface DurableWorkflowDetail {
+  workflow?: DurableWorkflow & {
+    id?: string;
+    errorDetail?: string | null;
+    createdAt?: string | null;
+    updatedAt?: string | null;
+  };
+  jobs?: (DurableJob & {
+    externalId?: string | null;
+    source?: string | null;
+    department?: string | null;
+    location?: string | null;
+    locationType?: string | null;
+    seniority?: string | null;
+    matchScore?: number | null;
+    applicationUrl?: string | null;
+  })[];
+  applications?: (DurableApplication & {
+    id?: string;
+    externalTaskId?: string | null;
+    currentUrl?: string | null;
+  } & Record<string, unknown>)[];
+}
+
+function buildDurableDetail(
+  workflowId: string,
+  durable: DurableWorkflowDetail,
+): Record<string, unknown> | null {
+  const workflow = durable.workflow;
+  if (!workflow || typeof workflow.id !== 'string') return null;
+
+  const jobsById = new Map(
+    (durable.jobs ?? [])
+      .filter((job) => typeof job.id === 'string')
+      .map((job) => [job.id as string, job]),
+  );
+
+  const applyTasks = (durable.applications ?? []).map((application) => {
+    const job = application.workflowJobId
+      ? jobsById.get(application.workflowJobId)
+      : undefined;
+    return {
+      job_id: job ? `${workflowId}:${job.dedupKey}` : '',
+      job_title: job?.title ?? '',
+      company_name: job?.companyName ?? '',
+      application_url: job?.applicationUrl ?? '',
+      application_id: application.id ?? null,
+      task_id: application.externalTaskId ?? null,
+      status: application.status ?? 'pending',
+      error_detail: application.errorDetail ?? null,
+      page_url: application.currentUrl ?? application.pageUrl ?? null,
+      screenshot_path: application.screenshotPath ?? null,
+      linkedin_connect_status: null,
+      outcome: application.outcome ?? null,
+    };
+  });
+
+  const discoveredJobs = (durable.jobs ?? []).map((job) => ({
+    external_id: job.externalId ?? job.id ?? '',
+    source: job.source ?? '',
+    title: job.title ?? '',
+    company_name: job.companyName ?? '',
+    department: job.department ?? null,
+    location: job.location ?? null,
+    location_type: job.locationType ?? null,
+    seniority: job.seniority ?? null,
+    filter_score: job.matchScore ?? 0,
+  }));
+
+  const errors = workflow.errorDetail ? [workflow.errorDetail] : [];
+
+  return {
+    id: workflow.id,
+    status: workflow.status ?? 'pending',
+    discovered_jobs: discoveredJobs,
+    apply_tasks: applyTasks,
+    errors,
+    created_at: workflow.createdAt ?? '',
+    updated_at: workflow.updatedAt ?? '',
+  };
+}
+
+async function fetchDurableDetail(
+  workflowId: string,
+): Promise<Record<string, unknown> | null> {
+  const headers = agentServiceHeaders();
+  if (!headers) return null;
+  const durableRes = await fetch(
+    `${API_URL}/v1/workflows/internal/${encodeURIComponent(workflowId)}`,
+    { headers, cache: 'no-store', signal: AbortSignal.timeout(10000) },
+  );
+  if (!durableRes.ok) return null;
+  const durable = (await durableRes.json()) as DurableWorkflowDetail;
+  return buildDurableDetail(workflowId, durable);
+}
+
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
@@ -89,6 +185,8 @@ export async function GET(
       },
     );
     if (!res.ok) {
+      const durableDetail = await fetchDurableDetail(id).catch(() => null);
+      if (durableDetail) return Response.json(durableDetail);
       return Response.json(
         { error: 'Workflow not found' },
         { status: res.status },
@@ -168,6 +266,8 @@ export async function GET(
 
     return Response.json(data);
   } catch {
+    const durableDetail = await fetchDurableDetail(id).catch(() => null);
+    if (durableDetail) return Response.json(durableDetail);
     return Response.json(
       { error: 'Orchestrator is unreachable' },
       { status: 502 },

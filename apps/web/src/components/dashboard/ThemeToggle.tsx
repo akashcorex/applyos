@@ -2,7 +2,6 @@
 
 import * as React from 'react';
 
-
 import { analytics } from '@applyso/analytics';
 import { Button } from '@applyso/ui/button';
 import { Moon, Sun } from '@applyso/ui/icons';

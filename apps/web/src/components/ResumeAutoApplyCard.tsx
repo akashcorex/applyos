@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from 'react';
 
-
 import { analytics } from '@applyso/analytics';
 import { Badge } from '@applyso/ui/badge';
 import { Button } from '@applyso/ui/button';

@@ -4,7 +4,16 @@ import { useEffect, useState, type ReactNode } from 'react';
 
 import { motion, type Variants } from 'motion/react';
 
-import { MdMarkunread , RiNetflixFill , AiFillSpotify , FaHeadphones, FaXTwitter , FaPhoneAlt, FaPinterest, FaSnapchatGhost } from '@applyso/ui/icons';
+import {
+  MdMarkunread,
+  RiNetflixFill,
+  AiFillSpotify,
+  FaHeadphones,
+  FaXTwitter,
+  FaPhoneAlt,
+  FaPinterest,
+  FaSnapchatGhost,
+} from '@applyso/ui/icons';
 
 import { cn } from '@/lib/utils';
 

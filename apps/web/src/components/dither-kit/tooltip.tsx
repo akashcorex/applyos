@@ -58,31 +58,31 @@ export function Tooltip({
         transform: `translate3d(${chart.tooltipLeft}px, ${chart.tooltipTop}px, 0) translate(-50%, -115%)`,
       }}
     >
-          {heading && (
-            <div className="mb-0.5 font-mono text-[10px] text-muted-foreground">
-              {heading}
-            </div>
-          )}
-          <div className="flex flex-col gap-0.5">
-            {items.map((item) => (
-              <div
-                key={item.name}
-                className="flex items-center gap-1.5 font-mono text-[11px] text-popover-foreground tabular-nums"
-                style={{ opacity: item.dimmed ? 0.4 : 1 }}
-              >
-                <span
-                  className="size-2 rounded-[1px]"
-                  style={{ backgroundColor: rgb(item.seed.fill) }}
-                />
-                <span className="text-muted-foreground">{item.label}</span>
-                <span className="ml-auto pl-2 text-foreground">
-                  {valueFormatter
-                    ? valueFormatter(item.value, item.name)
-                    : item.value.toLocaleString()}
-                </span>
-              </div>
-            ))}
+      {heading && (
+        <div className="mb-0.5 font-mono text-[10px] text-muted-foreground">
+          {heading}
+        </div>
+      )}
+      <div className="flex flex-col gap-0.5">
+        {items.map((item) => (
+          <div
+            key={item.name}
+            className="flex items-center gap-1.5 font-mono text-[11px] text-popover-foreground tabular-nums"
+            style={{ opacity: item.dimmed ? 0.4 : 1 }}
+          >
+            <span
+              className="size-2 rounded-[1px]"
+              style={{ backgroundColor: rgb(item.seed.fill) }}
+            />
+            <span className="text-muted-foreground">{item.label}</span>
+            <span className="ml-auto pl-2 text-foreground">
+              {valueFormatter
+                ? valueFormatter(item.value, item.name)
+                : item.value.toLocaleString()}
+            </span>
           </div>
+        ))}
+      </div>
     </div>
   );
 }

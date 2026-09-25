@@ -69,7 +69,9 @@ const easeOut = [0.23, 1, 0.32, 1] as const;
 
 function enterVariants(reduce: boolean) {
   return {
-    hidden: reduce ? { opacity: 0 } : { opacity: 0, transform: 'translateY(8px)' },
+    hidden: reduce
+      ? { opacity: 0 }
+      : { opacity: 0, transform: 'translateY(8px)' },
     visible: { opacity: 1, transform: 'none' },
   };
 }

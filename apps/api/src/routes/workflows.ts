@@ -191,19 +191,45 @@ function terminalApplication(
   ].includes(status);
 }
 
+async function resolveJobByTaskId(
+  workflowId: string,
+  taskId: string,
+): Promise<{ id: string } | null> {
+  const application = await prisma.application.findFirst({
+    where: { workflowRunId: workflowId, externalTaskId: taskId },
+    select: { workflowJobId: true },
+  });
+  if (!application?.workflowJobId) return null;
+  return prisma.workflowJob.findUnique({
+    where: { id: application.workflowJobId },
+    select: { id: true },
+  });
+}
+
 async function updateApplication(
   workflowId: string,
   update: ApplicationStatusUpdate,
 ): Promise<void> {
   if (!isApplicationStatus(update.status)) return;
   const dedupKey = parseJobDedupKey(workflowId, update.jobId);
-  if (!dedupKey) return;
-
-  const job = await prisma.workflowJob.findUnique({
-    where: { workflowRunId_dedupKey: { workflowRunId: workflowId, dedupKey } },
-    select: { id: true },
-  });
-  if (!job) return;
+  const job = dedupKey
+    ? await prisma.workflowJob.findUnique({
+        where: {
+          workflowRunId_dedupKey: { workflowRunId: workflowId, dedupKey },
+        },
+        select: { id: true },
+      })
+    : update.taskId
+      ? await resolveJobByTaskId(workflowId, update.taskId)
+      : null;
+  if (!job) {
+    console.warn('[workflows] dropped status update for unrecognized job', {
+      workflowId,
+      jobId: update.jobId,
+      status: update.status,
+    });
+    return;
+  }
 
   const existing = await prisma.application.findFirst({
     where: { workflowJobId: job.id },
@@ -615,6 +641,47 @@ workflowsRouter.post('/internal/start', async (req, res) => {
   }
 });
 
+/** Trusted durable read of a user's recent workflow runs (live Redis state may have expired). */
+workflowsRouter.get('/internal/user/:userId', async (req, res) => {
+  if (!serviceRequestAllowed(req.header('x-agent-service-token'))) {
+    res.status(401).json({ error: 'Unauthorized internal workflow request' });
+    return;
+  }
+
+  const limitParam = Number(req.query.limit);
+  const limit =
+    Number.isInteger(limitParam) && limitParam > 0
+      ? Math.min(limitParam, 100)
+      : 20;
+
+  const runs = await prisma.workflowRun.findMany({
+    where: { userId: req.params.userId },
+    orderBy: { createdAt: 'desc' },
+    take: limit,
+    select: {
+      id: true,
+      status: true,
+      createdAt: true,
+      updatedAt: true,
+      jobs: { select: { id: true } },
+      applications: { select: { status: true } },
+    },
+  });
+
+  res.status(200).json({
+    workflows: runs.map((run) => ({
+      workflow: {
+        id: run.id,
+        status: run.status,
+        createdAt: run.createdAt,
+        updatedAt: run.updatedAt,
+      },
+      jobs: run.jobs,
+      applications: run.applications,
+    })),
+  });
+});
+
 /** Trusted read used by server-side ownership checks in the web application. */
 workflowsRouter.get('/internal/:workflowId', async (req, res) => {
   if (!serviceRequestAllowed(req.header('x-agent-service-token'))) {
@@ -717,7 +784,7 @@ workflowsRouter.post('/internal/:workflowId/status', async (req, res) => {
     payload?: unknown;
     applications?: unknown;
   };
-  if (!isRunStatus(body.status)) {
+  if (body.status !== undefined && !isRunStatus(body.status)) {
     res.status(400).json({ error: 'Invalid workflow status' });
     return;
   }
@@ -731,11 +798,15 @@ workflowsRouter.post('/internal/:workflowId/status', async (req, res) => {
           hasString((item as ApplicationStatusUpdate).status),
       )
     : [];
+  if (body.status === undefined && updates.length === 0) {
+    res.status(400).json({ error: 'status or applications is required' });
+    return;
+  }
   const eventType = isEventType(body.eventType)
     ? body.eventType
     : 'workflow.status_changed';
   // Hoist narrowed values: TS drops property narrowing inside closures.
-  const nextStatus = body.status;
+  const nextStatus = isRunStatus(body.status) ? body.status : undefined;
   const errorDetail = hasString(body.errorDetail)
     ? body.errorDetail
     : undefined;
@@ -752,14 +823,16 @@ workflowsRouter.post('/internal/:workflowId/status', async (req, res) => {
     }
 
     await prisma.$transaction(async (tx) => {
-      await tx.workflowRun.update({
-        where: { id: workflowId },
-        data: {
-          status: nextStatus,
-          errorDetail,
-          completedAt: terminalWorkflow(nextStatus) ? now : undefined,
-        },
-      });
+      if (nextStatus) {
+        await tx.workflowRun.update({
+          where: { id: workflowId },
+          data: {
+            status: nextStatus,
+            errorDetail,
+            completedAt: terminalWorkflow(nextStatus) ? now : undefined,
+          },
+        });
+      }
 
       for (const update of updates) {
         await updateApplication(workflowId, update);
@@ -819,37 +892,63 @@ workflowsRouter.patch(
     }
 
     const jobId = (req.body as { jobId?: unknown }).jobId;
+    const applicationId = (req.body as { applicationId?: unknown })
+      .applicationId;
     const outcome = (req.body as { outcome?: unknown }).outcome;
-    if (!hasString(jobId) || !isOutcome(outcome)) {
+    const clearing = outcome === null || outcome === '';
+    if (!clearing && !isOutcome(outcome)) {
       res.status(400).json({ error: 'Invalid application outcome' });
       return;
     }
-
-    const dedupKey = parseJobDedupKey(req.params.workflowId, jobId);
-    if (!dedupKey) {
-      res.status(400).json({ error: 'Invalid job id' });
+    if (!hasString(jobId) && !hasString(applicationId)) {
+      res.status(400).json({ error: 'jobId or applicationId is required' });
       return;
     }
 
-    const job = await prisma.workflowJob.findUnique({
-      where: {
-        workflowRunId_dedupKey: {
+    const nextOutcome = clearing ? null : (outcome as string);
+    if (hasString(applicationId)) {
+      const application = await prisma.application.findFirst({
+        where: {
+          id: applicationId,
           workflowRunId: req.params.workflowId,
-          dedupKey,
         },
-      },
-      select: { id: true },
-    });
-    if (!job) {
-      res.status(404).json({ error: 'Application not found' });
-      return;
+        select: { id: true },
+      });
+      if (!application) {
+        res.status(404).json({ error: 'Application not found' });
+        return;
+      }
+      await prisma.application.updateMany({
+        where: { id: application.id },
+        data: { outcome: nextOutcome },
+      });
+    } else {
+      const dedupKey = parseJobDedupKey(req.params.workflowId, jobId as string);
+      if (!dedupKey) {
+        res.status(400).json({ error: 'Invalid job id' });
+        return;
+      }
+
+      const job = await prisma.workflowJob.findUnique({
+        where: {
+          workflowRunId_dedupKey: {
+            workflowRunId: req.params.workflowId,
+            dedupKey,
+          },
+        },
+        select: { id: true },
+      });
+      if (!job) {
+        res.status(404).json({ error: 'Application not found' });
+        return;
+      }
+
+      await prisma.application.updateMany({
+        where: { workflowJobId: job.id },
+        data: { outcome: nextOutcome },
+      });
     }
 
-    await prisma.application.updateMany({
-      where: { workflowJobId: job.id },
-      data: { outcome },
-    });
-
-    res.status(200).json({ ok: true, outcome });
+    res.status(200).json({ ok: true, outcome: nextOutcome });
   },
 );

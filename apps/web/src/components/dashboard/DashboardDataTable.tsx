@@ -110,7 +110,8 @@ const DEFAULT_ROWS: ApiLogRow[] = [
   },
 ];
 
-type SortField = 'endpoint' | 'source' | 'userType' | 'latency' | 'requests' | 'time';
+type SortField =
+  'endpoint' | 'source' | 'userType' | 'latency' | 'requests' | 'time';
 
 export function DashboardDataTable() {
   const [search, setSearch] = useState('');

@@ -1,11 +1,6 @@
 'use client';
 
-import {
-  Briefcase,
-  CheckCircle2,
-  Send,
-  Zap,
-} from '@applyso/ui/icons';
+import { Briefcase, CheckCircle2, Send, Zap } from '@applyso/ui/icons';
 import type { ProfileCompletion } from '@applyso/validation';
 
 import type { ProfileActivityTotals } from './profile-types';

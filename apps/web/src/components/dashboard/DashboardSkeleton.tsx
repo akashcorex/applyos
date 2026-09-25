@@ -8,7 +8,10 @@ export function DashboardSkeleton() {
       {/* Stat strip skeleton — 1px line divided */}
       <div className="w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-border border-b border-border bg-background">
         {[1, 2, 3, 4].map((i) => (
-          <div key={i} className="p-5 bg-background flex items-start justify-between">
+          <div
+            key={i}
+            className="p-5 bg-background flex items-start justify-between"
+          >
             <div className="space-y-2.5">
               <Skeleton className="h-3.5 w-24 rounded-[4px] bg-secondary" />
               <Skeleton className="h-7 w-20 rounded-[4px] bg-secondary" />

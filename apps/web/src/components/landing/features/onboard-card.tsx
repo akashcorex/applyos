@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 
 import { motion } from 'motion/react';
 
-import { IoMdCheckmark , LuLoader } from '@applyso/ui/icons';
+import { IoMdCheckmark, LuLoader } from '@applyso/ui/icons';
 
 import { cn } from '@/lib/utils';
 

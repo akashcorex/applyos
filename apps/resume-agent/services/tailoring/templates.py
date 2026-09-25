@@ -98,7 +98,7 @@ class ResumeTemplateEngine:
 
     def _render_heading(self, pdf: FPDF, title: str) -> None:
         pdf.set_font("Helvetica", "B", HEADING_SIZE)
-        pdf.cell(0, 7, title.upper(), ln=True)
+        pdf.cell(0, 7, title.upper(), new_x=XPos.LMARGIN, new_y=YPos.NEXT)
         pdf.set_draw_color(180, 180, 180)
         pdf.line(pdf.get_x(), pdf.get_y(), pdf.w - self.margin_mm, pdf.get_y())
         pdf.ln(3)

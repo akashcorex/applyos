@@ -5,7 +5,6 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 
-
 import { Badge } from '@applyso/ui/badge';
 import { Button } from '@applyso/ui/button';
 import {

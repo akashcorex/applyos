@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from 'react';
 
 import Link from 'next/link';
 
-
 import { Badge } from '@applyso/ui/badge';
 import { Card, CardContent } from '@applyso/ui/card';
 import { Loader2 } from '@applyso/ui/icons';

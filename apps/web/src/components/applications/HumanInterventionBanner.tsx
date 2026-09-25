@@ -3,7 +3,6 @@
 import { Button } from '@applyso/ui/button';
 import { AlertTriangle } from '@applyso/ui/icons';
 
-
 interface HumanInterventionBannerProps {
   message: string;
   type?: string;

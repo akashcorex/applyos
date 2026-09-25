@@ -5,7 +5,6 @@ import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@applyso/ui/card';
 import { Loader2 } from '@applyso/ui/icons';
 
-
 import { fetchAdminResumes, fetchAdminUsers, fetchMe } from '@/lib/admin-api';
 
 interface Check {

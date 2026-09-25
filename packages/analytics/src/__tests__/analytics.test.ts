@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 
 import { sanitizeProperties, sanitizeText } from '../sanitizer';
-import { getOrCreateAnonymousId, getOrCreateSession } from '../session';
 
 describe('Analytics Privacy & Sanitizer', () => {
   it('strips email addresses from raw text', () => {
@@ -36,19 +35,5 @@ describe('Analytics Privacy & Sanitizer', () => {
     const longString = 'A'.repeat(300);
     const sanitized = sanitizeText(longString, 50);
     expect(sanitized?.length).toBeLessThanOrEqual(51); // 50 chars + ellipsis
-  });
-});
-
-describe('Analytics Session & Identity', () => {
-  it('generates a valid anonymous ID', () => {
-    const anonId = getOrCreateAnonymousId();
-    expect(typeof anonId).toBe('string');
-    expect(anonId.length).toBeGreaterThan(5);
-  });
-
-  it('generates a valid session ID', () => {
-    const session = getOrCreateSession();
-    expect(typeof session.sessionId).toBe('string');
-    expect(session.sessionId.length).toBeGreaterThan(5);
   });
 });

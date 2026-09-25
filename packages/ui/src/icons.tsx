@@ -103,12 +103,7 @@ type IconProps = SVGProps<SVGSVGElement> & {
 };
 
 function icon(data: IconSvgElement) {
-  function Icon({
-    className,
-    size,
-    strokeWidth = 1.75,
-    ...rest
-  }: IconProps) {
+  function Icon({ className, size, strokeWidth = 1.75, ...rest }: IconProps) {
     return (
       <HugeiconsIcon
         icon={data}
@@ -116,9 +111,7 @@ function icon(data: IconSvgElement) {
         strokeWidth={strokeWidth}
         className={cn('size-4 shrink-0', className)}
         {...rest}
-        {...(size != null
-          ? { size }
-          : { width: undefined, height: undefined })}
+        {...(size != null ? { size } : { width: undefined, height: undefined })}
       />
     );
   }

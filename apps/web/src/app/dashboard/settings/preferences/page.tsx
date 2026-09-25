@@ -64,7 +64,8 @@ export default function PreferencesSettingsPage() {
             Agent Preferences & Limits
           </h1>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Autonomous application throughput, matchmaking score thresholds, and execution safety guardrails
+            Autonomous application throughput, matchmaking score thresholds, and
+            execution safety guardrails
           </p>
         </div>
 
@@ -184,7 +185,8 @@ export default function PreferencesSettingsPage() {
                 </span>
               </div>
               <p className="text-xs text-muted-foreground">
-                Maximum number of automated job submissions launched per 24-hour rolling window.
+                Maximum number of automated job submissions launched per 24-hour
+                rolling window.
               </p>
             </div>
 
@@ -208,7 +210,8 @@ export default function PreferencesSettingsPage() {
                 <span className="text-xs font-mono text-zinc-400">% match</span>
               </div>
               <p className="text-xs text-muted-foreground">
-                Jobs evaluated with semantic score below this percentage will be automatically skipped.
+                Jobs evaluated with semantic score below this percentage will be
+                automatically skipped.
               </p>
             </div>
           </div>
@@ -246,7 +249,9 @@ export default function PreferencesSettingsPage() {
                     Auto-submit applications without manual approval
                   </span>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    When disabled, the agent fills the application form in the cloud browser and waits for your confirmation before final submit.
+                    When disabled, the agent fills the application form in the
+                    cloud browser and waits for your confirmation before final
+                    submit.
                   </p>
                 </div>
               </label>
@@ -265,7 +270,8 @@ export default function PreferencesSettingsPage() {
                     Send daily email digest of submitted applications
                   </span>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    Receive a consolidated summary email every morning detailing all autonomous submissions and interview alerts.
+                    Receive a consolidated summary email every morning detailing
+                    all autonomous submissions and interview alerts.
                   </p>
                 </div>
               </label>
@@ -304,7 +310,8 @@ export default function PreferencesSettingsPage() {
                 </span>
               </div>
               <p className="text-xs text-muted-foreground">
-                Hashes job identifiers and employer domains to ensure you never apply twice to the same requisition.
+                Hashes job identifiers and employer domains to ensure you never
+                apply twice to the same requisition.
               </p>
             </div>
 
@@ -321,7 +328,8 @@ export default function PreferencesSettingsPage() {
                 </span>
               </div>
               <p className="text-xs text-muted-foreground">
-                Randomizes keystroke delays, mouse trajectories, and navigation intervals to bypass anti-bot heuristics.
+                Randomizes keystroke delays, mouse trajectories, and navigation
+                intervals to bypass anti-bot heuristics.
               </p>
             </div>
           </div>

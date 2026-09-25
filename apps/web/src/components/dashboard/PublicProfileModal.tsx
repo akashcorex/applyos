@@ -5,7 +5,6 @@ import { useEffect } from 'react';
 import { Button } from '@applyso/ui/button';
 import { ExternalLink, X } from '@applyso/ui/icons';
 
-
 import {
   capitalize,
   experienceYearsLabel,

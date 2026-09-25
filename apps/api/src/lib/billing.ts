@@ -141,7 +141,10 @@ async function upsertSubscriptionFromPayload(
     ? metadata.interval
     : (mapped?.interval ?? null);
   if (!plan || !interval) {
-    console.warn('[billing] subscription event missing plan/interval mapping');
+    console.error(
+      '[billing] subscription event missing plan/interval mapping; subscription not provisioned. product_id=' +
+        (productId || 'null'),
+    );
     return;
   }
 
@@ -212,7 +215,14 @@ export async function handleDodoWebhookEvent(
       return;
     case 'subscription.active':
     case 'subscription.renewed':
-      if (userId) await upsertSubscriptionFromPayload(userId, data, 'active');
+      if (userId) {
+        await upsertSubscriptionFromPayload(userId, data, 'active');
+      } else {
+        console.error(
+          '[billing] subscription.active event could not resolve a user; plan not provisioned. data.customer_id=' +
+            (customerId ?? 'null'),
+        );
+      }
       return;
     case 'subscription.on_hold':
       if (userId) await upsertSubscriptionFromPayload(userId, data, 'on_hold');
@@ -229,13 +239,24 @@ export async function handleDodoWebhookEvent(
       if (userId) await upsertSubscriptionFromPayload(userId, data, 'failed');
       return;
     case 'payment.succeeded': {
-      if (!userId) return;
+      if (!userId) {
+        console.error(
+          '[billing] payment.succeeded could not resolve a user; bonus not granted. customer_id=' +
+            (customerIdOf(data) ?? 'null'),
+        );
+        return;
+      }
       const metadata = metadataOf(data);
       const pack = isAddOnPack(metadata.addOnPack)
         ? metadata.addOnPack
         : addOnFromProductId(productIdOf(data));
       if (pack) {
         await addBonusApplications(userId, ADD_ON_PACK_BONUS[pack]);
+      } else {
+        console.error(
+          '[billing] payment.succeeded could not map to a plan/add-on; bonus not granted. product_id=' +
+            (productIdOf(data) ?? 'null'),
+        );
       }
       return;
     }

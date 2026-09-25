@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 
-
 import { Button } from '@applyso/ui/button';
 import {
   Card,

@@ -228,3 +228,103 @@ async def test_results_consumer_requeues_result_arriving_before_task_row() -> No
     assert fake_redis.streams.get("results_stream")
     payload = fake_redis.streams["results_stream"][0]["payload"]
     assert json.loads(payload)["_delivery_attempt"] == 1
+
+
+@pytest.mark.asyncio
+async def test_results_consumer_resolves_workflow_from_job_id_prefix() -> None:
+    fake_redis = FakeRedis()
+    store = WorkflowStore(fake_redis)
+    request = StartWorkflowRequest(
+        user_profile=UserProfile(
+            user_id="user-1",
+            preferred_role="Engineer",
+            years_experience=3,
+        ),
+        cv_data=CVData(full_name="Jane", email="jane@example.com"),
+        targets=[],
+        auto_apply=True,
+    )
+    await store.create("wf-prefix", request)
+    run = await store.get("wf-prefix")
+    assert run is not None
+    run.apply_tasks = [
+        ApplyTaskRecord(
+            job_id="wf-prefix:a",
+            job_title="A",
+            company_name="Acme",
+            application_url="https://example.com/a",
+            status="queued",
+        )
+    ]
+    run.status = WorkflowStatus.applying
+    await store.save(run)
+
+    durable = AsyncMock()
+    consumer = ResultsConsumer(
+        fake_redis,
+        store,
+        apply_client=AsyncMock(),
+        durable_client=durable,
+    )
+    await consumer.handle_message_for_test(
+        json.dumps(
+            {
+                "type": "apply_result",
+                "data": {
+                    "job_id": "wf-prefix:a",
+                    "user_id": "user-1",
+                    "status": "submitted",
+                },
+            }
+        )
+    )
+
+    updated = await store.get("wf-prefix")
+    assert updated is not None
+    assert updated.apply_tasks[0].status == "submitted"
+    assert updated.status == WorkflowStatus.completed
+    durable.sync_application_result.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_results_consumer_syncs_durable_result_when_run_expired() -> None:
+    fake_redis = FakeRedis()
+    store = WorkflowStore(fake_redis)
+    durable = AsyncMock()
+    durable.sync_application_result = AsyncMock(return_value=True)
+    durable.get_workflow = AsyncMock(
+        return_value={
+            "workflow": {"id": "wf-expired", "status": "applying"},
+            "jobs": [{"id": "job-1"}],
+            "applications": [{"status": "submitted"}],
+        }
+    )
+    durable.sync_status = AsyncMock()
+    consumer = ResultsConsumer(
+        fake_redis,
+        store,
+        apply_client=AsyncMock(),
+        durable_client=durable,
+    )
+    await consumer.handle_message_for_test(
+        json.dumps(
+            {
+                "type": "apply_result",
+                "data": {
+                    "job_id": "wf-expired:a",
+                    "user_id": "user-1",
+                    "status": "submitted",
+                },
+            }
+        )
+    )
+
+    durable.sync_application_result.assert_awaited_once()
+    assert durable.sync_application_result.await_args.args[:3] == (
+        "wf-expired",
+        "wf-expired:a",
+        "submitted",
+    )
+    durable.sync_status.assert_awaited_once()
+    assert durable.sync_status.await_args.args == ("wf-expired", "completed")
+    assert not fake_redis.streams.get("results_stream")

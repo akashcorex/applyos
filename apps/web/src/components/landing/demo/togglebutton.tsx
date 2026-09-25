@@ -1,6 +1,6 @@
 import React from 'react';
 
-import { Code2 , IoMdCode } from '@applyso/ui/icons';
+import { Code2, IoMdCode } from '@applyso/ui/icons';
 
 const Togglebutton = () => {
   return (

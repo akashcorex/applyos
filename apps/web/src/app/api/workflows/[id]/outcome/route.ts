@@ -25,12 +25,23 @@ export async function PATCH(
 
   const body = (await request.json().catch(() => ({}))) as {
     jobId?: unknown;
+    applicationId?: unknown;
     outcome?: unknown;
   };
-  if (typeof body.jobId !== 'string' || !body.jobId) {
-    return Response.json({ error: 'jobId is required' }, { status: 400 });
+  const hasJobId = typeof body.jobId === 'string' && body.jobId.length > 0;
+  const hasApplicationId =
+    typeof body.applicationId === 'string' && body.applicationId.length > 0;
+  if (!hasJobId && !hasApplicationId) {
+    return Response.json(
+      { error: 'jobId or applicationId is required' },
+      { status: 400 },
+    );
   }
-  if (typeof body.outcome !== 'string' || !OUTCOMES.has(body.outcome)) {
+  const clearing = body.outcome === '' || body.outcome === null;
+  if (
+    !clearing &&
+    !(typeof body.outcome === 'string' && OUTCOMES.has(body.outcome))
+  ) {
     return Response.json({ error: 'Invalid outcome' }, { status: 400 });
   }
 
@@ -40,7 +51,11 @@ export async function PATCH(
       {
         method: 'PATCH',
         headers: { ...headers, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jobId: body.jobId, outcome: body.outcome }),
+        body: JSON.stringify({
+          jobId: hasJobId ? body.jobId : undefined,
+          applicationId: hasApplicationId ? body.applicationId : undefined,
+          outcome: clearing ? null : body.outcome,
+        }),
         signal: AbortSignal.timeout(10000),
       },
     );

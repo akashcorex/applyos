@@ -132,19 +132,110 @@ function SystemMetricsChart({
   // Baseline Y=210, Top Y=18
   const points = useMemo(() => {
     return [
-      { x: 38, date: 'Jul 1', api: 1980, servers: 850, deploys: 80, error: 0.12 },
-      { x: 110, date: 'Jul 7', api: 1880, servers: 600, deploys: 360, error: 0.12 },
-      { x: 200, date: 'Jul 14', api: 1950, servers: 850, deploys: 160, error: 0.12 },
-      { x: 310, date: 'Jul 21', api: 2320, servers: 840, deploys: 150, error: 0.11 },
-      { x: 370, date: 'Jul 27', api: 2380, servers: 840, deploys: 150, error: 0.11 },
-      { x: 440, date: 'Aug 2', api: 1900, servers: 1050, deploys: 150, error: 0.12 },
-      { x: 510, date: 'Aug 6', api: 1960, servers: 1420, deploys: 200, error: 0.12 },
-      { x: 580, date: 'Aug 12', api: 2000, servers: 1780, deploys: 360, error: 0.13 },
-      { x: 660, date: 'Aug 17', api: 1820, servers: 940, deploys: 200, error: 0.12 },
-      { x: 740, date: 'Aug 22', api: 2150, servers: 920, deploys: 160, error: 0.11 },
-      { x: 820, date: 'Aug 26', api: 2020, servers: 890, deploys: 150, error: 0.12 },
-      { x: 900, date: 'Aug 29', api: 2060, servers: 920, deploys: 70, error: 0.12 },
-      { x: 1000, date: 'Aug 31', api: 1960, servers: 1350, deploys: 160, error: 0.12 },
+      {
+        x: 38,
+        date: 'Jul 1',
+        api: 1980,
+        servers: 850,
+        deploys: 80,
+        error: 0.12,
+      },
+      {
+        x: 110,
+        date: 'Jul 7',
+        api: 1880,
+        servers: 600,
+        deploys: 360,
+        error: 0.12,
+      },
+      {
+        x: 200,
+        date: 'Jul 14',
+        api: 1950,
+        servers: 850,
+        deploys: 160,
+        error: 0.12,
+      },
+      {
+        x: 310,
+        date: 'Jul 21',
+        api: 2320,
+        servers: 840,
+        deploys: 150,
+        error: 0.11,
+      },
+      {
+        x: 370,
+        date: 'Jul 27',
+        api: 2380,
+        servers: 840,
+        deploys: 150,
+        error: 0.11,
+      },
+      {
+        x: 440,
+        date: 'Aug 2',
+        api: 1900,
+        servers: 1050,
+        deploys: 150,
+        error: 0.12,
+      },
+      {
+        x: 510,
+        date: 'Aug 6',
+        api: 1960,
+        servers: 1420,
+        deploys: 200,
+        error: 0.12,
+      },
+      {
+        x: 580,
+        date: 'Aug 12',
+        api: 2000,
+        servers: 1780,
+        deploys: 360,
+        error: 0.13,
+      },
+      {
+        x: 660,
+        date: 'Aug 17',
+        api: 1820,
+        servers: 940,
+        deploys: 200,
+        error: 0.12,
+      },
+      {
+        x: 740,
+        date: 'Aug 22',
+        api: 2150,
+        servers: 920,
+        deploys: 160,
+        error: 0.11,
+      },
+      {
+        x: 820,
+        date: 'Aug 26',
+        api: 2020,
+        servers: 890,
+        deploys: 150,
+        error: 0.12,
+      },
+      {
+        x: 900,
+        date: 'Aug 29',
+        api: 2060,
+        servers: 920,
+        deploys: 70,
+        error: 0.12,
+      },
+      {
+        x: 1000,
+        date: 'Aug 31',
+        api: 1960,
+        servers: 1350,
+        deploys: 160,
+        error: 0.12,
+      },
     ];
   }, []);
 
@@ -521,11 +612,18 @@ export function DashboardOverview({
       {/* SECTION 1: Top KPI Metric Strip — Divided by 1px vertical borders */}
       <div className="w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-border border-b border-border bg-background">
         {activeStats.slice(0, 4).map((stat, index) => {
-          const StatIcon = stat.icon ?? (index === 0 ? ArrowLeftRight : index === 1 ? Clock : index === 2 ? Layers : AlertTriangle);
+          const StatIcon =
+            stat.icon ??
+            (index === 0
+              ? ArrowLeftRight
+              : index === 1
+                ? Clock
+                : index === 2
+                  ? Layers
+                  : AlertTriangle);
           const TrendIcon = stat.isNegative ? ArrowDownRight : ArrowUpRight;
           const statColor = stat.color ?? defaultColors[index % 4];
-          const sparklineBars =
-            stat.sparkline ?? defaultSparklines[index % 4];
+          const sparklineBars = stat.sparkline ?? defaultSparklines[index % 4];
 
           return (
             <div
@@ -562,10 +660,7 @@ export function DashboardOverview({
               </div>
 
               {/* Signature Micro Bar Sparkline */}
-              <MicroBarSparkline
-                bars={sparklineBars}
-                color={statColor}
-              />
+              <MicroBarSparkline bars={sparklineBars} color={statColor} />
             </div>
           );
         })}
@@ -585,10 +680,7 @@ export function DashboardOverview({
             <DashboardDataTable />
           </div>
           <div className="p-4 bg-background">
-            <RecentActivityCard
-              title={recentTitle}
-              items={recentItems}
-            />
+            <RecentActivityCard title={recentTitle} items={recentItems} />
           </div>
         </div>
       ) : (

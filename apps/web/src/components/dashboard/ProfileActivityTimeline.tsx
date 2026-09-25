@@ -1,6 +1,12 @@
 'use client';
 
-import { Briefcase, FileText, Send, Sparkles, Workflow } from '@applyso/ui/icons';
+import {
+  Briefcase,
+  FileText,
+  Send,
+  Sparkles,
+  Workflow,
+} from '@applyso/ui/icons';
 import type { ProfileActivityKind } from '@applyso/validation';
 
 import type { ProfileTimelineItem } from './profile-types';
@@ -70,7 +76,8 @@ export function ProfileActivityTimeline({
         <div className="px-6 sm:px-8 py-10 text-center space-y-2">
           <Briefcase className="mx-auto h-5 w-5 text-zinc-600" />
           <p className="text-xs font-mono text-muted-foreground">
-            No activity logged yet. Upload a resume or apply to jobs to track your events.
+            No activity logged yet. Upload a resume or apply to jobs to track
+            your events.
           </p>
         </div>
       ) : (

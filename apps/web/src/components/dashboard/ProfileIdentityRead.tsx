@@ -3,7 +3,6 @@
 import { Button } from '@applyso/ui/button';
 import { ExternalLink } from '@applyso/ui/icons';
 
-
 import {
   capitalize,
   experienceLabel,
@@ -165,7 +164,9 @@ export function ProfileIdentityRead({
                 ))}
               </div>
             ) : (
-              <p className="text-xs text-muted-foreground">No skills detected.</p>
+              <p className="text-xs text-muted-foreground">
+                No skills detected.
+              </p>
             )}
           </div>
 
