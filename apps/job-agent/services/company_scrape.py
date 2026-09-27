@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
+import time
 from dataclasses import dataclass, field
+from urllib.parse import urlparse
 
 from config import settings
 from models import ScrapeRequest, SearchResult
@@ -20,6 +23,38 @@ SEARCHABLE_ATS = frozenset(PARSERS.keys())
 
 _FALLBACK_PATHS = ("/careers", "/jobs")
 _MAX_FALLBACK_CANDIDATES = 3
+
+_scrape_gate_state: dict[str, object] = {"size": 0, "semaphore": None}
+_last_fetch_at: dict[str, float] = {}
+
+
+def _scrape_gate() -> asyncio.Semaphore:
+    size = max(1, settings.scrape_max_concurrency)
+    if (
+        _scrape_gate_state["semaphore"] is None
+        or _scrape_gate_state["size"] != size
+    ):
+        _scrape_gate_state["semaphore"] = asyncio.Semaphore(size)
+        _scrape_gate_state["size"] = size
+    semaphore = _scrape_gate_state["semaphore"]
+    assert isinstance(semaphore, asyncio.Semaphore)
+    return semaphore
+
+
+async def _polite_wait(url: str) -> None:
+    """Enforce a minimum interval between fetches to the same host."""
+    host = urlparse(url).netloc.lower()
+    if not host:
+        return
+    interval = max(0.0, settings.scrape_min_interval_seconds)
+    if interval <= 0:
+        return
+    now = time.monotonic()
+    previous = _last_fetch_at.get(host, 0.0)
+    delay = interval - (now - previous)
+    _last_fetch_at[host] = now + max(0.0, delay)
+    if delay > 0:
+        await asyncio.sleep(delay)
 
 
 @dataclass
@@ -113,30 +148,31 @@ async def scrape_company_jobs(
 
     registry = get_board_registry()
     ats_error: Exception | None = None
-    try:
-        if ats_type == "feed":
-            feed_jobs = await scrape_feed_jobs(ats_slug)
-            response_jobs = feed_jobs
+    async with _scrape_gate():
+        try:
+            if ats_type == "feed":
+                feed_jobs = await scrape_feed_jobs(ats_slug)
+                response_jobs = feed_jobs
+            else:
+                response = await scrape_jobs(
+                    ats_type,  # type: ignore[arg-type]
+                    ScrapeRequest(ats_slug=ats_slug, company_id=domain or ats_slug),
+                )
+                response_jobs = response.jobs
+        except Exception as exc:
+            logger.warning("Failed to scrape %s (%s): %s", company_name, ats_type, exc)
+            ats_error = exc
+            results: list[SearchResult] = []
         else:
-            response = await scrape_jobs(
-                ats_type,  # type: ignore[arg-type]
-                ScrapeRequest(ats_slug=ats_slug, company_id=domain or ats_slug),
-            )
-            response_jobs = response.jobs
-    except Exception as exc:
-        logger.warning("Failed to scrape %s (%s): %s", company_name, ats_type, exc)
-        ats_error = exc
-        results: list[SearchResult] = []
-    else:
-        results = [
-            canonical_to_search_result(
-                job,
-                company_name=company_name,
-                ats_type=ats_type,
-                ats_slug=ats_slug,
-            )
-            for job in response_jobs
-        ]
+            results = [
+                canonical_to_search_result(
+                    job,
+                    company_name=company_name,
+                    ats_type=ats_type,
+                    ats_slug=ats_slug,
+                )
+                for job in response_jobs
+            ]
 
     if results:
         finalized = _finalize_jobs(results, max_jobs, via_fallback=False)
@@ -188,6 +224,7 @@ async def _try_career_fallback(
     domain = str(company.get("domain", ""))
     company_name = str(company.get("name", "")) or None
     for url in _career_candidates(company):
+        await _polite_wait(url)
         try:
             jobs = await scrape_career_page(url, company_name=company_name)
         except Exception as exc:

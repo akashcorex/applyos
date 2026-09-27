@@ -14,6 +14,8 @@ class Settings(BaseSettings):
     board_reprobe_max_hours: int = 168
     job_max_age_days: int = 120
     trust_evergreen_days: int = 90
+    scrape_max_concurrency: int = 8
+    scrape_min_interval_seconds: float = 0.5
     title_block_keywords: list[str] = [
         "sales",
         "marketing",

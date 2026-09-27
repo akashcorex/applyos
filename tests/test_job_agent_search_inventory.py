@@ -541,3 +541,30 @@ async def test_truncation_keeps_newest_and_drops_stale(
     cached = get_cached_jobs("dated.com")
     assert cached is not None
     assert [job.external_id for job in cached] == ["new", "mid"]
+
+
+@pytest.mark.asyncio
+async def test_polite_wait_enforces_host_interval(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import time
+
+    import config
+    from services import company_scrape as scrape_module
+
+    monkeypatch.setattr(config.settings, "scrape_min_interval_seconds", 0.2)
+    scrape_module._last_fetch_at.clear()
+    started = time.monotonic()
+    await scrape_module._polite_wait("https://example.com/careers")
+    await scrape_module._polite_wait("https://example.com/jobs")
+    elapsed = time.monotonic() - started
+    assert elapsed >= 0.15
+
+
+@pytest.mark.asyncio
+async def test_polite_wait_skips_empty_hosts(monkeypatch: pytest.MonkeyPatch) -> None:
+    import config
+    from services import company_scrape as scrape_module
+
+    monkeypatch.setattr(config.settings, "scrape_min_interval_seconds", 30.0)
+    await scrape_module._polite_wait("not-a-url")
