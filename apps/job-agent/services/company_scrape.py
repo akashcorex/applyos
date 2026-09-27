@@ -9,7 +9,7 @@ from config import settings
 from models import ScrapeRequest, SearchResult
 from services.board_cache import get_cached_jobs, set_cached_jobs
 from services.board_registry import get_board_registry
-from services.ingest import PARSERS, scrape_jobs
+from services.ingest import PARSERS, scrape_feed_jobs, scrape_jobs
 from services.job_snapshots import record_job_seen
 from services.page_scrape import scrape_career_page
 from services.recency import filter_stale_jobs, sort_newest_first, trust_flags
@@ -39,11 +39,12 @@ def canonical_to_search_result(
     description = getattr(job, "description_raw", None) or getattr(
         job, "description_html", None
     )
+    company = getattr(job, "company_name", None) or company_name
     return SearchResult(
         external_id=job.external_id,
         source=job.source,
         title=job.title,
-        company_name=company_name,
+        company_name=company,
         department=job.department,
         location=job.location,
         location_type=job.location_type,
@@ -96,7 +97,9 @@ async def scrape_company_jobs(
     company_name = str(company.get("name", ""))
     domain = str(company.get("domain", ""))
 
-    if ats_type not in SEARCHABLE_ATS or not ats_slug:
+    if ats_type not in SEARCHABLE_ATS and ats_type != "feed":
+        return CompanyScrapeResult()
+    if not ats_slug:
         return CompanyScrapeResult()
 
     if domain:
@@ -111,10 +114,15 @@ async def scrape_company_jobs(
     registry = get_board_registry()
     ats_error: Exception | None = None
     try:
-        response = await scrape_jobs(
-            ats_type,  # type: ignore[arg-type]
-            ScrapeRequest(ats_slug=ats_slug, company_id=domain or ats_slug),
-        )
+        if ats_type == "feed":
+            feed_jobs = await scrape_feed_jobs(ats_slug)
+            response_jobs = feed_jobs
+        else:
+            response = await scrape_jobs(
+                ats_type,  # type: ignore[arg-type]
+                ScrapeRequest(ats_slug=ats_slug, company_id=domain or ats_slug),
+            )
+            response_jobs = response.jobs
     except Exception as exc:
         logger.warning("Failed to scrape %s (%s): %s", company_name, ats_type, exc)
         ats_error = exc
@@ -127,7 +135,7 @@ async def scrape_company_jobs(
                 ats_type=ats_type,
                 ats_slug=ats_slug,
             )
-            for job in response.jobs
+            for job in response_jobs
         ]
 
     if results:

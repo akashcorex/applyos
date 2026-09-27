@@ -419,5 +419,77 @@
     "tags": [
       "eu"
     ]
+  },
+  {
+    "domain": "remoteok.com",
+    "company_name": "RemoteOK",
+    "ats_type": "feed",
+    "ats_slug": "remoteok",
+    "career_url": "https://remoteok.com",
+    "source": "pilot",
+    "active": true,
+    "tags": [
+      "remote-first"
+    ]
+  },
+  {
+    "domain": "remotive.com",
+    "company_name": "Remotive",
+    "ats_type": "feed",
+    "ats_slug": "remotive",
+    "career_url": "https://remotive.com/remote-jobs",
+    "source": "pilot",
+    "active": true,
+    "tags": [
+      "remote-first"
+    ]
+  },
+  {
+    "domain": "weworkremotely.com",
+    "company_name": "We Work Remotely",
+    "ats_type": "feed",
+    "ats_slug": "wwr",
+    "career_url": "https://weworkremotely.com",
+    "source": "pilot",
+    "active": true,
+    "tags": [
+      "remote-first"
+    ]
+  },
+  {
+    "domain": "news.ycombinator.com",
+    "company_name": "HN Who Is Hiring",
+    "ats_type": "feed",
+    "ats_slug": "hn",
+    "career_url": "https://news.ycombinator.com",
+    "source": "pilot",
+    "active": true,
+    "tags": [
+      "remote-first"
+    ]
+  },
+  {
+    "domain": "himalayas.app",
+    "company_name": "Himalayas",
+    "ats_type": "feed",
+    "ats_slug": "himalayas",
+    "career_url": "https://himalayas.app/jobs",
+    "source": "pilot",
+    "active": true,
+    "tags": [
+      "remote-first"
+    ]
+  },
+  {
+    "domain": "jobicy.com",
+    "company_name": "Jobicy",
+    "ats_type": "feed",
+    "ats_slug": "jobicy",
+    "career_url": "https://jobicy.com",
+    "source": "pilot",
+    "active": true,
+    "tags": [
+      "remote-first"
+    ]
   }
 ]

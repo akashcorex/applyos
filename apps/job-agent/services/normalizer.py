@@ -65,6 +65,7 @@ def to_canonical_job(
         source=source,
         title=raw.title,
         title_normalized=title_normalized,
+        company_name=raw.company_name,
         department=raw.department,
         location=raw.location,
         location_normalized=location_normalized,

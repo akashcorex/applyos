@@ -16,6 +16,7 @@ from models import BoardAttempt, ScrapeRequest
 from services.ingest import scrape_jobs
 from services.parsers.ashby import ASHBY_JOBS_URL
 from services.parsers.breezy import BREEZY_JOBS_URL
+from services.parsers.feeds import FEED_URLS
 from services.parsers.greenhouse import GREENHOUSE_JOBS_URL
 from services.parsers.lever import LEVER_JOBS_URL
 from services.parsers.personio import PERSONIO_JOBS_URL
@@ -45,7 +46,10 @@ _DEFAULT_CONCURRENCY = 8
 
 def probe_url_for(ats_type: str, ats_slug: str) -> str | None:
     """Return the public ATS URL probed for a board, if the ATS is known."""
-    template = _PROBE_TEMPLATES.get((ats_type or "").strip().lower())
+    normalized = (ats_type or "").strip().lower()
+    if normalized == "feed":
+        return FEED_URLS.get((ats_slug or "").strip().lower())
+    template = _PROBE_TEMPLATES.get(normalized)
     if template is None or not (ats_slug or "").strip():
         return None
     try:
@@ -55,8 +59,13 @@ def probe_url_for(ats_type: str, ats_slug: str) -> str | None:
 
 
 async def _default_fetch(company: dict[str, object]) -> Sequence[Any]:
+    from services.ingest import scrape_feed_jobs
+
+    ats_type = str(company.get("ats_type", ""))
+    if ats_type == "feed":
+        return await scrape_feed_jobs(str(company.get("ats_slug", "")))
     response = await scrape_jobs(
-        str(company.get("ats_type", "")),
+        ats_type,
         ScrapeRequest(
             ats_slug=str(company.get("ats_slug", "")),
             company_id=str(

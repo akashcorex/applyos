@@ -537,3 +537,110 @@ async def test_lever_parser_falls_back_to_eu_host(
     assert jobs[0].title == "Engineer"
     assert seen[0].startswith("https://api.lever.co/")
     assert seen[1].startswith("https://api.eu.lever.co/")
+
+
+@pytest.mark.asyncio
+async def test_remoteok_feed_skips_header_and_maps_jobs(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from services.parsers.feeds import RemoteOKFeed
+
+    async def fake_fetch(_url: str) -> object:
+        return [
+            {"legal": "terms"},
+            {
+                "id": "1",
+                "slug": "eng-acme-1",
+                "position": "Backend Engineer",
+                "company": "Acme",
+                "apply_url": "https://remoteok.com/jobs/1",
+                "location": "Remote",
+                "date": "2026-09-20T00:00:00+00:00",
+                "salary_min": "100000",
+                "salary_max": "140000",
+                "description": "Python role",
+            },
+        ]
+
+    monkeypatch.setattr(
+        "services.parsers.feeds._fetch_json_with_ua",
+        fake_fetch,
+    )
+
+    jobs = await RemoteOKFeed().fetch_jobs()
+
+    assert len(jobs) == 1
+    assert jobs[0].company_name == "Acme"
+    assert jobs[0].salary_min == 100000
+    assert jobs[0].salary_max == 140000
+
+
+@pytest.mark.asyncio
+async def test_hn_feed_parses_monthly_thread(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from services.parsers.feeds import HNFeed
+
+    async def fake_fetch(url: str) -> object:
+        if "search_by_date" in url:
+            return {
+                "hits": [
+                    {
+                        "title": "Ask HN: Who is hiring? (September 2026)",
+                        "objectID": "999",
+                    }
+                ]
+            }
+        return {
+            "children": [
+                {
+                    "id": 101,
+                    "text": "<p>Acme | Senior Engineer | Remote | <a href=\"https://acme.com/jobs/1\">apply</a></p>",
+                    "created_at": "2026-09-02T10:00:00Z",
+                },
+                {"id": 102, "text": "<p>hiring engineers, DM me</p>"},
+            ]
+        }
+
+    monkeypatch.setattr(
+        "services.parsers.feeds.fetch_json_with_retries",
+        fake_fetch,
+    )
+
+    jobs = await HNFeed().fetch_jobs()
+
+    assert len(jobs) == 1
+    assert jobs[0].company_name == "Acme"
+    assert jobs[0].title == "Senior Engineer"
+    assert jobs[0].application_url == "https://acme.com/jobs/1"
+    assert jobs[0].external_id == "hn-101"
+
+
+@pytest.mark.asyncio
+async def test_wwr_feed_splits_company_and_role(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from services.parsers.feeds import WWRFeed
+
+    rss = """<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"><channel><item>
+<title>Acme : Backend Engineer</title>
+<link>https://weworkremotely.com/jobs/1</link>
+<region>Anywhere</region>
+<pubDate>Mon, 01 Sep 2026 10:00:00 GMT</pubDate>
+</item></channel></rss>"""
+
+    async def fake_fetch(_url: str) -> str:
+        return rss
+
+    monkeypatch.setattr(
+        "services.parsers.feeds.fetch_text_with_retries",
+        fake_fetch,
+    )
+
+    jobs = await WWRFeed().fetch_jobs()
+
+    assert len(jobs) == 1
+    assert jobs[0].company_name == "Acme"
+    assert jobs[0].title == "Backend Engineer"
+    assert jobs[0].workplace_type == "remote"

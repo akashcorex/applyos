@@ -17,6 +17,7 @@ AtsType = Literal[
     "teamtailor",
     "breezy",
     "rippling",
+    "feed",
     "generic",
 ]
 
@@ -154,6 +155,7 @@ class GrowthResponse(BaseModel):
 class RawJob(BaseModel):
     external_id: str
     title: str
+    company_name: str | None = None
     department: str | None = None
     location: str | None = None
     description_raw: str | None = None
@@ -172,6 +174,7 @@ class CanonicalJob(BaseModel):
     source: AtsType
     title: str
     title_normalized: str
+    company_name: str | None = None
     department: str | None = None
     location: str | None = None
     location_normalized: str | None = None

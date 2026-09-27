@@ -429,6 +429,49 @@ async def test_fallback_tries_domain_paths_without_stored_url(
     assert _career_candidates({"domain": "", "career_url": ""}) == []
 
 
+@pytest.mark.asyncio
+async def test_feed_board_uses_per_job_company(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import config
+    from services import board_registry as registry_module
+
+    monkeypatch.setattr(config.settings, "registry_db_path", str(tmp_path / "r.db"))
+    monkeypatch.setattr(registry_module, "_registry", None)
+
+    async def fake_feed(feed_id: str):
+        from models import CanonicalJob
+
+        assert feed_id == "remoteok"
+        return [
+            CanonicalJob(
+                external_id="1",
+                source="feed",
+                title="Backend Engineer",
+                title_normalized="backend engineer",
+                company_name="Acme",
+                application_url="https://example.com/1",
+                dedup_key="acme::backend engineer::unknown",
+            )
+        ]
+
+    monkeypatch.setattr("services.company_scrape.scrape_feed_jobs", fake_feed)
+    results = await scrape_company_jobs(
+        {
+            "name": "RemoteOK",
+            "domain": "remoteok.com",
+            "ats_type": "feed",
+            "ats_slug": "remoteok",
+        },
+        10,
+    )
+
+    assert len(results.jobs) == 1
+    assert results.jobs[0].company_name == "Acme"
+    assert results.jobs[0].ats_type == "feed"
+    assert results.via_fallback is False
+
+
 def _dated_job(key: str, posted_at: str | None) -> CanonicalJob:
     return CanonicalJob(
         external_id=key,
