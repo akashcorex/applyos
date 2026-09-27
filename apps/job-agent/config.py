@@ -14,6 +14,14 @@ class Settings(BaseSettings):
     board_reprobe_max_hours: int = 168
     job_max_age_days: int = 120
     trust_evergreen_days: int = 90
+    title_block_keywords: list[str] = [
+        "sales",
+        "marketing",
+        "recruiter",
+        "recruiting",
+        "business development",
+        "account executive",
+    ]
     refresh_enabled: bool = False
     refresh_interval_seconds: int = 600
     refresh_batch_boards: int = 8

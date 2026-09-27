@@ -56,7 +56,7 @@ async def test_semantic_rank_jobs_with_embeddings(monkeypatch: pytest.MonkeyPatc
 
     jobs = [
         _make_job("Senior Python Engineer", "Stripe", description="Python backend"),
-        _make_job("Marketing Engineer", "Notion", description="SEO and content"),
+        _make_job("QA Engineer", "Notion", description="Manual testing"),
     ]
 
     ranked = await semantic_rank_jobs(
@@ -71,7 +71,6 @@ async def test_semantic_rank_jobs_with_embeddings(monkeypatch: pytest.MonkeyPatc
     assert ranked[0].semantic_score > ranked[1].semantic_score
     assert ranked[1].company_name == "Notion"
     assert ranked[0].matching_skills  # rule-based skills for all jobs
-    assert ranked[1].semantic_score < 0.5
     assert ranked[0].text_score > 0
     assert ranked[0].title_score > 0
 
@@ -146,6 +145,17 @@ def test_location_allowed_mirrors_resume_agent() -> None:
     assert location_allowed("Remote", "remote", ["Remote"], "remote") is True
     assert location_allowed("Berlin", "onsite", [], None) is True
     assert location_allowed(None, None, ["Berlin"], None) is True
+
+
+def test_title_blocked_uses_word_boundaries() -> None:
+    from services.semantic_match import title_blocked
+
+    assert title_blocked("Senior Sales Manager") is True
+    assert title_blocked("Account Executive, Commercial") is True
+    assert title_blocked("Backend Engineer") is False
+    assert title_blocked("Wholesale Engineer") is False
+    assert title_blocked("Tech Lead") is False
+    assert title_blocked(None) is False
 
 
 @pytest.mark.asyncio

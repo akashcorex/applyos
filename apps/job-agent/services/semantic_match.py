@@ -176,6 +176,24 @@ _ROLE_ALIASES: dict[str, list[str]] = {
 _STOPWORDS = frozenset({"and", "the", "for", "with", " iii", "iii", "ii", "iv"})
 
 
+def _blocked_patterns() -> list[re.Pattern]:
+    from config import settings
+
+    return [
+        re.compile(rf"\b{re.escape(keyword.strip().lower())}\b")
+        for keyword in settings.title_block_keywords
+        if keyword and keyword.strip()
+    ]
+
+
+def title_blocked(title: str | None) -> bool:
+    """True when the title hits a blocklisted phrase (word boundaries)."""
+    if not title:
+        return False
+    lowered = title.lower()
+    return any(pattern.search(lowered) for pattern in _blocked_patterns())
+
+
 def _significant_tokens(text: str) -> set[str]:
     return {
         word
@@ -327,6 +345,8 @@ async def semantic_rank_jobs(
         return []
 
     def _gate_reject(job: SearchResult) -> str | None:
+        if title_blocked(job.title):
+            return "title_blocked"
         if not seniority_allowed(experience_years, job.seniority, job.title):
             return "seniority"
         if not title_matches_role(preferred_role, job.title):
