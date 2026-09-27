@@ -167,6 +167,38 @@ async def test_teamtailor_parser_reads_rss(
 
 
 @pytest.mark.asyncio
+async def test_teamtailor_parser_maps_remote_status(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from services.parsers.teamtailor import TeamtailorParser
+
+    rss = """<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:tt="https://teamtailor.com/jobs/rss">
+  <channel>
+    <item>
+      <title>Engineer</title>
+      <link>https://acme.teamtailor.com/jobs/1</link>
+      <tt:remoteStatus>fully</tt:remoteStatus>
+    </item>
+  </channel>
+</rss>"""
+
+    async def fake_fetch(_url: str) -> str:
+        return rss
+
+    monkeypatch.setattr(
+        "services.parsers.teamtailor.fetch_text_with_retries",
+        fake_fetch,
+    )
+
+    jobs = await TeamtailorParser().fetch_jobs("acme")
+
+    assert len(jobs) == 1
+    assert jobs[0].location == "Remote"
+    assert jobs[0].workplace_type == "remote"
+
+
+@pytest.mark.asyncio
 async def test_breezy_parser_reads_json(monkeypatch: pytest.MonkeyPatch) -> None:
     from services.parsers.breezy import BreezyParser
 
@@ -254,10 +286,16 @@ async def test_workable_parser_stops_at_max_pages(monkeypatch: pytest.MonkeyPatc
         fetch_count += 1
         return page
 
+    async def no_widget(self, slug: str):
+        raise RuntimeError("widget miss")
+
     monkeypatch.setattr(settings, "workable_max_pages", 3)
     monkeypatch.setattr(
         "services.parsers.workable.fetch_json_with_retries",
         fake_fetch,
+    )
+    monkeypatch.setattr(
+        WorkableParser, "_fetch_widget_jobs", no_widget
     )
 
     jobs = await WorkableParser().fetch_jobs("acme")
@@ -279,9 +317,15 @@ async def test_workable_parser_rejects_invalid_next_host(
         fetch_count += 1
         return page
 
+    async def no_widget(self, slug: str):
+        raise RuntimeError("widget miss")
+
     monkeypatch.setattr(
         "services.parsers.workable.fetch_json_with_retries",
         fake_fetch,
+    )
+    monkeypatch.setattr(
+        WorkableParser, "_fetch_widget_jobs", no_widget
     )
 
     jobs = await WorkableParser().fetch_jobs("acme")
@@ -359,3 +403,137 @@ async def test_wellfound_parser_fetch_jobs(monkeypatch: pytest.MonkeyPatch) -> N
     jobs = await WellfoundParser().fetch_jobs("lamatic")
     assert len(jobs) == 2
 
+
+
+@pytest.mark.asyncio
+async def test_rippling_parser_reads_locations_array(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from services.parsers.rippling import RipplingParser
+
+    async def fake_fetch(url: str) -> object:
+        assert "page=0" in url
+        return {
+            "items": [
+                {
+                    "id": "1",
+                    "name": "Engineer",
+                    "url": "https://ats.rippling.com/rippling/jobs/1",
+                    "department": {"name": "Engineering"},
+                    "locations": [{"name": "San Francisco, CA"}],
+                },
+                {"id": "", "name": ""},
+            ]
+        }
+
+    monkeypatch.setattr(
+        "services.parsers.rippling.fetch_json_with_retries",
+        fake_fetch,
+    )
+
+    jobs = await RipplingParser().fetch_jobs("rippling")
+
+    assert len(jobs) == 1
+    assert jobs[0].location == "San Francisco, CA"
+    assert jobs[0].department == "Engineering"
+    assert jobs[0].application_url == "https://ats.rippling.com/rippling/jobs/1"
+
+
+@pytest.mark.asyncio
+async def test_workable_widget_first_falls_back_to_account(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from services.parsers.workable import WorkableParser
+
+    async def fake_fetch(url: str) -> object:
+        if "widget" in url:
+            return {"jobs": []}
+        return {
+            "results": [
+                {
+                    "shortcode": "ABC",
+                    "title": "Engineer",
+                    "url": "https://apply.workable.com/acme/j/ABC",
+                }
+            ],
+            "paging": {},
+        }
+
+    monkeypatch.setattr(
+        "services.parsers.workable.fetch_json_with_retries",
+        fake_fetch,
+    )
+
+    jobs = await WorkableParser().fetch_jobs("acme")
+
+    assert [job.title for job in jobs] == ["Engineer"]
+
+
+@pytest.mark.asyncio
+async def test_workable_widget_serves_huggingface_shape(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from services.parsers.workable import WorkableParser
+
+    async def fake_fetch(url: str) -> object:
+        assert "widget" in url
+        return {
+            "jobs": [
+                {
+                    "shortcode": "F4C",
+                    "title": "ML Engineer",
+                    "department": "Product",
+                    "url": "https://apply.workable.com/j/F4C",
+                    "city": "Paris",
+                    "country": "France",
+                    "telecommuting": True,
+                    "published_on": "2026-07-30",
+                }
+            ]
+        }
+
+    monkeypatch.setattr(
+        "services.parsers.workable.fetch_json_with_retries",
+        fake_fetch,
+    )
+
+    jobs = await WorkableParser().fetch_jobs("huggingface")
+
+    assert len(jobs) == 1
+    assert jobs[0].location == "Paris, France (Remote)"
+    assert jobs[0].workplace_type == "remote"
+    assert jobs[0].posted_at is not None
+
+
+@pytest.mark.asyncio
+async def test_lever_parser_falls_back_to_eu_host(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from services.parsers.lever import LeverParser
+
+    seen: list[str] = []
+
+    async def fake_fetch(url: str) -> object:
+        seen.append(url)
+        if "api.eu.lever.co" in url:
+            return [
+                {
+                    "id": "1",
+                    "text": "Engineer",
+                    "hostedUrl": "https://jobs.eu.lever.co/acme/1",
+                    "categories": {},
+                }
+            ]
+        raise RuntimeError("primary down")
+
+    monkeypatch.setattr(
+        "services.parsers.lever.fetch_json_with_retries",
+        fake_fetch,
+    )
+
+    jobs = await LeverParser().fetch_jobs("acme")
+
+    assert len(jobs) == 1
+    assert jobs[0].title == "Engineer"
+    assert seen[0].startswith("https://api.lever.co/")
+    assert seen[1].startswith("https://api.eu.lever.co/")

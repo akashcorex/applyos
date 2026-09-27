@@ -7,7 +7,9 @@
     "career_url": null,
     "source": "pilot",
     "active": true,
-    "tags": ["fintech"]
+    "tags": [
+      "fintech"
+    ]
   },
   {
     "domain": "airbnb.com",
@@ -80,7 +82,9 @@
     "career_url": "https://ramp.com/careers",
     "source": "pilot",
     "active": true,
-    "tags": ["fintech"]
+    "tags": [
+      "fintech"
+    ]
   },
   {
     "domain": "brex.com",
@@ -90,7 +94,9 @@
     "career_url": null,
     "source": "pilot",
     "active": true,
-    "tags": ["fintech"]
+    "tags": [
+      "fintech"
+    ]
   },
   {
     "domain": "plaid.com",
@@ -100,7 +106,9 @@
     "career_url": "https://plaid.com/careers",
     "source": "pilot",
     "active": true,
-    "tags": ["fintech"]
+    "tags": [
+      "fintech"
+    ]
   },
   {
     "domain": "retool.com",
@@ -132,11 +140,11 @@
   {
     "domain": "rippling.com",
     "company_name": "Rippling",
-    "ats_type": "greenhouse",
+    "ats_type": "rippling",
     "ats_slug": "rippling",
-    "career_url": "https://rippling.com/careers",
+    "career_url": "https://ats.rippling.com/rippling/jobs",
     "source": "pilot",
-    "active": false
+    "active": true
   },
   {
     "domain": "openai.com",
@@ -164,7 +172,9 @@
     "career_url": null,
     "source": "pilot",
     "active": true,
-    "tags": ["eu"]
+    "tags": [
+      "eu"
+    ]
   },
   {
     "domain": "palantir.com",
@@ -192,7 +202,9 @@
     "career_url": "https://zapier.com/careers",
     "source": "pilot",
     "active": true,
-    "tags": ["remote-first"]
+    "tags": [
+      "remote-first"
+    ]
   },
   {
     "domain": "gitlab.com",
@@ -202,7 +214,9 @@
     "career_url": null,
     "source": "pilot",
     "active": true,
-    "tags": ["remote-first"]
+    "tags": [
+      "remote-first"
+    ]
   },
   {
     "domain": "cloudflare.com",
@@ -275,7 +289,9 @@
     "career_url": "https://mercury.com/careers",
     "source": "pilot",
     "active": true,
-    "tags": ["fintech"]
+    "tags": [
+      "fintech"
+    ]
   },
   {
     "domain": "deel.com",
@@ -285,7 +301,9 @@
     "career_url": "https://deel.com/careers",
     "source": "pilot",
     "active": true,
-    "tags": ["remote-first"]
+    "tags": [
+      "remote-first"
+    ]
   },
   {
     "domain": "replit.com",
@@ -295,16 +313,18 @@
     "career_url": null,
     "source": "pilot",
     "active": true,
-    "tags": ["remote-first"]
+    "tags": [
+      "remote-first"
+    ]
   },
   {
     "domain": "huggingface.co",
     "company_name": "Hugging Face",
-    "ats_type": "ashby",
+    "ats_type": "workable",
     "ats_slug": "huggingface",
-    "career_url": "https://huggingface.co/careers",
+    "career_url": "https://apply.workable.com/huggingface/",
     "source": "pilot",
-    "active": false
+    "active": true
   },
   {
     "domain": "remote.com",
@@ -314,7 +334,9 @@
     "career_url": "https://remote.com/careers",
     "source": "pilot",
     "active": true,
-    "tags": ["remote-first"]
+    "tags": [
+      "remote-first"
+    ]
   },
   {
     "domain": "loom.com",
@@ -333,7 +355,9 @@
     "career_url": null,
     "source": "pilot",
     "active": true,
-    "tags": ["eu"]
+    "tags": [
+      "eu"
+    ]
   },
   {
     "domain": "n26.com",
@@ -343,7 +367,10 @@
     "career_url": "https://n26.com/careers",
     "source": "pilot",
     "active": true,
-    "tags": ["fintech", "eu"]
+    "tags": [
+      "fintech",
+      "eu"
+    ]
   },
   {
     "domain": "doktor.se",
@@ -353,7 +380,9 @@
     "career_url": "https://doktor.se/careers",
     "source": "manual",
     "active": true,
-    "tags": ["eu"]
+    "tags": [
+      "eu"
+    ]
   },
   {
     "domain": "mindler.se",
@@ -363,7 +392,9 @@
     "career_url": "https://mindler.se/careers",
     "source": "manual",
     "active": true,
-    "tags": ["eu"]
+    "tags": [
+      "eu"
+    ]
   },
   {
     "domain": "cambio.se",
@@ -373,7 +404,9 @@
     "career_url": "https://cambio.se/careers",
     "source": "manual",
     "active": true,
-    "tags": ["eu"]
+    "tags": [
+      "eu"
+    ]
   },
   {
     "domain": "apotea.se",
@@ -383,6 +416,8 @@
     "career_url": "https://apotea.se/careers",
     "source": "manual",
     "active": true,
-    "tags": ["eu"]
+    "tags": [
+      "eu"
+    ]
   }
 ]

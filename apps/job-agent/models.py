@@ -16,6 +16,7 @@ AtsType = Literal[
     "wellfound",
     "teamtailor",
     "breezy",
+    "rippling",
     "generic",
 ]
 

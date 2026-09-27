@@ -20,6 +20,7 @@ from services.parsers.greenhouse import GREENHOUSE_JOBS_URL
 from services.parsers.lever import LEVER_JOBS_URL
 from services.parsers.personio import PERSONIO_JOBS_URL
 from services.parsers.recruitee import RECRUITEE_JOBS_URL
+from services.parsers.rippling import RIPPLING_JOBS_URL
 from services.parsers.teamtailor import TEAMTAILOR_JOBS_URL
 from services.parsers.wellfound import WELLFOUND_COMPANY_JOBS_URL
 from services.parsers.workable import WORKABLE_JOBS_URL
@@ -34,6 +35,7 @@ _PROBE_TEMPLATES = {
     "wellfound": WELLFOUND_COMPANY_JOBS_URL,
     "teamtailor": TEAMTAILOR_JOBS_URL,
     "breezy": BREEZY_JOBS_URL,
+    "rippling": RIPPLING_JOBS_URL,
 }
 
 _ERROR_PREVIEW_CHARS = 200
@@ -47,7 +49,7 @@ def probe_url_for(ats_type: str, ats_slug: str) -> str | None:
     if template is None or not (ats_slug or "").strip():
         return None
     try:
-        return template.format(slug=ats_slug.strip())
+        return template.format(slug=ats_slug.strip(), page=0)
     except (IndexError, KeyError):
         return None
 

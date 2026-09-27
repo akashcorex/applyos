@@ -31,6 +31,7 @@ _ATS_HOST_SUFFIXES = (
     "wellfound.com",
     "teamtailor.com",
     "breezy.hr",
+    "ats.rippling.com",
 )
 
 

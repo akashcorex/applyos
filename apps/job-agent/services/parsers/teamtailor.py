@@ -46,6 +46,13 @@ class TeamtailorParser:
             city = _descendant_text(item, "city")
             country = _descendant_text(item, "country")
             location = ", ".join(part for part in [city, country] if part) or None
+            remote_status = (_descendant_text(item, "remoteStatus") or "").lower()
+            workplace_type = None
+            if remote_status in ("fully", "temporary", "remote"):
+                workplace_type = "remote"
+                location = location or "Remote"
+            elif remote_status == "hybrid":
+                workplace_type = "hybrid"
 
             jobs.append(
                 RawJob(
@@ -55,7 +62,7 @@ class TeamtailorParser:
                     location=location,
                     description_raw=_child_text(item, "description"),
                     description_html=None,
-                    workplace_type=None,
+                    workplace_type=workplace_type,
                     application_url=link,
                     posted_at=parse_posted_at(_child_text(item, "pubDate")),
                     raw_payload={"title": title, "link": link},

@@ -143,7 +143,8 @@ async def scrape_company_jobs(
         finalized = _finalize_jobs(fallback, max_jobs, via_fallback=True)
         if domain:
             registry.record_board_success(domain)
-            set_cached_jobs(domain, finalized.jobs)
+            if ats_error is None:
+                set_cached_jobs(domain, finalized.jobs)
         return finalized
 
     if ats_error is not None:
