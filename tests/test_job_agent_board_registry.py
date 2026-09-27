@@ -253,6 +253,69 @@ def test_seed_and_sync_round_trip_tags(
     assert board["tags"] == ["eu", "fintech"]
 
 
+def test_note_round_trip_and_seed_sync(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from services import board_registry as registry_module
+
+    monkeypatch.setattr(registry_module, "_registry", None)
+    seed_path = tmp_path / "seed.json"
+    seed_path.write_text(
+        json.dumps(
+            [
+                {
+                    "domain": "noted.com",
+                    "company_name": "Noted",
+                    "ats_type": "greenhouse",
+                    "ats_slug": "noted",
+                    "career_url": None,
+                    "source": "pilot",
+                    "active": False,
+                }
+            ]
+        ),
+        encoding="utf-8",
+    )
+    registry = BoardRegistry(db_path=tmp_path / "notes.db", seed_path=seed_path)
+    registry.init_db()
+    board = registry.get_board_by_domain("noted.com")
+    assert board is not None
+    assert board["note"] is None
+
+    updated = registry.upsert_board(
+        domain="noted.com",
+        company_name="Noted",
+        ats_type="greenhouse",
+        ats_slug="noted",
+        source="pilot",
+        active=False,
+        note="custom board, no API",
+    )
+    assert updated["note"] == "custom board, no API"
+
+    seed_path.write_text(
+        json.dumps(
+            [
+                {
+                    "domain": "noted.com",
+                    "company_name": "Noted",
+                    "ats_type": "greenhouse",
+                    "ats_slug": "noted",
+                    "career_url": None,
+                    "source": "pilot",
+                    "active": False,
+                    "note": "seed reason",
+                }
+            ]
+        ),
+        encoding="utf-8",
+    )
+    BoardRegistry(db_path=tmp_path / "notes.db", seed_path=seed_path).init_db()
+    board = registry.get_board_by_domain("noted.com")
+    assert board is not None
+    assert board["note"] == "seed reason"
+
+
 def test_rotation_window_advances_cursor(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

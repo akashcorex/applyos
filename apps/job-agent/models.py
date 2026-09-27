@@ -80,6 +80,8 @@ class RegistryBoard(BaseModel):
     source: BoardSource = "manual"
     active: bool = True
     last_verified_at: str | None = None
+    tags: list[str] = Field(default_factory=list)
+    note: str | None = None
 
 
 class RegistryListResponse(BaseModel):
@@ -95,6 +97,7 @@ class RegistryUpsertRequest(BaseModel):
     career_url: str | None = None
     source: BoardSource = "manual"
     active: bool = True
+    note: str | None = Field(default=None, max_length=280)
 
     @field_validator("ats_slug")
     @classmethod
@@ -300,6 +303,7 @@ class BoardAttempt(BaseModel):
     latency_ms: int = 0
     via_fallback: bool = False
     dropped_stale: int = 0
+    note: str | None = None
 
 
 class SearchResponse(BaseModel):

@@ -69,6 +69,7 @@ async def _scrape_with_attempt(
         latency_ms=int((time.perf_counter() - started) * 1000),
         via_fallback=scraped.via_fallback,
         dropped_stale=scraped.dropped_stale,
+        note=str(company.get("note")) if company.get("note") else None,
     )
     return scraped, attempt
 

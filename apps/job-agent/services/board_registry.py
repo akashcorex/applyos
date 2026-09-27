@@ -31,7 +31,8 @@ CREATE TABLE IF NOT EXISTS board_registry (
     last_verified_at TEXT,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
-    tags TEXT NOT NULL DEFAULT '[]'
+    tags TEXT NOT NULL DEFAULT '[]',
+    note TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_board_registry_active
     ON board_registry(active);
@@ -79,6 +80,7 @@ def _row_to_company(row: sqlite3.Row) -> dict[str, object]:
         "active": bool(row["active"]),
         "last_verified_at": row["last_verified_at"],
         "tags": [str(tag) for tag in tags] if isinstance(tags, list) else [],
+        "note": str(row["note"]) if row["note"] else None,
     }
 
 
@@ -125,7 +127,7 @@ class BoardRegistry:
             ):
                 continue
             row = conn.execute(
-                "SELECT ats_type, ats_slug, career_url, source, active, tags"
+                "SELECT ats_type, ats_slug, career_url, source, active, tags, note"
                 " FROM board_registry WHERE domain = ?",
                 (domain,),
             ).fetchone()
@@ -154,11 +156,16 @@ class BoardRegistry:
             needs_career_url = bool(seed_career_url) and row["career_url"] is None
             needs_deactivation = bool(row["active"]) and not seed_active
             needs_tags = row_tags != seed_tags
+            seed_note = entry.get("note")
+            seed_note = str(seed_note) if seed_note else None
+            row_note = str(row["note"]) if row["note"] else None
+            needs_note = seed_note is not None and seed_note != row_note
             if (
                 not mapping_changed
                 and not needs_career_url
                 and not needs_deactivation
                 and not needs_tags
+                and not needs_note
             ):
                 continue
             if mapping_changed:
@@ -170,7 +177,8 @@ class BoardRegistry:
                         company_name = ?, source = ?,
                         active = ?, failure_count = 0,
                         last_verified_at = NULL, updated_at = ?,
-                        tags = ?
+                        tags = ?,
+                        note = COALESCE(?, note)
                     WHERE domain = ?
                     """,
                     (
@@ -182,6 +190,7 @@ class BoardRegistry:
                         1 if seed_active else 0,
                         _utc_now(),
                         json.dumps(seed_tags),
+                        seed_note,
                         domain,
                     ),
                 )
@@ -200,6 +209,7 @@ class BoardRegistry:
                 SET career_url = COALESCE(?, career_url),
                     active = CASE WHEN ? THEN active ELSE 0 END,
                     tags = ?,
+                    note = COALESCE(?, note),
                     updated_at = ?
                 WHERE domain = ?
                 """,
@@ -207,6 +217,7 @@ class BoardRegistry:
                     seed_career_url,
                     1 if seed_active else 0,
                     json.dumps(seed_tags),
+                    seed_note,
                     _utc_now(),
                     domain,
                 ),
@@ -226,6 +237,8 @@ class BoardRegistry:
             conn.execute(
                 "ALTER TABLE board_registry ADD COLUMN tags TEXT NOT NULL DEFAULT '[]'"
             )
+        if "note" not in columns:
+            conn.execute("ALTER TABLE board_registry ADD COLUMN note TEXT")
 
     def _seed_from_json(self, conn: sqlite3.Connection) -> None:
         if not self.seed_path.exists():
@@ -307,6 +320,7 @@ class BoardRegistry:
         career_url: str | None = None,
         source: BoardSource = "manual",
         active: bool = True,
+        note: str | None = None,
     ) -> dict[str, object]:
         self.init_db()
         domain = domain.strip().lower()
@@ -316,8 +330,9 @@ class BoardRegistry:
                 """
                 INSERT INTO board_registry (
                     domain, company_name, ats_type, ats_slug, career_url,
-                    source, active, last_verified_at, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    source, active, last_verified_at, created_at, updated_at,
+                    note
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(domain) DO UPDATE SET
                     company_name = excluded.company_name,
                     ats_type = excluded.ats_type,
@@ -326,7 +341,8 @@ class BoardRegistry:
                     source = excluded.source,
                     active = excluded.active,
                     last_verified_at = excluded.last_verified_at,
-                    updated_at = excluded.updated_at
+                    updated_at = excluded.updated_at,
+                    note = COALESCE(excluded.note, board_registry.note)
                 """,
                 (
                     domain,
@@ -339,6 +355,7 @@ class BoardRegistry:
                     now,
                     now,
                     now,
+                    note,
                 ),
             )
             row = conn.execute(

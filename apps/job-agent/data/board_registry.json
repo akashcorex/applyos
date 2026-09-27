@@ -117,7 +117,8 @@
     "ats_slug": "retool",
     "career_url": "https://retool.com/careers",
     "source": "pilot",
-    "active": false
+    "active": false,
+    "note": "Custom careers site; no ATS markers found. Revisit if ATS detected."
   },
   {
     "domain": "vercel.com",
@@ -162,7 +163,8 @@
     "ats_slug": "netflix",
     "career_url": "https://netflix.com/careers",
     "source": "pilot",
-    "active": false
+    "active": false,
+    "note": "Custom Eightfold board; no public ATS API. Revisit via generic fallback."
   },
   {
     "domain": "spotify.com",
@@ -252,7 +254,8 @@
     "ats_slug": "shopify",
     "career_url": "https://shopify.com/careers",
     "source": "pilot",
-    "active": false
+    "active": false,
+    "note": "Custom careers site; no ATS markers found. Revisit if ATS detected."
   },
   {
     "domain": "intercom.com",
@@ -345,7 +348,8 @@
     "ats_slug": "loom",
     "career_url": "https://loom.com/careers",
     "source": "pilot",
-    "active": false
+    "active": false,
+    "note": "Ashby board empty post-acquisition; parked until listings return."
   },
   {
     "domain": "personio.com",

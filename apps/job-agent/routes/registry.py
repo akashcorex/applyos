@@ -49,6 +49,7 @@ def _resolve_domain(career_page_url: str, explicit_domain: str | None, slug: str
 
 
 def _to_board_model(board: dict[str, object]) -> RegistryBoard:
+    tags = board.get("tags")
     return RegistryBoard(
         name=str(board["name"]),
         domain=str(board["domain"]),
@@ -58,6 +59,8 @@ def _to_board_model(board: dict[str, object]) -> RegistryBoard:
         source=str(board.get("source", "manual")),  # type: ignore[arg-type]
         active=bool(board.get("active", True)),
         last_verified_at=board.get("last_verified_at"),  # type: ignore[arg-type]
+        tags=[str(tag) for tag in tags] if isinstance(tags, list) else [],
+        note=str(board["note"]) if board.get("note") else None,
     )
 
 
@@ -96,6 +99,7 @@ async def upsert_registry_board(payload: RegistryUpsertRequest) -> RegistryBoard
         career_url=payload.career_url,
         source=payload.source,
         active=payload.active,
+        note=payload.note,
     )
     return _to_board_model(board)
 
