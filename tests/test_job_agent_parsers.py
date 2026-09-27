@@ -644,3 +644,46 @@ async def test_wwr_feed_splits_company_and_role(
     assert jobs[0].company_name == "Acme"
     assert jobs[0].title == "Backend Engineer"
     assert jobs[0].workplace_type == "remote"
+
+
+@pytest.mark.asyncio
+async def test_a16z_feed_paginates_and_maps_comp(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from services.parsers.feeds import A16ZFeed
+
+    seen: list[str] = []
+
+    async def fake_fetch(url: str) -> object:
+        seen.append(url)
+        if "page=0" in url:
+            return {
+                "jobs": [
+                    {
+                        "id": "1",
+                        "title": "Engineer",
+                        "company": "Acme",
+                        "url": "https://speedrun-talent-network.com/jobs/1",
+                        "location": "Remote",
+                        "remote": True,
+                        "published_at": "2026-09-20T00:00:00Z",
+                        "comp_min": 100000,
+                        "comp_max": 150000,
+                        "comp_currency": "USD",
+                    }
+                ]
+            }
+        return {"jobs": []}
+
+    monkeypatch.setattr(
+        "services.parsers.feeds.fetch_json_with_retries",
+        fake_fetch,
+    )
+
+    jobs = await A16ZFeed().fetch_jobs()
+
+    assert len(jobs) == 1
+    assert jobs[0].company_name == "Acme"
+    assert jobs[0].salary_min == 100000
+    assert jobs[0].salary_currency == "USD"
+    assert seen == ["https://speedrun-talent-network.com/api/v1/jobs?page=0"]

@@ -30,6 +30,8 @@ HN_SEARCH_URL = (
     "?query=Ask%20HN%20Who%20is%20hiring&tags=story&hitsPerPage=10"
 )
 HN_ITEM_URL = "https://hn.algolia.com/api/v1/items/{item_id}"
+A16Z_JOBS_URL = "https://speedrun-talent-network.com/api/v1/jobs?page={page}"
+A16Z_MAX_PAGES = 3
 
 _BROWSER_UA = {"User-Agent": "Mozilla/5.0 (compatible; job-discovery/1.0)"}
 
@@ -335,6 +337,53 @@ class HNFeed:
         return jobs
 
 
+class A16ZFeed:
+    feed_id = "a16z"
+
+    async def fetch_jobs(self) -> list[RawJob]:
+        jobs: list[RawJob] = []
+        for page in range(A16Z_MAX_PAGES):
+            payload = await fetch_json_with_retries(
+                A16Z_JOBS_URL.format(page=page)
+            )
+            items = payload.get("jobs", []) if isinstance(payload, dict) else []
+            if not isinstance(items, list) or not items:
+                break
+            for item in items:
+                if not isinstance(item, dict):
+                    continue
+                title = str(item.get("title", "")).strip()
+                company = str(item.get("company", "")).strip()
+                url = item.get("url")
+                if not title or not company or not url:
+                    continue
+                location = str(item.get("location", "")).strip() or None
+                remote = bool(item.get("remote"))
+                if remote and location and "remote" not in location.lower():
+                    location = f"{location} (Remote)"
+                jobs.append(
+                    RawJob(
+                        external_id=str(item.get("id") or url),
+                        title=title,
+                        company_name=company,
+                        location=location or ("Remote" if remote else None),
+                        description_raw=None,
+                        description_html=None,
+                        workplace_type="remote" if remote else None,
+                        application_url=str(url).strip(),
+                        posted_at=parse_posted_at(item.get("published_at")),
+                        salary_min=_to_int(item.get("comp_min")),
+                        salary_max=_to_int(item.get("comp_max")),
+                        salary_currency=str(item.get("comp_currency") or "")
+                        or None,
+                        raw_payload={"feed": "a16z"},
+                    )
+                )
+            if len(items) < 50:
+                break
+        return jobs
+
+
 FEED_PARSERS = {
     "remoteok": RemoteOKFeed(),
     "remotive": RemotiveFeed(),
@@ -342,6 +391,7 @@ FEED_PARSERS = {
     "himalayas": HimalayasFeed(),
     "jobicy": JobicyFeed(),
     "hn": HNFeed(),
+    "a16z": A16ZFeed(),
 }
 
 FEED_URLS = {
@@ -351,4 +401,5 @@ FEED_URLS = {
     "himalayas": HIMALAYAS_JOBS_URL,
     "jobicy": JOBICY_JOBS_URL,
     "hn": HN_SEARCH_URL,
+    "a16z": A16Z_JOBS_URL.format(page=0),
 }
