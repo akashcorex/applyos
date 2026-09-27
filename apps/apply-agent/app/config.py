@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     llm_model: str = "claude-sonnet-4-6"
 
     # --- API service (for persisting results) ---
-    api_url: str = "http://localhost:5000"
+    api_url: str = "http://localhost:3333"
 
     # --- Trusted internal service authentication ---
     # Shared with backend services only; never expose this token to the browser.

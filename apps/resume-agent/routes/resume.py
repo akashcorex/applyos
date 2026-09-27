@@ -170,6 +170,12 @@ async def _callback_api(
         logger.error("AGENT_SERVICE_TOKEN missing; cannot callback API")
         raise HTTPException(status_code=500, detail="Service token is not configured")
     base = settings.api_url.rstrip("/")
+    if ":5000" in base:
+        logger.warning(
+            "API_URL points at :5000 (%s) — local API runs on :3333 "
+            "(macOS AirPlay occupies :5000 and returns 403)",
+            base,
+        )
     path = "complete" if complete is not None else "fail"
     url = f"{base}/v1/resumes/internal/{resume_file_id}/{path}"
     payload = complete if complete is not None else (fail or {})
