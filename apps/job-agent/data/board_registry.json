@@ -7,9 +7,7 @@
     "career_url": null,
     "source": "pilot",
     "active": true,
-    "tags": [
-      "fintech"
-    ]
+    "tags": ["fintech"]
   },
   {
     "domain": "airbnb.com",
@@ -82,9 +80,7 @@
     "career_url": "https://ramp.com/careers",
     "source": "pilot",
     "active": true,
-    "tags": [
-      "fintech"
-    ]
+    "tags": ["fintech"]
   },
   {
     "domain": "brex.com",
@@ -94,9 +90,7 @@
     "career_url": null,
     "source": "pilot",
     "active": true,
-    "tags": [
-      "fintech"
-    ]
+    "tags": ["fintech"]
   },
   {
     "domain": "plaid.com",
@@ -106,9 +100,7 @@
     "career_url": "https://plaid.com/careers",
     "source": "pilot",
     "active": true,
-    "tags": [
-      "fintech"
-    ]
+    "tags": ["fintech"]
   },
   {
     "domain": "retool.com",
@@ -174,9 +166,7 @@
     "career_url": null,
     "source": "pilot",
     "active": true,
-    "tags": [
-      "eu"
-    ]
+    "tags": ["eu"]
   },
   {
     "domain": "palantir.com",
@@ -204,9 +194,7 @@
     "career_url": "https://zapier.com/careers",
     "source": "pilot",
     "active": true,
-    "tags": [
-      "remote-first"
-    ]
+    "tags": ["remote-first"]
   },
   {
     "domain": "gitlab.com",
@@ -216,9 +204,7 @@
     "career_url": null,
     "source": "pilot",
     "active": true,
-    "tags": [
-      "remote-first"
-    ]
+    "tags": ["remote-first"]
   },
   {
     "domain": "cloudflare.com",
@@ -292,9 +278,7 @@
     "career_url": "https://mercury.com/careers",
     "source": "pilot",
     "active": true,
-    "tags": [
-      "fintech"
-    ]
+    "tags": ["fintech"]
   },
   {
     "domain": "deel.com",
@@ -304,9 +288,7 @@
     "career_url": "https://deel.com/careers",
     "source": "pilot",
     "active": true,
-    "tags": [
-      "remote-first"
-    ]
+    "tags": ["remote-first"]
   },
   {
     "domain": "replit.com",
@@ -316,9 +298,7 @@
     "career_url": null,
     "source": "pilot",
     "active": true,
-    "tags": [
-      "remote-first"
-    ]
+    "tags": ["remote-first"]
   },
   {
     "domain": "huggingface.co",
@@ -337,9 +317,7 @@
     "career_url": "https://remote.com/careers",
     "source": "pilot",
     "active": true,
-    "tags": [
-      "remote-first"
-    ]
+    "tags": ["remote-first"]
   },
   {
     "domain": "loom.com",
@@ -359,9 +337,7 @@
     "career_url": null,
     "source": "pilot",
     "active": true,
-    "tags": [
-      "eu"
-    ]
+    "tags": ["eu"]
   },
   {
     "domain": "n26.com",
@@ -371,10 +347,7 @@
     "career_url": "https://n26.com/careers",
     "source": "pilot",
     "active": true,
-    "tags": [
-      "fintech",
-      "eu"
-    ]
+    "tags": ["fintech", "eu"]
   },
   {
     "domain": "doktor.se",
@@ -384,9 +357,7 @@
     "career_url": "https://doktor.se/careers",
     "source": "manual",
     "active": true,
-    "tags": [
-      "eu"
-    ]
+    "tags": ["eu"]
   },
   {
     "domain": "mindler.se",
@@ -396,9 +367,7 @@
     "career_url": "https://mindler.se/careers",
     "source": "manual",
     "active": true,
-    "tags": [
-      "eu"
-    ]
+    "tags": ["eu"]
   },
   {
     "domain": "cambio.se",
@@ -408,9 +377,7 @@
     "career_url": "https://cambio.se/careers",
     "source": "manual",
     "active": true,
-    "tags": [
-      "eu"
-    ]
+    "tags": ["eu"]
   },
   {
     "domain": "apotea.se",
@@ -420,9 +387,7 @@
     "career_url": "https://apotea.se/careers",
     "source": "manual",
     "active": true,
-    "tags": [
-      "eu"
-    ]
+    "tags": ["eu"]
   },
   {
     "domain": "remoteok.com",
@@ -432,9 +397,7 @@
     "career_url": "https://remoteok.com",
     "source": "pilot",
     "active": true,
-    "tags": [
-      "remote-first"
-    ]
+    "tags": ["remote-first"]
   },
   {
     "domain": "remotive.com",
@@ -444,9 +407,7 @@
     "career_url": "https://remotive.com/remote-jobs",
     "source": "pilot",
     "active": true,
-    "tags": [
-      "remote-first"
-    ]
+    "tags": ["remote-first"]
   },
   {
     "domain": "weworkremotely.com",
@@ -456,9 +417,7 @@
     "career_url": "https://weworkremotely.com",
     "source": "pilot",
     "active": true,
-    "tags": [
-      "remote-first"
-    ]
+    "tags": ["remote-first"]
   },
   {
     "domain": "news.ycombinator.com",
@@ -468,9 +427,7 @@
     "career_url": "https://news.ycombinator.com",
     "source": "pilot",
     "active": true,
-    "tags": [
-      "remote-first"
-    ]
+    "tags": ["remote-first"]
   },
   {
     "domain": "himalayas.app",
@@ -480,9 +437,7 @@
     "career_url": "https://himalayas.app/jobs",
     "source": "pilot",
     "active": true,
-    "tags": [
-      "remote-first"
-    ]
+    "tags": ["remote-first"]
   },
   {
     "domain": "jobicy.com",
@@ -492,9 +447,7 @@
     "career_url": "https://jobicy.com",
     "source": "pilot",
     "active": true,
-    "tags": [
-      "remote-first"
-    ]
+    "tags": ["remote-first"]
   },
   {
     "domain": "a16z-talent-network.com",

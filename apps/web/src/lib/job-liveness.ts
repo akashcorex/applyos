@@ -29,7 +29,10 @@ function classifyBody(finalUrl: string, text: string): LivenessStatus {
   if (EXPIRED_MARKERS.some((marker) => lowered.includes(marker))) {
     return 'closed';
   }
-  const stripped = lowered.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  const stripped = lowered
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
   if (stripped.length < MIN_JD_CHARS) return 'closed';
   return 'ok';
 }

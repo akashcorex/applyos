@@ -6,9 +6,12 @@ import {
   type LivenessCheck,
 } from '../apps/web/src/lib/job-liveness';
 
-function pageAfterFailedHead(
-  page: { ok: boolean; status: number; url?: string; text?: string },
-): LivenessCheck {
+function pageAfterFailedHead(page: {
+  ok: boolean;
+  status: number;
+  url?: string;
+  text?: string;
+}): LivenessCheck {
   return async (url: string, init?: RequestInit) => {
     if (init?.method === 'HEAD') {
       return { ok: false, status: 405, url, body: async () => '' };
