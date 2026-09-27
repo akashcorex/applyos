@@ -50,19 +50,15 @@ class DurableWorkflowClient:
         """Load a durable workflow row (used to verify ownership on start)."""
         if not self.enabled:
             return None
-        try:
-            async with httpx.AsyncClient(timeout=settings.http_timeout_seconds) as client:
-                response = await client.get(
-                    f"{self._base_url}/v1/workflows/internal/{workflow_id}",
-                    headers={"X-Agent-Service-Token": self._token},
-                )
-                if response.status_code == 404:
-                    return None
-                response.raise_for_status()
-                return response.json()
-        except httpx.HTTPError as exc:
-            logger.warning("Could not load durable workflow %s: %s", workflow_id, exc)
-            return None
+        async with httpx.AsyncClient(timeout=settings.http_timeout_seconds) as client:
+            response = await client.get(
+                f"{self._base_url}/v1/workflows/internal/{workflow_id}",
+                headers={"X-Agent-Service-Token": self._token},
+            )
+            if response.status_code == 404:
+                return None
+            response.raise_for_status()
+            return response.json()
 
     async def resolve_application_id(
         self,

@@ -48,7 +48,16 @@ async def start_workflow(
         raise HTTPException(status_code=503, detail="Workflow store not initialised")
 
     if payload.workflow_id:
-        durable = await DurableWorkflowClient().get_workflow(payload.workflow_id)
+        try:
+            durable = await DurableWorkflowClient().get_workflow(payload.workflow_id)
+        except httpx.HTTPError as exc:
+            raise HTTPException(
+                status_code=502,
+                detail=(
+                    f"Could not reach durable API at {settings.api_url} "
+                    f"while loading workflow {payload.workflow_id}: {exc}"
+                ),
+            ) from exc
         if durable is None:
             raise HTTPException(status_code=404, detail="Durable workflow not found")
         workflow_row = durable.get("workflow")
