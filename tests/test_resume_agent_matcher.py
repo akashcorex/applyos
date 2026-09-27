@@ -341,3 +341,69 @@ async def test_match_passes_posted_at_through() -> None:
         resume=_resume(["Python"]), resume_id="r-posted"
     )
     assert response.jobs[0].posted_at == "2026-09-18T00:00:00+00:00"
+
+
+@pytest.mark.asyncio
+async def test_match_sends_profile_filters_and_salary() -> None:
+    payload = {
+        "companies_scraped": 1,
+        "jobs": [
+            {
+                "title": "Engineer",
+                "company_name": "Acme",
+                "dedup_key": "acme::1",
+                "semantic_score": 0.8,
+                "salary_min": 100000,
+                "salary_max": 140000,
+                "salary_currency": "USD",
+            }
+        ],
+    }
+    client = _FakeClient(payload)
+    matcher = JobMatcher(client)
+    response, _ = await matcher.match(
+        resume=_resume(["Python"]),
+        resume_id="r-filters",
+        profile_seniority="mid",
+        profile_work_mode="remote",
+        profile_locations=["Remote"],
+    )
+    sent = client.posted[0]["json"]
+    assert sent["profile_seniority"] == "mid"
+    assert sent["profile_work_mode"] == "remote"
+    assert sent["profile_locations"] == ["Remote"]
+    job = response.jobs[0]
+    assert job.salary_min == 100000
+    assert job.salary_max == 140000
+    assert job.salary_currency == "USD"
+
+
+@pytest.mark.asyncio
+async def test_match_passes_flags_through() -> None:
+    client = _FakeClient(
+        {
+            "companies_scraped": 1,
+            "jobs": [
+                {
+                    "title": "Engineer",
+                    "company_name": "Acme",
+                    "dedup_key": "acme::1",
+                    "semantic_score": 0.8,
+                    "flags": ["evergreen"],
+                }
+            ],
+        }
+    )
+    matcher = JobMatcher(client)
+    response, _ = await matcher.match(
+        resume=_resume(["Python"]), resume_id="r-flags"
+    )
+    assert response.jobs[0].flags == ["evergreen"]
+
+
+@pytest.mark.asyncio
+async def test_match_sends_pack_through() -> None:
+    client = _FakeClient({"companies_scraped": 0, "jobs": []})
+    matcher = JobMatcher(client)
+    await matcher.match(resume=_resume(["Python"]), resume_id="r-pack", pack="fintech")
+    assert client.posted[0]["json"]["pack"] == "fintech"

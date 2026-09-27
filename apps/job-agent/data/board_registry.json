@@ -6,7 +6,8 @@
     "ats_slug": "stripe",
     "career_url": null,
     "source": "pilot",
-    "active": true
+    "active": true,
+    "tags": ["fintech"]
   },
   {
     "domain": "airbnb.com",
@@ -78,7 +79,8 @@
     "ats_slug": "ramp",
     "career_url": "https://ramp.com/careers",
     "source": "pilot",
-    "active": true
+    "active": true,
+    "tags": ["fintech"]
   },
   {
     "domain": "brex.com",
@@ -87,7 +89,8 @@
     "ats_slug": "brex",
     "career_url": null,
     "source": "pilot",
-    "active": true
+    "active": true,
+    "tags": ["fintech"]
   },
   {
     "domain": "plaid.com",
@@ -96,7 +99,8 @@
     "ats_slug": "plaid",
     "career_url": "https://plaid.com/careers",
     "source": "pilot",
-    "active": true
+    "active": true,
+    "tags": ["fintech"]
   },
   {
     "domain": "retool.com",
@@ -105,7 +109,8 @@
     "ats_slug": "retool",
     "career_url": "https://retool.com/careers",
     "source": "pilot",
-    "active": false
+    "active": false,
+    "note": "Custom careers site; no ATS markers found. Revisit if ATS detected."
   },
   {
     "domain": "vercel.com",
@@ -128,11 +133,11 @@
   {
     "domain": "rippling.com",
     "company_name": "Rippling",
-    "ats_type": "greenhouse",
+    "ats_type": "rippling",
     "ats_slug": "rippling",
-    "career_url": "https://rippling.com/careers",
+    "career_url": "https://ats.rippling.com/rippling/jobs",
     "source": "pilot",
-    "active": false
+    "active": true
   },
   {
     "domain": "openai.com",
@@ -150,7 +155,8 @@
     "ats_slug": "netflix",
     "career_url": "https://netflix.com/careers",
     "source": "pilot",
-    "active": false
+    "active": false,
+    "note": "Custom Eightfold board; no public ATS API. Revisit via generic fallback."
   },
   {
     "domain": "spotify.com",
@@ -159,7 +165,8 @@
     "ats_slug": "spotify",
     "career_url": null,
     "source": "pilot",
-    "active": true
+    "active": true,
+    "tags": ["eu"]
   },
   {
     "domain": "palantir.com",
@@ -186,7 +193,8 @@
     "ats_slug": "zapier",
     "career_url": "https://zapier.com/careers",
     "source": "pilot",
-    "active": true
+    "active": true,
+    "tags": ["remote-first"]
   },
   {
     "domain": "gitlab.com",
@@ -195,7 +203,8 @@
     "ats_slug": "gitlab",
     "career_url": null,
     "source": "pilot",
-    "active": true
+    "active": true,
+    "tags": ["remote-first"]
   },
   {
     "domain": "cloudflare.com",
@@ -231,7 +240,8 @@
     "ats_slug": "shopify",
     "career_url": "https://shopify.com/careers",
     "source": "pilot",
-    "active": false
+    "active": false,
+    "note": "Custom careers site; no ATS markers found. Revisit if ATS detected."
   },
   {
     "domain": "intercom.com",
@@ -267,7 +277,8 @@
     "ats_slug": "mercury",
     "career_url": "https://mercury.com/careers",
     "source": "pilot",
-    "active": true
+    "active": true,
+    "tags": ["fintech"]
   },
   {
     "domain": "deel.com",
@@ -276,7 +287,8 @@
     "ats_slug": "deel",
     "career_url": "https://deel.com/careers",
     "source": "pilot",
-    "active": true
+    "active": true,
+    "tags": ["remote-first"]
   },
   {
     "domain": "replit.com",
@@ -285,16 +297,17 @@
     "ats_slug": "replit",
     "career_url": null,
     "source": "pilot",
-    "active": true
+    "active": true,
+    "tags": ["remote-first"]
   },
   {
     "domain": "huggingface.co",
     "company_name": "Hugging Face",
-    "ats_type": "ashby",
+    "ats_type": "workable",
     "ats_slug": "huggingface",
-    "career_url": "https://huggingface.co/careers",
+    "career_url": "https://apply.workable.com/huggingface/",
     "source": "pilot",
-    "active": false
+    "active": true
   },
   {
     "domain": "remote.com",
@@ -303,7 +316,8 @@
     "ats_slug": "remote",
     "career_url": "https://remote.com/careers",
     "source": "pilot",
-    "active": true
+    "active": true,
+    "tags": ["remote-first"]
   },
   {
     "domain": "loom.com",
@@ -312,7 +326,8 @@
     "ats_slug": "loom",
     "career_url": "https://loom.com/careers",
     "source": "pilot",
-    "active": false
+    "active": false,
+    "note": "Ashby board empty post-acquisition; parked until listings return."
   },
   {
     "domain": "personio.com",
@@ -321,7 +336,8 @@
     "ats_slug": "personio",
     "career_url": null,
     "source": "pilot",
-    "active": true
+    "active": true,
+    "tags": ["eu"]
   },
   {
     "domain": "n26.com",
@@ -330,6 +346,117 @@
     "ats_slug": "n26",
     "career_url": "https://n26.com/careers",
     "source": "pilot",
-    "active": true
+    "active": true,
+    "tags": ["fintech", "eu"]
+  },
+  {
+    "domain": "doktor.se",
+    "company_name": "Doktor.se",
+    "ats_type": "teamtailor",
+    "ats_slug": "doktor",
+    "career_url": "https://doktor.se/careers",
+    "source": "manual",
+    "active": true,
+    "tags": ["eu"]
+  },
+  {
+    "domain": "mindler.se",
+    "company_name": "Mindler",
+    "ats_type": "teamtailor",
+    "ats_slug": "mindler",
+    "career_url": "https://mindler.se/careers",
+    "source": "manual",
+    "active": true,
+    "tags": ["eu"]
+  },
+  {
+    "domain": "cambio.se",
+    "company_name": "Cambio",
+    "ats_type": "teamtailor",
+    "ats_slug": "cambio",
+    "career_url": "https://cambio.se/careers",
+    "source": "manual",
+    "active": true,
+    "tags": ["eu"]
+  },
+  {
+    "domain": "apotea.se",
+    "company_name": "Apotea",
+    "ats_type": "teamtailor",
+    "ats_slug": "apotea",
+    "career_url": "https://apotea.se/careers",
+    "source": "manual",
+    "active": true,
+    "tags": ["eu"]
+  },
+  {
+    "domain": "remoteok.com",
+    "company_name": "RemoteOK",
+    "ats_type": "feed",
+    "ats_slug": "remoteok",
+    "career_url": "https://remoteok.com",
+    "source": "pilot",
+    "active": true,
+    "tags": ["remote-first"]
+  },
+  {
+    "domain": "remotive.com",
+    "company_name": "Remotive",
+    "ats_type": "feed",
+    "ats_slug": "remotive",
+    "career_url": "https://remotive.com/remote-jobs",
+    "source": "pilot",
+    "active": true,
+    "tags": ["remote-first"]
+  },
+  {
+    "domain": "weworkremotely.com",
+    "company_name": "We Work Remotely",
+    "ats_type": "feed",
+    "ats_slug": "wwr",
+    "career_url": "https://weworkremotely.com",
+    "source": "pilot",
+    "active": true,
+    "tags": ["remote-first"]
+  },
+  {
+    "domain": "news.ycombinator.com",
+    "company_name": "HN Who Is Hiring",
+    "ats_type": "feed",
+    "ats_slug": "hn",
+    "career_url": "https://news.ycombinator.com",
+    "source": "pilot",
+    "active": true,
+    "tags": ["remote-first"]
+  },
+  {
+    "domain": "himalayas.app",
+    "company_name": "Himalayas",
+    "ats_type": "feed",
+    "ats_slug": "himalayas",
+    "career_url": "https://himalayas.app/jobs",
+    "source": "pilot",
+    "active": true,
+    "tags": ["remote-first"]
+  },
+  {
+    "domain": "jobicy.com",
+    "company_name": "Jobicy",
+    "ats_type": "feed",
+    "ats_slug": "jobicy",
+    "career_url": "https://jobicy.com",
+    "source": "pilot",
+    "active": true,
+    "tags": ["remote-first"]
+  },
+  {
+    "domain": "a16z-talent-network.com",
+    "company_name": "a16z Talent Network",
+    "ats_type": "feed",
+    "ats_slug": "a16z",
+    "career_url": "https://speedrun-talent-network.com",
+    "source": "pilot",
+    "active": true,
+    "tags": []
   }
 ]

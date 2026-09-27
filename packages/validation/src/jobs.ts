@@ -30,6 +30,7 @@ export const jobDiscoverSchema = z.object({
   profileId: nonEmptyString(128, 'profileId'),
   query: nonEmptyString(128, 'query').optional(),
   limit: z.number().int().min(1).max(100).default(50).prefault(50),
+  pack: z.string().trim().max(32).optional(),
 });
 
 export type JobDiscover = z.input<typeof jobDiscoverSchema>;

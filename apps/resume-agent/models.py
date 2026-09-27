@@ -305,6 +305,10 @@ class MatchedJob(BaseModel):
     ats_slug: str | None = None
     description: str | None = None
     posted_at: str | None = None
+    salary_min: int | None = None
+    salary_max: int | None = None
+    salary_currency: str | None = None
+    flags: list[str] | None = None
     # Final score 0–100 (45% text + 15% title + 30% skill + 10% recency,
     # then behavior adjustment).
     match_score: float = 0.0

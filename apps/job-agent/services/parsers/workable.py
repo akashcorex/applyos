@@ -19,12 +19,14 @@ from urllib.parse import urlparse
 
 from config import settings
 from models import RawJob
+from services.dates import parse_posted_at
 from services.parsers.base import fetch_json_with_retries
 
 logger = logging.getLogger(__name__)
 
 WORKABLE_JOBS_URL = "https://apply.workable.com/api/v3/accounts/{slug}/jobs"
 WORKABLE_COMPANY_URL = "https://jobs.workable.com/api/v1/companies/{company_id}"
+WORKABLE_WIDGET_URL = "https://apply.workable.com/api/v1/widget/accounts/{slug}?details=true"
 WORKABLE_ALLOWED_HOST = "apply.workable.com"
 WORKABLE_JOBS_BOARD_HOST = "jobs.workable.com"
 
@@ -117,6 +119,52 @@ def _map_company_jobs(payload: dict, company_id: str) -> list[RawJob]:
         len(jobs),
         payload.get("totalSize"),
     )
+    return jobs
+
+
+def _map_widget_jobs(payload: dict, slug: str) -> list[RawJob]:
+    results = payload.get("jobs", [])
+    if not isinstance(results, list):
+        raise RuntimeError("Workable widget jobs field is not a list")
+
+    jobs: list[RawJob] = []
+    for item in results:
+        if not isinstance(item, dict):
+            continue
+        shortcode = str(item.get("shortcode", "")).strip()
+        title = str(item.get("title", "")).strip()
+        if not shortcode or not title:
+            continue
+        city = item.get("city")
+        country = item.get("country")
+        location = ", ".join(
+            str(part).strip() for part in [city, country] if part
+        )
+        remote = bool(item.get("telecommuting"))
+        if remote and "remote" not in location.lower():
+            location = f"{location} (Remote)" if location else "Remote"
+        application_url = item.get("application_url") or item.get("url")
+
+        jobs.append(
+            RawJob(
+                external_id=shortcode,
+                title=title,
+                department=item.get("department") or item.get("function"),
+                location=location or None,
+                description_raw=item.get("description")
+                if isinstance(item.get("description"), str)
+                else None,
+                description_html=None,
+                workplace_type="remote" if remote else None,
+                application_url=str(application_url).strip()
+                if application_url
+                else f"https://apply.workable.com/{slug}/j/{shortcode}",
+                posted_at=parse_posted_at(
+                    item.get("published_on") or item.get("created_at")
+                ),
+                raw_payload=item,
+            )
+        )
     return jobs
 
 
@@ -214,6 +262,13 @@ class WorkableParser:
 
         return jobs
 
+    async def _fetch_widget_jobs(self, slug: str) -> list[RawJob]:
+        url = WORKABLE_WIDGET_URL.format(slug=slug)
+        payload = await fetch_json_with_retries(url)
+        if not isinstance(payload, dict):
+            raise RuntimeError("Unexpected Workable widget response shape")
+        return _map_widget_jobs(payload, slug)
+
     async def fetch_jobs(self, slug: str) -> list[RawJob]:
         slug = (slug or "").strip()
         if not slug:
@@ -224,6 +279,14 @@ class WorkableParser:
             company_jobs = await self._fetch_company_jobs(slug)
             if company_jobs is not None:
                 return company_jobs
+
+        try:
+            widget_jobs = await self._fetch_widget_jobs(slug)
+        except Exception as widget_error:
+            logger.info("Workable widget miss for %s: %s", slug, widget_error)
+            widget_jobs = []
+        if widget_jobs:
+            return widget_jobs
 
         try:
             return await self._fetch_account_jobs(slug)

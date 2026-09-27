@@ -3,14 +3,19 @@ from services.dates import parse_posted_at
 from services.parsers.base import fetch_json_with_retries
 
 LEVER_JOBS_URL = "https://api.lever.co/v0/postings/{slug}?mode=json"
+LEVER_EU_JOBS_URL = "https://api.eu.lever.co/v0/postings/{slug}?mode=json"
 
 
 class LeverParser:
     ats_type = "lever"
 
     async def fetch_jobs(self, slug: str) -> list[RawJob]:
-        url = LEVER_JOBS_URL.format(slug=slug)
-        payload = await fetch_json_with_retries(url)
+        try:
+            payload = await fetch_json_with_retries(LEVER_JOBS_URL.format(slug=slug))
+        except Exception:
+            payload = await fetch_json_with_retries(
+                LEVER_EU_JOBS_URL.format(slug=slug)
+            )
 
         if not isinstance(payload, list):
             raise RuntimeError("Unexpected Lever response shape")

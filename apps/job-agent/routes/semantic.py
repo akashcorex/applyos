@@ -68,13 +68,14 @@ async def _scrape_with_attempt(
         latency_ms=int((time.perf_counter() - started) * 1000),
         via_fallback=scraped.via_fallback,
         dropped_stale=scraped.dropped_stale,
+        note=str(company.get("note")) if company.get("note") else None,
     )
     return scraped, attempt
 
 
 @router.post("/semantic", response_model=SemanticSearchResponse)
 async def semantic_search(payload: SemanticSearchRequest) -> SemanticSearchResponse:
-    companies = get_searchable_companies(payload.max_companies)
+    companies = get_searchable_companies(payload.max_companies, pack=payload.pack)
 
     tasks = [
         _scrape_with_attempt(company, payload.max_jobs_per_company)
@@ -108,6 +109,9 @@ async def semantic_search(payload: SemanticSearchRequest) -> SemanticSearchRespo
         recent_highlights=payload.recent_highlights,
         profile_embedding=payload.profile_embedding,
         intent_override=payload.intent_override,
+        profile_seniority=payload.profile_seniority,
+        profile_work_mode=payload.profile_work_mode,
+        profile_locations=payload.profile_locations,
     )
 
     return SemanticSearchResponse(
@@ -125,7 +129,7 @@ async def semantic_stream(payload: SemanticSearchRequest) -> StreamingResponse:
     """Stream one SSE batch per company as its scrape finishes."""
 
     async def generate():
-        companies = get_searchable_companies(payload.max_companies)
+        companies = get_searchable_companies(payload.max_companies, pack=payload.pack)
         companies_scraped = 0
         jobs_scraped = 0
         for company in companies:
@@ -150,6 +154,9 @@ async def semantic_stream(payload: SemanticSearchRequest) -> StreamingResponse:
                 profile_embedding=payload.profile_embedding,
                 intent_override=payload.intent_override,
                 rank_all=True,
+                profile_seniority=payload.profile_seniority,
+                profile_work_mode=payload.profile_work_mode,
+                profile_locations=payload.profile_locations,
             )
             jobs_scraped += len(ranked)
             yield format_sse(

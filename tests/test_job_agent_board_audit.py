@@ -145,7 +145,7 @@ async def test_search_route_attaches_board_attempts(
 
     monkeypatch.setattr(search_route, "scrape_company_jobs", fake_scrape)
     monkeypatch.setattr(
-        search_route, "get_searchable_companies", lambda limit: [_company(), _company("empty.com")]
+        search_route, "get_searchable_companies", lambda limit, pack=None: [_company(), _company("empty.com")]
     )
     monkeypatch.setattr(search_route, "apply_freshness_metadata", lambda jobs: jobs)
     monkeypatch.setattr(search_route, "sort_by_freshness", lambda jobs: jobs)
@@ -180,7 +180,7 @@ async def test_semantic_route_attaches_board_attempts(
 
     monkeypatch.setattr(semantic_route, "scrape_company_jobs", fake_scrape)
     monkeypatch.setattr(
-        semantic_route, "get_searchable_companies", lambda limit: [_company()]
+        semantic_route, "get_searchable_companies", lambda limit, pack=None: [_company()]
     )
     monkeypatch.setattr(semantic_route, "apply_freshness_metadata", lambda jobs: jobs)
     monkeypatch.setattr(semantic_route, "sort_by_freshness", lambda jobs: jobs)
@@ -211,7 +211,7 @@ async def test_search_route_excludes_failed_boards_from_scraped_count(
     monkeypatch.setattr(
         search_route,
         "get_searchable_companies",
-        lambda limit: [_company(), _company("dead.com")],
+        lambda limit, pack=None: [_company(), _company("dead.com")],
     )
     monkeypatch.setattr(search_route, "apply_freshness_metadata", lambda jobs: jobs)
     monkeypatch.setattr(search_route, "sort_by_freshness", lambda jobs: jobs)
@@ -239,7 +239,7 @@ async def test_search_route_marks_fallback_attempts(
 
     monkeypatch.setattr(search_route, "scrape_company_jobs", fake_scrape)
     monkeypatch.setattr(
-        search_route, "get_searchable_companies", lambda limit: [_company()]
+        search_route, "get_searchable_companies", lambda limit, pack=None: [_company()]
     )
     monkeypatch.setattr(search_route, "apply_freshness_metadata", lambda jobs: jobs)
     monkeypatch.setattr(search_route, "sort_by_freshness", lambda jobs: jobs)

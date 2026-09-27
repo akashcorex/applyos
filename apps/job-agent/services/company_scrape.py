@@ -2,17 +2,20 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
+import time
 from dataclasses import dataclass, field
+from urllib.parse import urlparse
 
 from config import settings
 from models import ScrapeRequest, SearchResult
 from services.board_cache import get_cached_jobs, set_cached_jobs
 from services.board_registry import get_board_registry
-from services.ingest import PARSERS, scrape_jobs
+from services.ingest import PARSERS, scrape_feed_jobs, scrape_jobs
 from services.job_snapshots import record_job_seen
 from services.page_scrape import scrape_career_page
-from services.recency import filter_stale_jobs, sort_newest_first
+from services.recency import filter_stale_jobs, sort_newest_first, trust_flags
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +23,38 @@ SEARCHABLE_ATS = frozenset(PARSERS.keys())
 
 _FALLBACK_PATHS = ("/careers", "/jobs")
 _MAX_FALLBACK_CANDIDATES = 3
+
+_scrape_gate_state: dict[str, object] = {"size": 0, "semaphore": None}
+_last_fetch_at: dict[str, float] = {}
+
+
+def _scrape_gate() -> asyncio.Semaphore:
+    size = max(1, settings.scrape_max_concurrency)
+    if (
+        _scrape_gate_state["semaphore"] is None
+        or _scrape_gate_state["size"] != size
+    ):
+        _scrape_gate_state["semaphore"] = asyncio.Semaphore(size)
+        _scrape_gate_state["size"] = size
+    semaphore = _scrape_gate_state["semaphore"]
+    assert isinstance(semaphore, asyncio.Semaphore)
+    return semaphore
+
+
+async def _polite_wait(url: str) -> None:
+    """Enforce a minimum interval between fetches to the same host."""
+    host = urlparse(url).netloc.lower()
+    if not host:
+        return
+    interval = max(0.0, settings.scrape_min_interval_seconds)
+    if interval <= 0:
+        return
+    now = time.monotonic()
+    previous = _last_fetch_at.get(host, 0.0)
+    delay = interval - (now - previous)
+    _last_fetch_at[host] = now + max(0.0, delay)
+    if delay > 0:
+        await asyncio.sleep(delay)
 
 
 @dataclass
@@ -39,11 +74,12 @@ def canonical_to_search_result(
     description = getattr(job, "description_raw", None) or getattr(
         job, "description_html", None
     )
+    company = getattr(job, "company_name", None) or company_name
     return SearchResult(
         external_id=job.external_id,
         source=job.source,
         title=job.title,
-        company_name=company_name,
+        company_name=company,
         department=job.department,
         location=job.location,
         location_type=job.location_type,
@@ -54,6 +90,9 @@ def canonical_to_search_result(
         ats_slug=ats_slug,
         description=description,
         posted_at=getattr(job, "posted_at", None),
+        salary_min=getattr(job, "salary_min", None),
+        salary_max=getattr(job, "salary_max", None),
+        salary_currency=getattr(job, "salary_currency", None),
     )
 
 
@@ -63,12 +102,16 @@ def _finalize_jobs(
     *,
     via_fallback: bool,
 ) -> CompanyScrapeResult:
-    """Stamp first-seen, drop known-stale, keep newest up to max_jobs."""
+    """Stamp first-seen, flag trust signals, drop known-stale, keep newest."""
     for job in jobs:
         try:
-            record_job_seen(job.dedup_key, job.posted_at)
+            first_seen = record_job_seen(job.dedup_key, job.posted_at)
         except Exception as exc:
             logger.warning("first_seen stamp failed for %s: %s", job.dedup_key, exc)
+            first_seen = None
+        job.flags = trust_flags(
+            job.description, first_seen, settings.trust_evergreen_days
+        )
     fresh, dropped = filter_stale_jobs(jobs, settings.job_max_age_days)
     if dropped:
         logger.info("Dropped %d stale jobs past %d days", dropped, settings.job_max_age_days)
@@ -89,7 +132,9 @@ async def scrape_company_jobs(
     company_name = str(company.get("name", ""))
     domain = str(company.get("domain", ""))
 
-    if ats_type not in SEARCHABLE_ATS or not ats_slug:
+    if ats_type not in SEARCHABLE_ATS and ats_type != "feed":
+        return CompanyScrapeResult()
+    if not ats_slug:
         return CompanyScrapeResult()
 
     if domain:
@@ -103,25 +148,31 @@ async def scrape_company_jobs(
 
     registry = get_board_registry()
     ats_error: Exception | None = None
-    try:
-        response = await scrape_jobs(
-            ats_type,  # type: ignore[arg-type]
-            ScrapeRequest(ats_slug=ats_slug, company_id=domain or ats_slug),
-        )
-    except Exception as exc:
-        logger.warning("Failed to scrape %s (%s): %s", company_name, ats_type, exc)
-        ats_error = exc
-        results: list[SearchResult] = []
-    else:
-        results = [
-            canonical_to_search_result(
-                job,
-                company_name=company_name,
-                ats_type=ats_type,
-                ats_slug=ats_slug,
-            )
-            for job in response.jobs
-        ]
+    async with _scrape_gate():
+        try:
+            if ats_type == "feed":
+                feed_jobs = await scrape_feed_jobs(ats_slug)
+                response_jobs = feed_jobs
+            else:
+                response = await scrape_jobs(
+                    ats_type,  # type: ignore[arg-type]
+                    ScrapeRequest(ats_slug=ats_slug, company_id=domain or ats_slug),
+                )
+                response_jobs = response.jobs
+        except Exception as exc:
+            logger.warning("Failed to scrape %s (%s): %s", company_name, ats_type, exc)
+            ats_error = exc
+            results: list[SearchResult] = []
+        else:
+            results = [
+                canonical_to_search_result(
+                    job,
+                    company_name=company_name,
+                    ats_type=ats_type,
+                    ats_slug=ats_slug,
+                )
+                for job in response_jobs
+            ]
 
     if results:
         finalized = _finalize_jobs(results, max_jobs, via_fallback=False)
@@ -136,7 +187,8 @@ async def scrape_company_jobs(
         finalized = _finalize_jobs(fallback, max_jobs, via_fallback=True)
         if domain:
             registry.record_board_success(domain)
-            set_cached_jobs(domain, finalized.jobs)
+            if ats_error is None:
+                set_cached_jobs(domain, finalized.jobs)
         return finalized
 
     if ats_error is not None:
@@ -172,6 +224,7 @@ async def _try_career_fallback(
     domain = str(company.get("domain", ""))
     company_name = str(company.get("name", "")) or None
     for url in _career_candidates(company):
+        await _polite_wait(url)
         try:
             jobs = await scrape_career_page(url, company_name=company_name)
         except Exception as exc:

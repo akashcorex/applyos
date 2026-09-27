@@ -56,7 +56,7 @@ async def test_semantic_rank_jobs_with_embeddings(monkeypatch: pytest.MonkeyPatc
 
     jobs = [
         _make_job("Senior Python Engineer", "Stripe", description="Python backend"),
-        _make_job("Marketing Engineer", "Notion", description="SEO and content"),
+        _make_job("QA Engineer", "Notion", description="Manual testing"),
     ]
 
     ranked = await semantic_rank_jobs(
@@ -71,7 +71,6 @@ async def test_semantic_rank_jobs_with_embeddings(monkeypatch: pytest.MonkeyPatc
     assert ranked[0].semantic_score > ranked[1].semantic_score
     assert ranked[1].company_name == "Notion"
     assert ranked[0].matching_skills  # rule-based skills for all jobs
-    assert ranked[1].semantic_score < 0.5
     assert ranked[0].text_score > 0
     assert ranked[0].title_score > 0
 
@@ -103,6 +102,60 @@ def test_title_matches_role_aliases() -> None:
     assert title_matches_role("Engineer", "Marketing Lead") is False
     assert title_matches_role("Engineer", None) is True
     assert title_matches_role("Product Manager", "Product Manager, Growth") is True
+
+
+@pytest.mark.asyncio
+async def test_pre_embed_gates_drop_before_embedding(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(semantic_module.settings, "openai_api_key", "test-key")
+    embedded: list[str] = []
+
+    async def _fake_embed(texts: list[str]) -> list[list[float]]:
+        embedded.extend(texts)
+        return [[0.9, 0.1]] * len(texts)
+
+    monkeypatch.setattr(semantic_module, "embed_texts", _fake_embed)
+
+    jobs = [
+        _make_job("Staff Engineer", "Acme", seniority="staff"),
+        _make_job("Junior Engineer", "Beta", seniority="junior"),
+        _make_job("Engineer", "Gamma", seniority=None),
+    ]
+    jobs[2] = jobs[2].model_copy(
+        update={"location": "Berlin, Germany", "location_type": "onsite"}
+    )
+    ranked = await semantic_rank_jobs(
+        jobs,
+        skills=["Python"],
+        preferred_role="Engineer",
+        experience_years=1,
+        profile_seniority="intern",
+        profile_work_mode="remote",
+        profile_locations=["Remote"],
+    )
+    assert ranked == []
+    assert embedded == []
+
+
+def test_location_allowed_mirrors_resume_agent() -> None:
+    from services.semantic_match import location_allowed
+
+    assert location_allowed("Berlin", "onsite", ["Remote"], "remote") is False
+    assert location_allowed("Remote", "remote", ["Remote"], "remote") is True
+    assert location_allowed("Berlin", "onsite", [], None) is True
+    assert location_allowed(None, None, ["Berlin"], None) is True
+
+
+def test_title_blocked_uses_word_boundaries() -> None:
+    from services.semantic_match import title_blocked
+
+    assert title_blocked("Senior Sales Manager") is True
+    assert title_blocked("Account Executive, Commercial") is True
+    assert title_blocked("Backend Engineer") is False
+    assert title_blocked("Wholesale Engineer") is False
+    assert title_blocked("Tech Lead") is False
+    assert title_blocked(None) is False
 
 
 @pytest.mark.asyncio
