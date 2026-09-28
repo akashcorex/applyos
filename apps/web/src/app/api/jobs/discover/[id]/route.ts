@@ -21,6 +21,12 @@ export async function GET(
       },
     );
     const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      console.error(
+        `[discover] GET API ${response.status}:`,
+        JSON.stringify(data).slice(0, 500),
+      );
+    }
     return Response.json(data, { status: response.status });
   } catch {
     return Response.json(

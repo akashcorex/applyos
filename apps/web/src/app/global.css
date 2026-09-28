@@ -4,6 +4,7 @@
 
 @layer base {
   :root {
+    color-scheme: light;
     --shell: #f9f9f9;
     --workspace: #ffffff;
     --workspace-sidebar: #f9f9f9;
@@ -55,6 +56,7 @@
   }
 
   .dark {
+    color-scheme: dark;
     --shell: #000000;
     --workspace: #000000;
     --workspace-sidebar: #000000;
@@ -107,6 +109,29 @@
 @layer base {
   * {
     @apply border-border;
+  }
+  html {
+    scrollbar-width: thin;
+    scrollbar-color: #d4d4d4 transparent;
+  }
+  html.dark {
+    scrollbar-color: #2e2e2e transparent;
+  }
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background-color: #d4d4d4;
+    border: 3px solid transparent;
+    border-radius: 8px;
+    background-clip: content-box;
+  }
+  html.dark ::-webkit-scrollbar-thumb {
+    background-color: #2e2e2e;
   }
   body {
     background-color: var(--shell);

@@ -15,6 +15,12 @@ import { authUserOf, requireAuth } from '../lib/authz';
 const RESUME_AGENT_URL =
   process.env.RESUME_AGENT_URL ?? 'http://127.0.0.1:8005';
 
+/** Railway process shared memory for background discovery errors (single-instance). */
+const globalScope = globalThis as typeof globalThis & {
+  __discoveryRuns?: Map<string, { controller?: AbortController }>;
+};
+globalScope.__discoveryRuns ??= new Map();
+
 type MatchJob = {
   dedup_key?: string | null;
   external_id?: string | null;
@@ -204,44 +210,130 @@ jobsRouter.post('/discover', async (req, res) => {
     profile.preferredRoles[0] ||
     resume.preferredRole ||
     'Software Engineer';
-  const startedAt = Date.now();
-  const query = new URLSearchParams({
-    max_companies: '15',
-    max_jobs: String(parsed.data.limit),
-    profile_role: role,
-    profile_experience_years: String(
-      profile.totalExperienceYears ?? resume.experienceYears ?? 0,
-    ),
-    profile_skills: profile.skills.join(','),
-    profile_locations: profile.preferredLocations.join(','),
-    profile_seniority: profile.seniority ?? '',
-    profile_work_mode: profile.workMode ?? '',
+
+  const session = await prisma.matchSession.create({
+    data: {
+      userId: me.id,
+      resumeId: resume.id,
+      queryRole: role,
+      discoveryStatus: 'pending',
+      topResults: [] as never,
+    },
   });
 
-  let response: Response;
+  res.status(202).json({ sessionId: session.id, status: 'pending' });
+  void startDiscovery({
+    sessionId: session.id,
+    userId: me.id,
+    resumeId: resume.id,
+    role,
+    limit: parsed.data.limit,
+    seniority: profile.seniority ?? '',
+    workMode: profile.workMode ?? '',
+    skills: profile.skills,
+    locations: profile.preferredLocations,
+    experienceYears:
+      profile.totalExperienceYears ?? resume.experienceYears ?? 0,
+  });
+});
+
+type DiscoveryRequest = {
+  sessionId: string;
+  userId: string;
+  resumeId: string;
+  role: string;
+  limit: number;
+  seniority: string;
+  workMode: string;
+  skills: string[];
+  locations: string[];
+  experienceYears: number;
+};
+
+function discoveryRequestQuery(request: DiscoveryRequest): string {
+  return new URLSearchParams({
+    max_companies: '15',
+    max_jobs: String(request.limit),
+    profile_role: request.role,
+    profile_experience_years: String(request.experienceYears),
+    profile_skills: request.skills.join(','),
+    profile_locations: request.locations.join(','),
+    profile_seniority: request.seniority,
+    profile_work_mode: request.workMode,
+  }).toString();
+}
+
+export async function startDiscovery(request: DiscoveryRequest) {
+  const runs = globalScope.__discoveryRuns!;
+  const existing = runs.get(request.sessionId);
+  if (existing) {
+    existing.controller?.abort();
+  }
+  const controller = new AbortController();
+  runs.set(request.sessionId, { controller });
+  const startedAt = Date.now();
+  const query = discoveryRequestQuery({
+    ...request,
+    limit: Math.max(1, Math.min(request.limit, 15)),
+  });
   try {
-    response = await fetch(
-      `${RESUME_AGENT_URL}/resume/${encodeURIComponent(resume.id)}/match?${query}`,
+    const response = await fetch(
+      `${RESUME_AGENT_URL}/resume/${encodeURIComponent(request.resumeId)}/match?${query}`,
       {
-        headers: { 'X-User-Id': me.id },
-        signal: AbortSignal.timeout(120000),
+        headers: { 'X-User-Id': request.userId },
+        signal: controller.signal,
       },
     );
-  } catch {
-    res.status(502).json({ error: 'Resume matching service is unavailable' });
-    return;
+    const data = (await response.json().catch(() => null)) as
+      (MatchResponse & { detail?: string; error?: string }) | null;
+    if (!response.ok) {
+      throw new Error(
+        data?.error ??
+          data?.detail ??
+          `Resume matching failed (HTTP ${response.status})`,
+      );
+    }
+    const latencyMs = Date.now() - startedAt;
+    await persistDiscoveryMatches(request, latencyMs, data);
+    runs.delete(request.sessionId);
+  } catch (error) {
+    const message = errorText(error, 'Unknown discovery error');
+    console.error(
+      `[jobs] discovery ${request.sessionId} failed:`,
+      error instanceof Error ? error.stack : message,
+    );
+    runs.delete(request.sessionId);
+    try {
+      await prisma.matchSession.update({
+        where: { id: request.sessionId },
+        data: {
+          discoveryStatus: 'failed',
+          discoveryError: message.slice(0, 500),
+          latencyMs: Date.now() - startedAt,
+        },
+      });
+    } catch (persistError) {
+      console.error('[jobs] discovery failure record failed:', persistError);
+    }
   }
-  const data = (await response.json().catch(() => null)) as
-    (MatchResponse & { detail?: string; error?: string }) | null;
-  if (!response.ok) {
-    res.status(502).json({
-      error: data?.error ?? data?.detail ?? 'Resume matching failed',
-    });
-    return;
-  }
+}
 
+function errorText(error: unknown, fallback: string): string {
+  if (error instanceof Error && error.name === 'TimeoutError') {
+    return 'Resume matching timed out';
+  }
+  if (error instanceof Error && error.name === 'AbortError') {
+    return 'Discovery was superseded by a newer request';
+  }
+  return error instanceof Error ? error.message : fallback;
+}
+
+async function persistDiscoveryMatches(
+  request: DiscoveryRequest,
+  latencyMs: number,
+  data: MatchResponse | null,
+) {
   const matchJobs = Array.isArray(data?.jobs) ? data.jobs : [];
-  const latencyMs = Date.now() - startedAt;
   const persisted = await prisma
     .$transaction(
       async (tx) => {
@@ -249,13 +341,6 @@ jobsRouter.post('/discover', async (req, res) => {
           id: string;
           score: number;
           reason: string;
-          firstSeenAt: Date;
-          lastSeenAt: Date;
-          companyName: string;
-          title: string;
-          location: string;
-          seniority: string | null;
-          applicationUrl: string | null;
           dedupKey: string;
         }[] = [];
 
@@ -328,13 +413,6 @@ jobsRouter.post('/discover', async (req, res) => {
                 : 0,
             reason:
               item.reason?.trim() || 'Recommended from your confirmed profile.',
-            firstSeenAt: job.firstSeenAt,
-            lastSeenAt: job.lastSeenAt,
-            companyName: job.companyName,
-            title: job.title,
-            location: job.location,
-            seniority: job.seniority,
-            applicationUrl: job.applicationUrl,
             dedupKey: job.dedupKey,
           });
         }
@@ -346,59 +424,30 @@ jobsRouter.post('/discover', async (req, res) => {
           reason: job.reason,
           rank: index + 1,
         }));
-        const sessionId = data?.session_id;
-        const session = sessionId
-          ? await tx.matchSession.findUnique({ where: { id: sessionId } })
-          : null;
-        const persistedSession = session
-          ? await tx.matchSession.update({
-              where: { id: session.id },
-              data: { topResults: topResults as never, latencyMs },
-            })
-          : await tx.matchSession.create({
-              data: {
-                userId: me.id,
-                resumeId: resume.id,
-                queryRole: role,
-                jobsScraped: data?.jobs_scraped ?? jobs.length,
-                jobsReturned: jobs.length,
-                companiesScraped: data?.companies_scraped ?? 0,
-                latencyMs,
-                topResults: topResults as never,
-              },
-            });
-
+        const persistedSession = await tx.matchSession.update({
+          where: { id: request.sessionId },
+          data: {
+            topResults: topResults as never,
+            latencyMs,
+            discoveryStatus: 'complete',
+            discoveryError: null,
+            jobsScraped: data?.jobs_scraped ?? jobs.length,
+            jobsReturned: jobs.length,
+            companiesScraped: data?.companies_scraped ?? 0,
+          },
+        });
         return { sessionId: persistedSession.id, jobs };
       },
       { maxWait: 10000, timeout: 30000 },
     )
     .catch((error) => {
       console.error('[jobs] discovery persistence failed:', error);
-      res.status(503).json({ error: 'Job results could not be saved' });
       return null;
     });
-  if (!persisted) return;
-
-  const saved = await prisma.savedJob.findMany({
-    where: {
-      userId: me.id,
-      jobId: { in: persisted.jobs.map((job) => job.id) },
-    },
-    select: { jobId: true },
-  });
-  const savedIds = new Set(saved.map((item) => item.jobId));
-  const visibleJobs = persisted.jobs.slice(0, 10);
-  res.status(200).json({
-    sessionId: persisted.sessionId,
-    jobs: visibleJobs.map((job) => ({
-      ...job,
-      isSaved: savedIds.has(job.id),
-    })),
-    totalJobs: persisted.jobs.length,
-    hasMore: visibleJobs.length < persisted.jobs.length,
-    latencyMs,
-  });
-});
+  if (!persisted) {
+    throw new Error('Job results could not be saved');
+  }
+}
 
 jobsRouter.get('/discover/:id', async (req, res) => {
   const parsed = jobListQuerySchema.safeParse({
@@ -419,7 +468,7 @@ jobsRouter.get('/discover/:id', async (req, res) => {
 
   const session = await prisma.matchSession.findFirst({
     where: { id: req.params.id, userId: me.id },
-    select: { topResults: true },
+    select: { topResults: true, discoveryStatus: true, discoveryError: true },
   });
   if (!session) {
     res.status(404).json({ error: 'Match session not found' });
@@ -474,6 +523,8 @@ jobsRouter.get('/discover/:id', async (req, res) => {
     hasMore: parsed.data.offset + page.length < topResults.length,
     offset: parsed.data.offset,
     limit,
+    status: session.discoveryStatus,
+    error: session.discoveryError ?? null,
   });
 });
 
