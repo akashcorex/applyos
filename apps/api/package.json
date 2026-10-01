@@ -10,15 +10,15 @@
     "start": "node dist/main.js"
   },
   "dependencies": {
-    "@fallow-cli/beacon": "^0.6.4",
+    "@fallow-cli/beacon": "^0.6.5",
     "@applyso/database": "workspace:*",
     "@applyso/validation": "workspace:*",
-    "better-auth": "^1.7.3",
+    "better-auth": "^1.7.6",
     "cors": "^2.8.5",
-    "dodopayments": "^2.4.1",
+    "dodopayments": "^2.52.0",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
-    "multer": "^2.3.0"
+    "multer": "^2.4.0"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",
