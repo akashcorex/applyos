@@ -1,3 +1,4 @@
+import { isPostingAlive } from '@/lib/job-liveness';
 import { requireHasResume } from '@/lib/require-resume';
 import { assertResumeOwner, requireUserId } from '@/lib/require-user';
 
@@ -269,6 +270,35 @@ export async function POST(request: Request) {
       );
     }
 
+    const liveness = await Promise.all(
+      eligibleJobs.map(async (job) => ({
+        job,
+        alive: job.application_url
+          ? await isPostingAlive(job.application_url)
+          : false,
+      })),
+    );
+    const closedJobs = liveness
+      .filter((entry) => !entry.alive)
+      .map((entry) => ({
+        title: entry.job.title,
+        company_name: entry.job.company_name,
+      }));
+    eligibleJobs = liveness
+      .filter((entry) => entry.alive)
+      .map((entry) => entry.job);
+
+    if (eligibleJobs.length === 0) {
+      return Response.json(
+        {
+          error:
+            'Every selected posting looks closed or unreachable. Try other roles.',
+          skipped_closed: closedJobs,
+        },
+        { status: 404 },
+      );
+    }
+
     const variantsRes = await fetch(
       `${RESUME_AGENT_URL}/resume/${encodeURIComponent(resumeId)}/variants`,
       {
@@ -514,6 +544,7 @@ export async function POST(request: Request) {
       status: workflowData.status,
       jobs_queued: queuedJobs.length,
       skipped: durableData.skipped ?? [],
+      skipped_closed: closedJobs,
       jobs: queuedJobs.map((job) => ({
         title: job.title,
         company_name: job.company_name,

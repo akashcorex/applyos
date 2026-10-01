@@ -155,6 +155,9 @@ function savedJobResponse(
       (Date.now() - new Date(job.firstSeenAt).getTime()) / (24 * 3600 * 1000),
     ),
   );
+  const flags: string[] = [];
+  if (!job.descriptionRaw?.trim()) flags.push('no_description');
+  if (ageDays > 90) flags.push('evergreen');
   return {
     id: job.id,
     dedupKey: job.dedupKey,
@@ -174,6 +177,7 @@ function savedJobResponse(
     lastSeenAt: job.lastSeenAt,
     ageDays,
     isNew: ageDays <= 7,
+    flags,
     isActive: job.isActive,
     isSaved,
   };
@@ -220,7 +224,6 @@ jobsRouter.post('/discover', async (req, res) => {
       topResults: [] as never,
     },
   });
-
   res.status(202).json({ sessionId: session.id, status: 'pending' });
   void startDiscovery({
     sessionId: session.id,
@@ -228,6 +231,7 @@ jobsRouter.post('/discover', async (req, res) => {
     resumeId: resume.id,
     role,
     limit: parsed.data.limit,
+    pack: parsed.data.pack?.trim() || undefined,
     seniority: profile.seniority ?? '',
     workMode: profile.workMode ?? '',
     skills: profile.skills,
@@ -243,6 +247,7 @@ type DiscoveryRequest = {
   resumeId: string;
   role: string;
   limit: number;
+  pack?: string;
   seniority: string;
   workMode: string;
   skills: string[];
@@ -251,7 +256,7 @@ type DiscoveryRequest = {
 };
 
 function discoveryRequestQuery(request: DiscoveryRequest): string {
-  return new URLSearchParams({
+  const query = new URLSearchParams({
     max_companies: '15',
     max_jobs: String(request.limit),
     profile_role: request.role,
@@ -260,7 +265,9 @@ function discoveryRequestQuery(request: DiscoveryRequest): string {
     profile_locations: request.locations.join(','),
     profile_seniority: request.seniority,
     profile_work_mode: request.workMode,
-  }).toString();
+  });
+  if (request.pack?.trim()) query.set('pack', request.pack.trim());
+  return query.toString();
 }
 
 export async function startDiscovery(request: DiscoveryRequest) {

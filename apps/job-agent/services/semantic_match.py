@@ -176,12 +176,68 @@ _ROLE_ALIASES: dict[str, list[str]] = {
 _STOPWORDS = frozenset({"and", "the", "for", "with", " iii", "iii", "ii", "iv"})
 
 
+def _blocked_patterns() -> list[re.Pattern]:
+    from config import settings
+
+    return [
+        re.compile(rf"\b{re.escape(keyword.strip().lower())}\b")
+        for keyword in settings.title_block_keywords
+        if keyword and keyword.strip()
+    ]
+
+
+def title_blocked(title: str | None) -> bool:
+    """True when the title hits a blocklisted phrase (word boundaries)."""
+    if not title:
+        return False
+    lowered = title.lower()
+    return any(pattern.search(lowered) for pattern in _blocked_patterns())
+
+
 def _significant_tokens(text: str) -> set[str]:
     return {
         word
         for word in re.findall(r"[a-z0-9+#.]+", text.lower())
         if len(word) > 1 and word not in _STOPWORDS
     }
+
+
+def profile_seniority_allowed(
+    profile_seniority: str | None,
+    job_seniority: str | None = None,
+    title: str | None = None,
+) -> bool:
+    """Unknown profile or job seniority stays eligible."""
+    if not profile_seniority:
+        return True
+    profile_rank = SENIORITY_RANK.get(profile_seniority.lower())
+    resolved_job = infer_seniority(title, job_seniority)
+    job_rank = SENIORITY_RANK.get(resolved_job) if resolved_job else None
+    return profile_rank is None or job_rank is None or job_rank <= profile_rank
+
+
+def location_allowed(
+    location: str | None,
+    location_type: str | None,
+    preferred_locations: list[str] | None,
+    work_mode: str | None,
+) -> bool:
+    """Mirror of resume-agent matching so gates agree pre- and post-embed."""
+    normalized_type = (location_type or "").strip().lower()
+    normalized_location = (location or "").strip().lower()
+    if work_mode and normalized_type and normalized_type != work_mode.lower():
+        return False
+    if not preferred_locations or not normalized_location:
+        return True
+    if normalized_type == "remote" and any(
+        preference.strip().lower() == "remote" for preference in preferred_locations
+    ):
+        return True
+    return any(
+        preference.strip().lower() in normalized_location
+        for preference in preferred_locations
+        if preference.strip()
+    )
 
 
 def title_matches_role(preferred_role: str, title: str | None) -> bool:
@@ -275,6 +331,9 @@ async def semantic_rank_jobs(
     profile_embedding: list[float] | None = None,
     intent_override: str | None = None,
     rank_all: bool = False,
+    profile_seniority: str | None = None,
+    profile_work_mode: str | None = None,
+    profile_locations: list[str] | None = None,
 ) -> list[SemanticMatchResult]:
     """Rank jobs by embedding cosine similarity; explain top-K with Claude.
 
@@ -285,18 +344,36 @@ async def semantic_rank_jobs(
     if not jobs:
         return []
 
-    before = len(jobs)
-    jobs = [
-        job
-        for job in jobs
-        if seniority_allowed(experience_years, job.seniority, job.title)
-        and title_matches_role(preferred_role, job.title)
-    ]
-    dropped = before - len(jobs)
-    if dropped:
+    def _gate_reject(job: SearchResult) -> str | None:
+        if title_blocked(job.title):
+            return "title_blocked"
+        if not seniority_allowed(experience_years, job.seniority, job.title):
+            return "seniority"
+        if not title_matches_role(preferred_role, job.title):
+            return "title"
+        if not profile_seniority_allowed(
+            profile_seniority, job.seniority, job.title
+        ):
+            return "profile_seniority"
+        if not location_allowed(
+            job.location, job.location_type, profile_locations, profile_work_mode
+        ):
+            return "location"
+        return None
+
+    gate_drops: dict[str, int] = {}
+    kept: list[SearchResult] = []
+    for job in jobs:
+        reason = _gate_reject(job)
+        if reason is None:
+            kept.append(job)
+        else:
+            gate_drops[reason] = gate_drops.get(reason, 0) + 1
+    jobs = kept
+    if gate_drops:
         logger.info(
-            "Dropped %d seniority/title-mismatched job(s) for role=%s",
-            dropped,
+            "Pre-embed gates dropped %s for role=%s",
+            gate_drops,
             preferred_role,
         )
     if not jobs:

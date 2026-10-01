@@ -77,14 +77,47 @@ def test_rotation_respects_budget_including_reprobe(
     assert "co0.com" in {str(b["domain"]) for b in boards}
 
 
+def test_pack_constrains_window_to_tagged_boards(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import config
+    import sqlite3
+
+    from services.search_inventory import get_searchable_companies
+
+    _inventory_registry(tmp_path, monkeypatch, count=4)
+    monkeypatch.setattr(config.settings, "board_reprobe_slots", 0)
+    with sqlite3.connect(tmp_path / "inv.db") as conn:
+        conn.execute(
+            "UPDATE board_registry SET tags = ? WHERE domain = ?",
+            ('["fintech"]', "co0.com"),
+        )
+        conn.execute(
+            "UPDATE board_registry SET tags = ? WHERE domain = ?",
+            ('["fintech"]', "co1.com"),
+        )
+    boards = get_searchable_companies(10, pack="fintech")
+    assert {str(b["domain"]) for b in boards} == {"co0.com", "co1.com"}
+    assert get_searchable_companies(10, pack="eu") == []
+    assert len(get_searchable_companies(10)) == 4
+
+
 @pytest.mark.asyncio
-async def test_scrape_company_jobs_accepts_ashby(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_scrape_company_jobs_accepts_ashby(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import config
+    from services import board_registry as registry_module
+
+    monkeypatch.setattr(config.settings, "registry_db_path", str(tmp_path / "r.db"))
+    monkeypatch.setattr(registry_module, "_registry", None)
+
     async def fake_scrape(ats_type, payload):
         assert ats_type == "ashby"
         return ScrapeResponse(
             ats_type="ashby",
-            ats_slug="mercury",
-            company_id="mercury.com",
+            ats_slug="fakeco",
+            company_id="fakeco.example.com",
             jobs_found=1,
             jobs=[
                 CanonicalJob(
@@ -92,8 +125,8 @@ async def test_scrape_company_jobs_accepts_ashby(monkeypatch: pytest.MonkeyPatch
                     source="ashby",
                     title="Backend Engineer",
                     title_normalized="backend engineer",
-                    application_url="https://jobs.ashbyhq.com/mercury/1",
-                    dedup_key="mercury::backend engineer",
+                    application_url="https://jobs.ashbyhq.com/fakeco/1",
+                    dedup_key="fakeco::backend engineer",
                 )
             ],
         )
@@ -101,10 +134,10 @@ async def test_scrape_company_jobs_accepts_ashby(monkeypatch: pytest.MonkeyPatch
     monkeypatch.setattr("services.company_scrape.scrape_jobs", fake_scrape)
     scraped = await scrape_company_jobs(
         {
-            "name": "Mercury",
-            "domain": "mercury.com",
+            "name": "FakeCo",
+            "domain": "fakeco.example.com",
             "ats_type": "ashby",
-            "ats_slug": "mercury",
+            "ats_slug": "fakeco",
         },
         10,
     )
@@ -310,10 +343,42 @@ async def test_fallback_serves_when_ats_fails(
     assert [job.title for job in scraped.jobs] == ["Support Engineer"]
     assert scraped.via_fallback is True
     assert seen_urls[0] == "https://fallback.example.com/careers"
-    assert get_cached_jobs("fallback.example.com") is not None
+    assert get_cached_jobs("fallback.example.com") is None
     board = get_board_registry().get_board_by_domain("fallback.example.com")
     assert board is not None
     assert board["active"] is True
+
+
+@pytest.mark.asyncio
+async def test_fallback_caches_only_when_ats_healthy(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import config
+    from services import board_registry as registry_module
+    from services.board_cache import get_cached_jobs
+
+    monkeypatch.setattr(config.settings, "registry_db_path", str(tmp_path / "r.db"))
+    monkeypatch.setattr(registry_module, "_registry", None)
+
+    async def empty(ats_type, payload):
+        return ScrapeResponse(
+            ats_type="greenhouse",
+            ats_slug="fallback",
+            company_id="fallback.example.com",
+            jobs_found=0,
+            jobs=[],
+        )
+
+    async def fallback(url, **kwargs):
+        return [_fallback_job()]
+
+    monkeypatch.setattr("services.company_scrape.scrape_jobs", empty)
+    monkeypatch.setattr("services.company_scrape.scrape_career_page", fallback)
+    scraped = await scrape_company_jobs(_fallback_company(), 10)
+
+    assert len(scraped.jobs) == 1
+    assert scraped.via_fallback is True
+    assert get_cached_jobs("fallback.example.com") is not None
 
 
 @pytest.mark.asyncio
@@ -362,6 +427,49 @@ async def test_fallback_tries_domain_paths_without_stored_url(
         "https://fallback.example.com/jobs",
     ]
     assert _career_candidates({"domain": "", "career_url": ""}) == []
+
+
+@pytest.mark.asyncio
+async def test_feed_board_uses_per_job_company(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import config
+    from services import board_registry as registry_module
+
+    monkeypatch.setattr(config.settings, "registry_db_path", str(tmp_path / "r.db"))
+    monkeypatch.setattr(registry_module, "_registry", None)
+
+    async def fake_feed(feed_id: str):
+        from models import CanonicalJob
+
+        assert feed_id == "remoteok"
+        return [
+            CanonicalJob(
+                external_id="1",
+                source="feed",
+                title="Backend Engineer",
+                title_normalized="backend engineer",
+                company_name="Acme",
+                application_url="https://example.com/1",
+                dedup_key="acme::backend engineer::unknown",
+            )
+        ]
+
+    monkeypatch.setattr("services.company_scrape.scrape_feed_jobs", fake_feed)
+    results = await scrape_company_jobs(
+        {
+            "name": "RemoteOK",
+            "domain": "remoteok.com",
+            "ats_type": "feed",
+            "ats_slug": "remoteok",
+        },
+        10,
+    )
+
+    assert len(results.jobs) == 1
+    assert results.jobs[0].company_name == "Acme"
+    assert results.jobs[0].ats_type == "feed"
+    assert results.via_fallback is False
 
 
 def _dated_job(key: str, posted_at: str | None) -> CanonicalJob:
@@ -433,3 +541,30 @@ async def test_truncation_keeps_newest_and_drops_stale(
     cached = get_cached_jobs("dated.com")
     assert cached is not None
     assert [job.external_id for job in cached] == ["new", "mid"]
+
+
+@pytest.mark.asyncio
+async def test_polite_wait_enforces_host_interval(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import time
+
+    import config
+    from services import company_scrape as scrape_module
+
+    monkeypatch.setattr(config.settings, "scrape_min_interval_seconds", 0.2)
+    scrape_module._last_fetch_at.clear()
+    started = time.monotonic()
+    await scrape_module._polite_wait("https://example.com/careers")
+    await scrape_module._polite_wait("https://example.com/jobs")
+    elapsed = time.monotonic() - started
+    assert elapsed >= 0.15
+
+
+@pytest.mark.asyncio
+async def test_polite_wait_skips_empty_hosts(monkeypatch: pytest.MonkeyPatch) -> None:
+    import config
+    from services import company_scrape as scrape_module
+
+    monkeypatch.setattr(config.settings, "scrape_min_interval_seconds", 30.0)
+    await scrape_module._polite_wait("not-a-url")

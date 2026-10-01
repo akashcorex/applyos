@@ -42,11 +42,16 @@ def test_init_db_seeds_from_json(registry: BoardRegistry) -> None:
 def test_seed_active_entries_have_probeable_boards() -> None:
     from services.board_audit import probe_url_for
     from services.ingest import PARSERS
+    from services.parsers.feeds import FEED_PARSERS
 
     payload = json.loads(REGISTRY_SEED_PATH.read_text(encoding="utf-8"))
     for row in payload:
-        assert row["ats_type"] in PARSERS, row["domain"]
-        assert row["ats_slug"], row["domain"]
+        known = row["ats_type"] in PARSERS or row["ats_type"] in ("feed",)
+        assert known, row["domain"]
+        if row["ats_type"] == "feed":
+            assert row["ats_slug"] in FEED_PARSERS, row["domain"]
+        else:
+            assert row["ats_slug"], row["domain"]
         if row.get("active", True):
             assert probe_url_for(row["ats_type"], row["ats_slug"]) is not None
 
@@ -193,6 +198,122 @@ def test_record_board_success_reactivates(
     stripe = registry.get_board_by_domain("stripe.com")
     assert stripe is not None
     assert stripe["active"] is True
+
+
+def test_seed_and_sync_round_trip_tags(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from services import board_registry as registry_module
+
+    monkeypatch.setattr(registry_module, "_registry", None)
+    seed_path = tmp_path / "seed.json"
+    seed_path.write_text(
+        json.dumps(
+            [
+                {
+                    "domain": "tagged.com",
+                    "company_name": "Tagged",
+                    "ats_type": "greenhouse",
+                    "ats_slug": "tagged",
+                    "career_url": None,
+                    "source": "pilot",
+                    "active": True,
+                    "tags": ["fintech"],
+                }
+            ]
+        ),
+        encoding="utf-8",
+    )
+    registry = BoardRegistry(db_path=tmp_path / "tags.db", seed_path=seed_path)
+    registry.init_db()
+    board = registry.get_board_by_domain("tagged.com")
+    assert board is not None
+    assert board["tags"] == ["fintech"]
+
+    seed_path.write_text(
+        json.dumps(
+            [
+                {
+                    "domain": "tagged.com",
+                    "company_name": "Tagged",
+                    "ats_type": "greenhouse",
+                    "ats_slug": "tagged",
+                    "career_url": None,
+                    "source": "pilot",
+                    "active": True,
+                    "tags": ["fintech", "eu"],
+                }
+            ]
+        ),
+        encoding="utf-8",
+    )
+    BoardRegistry(db_path=tmp_path / "tags.db", seed_path=seed_path).init_db()
+    board = registry.get_board_by_domain("tagged.com")
+    assert board is not None
+    assert board["tags"] == ["eu", "fintech"]
+
+
+def test_note_round_trip_and_seed_sync(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from services import board_registry as registry_module
+
+    monkeypatch.setattr(registry_module, "_registry", None)
+    seed_path = tmp_path / "seed.json"
+    seed_path.write_text(
+        json.dumps(
+            [
+                {
+                    "domain": "noted.com",
+                    "company_name": "Noted",
+                    "ats_type": "greenhouse",
+                    "ats_slug": "noted",
+                    "career_url": None,
+                    "source": "pilot",
+                    "active": False,
+                }
+            ]
+        ),
+        encoding="utf-8",
+    )
+    registry = BoardRegistry(db_path=tmp_path / "notes.db", seed_path=seed_path)
+    registry.init_db()
+    board = registry.get_board_by_domain("noted.com")
+    assert board is not None
+    assert board["note"] is None
+
+    updated = registry.upsert_board(
+        domain="noted.com",
+        company_name="Noted",
+        ats_type="greenhouse",
+        ats_slug="noted",
+        source="pilot",
+        active=False,
+        note="custom board, no API",
+    )
+    assert updated["note"] == "custom board, no API"
+
+    seed_path.write_text(
+        json.dumps(
+            [
+                {
+                    "domain": "noted.com",
+                    "company_name": "Noted",
+                    "ats_type": "greenhouse",
+                    "ats_slug": "noted",
+                    "career_url": None,
+                    "source": "pilot",
+                    "active": False,
+                    "note": "seed reason",
+                }
+            ]
+        ),
+        encoding="utf-8",
+    )
+    BoardRegistry(db_path=tmp_path / "notes.db", seed_path=seed_path).init_db()
+    board = registry.get_board_by_domain("noted.com")
+    assert board is not None
+    assert board["note"] == "seed reason"
 
 
 def test_rotation_window_advances_cursor(

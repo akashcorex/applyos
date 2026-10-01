@@ -170,6 +170,12 @@ async def _callback_api(
         logger.error("AGENT_SERVICE_TOKEN missing; cannot callback API")
         raise HTTPException(status_code=500, detail="Service token is not configured")
     base = settings.api_url.rstrip("/")
+    if ":5000" in base:
+        logger.warning(
+            "API_URL points at :5000 (%s) — local API runs on :3333 "
+            "(macOS AirPlay occupies :5000 and returns 403)",
+            base,
+        )
     path = "complete" if complete is not None else "fail"
     url = f"{base}/v1/resumes/internal/{resume_file_id}/{path}"
     payload = complete if complete is not None else (fail or {})
@@ -535,6 +541,7 @@ async def match_resume(
     profile_locations: str | None = None,
     profile_seniority: str | None = None,
     profile_work_mode: str | None = None,
+    pack: str | None = None,
 ) -> MatchResponse:
     state = _state(request)
     matcher: JobMatcher | None = state.matcher
@@ -561,6 +568,7 @@ async def match_resume(
         profile_seniority=profile_seniority,
         profile_work_mode=profile_work_mode,
         profile_locations=record.preferred_locations,
+        pack=pack,
     )
     response.intent_override = intent_override
 
@@ -676,6 +684,7 @@ async def match_stream_resume(
     profile_locations: str | None = None,
     profile_seniority: str | None = None,
     profile_work_mode: str | None = None,
+    pack: str | None = None,
 ) -> StreamingResponse:
     from services.matching.sse import format_sse
 
@@ -707,6 +716,7 @@ async def match_stream_resume(
             profile_seniority=profile_seniority,
             profile_work_mode=profile_work_mode,
             profile_locations=record.preferred_locations,
+            pack=pack,
         ):
             if frame["event"] == "batch":
                 collected.extend(

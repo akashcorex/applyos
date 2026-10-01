@@ -14,6 +14,14 @@ logger = logging.getLogger(__name__)
 _vectorstore: PGVector | None = None
 
 
+def _async_connection_string(url: str) -> str:
+    if url.startswith("postgresql://"):
+        return "postgresql+asyncpg://" + url[len("postgresql://") :]
+    if url.startswith("postgres://"):
+        return "postgresql+asyncpg://" + url[len("postgres://") :]
+    return url
+
+
 def get_vectorstore(embeddings: Embeddings | None = None) -> PGVector:
     global _vectorstore
     if _vectorstore is not None and embeddings is None:
@@ -26,8 +34,9 @@ def get_vectorstore(embeddings: Embeddings | None = None) -> PGVector:
 
     _vectorstore = PGVector(
         embeddings=embeddings,
-        connection=settings.database_url,
+        connection=_async_connection_string(settings.database_url),
         collection_name=settings.rag_collection_name,
+        async_mode=True,
     )
     logger.info("PGVector initialised (collection=%s)", settings.rag_collection_name)
     return _vectorstore

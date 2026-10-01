@@ -1,10 +1,14 @@
 from models import AtsType, CanonicalJob, ScrapeRequest, ScrapeResponse
 from services.normalizer import to_canonical_job
 from services.parsers.ashby import AshbyParser
+from services.parsers.breezy import BreezyParser
+from services.parsers.feeds import FEED_PARSERS
 from services.parsers.greenhouse import GreenhouseParser
 from services.parsers.lever import LeverParser
 from services.parsers.personio import PersonioParser
 from services.parsers.recruitee import RecruiteeParser
+from services.parsers.rippling import RipplingParser
+from services.parsers.teamtailor import TeamtailorParser
 from services.parsers.wellfound import WellfoundParser
 from services.parsers.workable import WorkableParser
 
@@ -16,7 +20,31 @@ PARSERS = {
     "recruitee": RecruiteeParser(),
     "personio": PersonioParser(),
     "wellfound": WellfoundParser(),
+    "teamtailor": TeamtailorParser(),
+    "breezy": BreezyParser(),
+    "rippling": RipplingParser(),
 }
+
+
+async def scrape_feed_jobs(feed_id: str) -> list[CanonicalJob]:
+    """Normalize one aggregator feed; namespace follows each job's company."""
+    parser = FEED_PARSERS.get(feed_id)
+    if parser is None:
+        raise RuntimeError(f"Unknown feed: {feed_id}")
+    raw_jobs = await parser.fetch_jobs()
+
+    canonical_jobs: list[CanonicalJob] = []
+    seen_dedup_keys: set[str] = set()
+
+    for raw_job in raw_jobs:
+        namespace = (raw_job.company_name or feed_id).strip().lower() or feed_id
+        canonical = to_canonical_job(raw_job, "feed", namespace)
+        if canonical.dedup_key in seen_dedup_keys:
+            continue
+        seen_dedup_keys.add(canonical.dedup_key)
+        canonical_jobs.append(canonical)
+
+    return canonical_jobs
 
 
 async def scrape_jobs(ats_type: AtsType, payload: ScrapeRequest) -> ScrapeResponse:

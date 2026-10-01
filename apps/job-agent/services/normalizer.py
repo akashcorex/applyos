@@ -65,6 +65,7 @@ def to_canonical_job(
         source=source,
         title=raw.title,
         title_normalized=title_normalized,
+        company_name=raw.company_name,
         department=raw.department,
         location=raw.location,
         location_normalized=location_normalized,
@@ -80,5 +81,8 @@ def to_canonical_job(
         application_url=raw.application_url,
         posted_at=raw.posted_at,
         dedup_key=build_dedup_key(namespace, title_normalized, location_normalized),
+        salary_min=raw.salary_min,
+        salary_max=raw.salary_max,
+        salary_currency=raw.salary_currency,
         raw_payload=raw.raw_payload,
     )

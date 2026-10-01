@@ -14,6 +14,10 @@ AtsType = Literal[
     "recruitee",
     "personio",
     "wellfound",
+    "teamtailor",
+    "breezy",
+    "rippling",
+    "feed",
     "generic",
 ]
 
@@ -76,6 +80,8 @@ class RegistryBoard(BaseModel):
     source: BoardSource = "manual"
     active: bool = True
     last_verified_at: str | None = None
+    tags: list[str] = Field(default_factory=list)
+    note: str | None = None
 
 
 class RegistryListResponse(BaseModel):
@@ -91,6 +97,7 @@ class RegistryUpsertRequest(BaseModel):
     career_url: str | None = None
     source: BoardSource = "manual"
     active: bool = True
+    note: str | None = Field(default=None, max_length=280)
 
     @field_validator("ats_slug")
     @classmethod
@@ -151,6 +158,7 @@ class GrowthResponse(BaseModel):
 class RawJob(BaseModel):
     external_id: str
     title: str
+    company_name: str | None = None
     department: str | None = None
     location: str | None = None
     description_raw: str | None = None
@@ -158,6 +166,9 @@ class RawJob(BaseModel):
     workplace_type: str | None = None
     application_url: str | None = None
     posted_at: str | None = None
+    salary_min: int | None = None
+    salary_max: int | None = None
+    salary_currency: str | None = None
     raw_payload: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -166,6 +177,7 @@ class CanonicalJob(BaseModel):
     source: AtsType
     title: str
     title_normalized: str
+    company_name: str | None = None
     department: str | None = None
     location: str | None = None
     location_normalized: str | None = None
@@ -182,6 +194,9 @@ class CanonicalJob(BaseModel):
     application_url: str | None = None
     posted_at: str | None = None
     dedup_key: str
+    salary_min: int | None = None
+    salary_max: int | None = None
+    salary_currency: str | None = None
     raw_payload: dict[str, Any] | None = None
 
 
@@ -251,6 +266,7 @@ class SearchRequest(BaseModel):
     max_companies: int = Field(default=20, ge=1, le=100)
     max_jobs_per_company: int = Field(default=50, ge=1, le=200)
     experience_years: int = Field(default=0, ge=0)
+    pack: str | None = Field(default=None, max_length=32)
 
 
 class SearchResult(BaseModel):
@@ -268,6 +284,10 @@ class SearchResult(BaseModel):
     ats_slug: str
     description: str | None = None
     posted_at: str | None = None
+    salary_min: int | None = None
+    salary_max: int | None = None
+    salary_currency: str | None = None
+    flags: list[str] = Field(default_factory=list)
 
 
 class BoardAttempt(BaseModel):
@@ -283,6 +303,7 @@ class BoardAttempt(BaseModel):
     latency_ms: int = 0
     via_fallback: bool = False
     dropped_stale: int = 0
+    note: str | None = None
 
 
 class SearchResponse(BaseModel):
@@ -304,6 +325,10 @@ class SemanticSearchRequest(BaseModel):
     recent_highlights: list[str] = Field(default_factory=list)
     profile_embedding: list[float] | None = None
     intent_override: str | None = Field(default=None, max_length=256)
+    profile_seniority: str | None = None
+    profile_work_mode: str | None = None
+    profile_locations: list[str] = Field(default_factory=list)
+    pack: str | None = Field(default=None, max_length=32)
 
 
 class SemanticMatchResult(SearchResult):
