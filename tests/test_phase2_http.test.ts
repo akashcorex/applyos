@@ -391,7 +391,7 @@ describe('Phase 2 HTTP auth + lifecycle', () => {
     expect((await res.json()).savedJobId).toBe('saved-1');
   });
 
-  it('upserts discovery jobs while preserving first seen time', async () => {
+  it('accepts discovery and upserts jobs in the background preserving first seen time', async () => {
     sessionUser = USER_A;
     profile.findFirst.mockResolvedValue({
       id: 'profile-a',
@@ -427,8 +427,8 @@ describe('Phase 2 HTTP auth + lifecycle', () => {
       ...firstJob,
       lastSeenAt: secondSeenAt,
     });
-    matchSession.findUnique.mockResolvedValue(null);
     matchSession.create.mockResolvedValue({ id: 'session-1' });
+    matchSession.update.mockResolvedValue({ id: 'session-1' });
     savedJob.findMany.mockResolvedValue([]);
     const originalFetch = globalThis.fetch;
     globalThis.fetch = (async (input, init) => {
@@ -465,8 +465,15 @@ describe('Phase 2 HTTP auth + lifecycle', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ profileId: 'profile-a', limit: 1 }),
       });
-      expect(first.status).toBe(200);
-      expect(second.status).toBe(200);
+      expect(first.status).toBe(202);
+      expect(second.status).toBe(202);
+      for (
+        let attempt = 0;
+        attempt < 50 && job.upsert.mock.calls.length < 2;
+        attempt += 1
+      ) {
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      }
       expect(job.upsert).toHaveBeenCalledTimes(2);
       expect(job.upsert.mock.calls[0]?.[0]?.create.firstSeenAt).toBeInstanceOf(
         Date,

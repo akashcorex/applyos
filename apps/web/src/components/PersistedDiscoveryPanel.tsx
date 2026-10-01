@@ -51,6 +51,8 @@ interface DiscoveryResponse {
   totalJobs: number;
   hasMore: boolean;
   latencyMs: number;
+  status?: string;
+  error?: string | null;
 }
 
 interface JobCardProps {
@@ -379,20 +381,64 @@ export function PersistedDiscoveryPanel() {
         setError(data.error ?? 'Could not discover jobs');
         return;
       }
-      setSessionId(data.sessionId);
-      setJobs(data.jobs ?? []);
-      setTotalJobs(data.totalJobs ?? data.jobs?.length ?? 0);
-      setLoadedCount(data.jobs?.length ?? 0);
-      setVisibleCount(RENDER_BATCH);
-      setSelected([]);
-      setMessage(
-        `${data.totalJobs ?? data.jobs?.length ?? 0} persisted matches found in ${data.latencyMs}ms`,
-      );
+      // 202 + pending: wait for the background discovery to finish.
+      if (data.status === 'pending') {
+        setMessage('Discovering jobs…');
+        const done = await pollSession(data.sessionId);
+        if (!done) return;
+      } else {
+        setSessionId(data.sessionId);
+        setJobs(data.jobs ?? []);
+        setTotalJobs(data.totalJobs ?? data.jobs?.length ?? 0);
+        setLoadedCount(data.jobs?.length ?? 0);
+        setVisibleCount(RENDER_BATCH);
+        setSelected([]);
+        setMessage(
+          `${data.totalJobs ?? data.jobs?.length ?? 0} persisted matches found in ${data.latencyMs}ms`,
+        );
+      }
     } catch {
       setError('Job discovery service is unavailable');
     } finally {
       setLoading(false);
     }
+  }
+
+  async function pollSession(id: string): Promise<boolean> {
+    for (let attempt = 0; attempt < 40; attempt += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+      try {
+        const response = await fetch(
+          `/api/jobs/discover/${encodeURIComponent(id)}?limit=10&offset=0`,
+          { cache: 'no-store' },
+        );
+        if (!response.ok) continue;
+        const data = (await response.json()) as DiscoveryResponse & {
+          status?: string;
+          error?: string;
+        };
+        if (data.status === 'failed') {
+          setError(data.error ?? 'Discovery failed');
+          return false;
+        }
+        if (data.status === 'complete') {
+          setSessionId(id);
+          setJobs(data.jobs ?? []);
+          setTotalJobs(data.totalJobs ?? data.jobs?.length ?? 0);
+          setLoadedCount(data.jobs?.length ?? 0);
+          setVisibleCount(RENDER_BATCH);
+          setSelected([]);
+          setMessage(
+            `${data.totalJobs ?? data.jobs?.length ?? 0} persisted matches found`,
+          );
+          return true;
+        }
+      } catch {
+        // transient network error — keep polling
+      }
+    }
+    setError('Discovery is taking longer than expected — try again later');
+    return false;
   }
 
   const loadMore = useCallback(async () => {

@@ -772,6 +772,8 @@ model MatchSession {
   jobsReturned     Int      @default(0) @map("jobs_returned")
   companiesScraped Int      @default(0) @map("companies_scraped")
   latencyMs        Int?     @map("latency_ms")
+  discoveryStatus  String   @default("complete") @map("discovery_status")
+  discoveryError   String?  @map("discovery_error")
   topResults       Json     @default("[]") @map("top_results") @db.JsonB
   createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   interactions     MatchInteraction[]

@@ -14,6 +14,7 @@ import {
   Award01Icon,
   Bookmark01Icon,
   BookmarkCheck01Icon,
+  BookOpen01Icon,
   Briefcase01Icon,
   CalendarCheckIn01Icon,
   Call02Icon,
@@ -130,6 +131,7 @@ export const Award = icon(Award01Icon);
 export const Bell = icon(Notification03Icon);
 export const Bookmark = icon(Bookmark01Icon);
 export const BookmarkCheck = icon(BookmarkCheck01Icon);
+export const BookOpen = icon(BookOpen01Icon);
 export const Bot = icon(RoboticIcon);
 export const Briefcase = icon(Briefcase01Icon);
 export const CalendarCheck = icon(CalendarCheckIn01Icon);

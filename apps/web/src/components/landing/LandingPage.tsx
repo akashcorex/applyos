@@ -8,6 +8,7 @@ import HeroSection from './HeroSection';
 import Navbar from './navbar-shrink';
 import PricingSection from './PricingSection';
 import TestimonialsSection from './TestimonialsSection';
+import WhyBadges from './why-badges';
 
 export function LandingPage() {
   return (
@@ -15,6 +16,7 @@ export function LandingPage() {
       <Navbar />
       <HeroSection />
       <FeaturesBlock />
+      <WhyBadges />
       <TestimonialsSection />
       <PricingSection />
       <FAQ />

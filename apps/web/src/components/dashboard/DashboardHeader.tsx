@@ -50,9 +50,9 @@ export function DashboardHeader({
           size="icon"
           aria-label="Toggle navigation sidebar"
           onClick={onToggleSidebar}
-          className="md:hidden h-8 w-8 rounded-[4px]"
+          className="md:hidden h-8 w-8 rounded-[6px] [&_svg]:size-4"
         >
-          <Menu className="h-4 w-4" />
+          <Menu className="size-4" />
         </Button>
 
         <Breadcrumb className="min-w-0 flex-1">
@@ -112,19 +112,25 @@ export function DashboardHeader({
         {/* Dark / Light Mode Switcher */}
         <ThemeToggle />
 
-        <a
-          href="mailto:support@applyos.in"
-          aria-label="Help and documentation"
-          className="inline-flex h-8 w-8 items-center justify-center rounded-[6px] border border-border bg-background text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors cursor-pointer"
+        <Button
+          variant="outline"
+          size="icon"
+          asChild
+          className="h-8 w-8 rounded-[6px] [&_svg]:size-4"
         >
-          <HelpCircle className="size-4" />
-        </a>
+          <a
+            href="mailto:support@applyos.in"
+            aria-label="Help and documentation"
+          >
+            <HelpCircle className="size-4" />
+          </a>
+        </Button>
 
         <Button
           variant="outline"
           size="icon"
           aria-label="Notifications"
-          className="h-8 w-8 rounded-[6px]"
+          className="h-8 w-8 rounded-[6px] [&_svg]:size-4"
         >
           <Bell className="size-4" />
         </Button>
