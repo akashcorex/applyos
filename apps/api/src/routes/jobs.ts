@@ -551,9 +551,13 @@ jobsRouter.get('/discover/:id', async (req, res) => {
   }
 });
 
+/** Jobs first seen within this window count as fresh for the "new" feed. */
+const FRESH_JOB_DAYS = 7;
+
 jobsRouter.get('/', async (req, res) => {
   const parsed = jobListQuerySchema.safeParse({
     saved: queryValue(req.query.saved),
+    fresh: queryValue(req.query.fresh),
     q: queryValue(req.query.q),
     limit: queryValue(req.query.limit),
     offset: queryValue(req.query.offset),
@@ -570,6 +574,10 @@ jobsRouter.get('/', async (req, res) => {
     return;
   }
 
+  const freshSince =
+    parsed.data.fresh === 'true'
+      ? new Date(Date.now() - FRESH_JOB_DAYS * 24 * 3600 * 1000)
+      : null;
   const savedFilter =
     parsed.data.saved === 'true'
       ? { some: { userId: me.id } }
@@ -579,6 +587,7 @@ jobsRouter.get('/', async (req, res) => {
   const jobs = await prisma.job.findMany({
     where: {
       isActive: true,
+      ...(freshSince ? { firstSeenAt: { gte: freshSince } } : {}),
       ...(parsed.data.q
         ? {
             OR: [
@@ -590,7 +599,7 @@ jobsRouter.get('/', async (req, res) => {
         : {}),
       ...(savedFilter ? { savedBy: savedFilter } : {}),
     },
-    orderBy: { lastSeenAt: 'desc' },
+    orderBy: freshSince ? { firstSeenAt: 'desc' } : { lastSeenAt: 'desc' },
     take: parsed.data.limit,
     skip: parsed.data.offset,
   });
@@ -601,7 +610,23 @@ jobsRouter.get('/', async (req, res) => {
   const savedIds = new Set(saved.map((item) => item.jobId));
   res.status(200).json({
     jobs: jobs.map((job) => savedJobResponse(job, savedIds.has(job.id))),
+    ...(freshSince ? { seenAt: profile.jobsSeenAt ?? null } : {}),
   });
+});
+
+jobsRouter.post('/seen', async (req, res) => {
+  const me = authUserOf(req);
+  const profile = await confirmedProfile(me.id);
+  if (!profile) {
+    res.status(403).json({ error: 'A confirmed profile is required' });
+    return;
+  }
+  const seenAt = new Date();
+  await prisma.profile.update({
+    where: { id: profile.id },
+    data: { jobsSeenAt: seenAt },
+  });
+  res.status(200).json({ seenAt });
 });
 
 jobsRouter.get('/selections/:id', async (req, res) => {

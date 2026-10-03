@@ -39,6 +39,7 @@ interface Job {
   firstSeenAt: string;
   lastSeenAt: string;
   isNew?: boolean;
+  isActive?: boolean;
   flags?: string[];
   score?: number;
   reason?: string;
@@ -233,6 +234,11 @@ const JobCard = memo(function JobCard({
               <span className="rounded-full bg-sky-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-sky-600">
                 NEW
               </span>
+            ) : null}{' '}
+            {job.isActive === false ? (
+              <span className="rounded-full bg-slate-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500">
+                CLOSED
+              </span>
             ) : null}
           </span>
           <span className="block truncate text-[11px] text-slate-500">
@@ -280,6 +286,9 @@ export function PersistedDiscoveryPanel() {
   const [staging, setStaging] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [freshJobs, setFreshJobs] = useState<Job[]>([]);
+  const [freshSeenAt, setFreshSeenAt] = useState<string | null>(null);
+  const [freshLoading, setFreshLoading] = useState(false);
   const impressionedIds = useRef<Set<string>>(new Set());
   const lastSession = useRef<string | null>(null);
 
@@ -297,9 +306,45 @@ export function PersistedDiscoveryPanel() {
   }, []);
 
   const selectedJobs = useMemo(
-    () => jobs.filter((job) => selected.includes(job.id)),
-    [jobs, selected],
+    () => [...jobs, ...freshJobs].filter((job) => selected.includes(job.id)),
+    [jobs, freshJobs, selected],
   );
+
+  const isUnseen = useCallback(
+    (job: Job): boolean | undefined => {
+      if (!freshSeenAt) return job.isNew;
+      const seen = new Date(freshSeenAt).getTime();
+      const first = new Date(job.firstSeenAt).getTime();
+      if (Number.isNaN(seen) || Number.isNaN(first)) return job.isNew;
+      return first > seen;
+    },
+    [freshSeenAt],
+  );
+
+  const loadFresh = useCallback(async () => {
+    setFreshLoading(true);
+    try {
+      const response = await fetch('/api/jobs?fresh=true&limit=20', {
+        cache: 'no-store',
+      });
+      const data = (await response.json()) as {
+        jobs?: Job[];
+        seenAt?: string | null;
+      };
+      if (!response.ok) return;
+      setFreshJobs(data.jobs ?? []);
+      setFreshSeenAt(data.seenAt ?? null);
+      void fetch('/api/jobs/seen', { method: 'POST' }).catch(() => undefined);
+    } catch {
+      return;
+    } finally {
+      setFreshLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (profileReady) void loadFresh();
+  }, [profileReady, loadFresh]);
 
   // Render windowing: only mount a slice, fetch stays batch-wise.
   const visibleJobs = useMemo(
@@ -495,6 +540,11 @@ export function PersistedDiscoveryPanel() {
           item.id === job.id ? { ...item, isSaved: !item.isSaved } : item,
         ),
       );
+      setFreshJobs((current) =>
+        current.map((item) =>
+          item.id === job.id ? { ...item, isSaved: !item.isSaved } : item,
+        ),
+      );
     } catch {
       setError('Could not update saved jobs');
     } finally {
@@ -517,6 +567,7 @@ export function PersistedDiscoveryPanel() {
         }).catch(() => undefined);
       }
       setJobs((current) => current.filter((item) => item.id !== job.id));
+      setFreshJobs((current) => current.filter((item) => item.id !== job.id));
       setSelected((current) => current.filter((id) => id !== job.id));
     },
     [sessionId],
@@ -541,7 +592,9 @@ export function PersistedDiscoveryPanel() {
 
   const toggleSelected = useCallback(
     (id: string) => {
-      const job = jobs.find((item) => item.id === id);
+      const job =
+        jobs.find((item) => item.id === id) ??
+        freshJobs.find((item) => item.id === id);
       setSelected((current) => {
         if (current.includes(id)) return current.filter((item) => item !== id);
         if (job && !job.applicationUrl) return current;
@@ -549,7 +602,20 @@ export function PersistedDiscoveryPanel() {
         return [...current, id];
       });
     },
-    [jobs],
+    [jobs, freshJobs],
+  );
+
+  const displayFreshJobs = useMemo(
+    () => freshJobs.map((job) => ({ ...job, isNew: isUnseen(job) })),
+    [freshJobs, isUnseen],
+  );
+  const freshUnseenCount = useMemo(
+    () => displayFreshJobs.filter((job) => job.isNew === true).length,
+    [displayFreshJobs],
+  );
+  const displayVisibleJobs = useMemo(
+    () => visibleJobs.map((job) => ({ ...job, isNew: isUnseen(job) })),
+    [visibleJobs, isUnseen],
   );
 
   async function stageSelection() {
@@ -642,6 +708,43 @@ export function PersistedDiscoveryPanel() {
           </p>
         ) : null}
         {message ? <p className="text-xs text-emerald-600">{message}</p> : null}
+        {displayFreshJobs.length > 0 || freshLoading ? (
+          <div className="space-y-2 rounded-md border border-slate-200 p-3 dark:border-[#26282e]">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">
+                New jobs for you
+                {freshUnseenCount > 0
+                  ? ` · ${freshUnseenCount} unseen`
+                  : ' · all caught up'}
+              </p>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => void loadFresh()}
+                disabled={freshLoading}
+              >
+                {freshLoading ? 'Checking…' : 'Check new jobs'}
+              </Button>
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              {displayFreshJobs.map((job, index) => (
+                <JobCard
+                  key={job.id}
+                  job={job}
+                  rankPosition={index}
+                  accentIndex={index}
+                  isSelected={selected.includes(job.id)}
+                  isSaving={savingId === job.id}
+                  onToggleSelected={toggleSelected}
+                  onToggleSaved={(item) => void toggleSaved(item)}
+                  onSkip={skipJob}
+                  onOpen={handleJobOpen}
+                />
+              ))}
+            </div>
+          </div>
+        ) : null}
         {loading && jobs.length === 0 ? (
           <div
             className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3"
@@ -667,7 +770,7 @@ export function PersistedDiscoveryPanel() {
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {visibleJobs.map((job, index) => (
+            {displayVisibleJobs.map((job, index) => (
               <JobCard
                 key={job.id}
                 job={job}

@@ -391,6 +391,75 @@ describe('Phase 2 HTTP auth + lifecycle', () => {
     expect((await res.json()).savedJobId).toBe('saved-1');
   });
 
+  it('GET /v1/jobs?fresh=true filters to recent jobs and returns seenAt', async () => {
+    sessionUser = USER_A;
+    const seenAt = new Date('2026-09-01T00:00:00.000Z');
+    const recentAt = new Date('2026-10-01T00:00:00.000Z');
+    profile.findFirst.mockResolvedValue({
+      id: 'profile-a',
+      isConfirmed: true,
+      jobsSeenAt: seenAt,
+    });
+    job.findMany.mockResolvedValue([
+      {
+        id: 'job-1',
+        dedupKey: 'acme::engineer::remote',
+        source: 'greenhouse',
+        externalId: null,
+        companyName: 'Acme',
+        title: 'Engineer',
+        titleNormalized: 'engineer',
+        location: 'Remote',
+        locationNormalized: 'remote',
+        locationType: 'remote',
+        seniority: null,
+        descriptionRaw: 'desc',
+        applicationUrl: null,
+        postedAt: null,
+        firstSeenAt: recentAt,
+        lastSeenAt: recentAt,
+        isActive: true,
+      },
+    ]);
+    savedJob.findMany.mockResolvedValue([]);
+    const res = await fetch(`${base}/v1/jobs?fresh=true&limit=10`);
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.jobs).toHaveLength(1);
+    expect(body.seenAt).toBe(seenAt.toISOString());
+    const where = job.findMany.mock.calls[0]?.[0]?.where;
+    expect(where.isActive).toBe(true);
+    expect(where.firstSeenAt.gte).toBeInstanceOf(Date);
+    expect(job.findMany.mock.calls[0]?.[0]?.orderBy).toEqual({
+      firstSeenAt: 'desc',
+    });
+  });
+
+  it('POST /v1/jobs/seen stamps the profile watermark', async () => {
+    sessionUser = USER_A;
+    profile.findFirst.mockResolvedValue({
+      id: 'profile-a',
+      isConfirmed: true,
+    });
+    profile.update.mockResolvedValue({ id: 'profile-a' });
+    const res = await fetch(`${base}/v1/jobs/seen`, { method: 'POST' });
+    expect(res.status).toBe(200);
+    expect((await res.json()).seenAt).toBeDefined();
+    expect(profile.update.mock.calls[0]?.[0]?.where).toEqual({
+      id: 'profile-a',
+    });
+    expect(profile.update.mock.calls[0]?.[0]?.data.jobsSeenAt).toBeInstanceOf(
+      Date,
+    );
+  });
+
+  it('POST /v1/jobs/seen is 403 without a confirmed profile', async () => {
+    sessionUser = USER_A;
+    profile.findFirst.mockResolvedValue(null);
+    const res = await fetch(`${base}/v1/jobs/seen`, { method: 'POST' });
+    expect(res.status).toBe(403);
+  });
+
   it('accepts discovery and upserts jobs in the background preserving first seen time', async () => {
     sessionUser = USER_A;
     profile.findFirst.mockResolvedValue({
