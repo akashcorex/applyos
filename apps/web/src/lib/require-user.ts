@@ -21,8 +21,8 @@ export async function requireUserId(
     if (!res.ok) {
       return Response.json({ error: 'API is unavailable' }, { status: 502 });
     }
-    const data = (await res.json()) as { user?: { id?: string } };
-    const userId = data.user?.id;
+    const data = (await res.json()) as { user?: { id?: string } } | null;
+    const userId = data?.user?.id;
     if (!userId) {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }

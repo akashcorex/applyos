@@ -193,52 +193,60 @@ jobsRouter.post('/discover', async (req, res) => {
     return;
   }
 
-  const me = authUserOf(req);
-  const profile = await prisma.profile.findFirst({
-    where: { id: parsed.data.profileId, userId: me.id, isConfirmed: true },
-    include: { sourceResumeFile: { include: { resume: true } } },
-  });
-  if (!profile) {
-    res.status(403).json({ error: 'A confirmed profile is required' });
-    return;
-  }
+  try {
+    const me = authUserOf(req);
+    const profile = await prisma.profile.findFirst({
+      where: { id: parsed.data.profileId, userId: me.id, isConfirmed: true },
+      include: { sourceResumeFile: { include: { resume: true } } },
+    });
+    if (!profile) {
+      res.status(403).json({ error: 'A confirmed profile is required' });
+      return;
+    }
 
-  const resume = await profileResume(me.id, profile);
-  if (!resume) {
-    res.status(409).json({ error: 'A completed resume is required' });
-    return;
-  }
+    const resume = await profileResume(me.id, profile);
+    if (!resume) {
+      res.status(409).json({ error: 'A completed resume is required' });
+      return;
+    }
 
-  const role =
-    parsed.data.query?.trim() ||
-    profile.preferredRoles[0] ||
-    resume.preferredRole ||
-    'Software Engineer';
+    const role =
+      parsed.data.query?.trim() ||
+      profile.preferredRoles[0] ||
+      resume.preferredRole ||
+      'Software Engineer';
 
-  const session = await prisma.matchSession.create({
-    data: {
+    const session = await prisma.matchSession.create({
+      data: {
+        userId: me.id,
+        resumeId: resume.id,
+        queryRole: role,
+        discoveryStatus: 'pending',
+        topResults: [] as never,
+      },
+    });
+    res.status(202).json({ sessionId: session.id, status: 'pending' });
+    void startDiscovery({
+      sessionId: session.id,
       userId: me.id,
       resumeId: resume.id,
-      queryRole: role,
-      discoveryStatus: 'pending',
-      topResults: [] as never,
-    },
-  });
-  res.status(202).json({ sessionId: session.id, status: 'pending' });
-  void startDiscovery({
-    sessionId: session.id,
-    userId: me.id,
-    resumeId: resume.id,
-    role,
-    limit: parsed.data.limit,
-    pack: parsed.data.pack?.trim() || undefined,
-    seniority: profile.seniority ?? '',
-    workMode: profile.workMode ?? '',
-    skills: profile.skills,
-    locations: profile.preferredLocations,
-    experienceYears:
-      profile.totalExperienceYears ?? resume.experienceYears ?? 0,
-  });
+      role,
+      limit: parsed.data.limit,
+      pack: parsed.data.pack?.trim() || undefined,
+      seniority: profile.seniority ?? '',
+      workMode: profile.workMode ?? '',
+      skills: profile.skills,
+      locations: profile.preferredLocations,
+      experienceYears:
+        profile.totalExperienceYears ?? resume.experienceYears ?? 0,
+    });
+  } catch (error) {
+    console.error('[jobs] discover failed:', error);
+    res.status(500).json({
+      error:
+        'Job discovery failed. Run prisma migrate deploy against the API database and try again.',
+    });
+  }
 });
 
 type DiscoveryRequest = {
@@ -466,73 +474,81 @@ jobsRouter.get('/discover/:id', async (req, res) => {
     return;
   }
 
-  const me = authUserOf(req);
-  const profile = await confirmedProfile(me.id);
-  if (!profile) {
-    res.status(403).json({ error: 'A confirmed profile is required' });
-    return;
+  try {
+    const me = authUserOf(req);
+    const profile = await confirmedProfile(me.id);
+    if (!profile) {
+      res.status(403).json({ error: 'A confirmed profile is required' });
+      return;
+    }
+
+    const session = await prisma.matchSession.findFirst({
+      where: { id: req.params.id, userId: me.id },
+      select: { topResults: true, discoveryStatus: true, discoveryError: true },
+    });
+    if (!session) {
+      res.status(404).json({ error: 'Match session not found' });
+      return;
+    }
+
+    const topResults = Array.isArray(session.topResults)
+      ? session.topResults.filter(
+          (
+            item,
+          ): item is {
+            jobId: string;
+            dedupKey: string;
+            score?: number;
+            reason?: string;
+          } =>
+            Boolean(item) &&
+            typeof item === 'object' &&
+            typeof (item as { jobId?: unknown }).jobId === 'string' &&
+            typeof (item as { dedupKey?: unknown }).dedupKey === 'string',
+        )
+      : [];
+    const limit = Math.min(parsed.data.limit, 20);
+    const page = topResults.slice(
+      parsed.data.offset,
+      parsed.data.offset + limit,
+    );
+    const jobs = await prisma.job.findMany({
+      where: { id: { in: page.map((item) => item.jobId) } },
+    });
+    const jobsById = new Map(jobs.map((job) => [job.id, job]));
+    const saved = await prisma.savedJob.findMany({
+      where: {
+        userId: me.id,
+        jobId: { in: page.map((item) => item.jobId) },
+      },
+      select: { jobId: true },
+    });
+    const savedIds = new Set(saved.map((item) => item.jobId));
+
+    res.status(200).json({
+      jobs: page.flatMap((item) => {
+        const job = jobsById.get(item.jobId);
+        return job
+          ? [
+              {
+                ...savedJobResponse(job, savedIds.has(job.id)),
+                score: item.score ?? 0,
+                reason: item.reason ?? null,
+              },
+            ]
+          : [];
+      }),
+      totalJobs: topResults.length,
+      hasMore: parsed.data.offset + page.length < topResults.length,
+      offset: parsed.data.offset,
+      limit,
+      status: session.discoveryStatus,
+      error: session.discoveryError ?? null,
+    });
+  } catch (error) {
+    console.error('[jobs] discover session failed:', error);
+    res.status(500).json({ error: 'Could not load discovery results' });
   }
-
-  const session = await prisma.matchSession.findFirst({
-    where: { id: req.params.id, userId: me.id },
-    select: { topResults: true, discoveryStatus: true, discoveryError: true },
-  });
-  if (!session) {
-    res.status(404).json({ error: 'Match session not found' });
-    return;
-  }
-
-  const topResults = Array.isArray(session.topResults)
-    ? session.topResults.filter(
-        (
-          item,
-        ): item is {
-          jobId: string;
-          dedupKey: string;
-          score?: number;
-          reason?: string;
-        } =>
-          Boolean(item) &&
-          typeof item === 'object' &&
-          typeof (item as { jobId?: unknown }).jobId === 'string' &&
-          typeof (item as { dedupKey?: unknown }).dedupKey === 'string',
-      )
-    : [];
-  const limit = Math.min(parsed.data.limit, 20);
-  const page = topResults.slice(parsed.data.offset, parsed.data.offset + limit);
-  const jobs = await prisma.job.findMany({
-    where: { id: { in: page.map((item) => item.jobId) } },
-  });
-  const jobsById = new Map(jobs.map((job) => [job.id, job]));
-  const saved = await prisma.savedJob.findMany({
-    where: {
-      userId: me.id,
-      jobId: { in: page.map((item) => item.jobId) },
-    },
-    select: { jobId: true },
-  });
-  const savedIds = new Set(saved.map((item) => item.jobId));
-
-  res.status(200).json({
-    jobs: page.flatMap((item) => {
-      const job = jobsById.get(item.jobId);
-      return job
-        ? [
-            {
-              ...savedJobResponse(job, savedIds.has(job.id)),
-              score: item.score ?? 0,
-              reason: item.reason ?? null,
-            },
-          ]
-        : [];
-    }),
-    totalJobs: topResults.length,
-    hasMore: parsed.data.offset + page.length < topResults.length,
-    offset: parsed.data.offset,
-    limit,
-    status: session.discoveryStatus,
-    error: session.discoveryError ?? null,
-  });
 });
 
 jobsRouter.get('/', async (req, res) => {
