@@ -14,6 +14,7 @@ from models import (
     RegistryUpsertRequest,
 )
 from services.ats_detect import detect_ats
+from services.board_cache import get_cached_job_keys
 from services.board_registry import get_board_registry
 from services.http_errors import raise_bad_gateway
 from services.parsers.yc import extract_domain
@@ -87,6 +88,16 @@ async def refresh_status() -> dict[str, object]:
         "last_jobs": registry.get_meta_value("refresh_last_jobs"),
         "last_errors": registry.get_meta_value("refresh_last_errors"),
     }
+
+
+@router.get("/board-keys")
+async def board_keys(domain: str) -> dict[str, object]:
+    """Cached listing keys per board for the API reconciler (no scraping)."""
+    cached = get_cached_job_keys(domain)
+    if cached is None:
+        return {"domain": domain.strip().lower(), "scraped_at": None, "keys": []}
+    keys, scraped_at = cached
+    return {"domain": domain.strip().lower(), "scraped_at": scraped_at, "keys": keys}
 
 
 @router.post("", response_model=RegistryBoard)

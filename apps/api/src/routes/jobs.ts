@@ -11,6 +11,8 @@ import {
 import { prisma } from '@applyso/database';
 
 import { authUserOf, requireAuth } from '../lib/authz';
+import { reconcileJobs } from '../lib/job-reconcile';
+import { requireServiceToken } from '../lib/service-token';
 
 const RESUME_AGENT_URL =
   process.env.RESUME_AGENT_URL ?? 'http://127.0.0.1:8005';
@@ -185,6 +187,21 @@ function savedJobResponse(
 
 export const jobsRouter = Router();
 jobsRouter.use(requireAuth);
+
+export const jobsInternalRouter = Router();
+jobsInternalRouter.post(
+  '/internal/reconcile',
+  requireServiceToken,
+  async (req, res) => {
+    try {
+      const result = await reconcileJobs();
+      res.status(200).json(result);
+    } catch (error) {
+      console.error('[jobs] reconcile failed:', error);
+      res.status(502).json({ error: 'Job reconciler is unavailable' });
+    }
+  },
+);
 
 jobsRouter.post('/discover', async (req, res) => {
   const parsed = jobDiscoverSchema.safeParse(req.body ?? {});
