@@ -25,8 +25,8 @@ class Settings(BaseSettings):
         "account executive",
     ]
     refresh_enabled: bool = False
-    refresh_interval_seconds: int = 600
-    refresh_batch_boards: int = 8
+    refresh_interval_seconds: int = 3600
+    refresh_batch_boards: int = 16
     refresh_sweep_jobs: int = 50
     http_timeout_seconds: float = 10.0
     http_max_retries: int = 3

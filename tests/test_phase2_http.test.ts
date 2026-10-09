@@ -36,6 +36,7 @@ const job = {
   findUnique: mock(async () => null as unknown),
   findMany: mock(async () => [] as unknown[]),
   upsert: mock(async () => ({})),
+  updateMany: mock(async () => ({ count: 0 })),
 };
 const company = {
   upsert: mock(async () => ({})),
@@ -102,7 +103,8 @@ const { resumesInternalRouter, resumesRouter } =
   await import('../apps/api/src/routes/resumes');
 const { linkedinConnectsRouter } =
   await import('../apps/api/src/routes/linkedin-connects');
-const { jobsRouter } = await import('../apps/api/src/routes/jobs');
+const { jobsInternalRouter, jobsRouter } =
+  await import('../apps/api/src/routes/jobs');
 const { preferencesRouter } =
   await import('../apps/api/src/routes/preferences');
 const { workflowsRouter } = await import('../apps/api/src/routes/workflows');
@@ -114,6 +116,7 @@ app.use(express.json());
 app.use('/v1/resumes', resumesInternalRouter);
 app.use('/v1/resumes', resumesRouter);
 app.use('/v1/linkedin-connects', linkedinConnectsRouter);
+app.use('/v1/jobs', jobsInternalRouter);
 app.use('/v1/jobs', jobsRouter);
 app.use('/v1/preferences', preferencesRouter);
 app.use('/v1/workflows', workflowsRouter);
@@ -146,6 +149,7 @@ beforeEach(() => {
   job.findUnique.mockReset();
   job.findMany.mockReset();
   job.upsert.mockReset();
+  job.updateMany.mockReset();
   company.upsert.mockReset();
   savedJob.findMany.mockReset();
   savedJob.upsert.mockReset();
@@ -389,6 +393,149 @@ describe('Phase 2 HTTP auth + lifecycle', () => {
     const res = await fetch(`${base}/v1/jobs/job-1/save`, { method: 'PUT' });
     expect(res.status).toBe(200);
     expect((await res.json()).savedJobId).toBe('saved-1');
+  });
+
+  it('GET /v1/jobs?fresh=true filters to recent jobs and returns seenAt', async () => {
+    sessionUser = USER_A;
+    const seenAt = new Date('2026-09-01T00:00:00.000Z');
+    const recentAt = new Date('2026-10-01T00:00:00.000Z');
+    profile.findFirst.mockResolvedValue({
+      id: 'profile-a',
+      isConfirmed: true,
+      jobsSeenAt: seenAt,
+    });
+    job.findMany.mockResolvedValue([
+      {
+        id: 'job-1',
+        dedupKey: 'acme::engineer::remote',
+        source: 'greenhouse',
+        externalId: null,
+        companyName: 'Acme',
+        title: 'Engineer',
+        titleNormalized: 'engineer',
+        location: 'Remote',
+        locationNormalized: 'remote',
+        locationType: 'remote',
+        seniority: null,
+        descriptionRaw: 'desc',
+        applicationUrl: null,
+        postedAt: null,
+        firstSeenAt: recentAt,
+        lastSeenAt: recentAt,
+        isActive: true,
+      },
+    ]);
+    savedJob.findMany.mockResolvedValue([]);
+    const res = await fetch(`${base}/v1/jobs?fresh=true&limit=10`);
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.jobs).toHaveLength(1);
+    expect(body.seenAt).toBe(seenAt.toISOString());
+    const where = job.findMany.mock.calls[0]?.[0]?.where;
+    expect(where.isActive).toBe(true);
+    expect(where.firstSeenAt.gte).toBeInstanceOf(Date);
+    expect(job.findMany.mock.calls[0]?.[0]?.orderBy).toEqual({
+      firstSeenAt: 'desc',
+    });
+  });
+
+  it('POST /v1/jobs/seen stamps the profile watermark', async () => {
+    sessionUser = USER_A;
+    profile.findFirst.mockResolvedValue({
+      id: 'profile-a',
+      isConfirmed: true,
+    });
+    profile.update.mockResolvedValue({ id: 'profile-a' });
+    const res = await fetch(`${base}/v1/jobs/seen`, { method: 'POST' });
+    expect(res.status).toBe(200);
+    expect((await res.json()).seenAt).toBeDefined();
+    expect(profile.update.mock.calls[0]?.[0]?.where).toEqual({
+      id: 'profile-a',
+    });
+    expect(profile.update.mock.calls[0]?.[0]?.data.jobsSeenAt).toBeInstanceOf(
+      Date,
+    );
+  });
+
+  it('POST /v1/jobs/seen is 403 without a confirmed profile', async () => {
+    sessionUser = USER_A;
+    profile.findFirst.mockResolvedValue(null);
+    const res = await fetch(`${base}/v1/jobs/seen`, { method: 'POST' });
+    expect(res.status).toBe(403);
+  });
+
+  it('POST /v1/jobs/internal/reconcile closes stale listings', async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async (input, init) => {
+      const url = String(input);
+      if (url.endsWith('/registry')) {
+        return new Response(
+          JSON.stringify({
+            boards: [
+              { domain: 'acme.com', active: true },
+              { domain: 'stale.example', active: true },
+            ],
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        );
+      }
+      if (url.includes('board-keys')) {
+        if (url.includes('acme.com')) {
+          return new Response(
+            JSON.stringify({
+              domain: 'acme.com',
+              scraped_at: new Date().toISOString(),
+              keys: ['acme::engineer'],
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } },
+          );
+        }
+        return new Response(
+          JSON.stringify({
+            domain: 'stale.example',
+            scraped_at: null,
+            keys: [],
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        );
+      }
+      return originalFetch(input, init);
+    }) as typeof fetch;
+    try {
+      job.updateMany.mockResolvedValue({ count: 1 });
+      const res = await fetch(`${base}/v1/jobs/internal/reconcile`, {
+        method: 'POST',
+        headers: { 'x-agent-service-token': 'test-service-token' },
+      });
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(body.boards).toBe(2);
+      expect(body.skippedBoards).toBe(1);
+      const touchCall = job.updateMany.mock.calls[0]?.[0];
+      expect(touchCall?.where?.dedupKey).toEqual({ in: ['acme::engineer'] });
+      expect(touchCall?.data?.lastSeenAt).toBeInstanceOf(Date);
+      const closeCall = job.updateMany.mock.calls[1]?.[0];
+      expect(closeCall?.where?.isActive).toBe(true);
+      expect(closeCall?.where?.dedupKey).toEqual({
+        startsWith: 'acme.com::',
+      });
+      expect(closeCall?.where?.lastSeenAt?.lt).toBeInstanceOf(Date);
+      expect(closeCall?.data).toEqual({
+        isActive: false,
+        closedAt: expect.any(Date),
+      });
+      const backstopCall = job.updateMany.mock.calls[2]?.[0];
+      expect(backstopCall?.where?.OR).toHaveLength(2);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it('POST /v1/jobs/internal/reconcile is 401 without the service token', async () => {
+    const res = await fetch(`${base}/v1/jobs/internal/reconcile`, {
+      method: 'POST',
+    });
+    expect(res.status).toBe(401);
   });
 
   it('accepts discovery and upserts jobs in the background preserving first seen time', async () => {

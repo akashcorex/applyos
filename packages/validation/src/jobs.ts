@@ -37,6 +37,7 @@ export type JobDiscover = z.input<typeof jobDiscoverSchema>;
 
 export const jobListQuerySchema = z.object({
   saved: z.enum(['true', 'false']).optional(),
+  fresh: z.enum(['true']).optional(),
   q: z.string().trim().max(128).optional(),
   limit: z.coerce.number().int().min(1).max(100).default(50).prefault(50),
   offset: z.coerce.number().int().min(0).max(10_000).default(0).prefault(0),

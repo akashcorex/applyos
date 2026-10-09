@@ -68,3 +68,22 @@ def set_cached_jobs(domain: str, jobs: list[SearchResult]) -> None:
                 _utc_now().isoformat(),
             ),
         )
+
+
+def get_cached_job_keys(domain: str) -> tuple[list[str], str] | None:
+    """Cache-only listing keys for reconciliation (never triggers a scrape)."""
+    init_board_cache()
+    with _connect() as conn:
+        row = conn.execute(
+            "SELECT jobs_json, scraped_at FROM board_job_cache WHERE domain = ?",
+            (domain.strip().lower(),),
+        ).fetchone()
+    if row is None:
+        return None
+    payload = json.loads(str(row[0]))
+    keys = [
+        str(item["dedup_key"])
+        for item in payload
+        if isinstance(item, dict) and item.get("dedup_key")
+    ]
+    return keys, str(row[1])

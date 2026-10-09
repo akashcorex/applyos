@@ -7,6 +7,7 @@ import express from 'express';
 import { auth } from './auth';
 import { startFallowBeacon } from './fallow-beacon';
 import { betterAuthExpressHandler } from './lib/better-auth-express';
+import { reconcileJobs } from './lib/job-reconcile';
 import {
   authCookieConfigError,
   webLoginUrl,
@@ -16,7 +17,7 @@ import { adminRouter } from './routes/admin';
 import { applicationsRouter } from './routes/applications';
 import { billingRouter, billingWebhookHandler } from './routes/billing';
 import { linkedinConnectsRouter } from './routes/linkedin-connects';
-import { jobsRouter } from './routes/jobs';
+import { jobsInternalRouter, jobsRouter } from './routes/jobs';
 import { meRouter } from './routes/me';
 import { preferencesRouter } from './routes/preferences';
 import { profilesRouter } from './routes/profiles';
@@ -66,6 +67,7 @@ app.use('/v1/resumes', resumesRouter);
 app.use('/v1/admin', adminRouter);
 app.use('/v1/applications', applicationsRouter);
 app.use('/v1/linkedin-connects', linkedinConnectsRouter);
+app.use('/v1/jobs', jobsInternalRouter);
 app.use('/v1/jobs', jobsRouter);
 app.use('/v1/preferences', preferencesRouter);
 app.use('/v1/workflows', workflowsRouter);
@@ -81,6 +83,20 @@ if (process.env.NODE_ENV === 'production') {
 process.on('unhandledRejection', (reason) => {
   console.error('[api] unhandledRejection', reason);
 });
+
+// Hourly reconciler: close listings that left every board (single-instance).
+setTimeout(
+  () => {
+    const run = () => {
+      reconcileJobs()
+        .then((result) => console.warn('[jobs] reconcile done:', result))
+        .catch((error) => console.error('[jobs] reconcile failed:', error));
+    };
+    run();
+    setInterval(run, 60 * 60 * 1000);
+  },
+  10 * 60 * 1000,
+);
 
 app.listen(port, host, () => {
   console.log(`[ ready ] http://${host}:${port}`);

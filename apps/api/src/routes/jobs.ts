@@ -11,6 +11,8 @@ import {
 import { prisma } from '@applyso/database';
 
 import { authUserOf, requireAuth } from '../lib/authz';
+import { reconcileJobs } from '../lib/job-reconcile';
+import { requireServiceToken } from '../lib/service-token';
 
 const RESUME_AGENT_URL =
   process.env.RESUME_AGENT_URL ?? 'http://127.0.0.1:8005';
@@ -186,6 +188,21 @@ function savedJobResponse(
 export const jobsRouter = Router();
 jobsRouter.use(requireAuth);
 
+export const jobsInternalRouter = Router();
+jobsInternalRouter.post(
+  '/internal/reconcile',
+  requireServiceToken,
+  async (req, res) => {
+    try {
+      const result = await reconcileJobs();
+      res.status(200).json(result);
+    } catch (error) {
+      console.error('[jobs] reconcile failed:', error);
+      res.status(502).json({ error: 'Job reconciler is unavailable' });
+    }
+  },
+);
+
 jobsRouter.post('/discover', async (req, res) => {
   const parsed = jobDiscoverSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
@@ -193,52 +210,60 @@ jobsRouter.post('/discover', async (req, res) => {
     return;
   }
 
-  const me = authUserOf(req);
-  const profile = await prisma.profile.findFirst({
-    where: { id: parsed.data.profileId, userId: me.id, isConfirmed: true },
-    include: { sourceResumeFile: { include: { resume: true } } },
-  });
-  if (!profile) {
-    res.status(403).json({ error: 'A confirmed profile is required' });
-    return;
-  }
+  try {
+    const me = authUserOf(req);
+    const profile = await prisma.profile.findFirst({
+      where: { id: parsed.data.profileId, userId: me.id, isConfirmed: true },
+      include: { sourceResumeFile: { include: { resume: true } } },
+    });
+    if (!profile) {
+      res.status(403).json({ error: 'A confirmed profile is required' });
+      return;
+    }
 
-  const resume = await profileResume(me.id, profile);
-  if (!resume) {
-    res.status(409).json({ error: 'A completed resume is required' });
-    return;
-  }
+    const resume = await profileResume(me.id, profile);
+    if (!resume) {
+      res.status(409).json({ error: 'A completed resume is required' });
+      return;
+    }
 
-  const role =
-    parsed.data.query?.trim() ||
-    profile.preferredRoles[0] ||
-    resume.preferredRole ||
-    'Software Engineer';
+    const role =
+      parsed.data.query?.trim() ||
+      profile.preferredRoles[0] ||
+      resume.preferredRole ||
+      'Software Engineer';
 
-  const session = await prisma.matchSession.create({
-    data: {
+    const session = await prisma.matchSession.create({
+      data: {
+        userId: me.id,
+        resumeId: resume.id,
+        queryRole: role,
+        discoveryStatus: 'pending',
+        topResults: [] as never,
+      },
+    });
+    res.status(202).json({ sessionId: session.id, status: 'pending' });
+    void startDiscovery({
+      sessionId: session.id,
       userId: me.id,
       resumeId: resume.id,
-      queryRole: role,
-      discoveryStatus: 'pending',
-      topResults: [] as never,
-    },
-  });
-  res.status(202).json({ sessionId: session.id, status: 'pending' });
-  void startDiscovery({
-    sessionId: session.id,
-    userId: me.id,
-    resumeId: resume.id,
-    role,
-    limit: parsed.data.limit,
-    pack: parsed.data.pack?.trim() || undefined,
-    seniority: profile.seniority ?? '',
-    workMode: profile.workMode ?? '',
-    skills: profile.skills,
-    locations: profile.preferredLocations,
-    experienceYears:
-      profile.totalExperienceYears ?? resume.experienceYears ?? 0,
-  });
+      role,
+      limit: parsed.data.limit,
+      pack: parsed.data.pack?.trim() || undefined,
+      seniority: profile.seniority ?? '',
+      workMode: profile.workMode ?? '',
+      skills: profile.skills,
+      locations: profile.preferredLocations,
+      experienceYears:
+        profile.totalExperienceYears ?? resume.experienceYears ?? 0,
+    });
+  } catch (error) {
+    console.error('[jobs] discover failed:', error);
+    res.status(500).json({
+      error:
+        'Job discovery failed. Run prisma migrate deploy against the API database and try again.',
+    });
+  }
 });
 
 type DiscoveryRequest = {
@@ -466,78 +491,90 @@ jobsRouter.get('/discover/:id', async (req, res) => {
     return;
   }
 
-  const me = authUserOf(req);
-  const profile = await confirmedProfile(me.id);
-  if (!profile) {
-    res.status(403).json({ error: 'A confirmed profile is required' });
-    return;
+  try {
+    const me = authUserOf(req);
+    const profile = await confirmedProfile(me.id);
+    if (!profile) {
+      res.status(403).json({ error: 'A confirmed profile is required' });
+      return;
+    }
+
+    const session = await prisma.matchSession.findFirst({
+      where: { id: req.params.id, userId: me.id },
+      select: { topResults: true, discoveryStatus: true, discoveryError: true },
+    });
+    if (!session) {
+      res.status(404).json({ error: 'Match session not found' });
+      return;
+    }
+
+    const topResults = Array.isArray(session.topResults)
+      ? session.topResults.filter(
+          (
+            item,
+          ): item is {
+            jobId: string;
+            dedupKey: string;
+            score?: number;
+            reason?: string;
+          } =>
+            Boolean(item) &&
+            typeof item === 'object' &&
+            typeof (item as { jobId?: unknown }).jobId === 'string' &&
+            typeof (item as { dedupKey?: unknown }).dedupKey === 'string',
+        )
+      : [];
+    const limit = Math.min(parsed.data.limit, 20);
+    const page = topResults.slice(
+      parsed.data.offset,
+      parsed.data.offset + limit,
+    );
+    const jobs = await prisma.job.findMany({
+      where: { id: { in: page.map((item) => item.jobId) } },
+    });
+    const jobsById = new Map(jobs.map((job) => [job.id, job]));
+    const saved = await prisma.savedJob.findMany({
+      where: {
+        userId: me.id,
+        jobId: { in: page.map((item) => item.jobId) },
+      },
+      select: { jobId: true },
+    });
+    const savedIds = new Set(saved.map((item) => item.jobId));
+
+    res.status(200).json({
+      jobs: page.flatMap((item) => {
+        const job = jobsById.get(item.jobId);
+        return job
+          ? [
+              {
+                ...savedJobResponse(job, savedIds.has(job.id)),
+                score: item.score ?? 0,
+                reason: item.reason ?? null,
+              },
+            ]
+          : [];
+      }),
+      totalJobs: topResults.length,
+      hasMore: parsed.data.offset + page.length < topResults.length,
+      offset: parsed.data.offset,
+      limit,
+      status: session.discoveryStatus,
+      error: session.discoveryError ?? null,
+    });
+  } catch (error) {
+    console.error('[jobs] discover session failed:', error);
+    res.status(500).json({ error: 'Could not load discovery results' });
   }
-
-  const session = await prisma.matchSession.findFirst({
-    where: { id: req.params.id, userId: me.id },
-    select: { topResults: true, discoveryStatus: true, discoveryError: true },
-  });
-  if (!session) {
-    res.status(404).json({ error: 'Match session not found' });
-    return;
-  }
-
-  const topResults = Array.isArray(session.topResults)
-    ? session.topResults.filter(
-        (
-          item,
-        ): item is {
-          jobId: string;
-          dedupKey: string;
-          score?: number;
-          reason?: string;
-        } =>
-          Boolean(item) &&
-          typeof item === 'object' &&
-          typeof (item as { jobId?: unknown }).jobId === 'string' &&
-          typeof (item as { dedupKey?: unknown }).dedupKey === 'string',
-      )
-    : [];
-  const limit = Math.min(parsed.data.limit, 20);
-  const page = topResults.slice(parsed.data.offset, parsed.data.offset + limit);
-  const jobs = await prisma.job.findMany({
-    where: { id: { in: page.map((item) => item.jobId) } },
-  });
-  const jobsById = new Map(jobs.map((job) => [job.id, job]));
-  const saved = await prisma.savedJob.findMany({
-    where: {
-      userId: me.id,
-      jobId: { in: page.map((item) => item.jobId) },
-    },
-    select: { jobId: true },
-  });
-  const savedIds = new Set(saved.map((item) => item.jobId));
-
-  res.status(200).json({
-    jobs: page.flatMap((item) => {
-      const job = jobsById.get(item.jobId);
-      return job
-        ? [
-            {
-              ...savedJobResponse(job, savedIds.has(job.id)),
-              score: item.score ?? 0,
-              reason: item.reason ?? null,
-            },
-          ]
-        : [];
-    }),
-    totalJobs: topResults.length,
-    hasMore: parsed.data.offset + page.length < topResults.length,
-    offset: parsed.data.offset,
-    limit,
-    status: session.discoveryStatus,
-    error: session.discoveryError ?? null,
-  });
 });
+
+/** Jobs first seen within this window count as fresh for the "new" feed. */
+const FRESH_JOB_DAYS = 7;
 
 jobsRouter.get('/', async (req, res) => {
   const parsed = jobListQuerySchema.safeParse({
     saved: queryValue(req.query.saved),
+    fresh: queryValue(req.query.fresh),
     q: queryValue(req.query.q),
     limit: queryValue(req.query.limit),
     offset: queryValue(req.query.offset),
@@ -554,6 +591,10 @@ jobsRouter.get('/', async (req, res) => {
     return;
   }
 
+  const freshSince =
+    parsed.data.fresh === 'true'
+      ? new Date(Date.now() - FRESH_JOB_DAYS * 24 * 3600 * 1000)
+      : null;
   const savedFilter =
     parsed.data.saved === 'true'
       ? { some: { userId: me.id } }
@@ -563,6 +604,7 @@ jobsRouter.get('/', async (req, res) => {
   const jobs = await prisma.job.findMany({
     where: {
       isActive: true,
+      ...(freshSince ? { firstSeenAt: { gte: freshSince } } : {}),
       ...(parsed.data.q
         ? {
             OR: [
@@ -574,7 +616,7 @@ jobsRouter.get('/', async (req, res) => {
         : {}),
       ...(savedFilter ? { savedBy: savedFilter } : {}),
     },
-    orderBy: { lastSeenAt: 'desc' },
+    orderBy: freshSince ? { firstSeenAt: 'desc' } : { lastSeenAt: 'desc' },
     take: parsed.data.limit,
     skip: parsed.data.offset,
   });
@@ -585,7 +627,23 @@ jobsRouter.get('/', async (req, res) => {
   const savedIds = new Set(saved.map((item) => item.jobId));
   res.status(200).json({
     jobs: jobs.map((job) => savedJobResponse(job, savedIds.has(job.id))),
+    ...(freshSince ? { seenAt: profile.jobsSeenAt ?? null } : {}),
   });
+});
+
+jobsRouter.post('/seen', async (req, res) => {
+  const me = authUserOf(req);
+  const profile = await confirmedProfile(me.id);
+  if (!profile) {
+    res.status(403).json({ error: 'A confirmed profile is required' });
+    return;
+  }
+  const seenAt = new Date();
+  await prisma.profile.update({
+    where: { id: profile.id },
+    data: { jobsSeenAt: seenAt },
+  });
+  res.status(200).json({ seenAt });
 });
 
 jobsRouter.get('/selections/:id', async (req, res) => {
