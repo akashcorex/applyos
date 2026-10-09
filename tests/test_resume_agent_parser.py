@@ -49,6 +49,29 @@ def test_detect_file_type_rejects_unknown() -> None:
     parser = ResumeParser()
     with pytest.raises(UnsupportedFileTypeError):
         parser.detect_file_type("resume.txt")
+    with pytest.raises(UnsupportedFileTypeError):
+        parser.detect_file_type("notes.txt", content_type="text/plain")
+
+
+def test_detect_file_type_rejects_name_and_content_mismatch() -> None:
+    parser = ResumeParser()
+    with pytest.raises(UnsupportedFileTypeError):
+        parser.detect_file_type(
+            "resume.pdf",
+            content_type=(
+                "application/vnd.openxmlformats-officedocument."
+                "wordprocessingml.document"
+            ),
+        )
+
+
+def test_detect_file_type_keeps_tex_with_plain_content_type() -> None:
+    parser = ResumeParser()
+    assert parser.detect_file_type("resume.tex", content_type="text/plain") == "tex"
+    assert (
+        parser.detect_file_type("resume.pdf", content_type="application/octet-stream")
+        == "pdf"
+    )
 
 
 def test_parse_docx_extracts_paragraphs_and_tables() -> None:
@@ -58,6 +81,45 @@ def test_parse_docx_extracts_paragraphs_and_tables() -> None:
     assert "jane@example.com" in text
     assert "Stripe" in text
     assert "Senior Engineer" in text
+
+
+def _make_pdf_bytes(text: str | None) -> bytes:
+    from fpdf import FPDF
+
+    pdf = FPDF()
+    pdf.add_page()
+    if text:
+        pdf.set_font("Helvetica", size=12)
+        pdf.cell(0, 10, text)
+    return bytes(pdf.output())
+
+
+def test_parse_pdf_extracts_text() -> None:
+    parser = ResumeParser()
+    text = parser.parse("jane.pdf", _make_pdf_bytes("Jane Doe jane@example.com"), None)
+    assert "Jane Doe" in text
+    assert "jane@example.com" in text
+
+
+def test_parse_pdf_without_text_is_empty() -> None:
+    parser = ResumeParser()
+    assert parser.parse("blank.pdf", _make_pdf_bytes(None), "application/pdf") == ""
+
+
+def test_parse_malformed_pdf_raises() -> None:
+    parser = ResumeParser()
+    with pytest.raises(Exception):
+        parser.parse("broken.pdf", b"%PDF-1.4\nnot-a-pdf", "application/pdf")
+
+
+def test_parse_rejects_docx_bytes_labeled_as_pdf() -> None:
+    parser = ResumeParser()
+    with pytest.raises(UnsupportedFileTypeError):
+        parser.parse(
+            "resume.pdf",
+            _make_docx_bytes(),
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        )
 
 
 def test_parse_empty_bytes_raises() -> None:

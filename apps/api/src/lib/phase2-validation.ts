@@ -804,6 +804,7 @@ export function sanitizeErrorForUser(input: {
     PARSE_FAILED: 'The resume could not be parsed. Try another file.',
     EXTRACTION_FAILED:
       'Automatic extraction failed. You can retry or fill in your profile manually.',
+    DISPATCH_FAILED: 'Could not reach the resume service. Please retry.',
     TIMEOUT: 'Processing timed out. Please retry.',
   };
   const message =

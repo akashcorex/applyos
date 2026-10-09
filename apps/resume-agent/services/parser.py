@@ -12,7 +12,10 @@ logger = logging.getLogger(__name__)
 SUPPORTED_EXTENSIONS: Final[frozenset[str]] = frozenset({".pdf", ".docx", ".tex"})
 MAX_TEXT_CHARS: Final[int] = 200_000
 TEX_CONTENT_TYPES: Final[frozenset[str]] = frozenset(
-    {"text/x-tex", "application/x-tex", "text/plain"}
+    {"text/x-tex", "application/x-tex"}
+)
+_DOCX_MIME: Final[str] = (
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 )
 
 
@@ -40,16 +43,38 @@ class ResumeParser:
     """Extracts plain text from uploaded resume files."""
 
     @staticmethod
-    def detect_file_type(file_name: str, content_type: str | None = None) -> str:
+    def _kind_from_name(file_name: str) -> str | None:
         name = (file_name or "").lower()
-        if name.endswith(".pdf") or content_type == "application/pdf":
+        if name.endswith(".pdf"):
             return "pdf"
-        if name.endswith(".docx") or content_type in {
-            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        }:
+        if name.endswith(".docx"):
             return "docx"
-        if name.endswith(".tex") or content_type in TEX_CONTENT_TYPES:
+        if name.endswith(".tex"):
             return "tex"
+        return None
+
+    @staticmethod
+    def _kind_from_content_type(content_type: str | None) -> str | None:
+        content = (content_type or "").split(";", 1)[0].strip().lower()
+        if content == "application/pdf":
+            return "pdf"
+        if content == _DOCX_MIME:
+            return "docx"
+        if content in TEX_CONTENT_TYPES:
+            return "tex"
+        return None
+
+    @staticmethod
+    def detect_file_type(file_name: str, content_type: str | None = None) -> str:
+        by_name = ResumeParser._kind_from_name(file_name)
+        by_type = ResumeParser._kind_from_content_type(content_type)
+        if by_name and by_type and by_name != by_type:
+            raise UnsupportedFileTypeError(
+                f"File name {file_name!r} does not match content type {content_type!r}."
+            )
+        detected = by_type or by_name
+        if detected:
+            return detected
         raise UnsupportedFileTypeError(
             f"Unsupported file type: {file_name!r}. Expected one of "
             f"{sorted(SUPPORTED_EXTENSIONS)}."

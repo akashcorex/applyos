@@ -290,7 +290,7 @@ export function ProfileResumeCard({
         <input
           ref={inputRef}
           type="file"
-          accept=".pdf,.doc,.docx"
+          accept=".pdf,.docx"
           className="hidden"
           disabled={uploading}
           onChange={(event) => {

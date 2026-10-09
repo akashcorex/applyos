@@ -1,6 +1,8 @@
 import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 
+import { ALLOWED_RESUME_MIME } from './phase1-validation';
+
 const UPLOADS_ROOT =
   process.env.RESUME_UPLOADS_DIR ?? join(process.cwd(), 'uploads');
 
@@ -27,59 +29,73 @@ export function extensionFor(fileName: string, mimeType: string): string {
   return '.pdf';
 }
 
-/**
- * Sniff magic bytes — never trust the client-supplied MIME alone.
- * Returns the detected MIME from the allowlist, or null when unknown.
- * PDF: %PDF, DOCX: ZIP (PK\x03\x04), DOC: OLE (D0 CF 11 E0),
- * TXT: no binary signature but overwhelmingly printable text.
- */
+const PDF_MIME = 'application/pdf';
+const DOCX_MIME =
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+
 export function sniffResumeMime(bytes: Buffer): string | null {
   if (bytes.length < 4) return null;
-  // PDF: 25 50 44 46 ("%PDF")
   if (
     bytes[0] === 0x25 &&
     bytes[1] === 0x50 &&
     bytes[2] === 0x44 &&
     bytes[3] === 0x46
   ) {
-    return 'application/pdf';
+    return PDF_MIME;
   }
-  // ZIP (docx): 50 4B 03 04
   if (
     bytes[0] === 0x50 &&
     bytes[1] === 0x4b &&
     bytes[2] === 0x03 &&
     bytes[3] === 0x04
   ) {
-    return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+    return DOCX_MIME;
   }
-  // OLE (legacy .doc): D0 CF 11 E0
-  if (
-    bytes.length >= 8 &&
-    bytes[0] === 0xd0 &&
-    bytes[1] === 0xcf &&
-    bytes[2] === 0x11 &&
-    bytes[3] === 0xe0
-  ) {
-    return 'application/msword';
-  }
-  // Plain text: sample the first 512 bytes — reject NUL bytes and require
-  // the sample to be overwhelmingly printable ASCII / common whitespace.
-  const sample = bytes.subarray(0, 512);
-  let printable = 0;
-  for (const byte of sample) {
-    if (byte === 0x00) return null;
-    if (
-      (byte >= 0x20 && byte <= 0x7e) ||
-      byte === 0x0a ||
-      byte === 0x0d ||
-      byte === 0x09
-    ) {
-      printable += 1;
-    }
-  }
-  if (printable / sample.length >= 0.95) return 'text/plain';
   return null;
+}
+
+export function classifyResumeUpload(input: {
+  fileName: string;
+  declaredMime: string;
+  bytes: Buffer;
+}):
+  | { ok: true; mimeType: string }
+  | { ok: false; status: 400 | 415; error: string } {
+  if (input.bytes.length === 0) {
+    return { ok: false, status: 400, error: 'file is required' };
+  }
+  const sniffed = sniffResumeMime(input.bytes);
+  if (!sniffed || !ALLOWED_RESUME_MIME.has(sniffed)) {
+    return {
+      ok: false,
+      status: 415,
+      error: 'File content is not a supported resume type',
+    };
+  }
+  const declared = input.declaredMime.split(';')[0]?.trim().toLowerCase() ?? '';
+  const generic = declared === '' || declared === 'application/octet-stream';
+  if (!generic && declared !== sniffed) {
+    return {
+      ok: false,
+      status: 415,
+      error: 'File content does not match mimeType',
+    };
+  }
+  const lower = input.fileName.toLowerCase();
+  const named = lower.endsWith('.docx')
+    ? 'docx'
+    : lower.endsWith('.pdf')
+      ? 'pdf'
+      : '';
+  const sniffedKind = sniffed === DOCX_MIME ? 'docx' : 'pdf';
+  if (named && named !== sniffedKind) {
+    return {
+      ok: false,
+      status: 415,
+      error: 'File name does not match file content',
+    };
+  }
+  return { ok: true, mimeType: sniffed };
 }
 
 /**

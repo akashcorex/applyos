@@ -11,9 +11,7 @@ import { nonEmptyString, resourceIdSchema } from './primitives';
 
 export const ALLOWED_RESUME_MIME = [
   'application/pdf',
-  'application/msword',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  'text/plain',
 ] as const;
 
 export const MAX_RESUME_FILE_SIZE = 50 * 1024 * 1024; // 50 MB

@@ -51,7 +51,7 @@ interface Summary {
 }
 
 const MAX_BYTES = 50 * 1024 * 1024;
-const ACCEPTED = ['.pdf', '.doc', '.docx'];
+const ACCEPTED = ['.pdf', '.docx'];
 const STAGES = ['Uploading', 'Reading your resume', 'Building your profile'];
 
 function formatBytes(bytes: number): string {
@@ -513,7 +513,7 @@ export function OnboardingFlow() {
                   <input
                     ref={inputRef}
                     type="file"
-                    accept=".pdf,.doc,.docx"
+                    accept=".pdf,.docx"
                     className="hidden"
                     onChange={onInputChange}
                   />
@@ -683,7 +683,7 @@ export function OnboardingFlow() {
                 <input
                   ref={inputRef}
                   type="file"
-                  accept=".pdf,.doc,.docx"
+                  accept=".pdf,.docx"
                   className="hidden"
                   onChange={onInputChange}
                 />

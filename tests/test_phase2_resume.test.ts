@@ -16,6 +16,7 @@ import {
   validateEnrichedProfileInput,
   validateExtractionPayload,
 } from '../apps/api/src/lib/phase2-validation';
+import { classifyResumeUpload } from '../apps/api/src/lib/resume-storage';
 
 const USER_A = { id: 'user-a', role: 'USER' as const };
 const USER_B = { id: 'user-b', role: 'USER' as const };
@@ -95,6 +96,79 @@ describe('Phase 2 resume upload + ownership', () => {
         fileSize: 10,
       }).ok,
     ).toBe(false);
+    expect(
+      validateResumeCreate({
+        fileName: 'old.doc',
+        storageKey: 'k',
+        mimeType: 'application/msword',
+        fileSize: 10,
+      }).ok,
+    ).toBe(false);
+    expect(
+      validateResumeCreate({
+        fileName: 'notes.txt',
+        storageKey: 'k',
+        mimeType: 'text/plain',
+        fileSize: 10,
+      }).ok,
+    ).toBe(false);
+  });
+
+  it('accepts PDF and DOCX bytes and rejects empty or contradictory uploads', () => {
+    const pdf = Buffer.from('%PDF-1.4\n');
+    const docx = Buffer.from([0x50, 0x4b, 0x03, 0x04]);
+    expect(
+      classifyResumeUpload({
+        fileName: 'resume.pdf',
+        declaredMime: 'application/pdf',
+        bytes: pdf,
+      }),
+    ).toEqual({ ok: true, mimeType: 'application/pdf' });
+    expect(
+      classifyResumeUpload({
+        fileName: 'resume.pdf',
+        declaredMime: 'application/octet-stream',
+        bytes: pdf,
+      }),
+    ).toEqual({ ok: true, mimeType: 'application/pdf' });
+    expect(
+      classifyResumeUpload({
+        fileName: 'cv.docx',
+        declaredMime:
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        bytes: docx,
+      }).ok,
+    ).toBe(true);
+    expect(
+      classifyResumeUpload({
+        fileName: 'resume.pdf',
+        declaredMime: 'application/pdf',
+        bytes: Buffer.alloc(0),
+      }),
+    ).toEqual({ ok: false, status: 400, error: 'file is required' });
+    expect(
+      classifyResumeUpload({
+        fileName: 'notes.txt',
+        declaredMime: 'text/plain',
+        bytes: Buffer.from('plain resume text'),
+      }).ok,
+    ).toBe(false);
+    const mismatched = classifyResumeUpload({
+      fileName: 'resume.pdf',
+      declaredMime:
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      bytes: pdf,
+    });
+    expect(mismatched.ok).toBe(false);
+    if (!mismatched.ok) expect(mismatched.status).toBe(415);
+    const misnamed = classifyResumeUpload({
+      fileName: 'resume.pdf',
+      declaredMime: 'application/octet-stream',
+      bytes: docx,
+    });
+    expect(misnamed.ok).toBe(false);
+    if (!misnamed.ok)
+      expect(misnamed.error).toBe('File name does not match file content');
   });
 
   it('2. resume ownership is enforced (owner only)', () => {
@@ -169,6 +243,9 @@ describe('Phase 2 structured extraction contract', () => {
     expect(safe.code).toBe('BOOM');
     expect(safe.message).not.toContain('postgres');
     expect(safe.message).not.toContain('stack trace');
+    expect(sanitizeErrorForUser({ code: 'DISPATCH_FAILED' }).message).toBe(
+      'Could not reach the resume service. Please retry.',
+    );
   });
 
   it('7. invalid AI output is rejected (never persisted blindly)', () => {

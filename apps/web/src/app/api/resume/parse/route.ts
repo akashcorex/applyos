@@ -1,7 +1,7 @@
 import { buildParsedResumePayload } from '@/lib/parsed-resume';
 import { requireUserId } from '@/lib/require-user';
+import { serverApiUrl } from '@/lib/server-api-url';
 
-const API_URL = process.env.API_URL ?? 'http://localhost:5000';
 const POLL_MS = 1500;
 const TIMEOUT_MS = 120000;
 
@@ -12,6 +12,10 @@ function cookieHeader(request: Request): HeadersInit {
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function readJson<T>(response: Response): Promise<T | null> {
+  return (await response.json().catch(() => null)) as T | null;
 }
 
 export async function POST(request: Request) {
@@ -25,20 +29,27 @@ export async function POST(request: Request) {
     if (!(file instanceof File)) {
       return Response.json({ error: 'file is required' }, { status: 400 });
     }
+    if (file.size === 0) {
+      return Response.json(
+        { error: 'The uploaded file is empty.' },
+        { status: 400 },
+      );
+    }
 
+    const apiUrl = serverApiUrl();
     const upstream = new FormData();
     upstream.append('file', file, file.name);
 
-    const uploadRes = await fetch(`${API_URL}/v1/resumes/upload`, {
+    const uploadRes = await fetch(`${apiUrl}/v1/resumes/upload`, {
       method: 'POST',
       headers: cookieHeader(request),
       body: upstream,
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });
-    const uploadData = (await uploadRes.json().catch(() => null)) as {
+    const uploadData = await readJson<{
       resume?: { id?: string };
       error?: string;
-    } | null;
+    }>(uploadRes);
     if (!uploadRes.ok || !uploadData?.resume?.id) {
       return Response.json(
         { error: uploadData?.error ?? 'Failed to upload resume' },
@@ -53,16 +64,23 @@ export async function POST(request: Request) {
 
     while (Date.now() < deadline) {
       const statusRes = await fetch(
-        `${API_URL}/v1/resumes/${encodeURIComponent(resumeFileId)}/status`,
+        `${apiUrl}/v1/resumes/${encodeURIComponent(resumeFileId)}/status`,
         {
           headers: cookieHeader(request),
           cache: 'no-store',
           signal: AbortSignal.timeout(10000),
         },
       );
-      const statusData = (await statusRes.json().catch(() => null)) as {
+      const statusData = await readJson<{
+        error?: string;
         status?: { status?: string; errorMessage?: string | null };
-      } | null;
+      }>(statusRes);
+      if (!statusRes.ok) {
+        return Response.json(
+          { error: statusData?.error ?? 'Resume status check failed' },
+          { status: statusRes.status },
+        );
+      }
       status = statusData?.status?.status ?? status;
       if (status === 'COMPLETED') break;
       if (status === 'FAILED') {
@@ -84,19 +102,20 @@ export async function POST(request: Request) {
     }
 
     const [resumeRes, extractionRes] = await Promise.all([
-      fetch(`${API_URL}/v1/resumes/${encodeURIComponent(resumeFileId)}`, {
+      fetch(`${apiUrl}/v1/resumes/${encodeURIComponent(resumeFileId)}`, {
         headers: cookieHeader(request),
         cache: 'no-store',
       }),
       fetch(
-        `${API_URL}/v1/resumes/${encodeURIComponent(resumeFileId)}/extraction`,
+        `${apiUrl}/v1/resumes/${encodeURIComponent(resumeFileId)}/extraction`,
         {
           headers: cookieHeader(request),
           cache: 'no-store',
         },
       ),
     ]);
-    const resumeJson = (await resumeRes.json().catch(() => null)) as {
+    const resumeJson = await readJson<{
+      error?: string;
       resume?: {
         resumeId?: string | null;
         resume?: {
@@ -105,10 +124,18 @@ export async function POST(request: Request) {
           preferredLocations?: string[];
         } | null;
       };
-    } | null;
-    const extractionJson = (await extractionRes.json().catch(() => null)) as {
+    }>(resumeRes);
+    const extractionJson = await readJson<{
+      error?: string;
       extraction?: { payload?: Record<string, unknown> };
-    } | null;
+    }>(extractionRes);
+    if (!resumeRes.ok || !extractionRes.ok) {
+      const failed = !resumeRes.ok ? resumeJson : extractionJson;
+      return Response.json(
+        { error: failed?.error ?? 'Could not load the parsed resume' },
+        { status: (!resumeRes.ok ? resumeRes : extractionRes).status || 502 },
+      );
+    }
 
     const payload = extractionJson?.extraction?.payload ?? {};
     const legacyId = resumeJson?.resume?.resumeId;

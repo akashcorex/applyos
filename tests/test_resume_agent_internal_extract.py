@@ -27,6 +27,12 @@ def test_extraction_payload_strips_internals() -> None:
     assert "profile_text_hash" not in payload
 
 
+def test_callback_defaults_to_local_api_port() -> None:
+    from config import Settings
+
+    assert Settings.model_fields["api_url"].default == "http://localhost:5000"
+
+
 def test_fail_code_mapping() -> None:
     assert (
         _fail_code_for(HTTPException(status_code=400, detail="empty"))

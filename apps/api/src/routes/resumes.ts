@@ -8,7 +8,6 @@ import { prisma } from '@applyso/database';
 
 import { authUserOf, requireAuth } from '../lib/authz';
 import {
-  ALLOWED_RESUME_MIME,
   MAX_RESUME_FILE_SIZE,
   isNonEmptyString,
   isResumeStatus,
@@ -29,10 +28,10 @@ import {
   validateExtractionPayload,
 } from '../lib/phase2-validation';
 import {
+  classifyResumeUpload,
   readResumeUpload,
   resolveSafeUploadPath,
   saveResumeUpload,
-  sniffResumeMime,
   statResumeUpload,
 } from '../lib/resume-storage';
 import { requireServiceToken } from '../lib/service-token';
@@ -194,8 +193,10 @@ async function dispatchExtract(resume: {
       });
     }
   } catch (error) {
+    const name = error instanceof Error ? error.name : '';
+    const timedOut = name === 'TimeoutError' || name === 'AbortError';
     await markFailed(resume.id, resume.userId, {
-      code: 'TIMEOUT',
+      code: timedOut ? 'TIMEOUT' : 'DISPATCH_FAILED',
       message: error instanceof Error ? error.message : 'dispatch failed',
     });
   }
@@ -397,19 +398,13 @@ resumesRouter.post(
       res.status(400).json({ error: 'file is required' });
       return;
     }
-    if (!ALLOWED_RESUME_MIME.has(file.mimetype)) {
-      res.status(400).json({ error: 'mimeType is not allowed' });
-      return;
-    }
-    // Never trust the client-supplied MIME alone — verify magic bytes and
-    // reject mismatches (polyglots / parser confusion downstream).
-    const sniffed = sniffResumeMime(file.buffer);
-    if (!sniffed || !ALLOWED_RESUME_MIME.has(sniffed)) {
-      res.status(415).json({ error: 'File content does not match its type' });
-      return;
-    }
-    if (sniffed !== file.mimetype) {
-      res.status(415).json({ error: 'File content does not match mimeType' });
+    const classified = classifyResumeUpload({
+      fileName: file.originalname,
+      declaredMime: file.mimetype,
+      bytes: file.buffer,
+    });
+    if (!classified.ok) {
+      res.status(classified.status).json({ error: classified.error });
       return;
     }
 
@@ -419,7 +414,7 @@ resumesRouter.post(
       userId: me.id,
       resumeFileId,
       fileName,
-      mimeType: file.mimetype,
+      mimeType: classified.mimeType,
       bytes: file.buffer,
     });
 
@@ -429,7 +424,7 @@ resumesRouter.post(
         userId: me.id,
         fileName,
         storageKey,
-        mimeType: file.mimetype,
+        mimeType: classified.mimeType,
         fileSize: file.size,
         status: 'UPLOADED',
         version: 1,
