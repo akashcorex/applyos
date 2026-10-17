@@ -160,6 +160,7 @@ export const Layers = icon(Layers01Icon);
 export const Link2 = icon(Link01Icon);
 export const Loader2 = icon(Loading03Icon);
 export const Menu = icon(Menu01Icon);
+export const Mail = icon(Mail01Icon);
 export const MessageCircle = icon(Message01Icon);
 export const Moon = icon(Moon02Icon);
 export const MoreHorizontal = icon(MoreHorizontalIcon);
