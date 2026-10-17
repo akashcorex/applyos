@@ -18,7 +18,7 @@ from services.matching.seniority import (
     seniority_allowed,
 )
 from services.skills import (
-    combine_job_score,
+    build_job_score_result,
     find_matching_skills,
     match_skills_in_text,
     normalize_skills,
@@ -378,12 +378,23 @@ class JobMatcher:
         else:
             skill_score = 0.0
 
-        final_score, parts = combine_job_score(
-            text_score, title_score, skill_score, recency_score
+        score_result, parts = build_job_score_result(
+            text_score=text_score,
+            title_score=title_score,
+            skill_score=skill_score,
+            recency_score=recency_score,
+            title_present=bool(title.strip()),
+            description_present=bool(
+                str(job.get("description") or "").strip()
+            ),
+            skills_evaluated=bool(resume_skills),
+            recency_present=bool(str(job.get("posted_at") or "").strip()),
         )
+        final_score = score_result.score
         reason = str(job.get("match_reason") or "").strip()
         if not reason:
             reason = cls._build_reason(title, matched, missing, final_score)
+        score_result = score_result.model_copy(update={"reason": reason})
 
         return MatchedJob(
             title=title,
@@ -410,6 +421,7 @@ class JobMatcher:
             missing_skills=missing,
             reason=reason,
             score_breakdown=parts,
+            score_result=score_result,
         )
 
     @staticmethod

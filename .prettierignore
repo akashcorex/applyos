@@ -58,5 +58,8 @@ next-env.d.ts
 **/snapshot.json
 tests/fixtures/**
 
+# Vendored agent skills (third-party content, not project source)
+.agents/skills/
+
 # Docs assets
 docs/generated

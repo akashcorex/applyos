@@ -7,6 +7,8 @@ from uuid import uuid4
 
 from pydantic import BaseModel, Field, HttpUrl, field_validator
 
+from services.score_contract import ScoreResult
+
 
 RESUME_IR_SCHEMA_VERSION = "resume-ir.v1"
 TAILORING_POLICY_VERSION = "tailoring-policy.v1"
@@ -315,6 +317,7 @@ class MatchedJob(BaseModel):
     base_score: float | None = None
     behavior_boost: float | None = None
     score_breakdown: dict[str, float] | None = None
+    score_result: ScoreResult | None = None
     matched_skills: list[str] = Field(default_factory=list)
     # Alias kept for older clients; mirrors matched_skills.
     matching_skills: list[str] = Field(default_factory=list)
@@ -511,6 +514,7 @@ class MatchScoreMeta(BaseModel):
     skill_score: float = 0.0
     matched_skills: list[str] = Field(default_factory=list)
     missing_skills: list[str] = Field(default_factory=list)
+    score_result: ScoreResult | None = None
 
 
 class UpdateVariantRequest(BaseModel):

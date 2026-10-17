@@ -18,6 +18,12 @@ from config import settings
 from models import SearchResult, SemanticMatchResult
 from services.embeddings import embed_texts, embeddings_available
 from services.recency import recency_score
+from services.score_contract import (
+    build_score_result,
+    clamp_score,
+    not_evaluated_result,
+    score_component,
+)
 from services.seniority import (
     SENIORITY_RANK,
     infer_seniority,
@@ -381,7 +387,16 @@ async def semantic_rank_jobs(
 
     if not embeddings_available():
         logger.warning("OPENAI_API_KEY not set — returning unranked jobs")
-        return [SemanticMatchResult(**job.model_dump()) for job in jobs]
+        return [
+            SemanticMatchResult(
+                **job.model_dump(),
+                score_result=not_evaluated_result(
+                    "Semantic scoring unavailable: embeddings are not configured.",
+                    ["semantic", "text", "title", "skills", "recency"],
+                ),
+            )
+            for job in jobs
+        ]
 
     candidate_text = build_candidate_text(
         preferred_role,
@@ -414,7 +429,16 @@ async def semantic_rank_jobs(
             title_vectors = vectors[len(jobs) + 1 :]
     except Exception as exc:
         logger.error("Embedding failed: %s", exc)
-        return [SemanticMatchResult(**job.model_dump()) for job in jobs]
+        return [
+            SemanticMatchResult(
+                **job.model_dump(),
+                score_result=not_evaluated_result(
+                    "Semantic scoring unavailable: embedding request failed.",
+                    ["semantic", "text", "title", "skills", "recency"],
+                ),
+            )
+            for job in jobs
+        ]
 
     max_age = settings.job_max_age_days
     scored: list[tuple[SearchResult, float, float, float, float, str]] = []
@@ -463,6 +487,54 @@ async def semantic_rank_jobs(
         matched = explanation.matching_skills if explanation and explanation.matching_skills else rule_matched
         missing = explanation.missing_skills if explanation and explanation.missing_skills else rule_missing
         reason = explanation.reason if explanation else ""
+        if not reason:
+            reason = (
+                f"Semantic similarity {score * 100:.1f}/100 for "
+                f"{job.company_name}/{job.title}."
+            )
+
+        seniority_boost = _seniority_score_boost(experience_years, job)
+        blend = 0.5 * text_sim + 0.5 * title_sim
+        text_component = score_component(
+            "text",
+            weight=0.5,
+            score=text_sim * 100,
+            evidence_tier="stated" if job.description else "structural",
+            reason="Cosine similarity between profile and JD text.",
+        )
+        title_component = score_component(
+            "title",
+            weight=0.5,
+            score=title_sim * 100,
+            evidence_tier="structural",
+            reason="Cosine similarity between profile and job title.",
+        )
+        components = [text_component, title_component]
+        base_points = text_component.contribution + title_component.contribution
+        raw_score = blend * seniority_boost * 100
+        final_points = min(100.0, raw_score)
+        adjustment = round(final_points - base_points, 1)
+        if abs(adjustment) >= 0.05:
+            capped = final_points < raw_score - 0.05
+            components.append(
+                score_component(
+                    "seniority",
+                    score=clamp_score(100 + (seniority_boost - 1.0) * blend * 100),
+                    contribution=adjustment,
+                    evidence_tier="structural",
+                    reason=(
+                        "Seniority adjustment capped at the 100 ceiling."
+                        if capped
+                        else "Seniority alignment adjustment."
+                    ),
+                )
+            )
+        score_result = build_score_result(
+            score=final_points,
+            components=components,
+            reason=reason,
+            not_evaluated=[] if job.description else ["text"],
+        )
 
         ranked.append(
             SemanticMatchResult(
@@ -474,6 +546,7 @@ async def semantic_rank_jobs(
                 match_reason=reason,
                 matching_skills=matched,
                 missing_skills=missing,
+                score_result=score_result,
             )
         )
 

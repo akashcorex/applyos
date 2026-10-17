@@ -2,7 +2,7 @@
 
 ## Drift Report (derived fresh from code, not prior docs)
 
-- Doc claim "33 tables" vs code: `packages/database/prisma/schema.prisma` has 38 `^model` blocks. Use 38.
+- Doc claim "33 tables" vs code: `packages/database/prisma/schema.prisma` has 40 `^model` blocks across 13 migrations (verified 2026-10-18). Use 40.
 - Doc claim "resume-agent owns its own Postgres / split-brain two DBs" vs code: single shared Postgres. The agent verifies that Prisma-created tables exist and performs no schema DDL. Prisma migrations are the sole schema path.
 - Doc claim "job-agent only board_registry.db" vs code: also `apps/job-agent/services/job_snapshots.py:13,38-62` SQLite `job_snapshots(dedup_key PK, first_seen_at, last_seen_at)` — per-instance, not shared. Relevant to Phase 2 first/last-seen design.
 - Doc claim dedup = `{namespace}::{title}::{location}` vs code: correct (`services/dedup.py:31-36`), but code also has `listing_fingerprint(company|title|desc_hash)` (`:55-68`) for cross-company content dedup — docs omitted it.

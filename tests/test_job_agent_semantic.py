@@ -12,6 +12,7 @@ from services.semantic_match import (
     JobExplanation,
     JobExplanations,
 )
+from services.score_contract import score_band
 from services.skill_utils import infer_skill_overlap, match_skills_in_text
 
 
@@ -73,6 +74,14 @@ async def test_semantic_rank_jobs_with_embeddings(monkeypatch: pytest.MonkeyPatc
     assert ranked[0].matching_skills  # rule-based skills for all jobs
     assert ranked[0].text_score > 0
     assert ranked[0].title_score > 0
+
+    for job in ranked:
+        assert job.score_result is not None
+        assert job.score_result.band == score_band(job.semantic_score * 100)
+        assert {c.name for c in job.score_result.components} >= {"text", "title"}
+        contribution = sum(c.contribution for c in job.score_result.components)
+        assert abs(contribution - job.score_result.score) <= 0.2
+        assert job.score_result.confidence in {"high", "medium", "low"}
 
 
 @pytest.mark.asyncio
@@ -348,3 +357,26 @@ async def test_semantic_rank_keeps_senior_for_five_years(
         experience_years=5,
     )
     assert [job.title for job in ranked] == ["Senior Software Engineer"]
+
+
+@pytest.mark.asyncio
+async def test_unranked_jobs_carry_a_not_evaluated_score_result(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(semantic_module.settings, "openai_api_key", "")
+
+    jobs = [_make_job("Backend Engineer", "Acme", seniority=None)]
+    ranked = await semantic_rank_jobs(
+        jobs,
+        skills=["Python"],
+        preferred_role="Engineer",
+        experience_years=5,
+    )
+
+    assert len(ranked) == 1
+    result = ranked[0].score_result
+    assert result is not None
+    assert result.score == 0
+    assert result.confidence == "low"
+    assert "semantic" in result.not_evaluated
+    assert "embeddings" in result.reason

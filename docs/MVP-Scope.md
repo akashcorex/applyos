@@ -1,5 +1,10 @@
 # MVP Scope — Entities, Decisions, Table Disposition
 
+> **Historical note (2026-10-18):** MVP-era decisions, kept for reference. The "Explicit non-goals
+> (MVP)" list and disposition notes describe the MVP only; several are superseded by the pending
+> Phase 4–7 plan in `README.md` (e.g. notification sender, outreach email send). Where they
+> conflict, the phase plan wins.
+
 ## Terminology (used consistently across all docs)
 
 "Profile" and "Candidate Profile" are the same entity: the Prisma `Profile` row extended per Decision 1. All phase docs say "Profile".

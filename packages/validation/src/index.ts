@@ -30,6 +30,7 @@ export * from './workflows';
 export * from './outreach';
 export * from './linkedin';
 export * from './jobs';
+export * from './score';
 export * from './billing';
 export * from './http';
 export * from './errors';

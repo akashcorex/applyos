@@ -622,6 +622,102 @@
       "required": ["application_url", "resume_id"],
       "additionalProperties": false
     },
+    "scoreResult": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "score": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "band": {
+          "type": "string",
+          "enum": ["strong", "good", "moderate", "weak", "poor"]
+        },
+        "components": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "enum": [
+                  "semantic",
+                  "text",
+                  "title",
+                  "skills",
+                  "recency",
+                  "seniority",
+                  "work_mode",
+                  "application_url",
+                  "behavior"
+                ]
+              },
+              "weight": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "score": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 100
+              },
+              "contribution": {
+                "type": "number"
+              },
+              "evidence_tier": {
+                "type": "string",
+                "enum": ["stated", "structural", "inferred"]
+              },
+              "reason": {
+                "default": "",
+                "type": "string"
+              }
+            },
+            "required": [
+              "name",
+              "weight",
+              "score",
+              "contribution",
+              "evidence_tier",
+              "reason"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "confidence": {
+          "type": "string",
+          "enum": ["high", "medium", "low"]
+        },
+        "evidence_tier": {
+          "type": "string",
+          "enum": ["stated", "structural", "inferred"]
+        },
+        "reason": {
+          "default": "",
+          "type": "string"
+        },
+        "not_evaluated": {
+          "default": [],
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "score",
+        "band",
+        "components",
+        "confidence",
+        "evidence_tier",
+        "reason",
+        "not_evaluated"
+      ],
+      "additionalProperties": false
+    },
     "billingCheckout": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "type": "object",

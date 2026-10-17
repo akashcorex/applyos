@@ -1,6 +1,5 @@
 'use client';
 
-import { AgentStatusPanel } from '@/components/AgentStatusPanel';
 import { WorkflowPanel } from '@/components/WorkflowPanel';
 
 export default function WorkflowsPage() {
@@ -11,19 +10,11 @@ export default function WorkflowsPage() {
           Applications Tracker
         </h1>
         <p className="text-xs text-[#8a8f9d] mt-0.5 font-normal">
-          Track real-time job application progress, review execution steps, and
-          monitor active agents.
+          Track real-time job application progress and review execution steps.
         </p>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2">
-          <WorkflowPanel />
-        </div>
-        <div>
-          <AgentStatusPanel />
-        </div>
-      </div>
+      <WorkflowPanel />
     </div>
   );
 }

@@ -7,10 +7,11 @@ from dataclasses import dataclass
 from models import DiscoveredJobRecord, UserProfile
 from services.filter import (
     _location_matches,
-    _score_job,
     _seniority_allowed,
     _title_match_score,
+    score_job,
 )
+from services.score_contract import ScoreResult
 
 
 @dataclass
@@ -18,6 +19,7 @@ class PolicyVerdict:
     allowed: bool
     reason: str
     score: float = 0.0
+    score_result: ScoreResult | None = None
 
 
 def evaluate_job(
@@ -61,10 +63,12 @@ def evaluate_job(
             f"per-company cap of {max_jobs_per_company} reached for {job.company_name}",
         )
 
+    score_result = score_job(job, profile)
     return PolicyVerdict(
         True,
         "eligible",
-        score=_score_job(job, profile),
+        score=score_result.score,
+        score_result=score_result,
     )
 
 
@@ -94,6 +98,7 @@ def rank_eligible(
         if not verdict.allowed:
             continue
         job.filter_score = verdict.score
+        job.filter_score_result = verdict.score_result
         seen.add(job.dedup_key)
         per_company[job.company_name] = per_company.get(job.company_name, 0) + 1
         eligible.append(job)

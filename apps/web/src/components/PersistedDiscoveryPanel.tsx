@@ -20,6 +20,23 @@ import { Input } from '@applyso/ui/input';
 const RENDER_BATCH = 20;
 const FETCH_BATCH = 20;
 
+interface ScoreResult {
+  score: number;
+  band: 'strong' | 'good' | 'moderate' | 'weak' | 'poor';
+  components: {
+    name: string;
+    weight: number;
+    score: number;
+    contribution: number;
+    evidence_tier: 'stated' | 'structural' | 'inferred';
+    reason?: string;
+  }[];
+  confidence: 'high' | 'medium' | 'low';
+  evidence_tier: 'stated' | 'structural' | 'inferred';
+  reason: string;
+  not_evaluated: string[];
+}
+
 interface ProfileResponse {
   profile?: {
     id: string;
@@ -42,8 +59,28 @@ interface Job {
   isActive?: boolean;
   flags?: string[];
   score?: number;
+  scoreResult?: ScoreResult | null;
   reason?: string;
   isSaved: boolean;
+}
+
+type FeedSortMode = 'score' | 'recent';
+
+function jobScore(job: Job): number {
+  if (job.scoreResult && !job.scoreResult.not_evaluated.includes('match')) {
+    return job.scoreResult.score;
+  }
+  return typeof job.score === 'number' ? job.score : -1;
+}
+
+function jobScoreTitle(job: Job): string | undefined {
+  if (!job.scoreResult) return undefined;
+  const parts = [
+    `Band: ${job.scoreResult.band}`,
+    `Confidence: ${job.scoreResult.confidence}`,
+    job.scoreResult.reason,
+  ].filter(Boolean);
+  return parts.join(' · ');
 }
 
 interface DiscoveryResponse {
@@ -245,8 +282,11 @@ const JobCard = memo(function JobCard({
             {job.title}
           </span>
         </span>
-        {typeof job.score === 'number' ? (
-          <span className="shrink-0 text-[11px] font-semibold text-slate-500">
+        {typeof job.score === 'number' && jobScore(job) >= 0 ? (
+          <span
+            className="shrink-0 text-[11px] font-semibold text-slate-500"
+            title={jobScoreTitle(job)}
+          >
             {job.score.toFixed(0)}
           </span>
         ) : null}
@@ -289,6 +329,7 @@ export function PersistedDiscoveryPanel() {
   const [freshJobs, setFreshJobs] = useState<Job[]>([]);
   const [freshSeenAt, setFreshSeenAt] = useState<string | null>(null);
   const [freshLoading, setFreshLoading] = useState(false);
+  const [sortMode, setSortMode] = useState<FeedSortMode>('score');
   const impressionedIds = useRef<Set<string>>(new Set());
   const lastSession = useRef<string | null>(null);
 
@@ -346,10 +387,20 @@ export function PersistedDiscoveryPanel() {
     if (profileReady) void loadFresh();
   }, [profileReady, loadFresh]);
 
-  // Render windowing: only mount a slice, fetch stays batch-wise.
+  // Sort the loaded feed, then render-window the slice.
+  const sortedJobs = useMemo(() => {
+    const list = [...jobs];
+    const recency = (job: Job) => new Date(job.firstSeenAt).getTime() || 0;
+    if (sortMode === 'recent') {
+      list.sort((a, b) => recency(b) - recency(a) || jobScore(b) - jobScore(a));
+    } else {
+      list.sort((a, b) => jobScore(b) - jobScore(a) || recency(b) - recency(a));
+    }
+    return list;
+  }, [jobs, sortMode]);
   const visibleJobs = useMemo(
-    () => jobs.slice(0, visibleCount),
-    [jobs, visibleCount],
+    () => sortedJobs.slice(0, visibleCount),
+    [sortedJobs, visibleCount],
   );
   const hasMoreToRender = visibleCount < jobs.length;
   const hasMoreToFetch = Boolean(sessionId) && loadedCount < totalJobs;
@@ -379,7 +430,7 @@ export function PersistedDiscoveryPanel() {
               sessionId,
               eventType: 'impression',
               rankPosition,
-              matchScore: job.score,
+              matchScore: jobScore(job),
             }),
           }).catch(() => undefined),
         ),
@@ -631,7 +682,7 @@ export function PersistedDiscoveryPanel() {
           body: JSON.stringify({
             jobIds: selected,
             scores: Object.fromEntries(
-              selectedJobs.map((job) => [job.id, job.score ?? 0]),
+              selectedJobs.map((job) => [job.id, Math.max(0, jobScore(job))]),
             ),
           }),
         },
@@ -741,6 +792,41 @@ export function PersistedDiscoveryPanel() {
                   onSkip={skipJob}
                   onOpen={handleJobOpen}
                 />
+              ))}
+            </div>
+          </div>
+        ) : null}
+        {jobs.length > 0 ? (
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              {sortMode === 'score'
+                ? 'Sorted by match score'
+                : 'Sorted by recency'}
+            </p>
+            <div
+              role="group"
+              aria-label="Sort discovered jobs"
+              className="inline-flex overflow-hidden rounded-[6px] border border-slate-300 text-xs dark:border-[#282a32]"
+            >
+              {(
+                [
+                  ['score', 'Score'],
+                  ['recent', 'Recency'],
+                ] as const
+              ).map(([mode, label]) => (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => setSortMode(mode)}
+                  aria-pressed={sortMode === mode}
+                  className={`px-2 py-1 ${
+                    sortMode === mode
+                      ? 'bg-slate-900 text-white dark:bg-[#f1f3f9] dark:text-[#16171b]'
+                      : 'text-slate-600 dark:text-slate-300'
+                  }`}
+                >
+                  {label}
+                </button>
               ))}
             </div>
           </div>

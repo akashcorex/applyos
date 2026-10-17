@@ -4,9 +4,9 @@
   "private": true,
   "description": "applyso — an AI application agent that discovers and applies to jobs on your behalf. Monorepo housing the Next.js web app, API server, and Python agent services.",
   "license": "MIT",
-  "packageManager": "bun@1.3.12",
+  "packageManager": "bun@1.4.3",
   "engines": {
-    "bun": ">=1.3.12",
+    "bun": ">=1.4.3",
     "node": ">=20"
   },
   "workspaces": [

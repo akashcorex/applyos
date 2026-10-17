@@ -42,9 +42,9 @@ jobs:
       - uses: actions/checkout@v7
       - uses: oven-sh/setup-bun@v2
         with:
-          # `latest`: the lockfile is produced by the current Bun toolchain,
-          # which is newer than the `packageManager` field. Do NOT omit this
-          # or setup-bun will install the stale pinned version instead.
+          # `latest`: always run CI on the current Bun toolchain. Keep the
+          # `packageManager` pin in package.json in sync when upgrading so
+          # local, CI, and lockfile all agree.
           bun-version: latest
       - uses: actions/setup-node@v7
         with:

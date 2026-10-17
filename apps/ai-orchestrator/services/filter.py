@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 
 from models import DiscoveredJobRecord, SeniorityLevel, StartWorkflowRequest, UserProfile
+from services.score_contract import ScoreResult, build_score_result, score_component
 
 SENIORITY_RANK: dict[str, int] = {
     "intern": 0,
@@ -88,13 +89,60 @@ def _seniority_allowed(
     return job_rank <= user_rank
 
 
+def score_job(job: DiscoveredJobRecord, profile: UserProfile) -> ScoreResult:
+    title_match = _title_match_score(job.title, profile.preferred_role)
+    components = [
+        score_component(
+            "title",
+            weight=0.7,
+            score=title_match * 100,
+            evidence_tier="structural" if job.title else "inferred",
+            reason="Share of preferred-role tokens present in the title.",
+        )
+    ]
+    not_evaluated: list[str] = []
+    if not job.title:
+        not_evaluated.append("title")
+
+    if job.location_type is not None:
+        remote = job.location_type == "remote"
+        components.append(
+            score_component(
+                "work_mode",
+                weight=0.15,
+                score=100 if remote else 0,
+                evidence_tier="structural",
+                reason="Remote listings get a small ranking bonus.",
+            )
+        )
+    else:
+        not_evaluated.append("work_mode")
+
+    components.append(
+        score_component(
+            "application_url",
+            weight=0.15,
+            score=100 if job.application_url else 0,
+            evidence_tier="structural",
+            reason="Direct application URLs rank above link-less listings.",
+        )
+    )
+
+    score = sum(component.contribution for component in components)
+    return build_score_result(
+        score=score,
+        components=components,
+        reason=(
+            f"Title match {title_match:.0%}"
+            f"{', remote' if job.location_type == 'remote' else ''}"
+            f"{', apply URL' if job.application_url else ''}."
+        ),
+        not_evaluated=not_evaluated,
+    )
+
+
 def _score_job(job: DiscoveredJobRecord, profile: UserProfile) -> float:
-    score = _title_match_score(job.title, profile.preferred_role) * 10.0
-    if job.location_type == "remote":
-        score += 2.0
-    if job.application_url:
-        score += 1.0
-    return score
+    return score_job(job, profile).score
 
 
 def filter_jobs(
@@ -127,7 +175,8 @@ def filter_jobs(
 
         seen_dedup.add(job.dedup_key)
         per_company[job.company_name] = company_count + 1
-        job.filter_score = _score_job(job, profile)
+        job.filter_score_result = score_job(job, profile)
+        job.filter_score = job.filter_score_result.score
         candidates.append(job)
 
     candidates.sort(key=lambda item: item.filter_score, reverse=True)

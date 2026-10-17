@@ -8,8 +8,9 @@ import re
 
 from models import VariantContent
 from services.embeddings import embed_texts, embeddings_available
+from services.score_contract import ScoreResult
 from services.skills import (
-    combine_match_score,
+    build_match_score_result,
     find_matching_skills,
     match_skills_in_text,
     normalize_skills,
@@ -69,12 +70,14 @@ class VariantScoreResult:
         skill_score: float,
         matched_skills: list[str],
         missing_skills: list[str],
+        score_result: ScoreResult | None = None,
     ) -> None:
         self.match_score = match_score
         self.semantic_score = semantic_score
         self.skill_score = skill_score
         self.matched_skills = matched_skills
         self.missing_skills = missing_skills
+        self.score_result = score_result
 
     def as_meta(self) -> dict:
         return {
@@ -82,6 +85,9 @@ class VariantScoreResult:
             "skill_score": round(self.skill_score, 4),
             "matched_skills": self.matched_skills,
             "missing_skills": self.missing_skills,
+            "score_result": (
+                self.score_result.model_dump() if self.score_result else None
+            ),
         }
 
 
@@ -102,10 +108,12 @@ async def score_variant(
     )
 
     semantic = 0.0
+    semantic_evaluated = False
     if embeddings_available():
         try:
             vectors = await embed_texts([candidate_text, job_text])
             semantic = cosine_similarity(vectors[0], vectors[1])
+            semantic_evaluated = True
         except Exception as exc:
             logger.warning("Variant embedding score failed: %s", exc)
 
@@ -125,11 +133,19 @@ async def score_variant(
     else:
         skill_score = semantic
 
-    final = combine_match_score(semantic, skill_score)
+    score_result = build_match_score_result(
+        semantic_score=semantic,
+        skill_score=skill_score,
+        semantic_evaluated=semantic_evaluated,
+        skills_evaluated=bool(resume_skills),
+        description_present=bool((job_description or "").strip()),
+        reason=f"Variant fit for {job_title} at {company_name}.",
+    )
     return VariantScoreResult(
-        match_score=final,
+        match_score=score_result.score,
         semantic_score=semantic,
         skill_score=skill_score,
         matched_skills=matched,
         missing_skills=missing,
+        score_result=score_result,
     )

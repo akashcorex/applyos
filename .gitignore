@@ -86,4 +86,3 @@ out
 # Prisma client output (regenerate with `bun run db:generate`)
 packages/database/src/generated/
 .vercel
-reference-ui/*

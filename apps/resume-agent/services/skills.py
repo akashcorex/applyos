@@ -8,6 +8,13 @@ from __future__ import annotations
 
 import re
 
+from services.score_contract import (
+    ScoreResult,
+    build_score_result,
+    clamp_score,
+    score_component,
+)
+
 # Canonical name → accepted aliases (lowercase).
 _SKILL_ALIASES: dict[str, set[str]] = {
     "JavaScript": {"js", "javascript", "ecmascript", "es6", "es2015"},
@@ -265,3 +272,120 @@ def combine_job_score(
         1,
     )
     return final, parts
+
+
+def build_match_score_result(
+    *,
+    semantic_score: float,
+    skill_score: float,
+    semantic_evaluated: bool = True,
+    skills_evaluated: bool = True,
+    description_present: bool = False,
+    reason: str = "",
+) -> ScoreResult:
+    """70/30 semantic+skills score with named, inspectable components."""
+    semantic = clamp_score(semantic_score * 100) / 100
+    skills = clamp_score(skill_score * 100) / 100
+    components = []
+    not_evaluated: list[str] = []
+
+    if semantic_evaluated:
+        components.append(
+            score_component(
+                "semantic",
+                weight=0.7,
+                score=semantic * 100,
+                evidence_tier="stated" if description_present else "inferred",
+                reason="Embedding similarity between candidate and job text.",
+            )
+        )
+    else:
+        not_evaluated.append("semantic")
+
+    if skills_evaluated:
+        components.append(
+            score_component(
+                "skills",
+                weight=0.3,
+                score=skills * 100,
+                evidence_tier="stated" if description_present else "inferred",
+                reason="Skill overlap between profile and job requirements.",
+            )
+        )
+    else:
+        not_evaluated.append("skills")
+
+    return build_score_result(
+        score=combine_match_score(semantic, skills),
+        components=components,
+        reason=reason,
+        not_evaluated=not_evaluated,
+    )
+
+
+def build_job_score_result(
+    *,
+    text_score: float,
+    title_score: float,
+    skill_score: float,
+    recency_score: float,
+    title_present: bool = True,
+    description_present: bool = True,
+    skills_evaluated: bool = True,
+    recency_present: bool = True,
+    reason: str = "",
+) -> tuple[ScoreResult, dict[str, float]]:
+    """45/15/30/10 job score with named components and explicit gaps."""
+    final, parts = combine_job_score(
+        text_score, title_score, skill_score, recency_score
+    )
+    components = [
+        score_component(
+            "text",
+            weight=0.45,
+            score=parts["text"] * 100,
+            evidence_tier="stated" if description_present else "structural",
+            reason="Full-text similarity between profile and job.",
+        ),
+        score_component(
+            "title",
+            weight=0.15,
+            score=parts["title"] * 100,
+            evidence_tier="structural" if title_present else "inferred",
+            reason="Title similarity between profile role and job title.",
+        ),
+        score_component(
+            "skills",
+            weight=0.30,
+            score=parts["skill"] * 100,
+            evidence_tier="stated" if description_present else "inferred",
+            reason="Overlap between profile skills and job requirements.",
+        ),
+        score_component(
+            "recency",
+            weight=0.10,
+            score=parts["recency"] * 100,
+            evidence_tier="structural" if recency_present else "inferred",
+            reason="Posting freshness.",
+        ),
+    ]
+
+    not_evaluated: list[str] = []
+    if not description_present:
+        not_evaluated.append("text")
+    if not title_present:
+        not_evaluated.append("title")
+    if not skills_evaluated:
+        not_evaluated.append("skills")
+    if not recency_present:
+        not_evaluated.append("recency")
+
+    return (
+        build_score_result(
+            score=final,
+            components=components,
+            reason=reason,
+            not_evaluated=not_evaluated,
+        ),
+        parts,
+    )

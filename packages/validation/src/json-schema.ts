@@ -11,6 +11,7 @@ import { outreachSendSchema } from './outreach';
 import { preferencesUpdateSchema } from './preferences';
 import { profileInputSchema } from './profile';
 import { resumeCreateSchema, resumeUpdateSchema } from './resume';
+import { scoreResultSchema } from './score';
 import { workflowStartSchema, workflowStatusUpdateSchema } from './workflows';
 
 /**
@@ -35,6 +36,7 @@ export const contractSchemas = {
   outreachSend: outreachSendSchema,
   linkedinConnectBulk: linkedinConnectBulkSchema,
   jobApply: jobApplySchema,
+  scoreResult: scoreResultSchema,
   billingCheckout: billingCheckoutSchema,
 } as const;
 

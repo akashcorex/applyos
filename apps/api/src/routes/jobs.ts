@@ -7,11 +7,14 @@ import {
   jobInteractionSchema,
   jobListQuerySchema,
   jobSelectSchema,
+  notEvaluatedScoreResult,
 } from '@applyso/validation';
+import type { ScoreResult } from '@applyso/validation';
 import { prisma } from '@applyso/database';
 
 import { authUserOf, requireAuth } from '../lib/authz';
 import { reconcileJobs } from '../lib/job-reconcile';
+import { storedScoreResult } from '../lib/score-result';
 import { requireServiceToken } from '../lib/service-token';
 
 const RESUME_AGENT_URL =
@@ -39,7 +42,24 @@ type MatchJob = {
   raw_payload?: unknown;
   match_score?: number | null;
   reason?: string | null;
+  score_result?: unknown;
+  scoreResult?: unknown;
 };
+
+type StoredScore = {
+  jobId?: string;
+  dedupKey?: string;
+  score?: number;
+  reason?: string;
+  scoreResult?: ScoreResult;
+};
+
+function asStoredScore(value: unknown): StoredScore | null {
+  if (!value || typeof value !== 'object') return null;
+  return value as StoredScore;
+}
+
+const SCORE_SESSION_LOOKBACK = 20;
 
 type MatchResponse = {
   session_id?: string | null;
@@ -150,6 +170,7 @@ function savedJobResponse(
     isActive: boolean;
   },
   isSaved: boolean,
+  scoreResult: ScoreResult = notEvaluatedScoreResult(),
 ) {
   const ageDays = Math.max(
     0,
@@ -182,7 +203,49 @@ function savedJobResponse(
     flags,
     isActive: job.isActive,
     isSaved,
+    score: scoreResult.score,
+    scoreResult,
   };
+}
+
+/** Latest stored score per job id and dedup key, newest session first. */
+async function latestStoredScores(
+  userId: string,
+): Promise<Map<string, ScoreResult>> {
+  const sessions = await prisma.matchSession.findMany({
+    where: { userId },
+    orderBy: { createdAt: 'desc' },
+    take: SCORE_SESSION_LOOKBACK,
+    select: { topResults: true },
+  });
+  const scores = new Map<string, ScoreResult>();
+  for (const session of sessions) {
+    if (!Array.isArray(session.topResults)) continue;
+    for (const raw of session.topResults) {
+      const item = asStoredScore(raw);
+      if (!item) continue;
+      const result = storedScoreResult(
+        item.scoreResult,
+        item.score,
+        item.reason,
+      );
+      if (item.jobId && !scores.has(item.jobId)) {
+        scores.set(item.jobId, result);
+      }
+      if (item.dedupKey) {
+        const key = `dedup:${item.dedupKey}`;
+        if (!scores.has(key)) scores.set(key, result);
+      }
+    }
+  }
+  return scores;
+}
+
+function scoreForJob(
+  scores: Map<string, ScoreResult>,
+  job: { id: string; dedupKey: string },
+): ScoreResult | undefined {
+  return scores.get(job.id) ?? scores.get(`dedup:${job.dedupKey}`);
 }
 
 export const jobsRouter = Router();
@@ -374,6 +437,7 @@ async function persistDiscoveryMatches(
           score: number;
           reason: string;
           dedupKey: string;
+          scoreResult: ScoreResult;
         }[] = [];
 
         for (const item of matchJobs) {
@@ -436,16 +500,20 @@ async function persistDiscoveryMatches(
             },
           });
 
+          const scoreResult = storedScoreResult(
+            item.score_result ?? item.scoreResult,
+            item.match_score,
+            item.reason,
+          );
           jobs.push({
             id: job.id,
-            score:
-              typeof item.match_score === 'number' &&
-              Number.isFinite(item.match_score)
-                ? item.match_score
-                : 0,
+            score: scoreResult.score,
             reason:
-              item.reason?.trim() || 'Recommended from your confirmed profile.',
+              item.reason?.trim() ||
+              scoreResult.reason ||
+              'Recommended from your confirmed profile.',
             dedupKey: job.dedupKey,
+            scoreResult,
           });
         }
 
@@ -454,6 +522,7 @@ async function persistDiscoveryMatches(
           dedupKey: job.dedupKey,
           score: job.score,
           reason: job.reason,
+          scoreResult: job.scoreResult,
           rank: index + 1,
         }));
         const persistedSession = await tx.matchSession.update({
@@ -508,22 +577,20 @@ jobsRouter.get('/discover/:id', async (req, res) => {
       return;
     }
 
-    const topResults = Array.isArray(session.topResults)
-      ? session.topResults.filter(
-          (
-            item,
-          ): item is {
-            jobId: string;
-            dedupKey: string;
-            score?: number;
-            reason?: string;
-          } =>
-            Boolean(item) &&
-            typeof item === 'object' &&
-            typeof (item as { jobId?: unknown }).jobId === 'string' &&
-            typeof (item as { dedupKey?: unknown }).dedupKey === 'string',
-        )
-      : [];
+    const topResults: (StoredScore & { jobId: string; dedupKey: string })[] =
+      [];
+    if (Array.isArray(session.topResults)) {
+      for (const raw of session.topResults) {
+        const item = asStoredScore(raw);
+        if (item?.jobId && item.dedupKey) {
+          topResults.push({
+            ...item,
+            jobId: item.jobId,
+            dedupKey: item.dedupKey,
+          });
+        }
+      }
+    }
     const limit = Math.min(parsed.data.limit, 20);
     const page = topResults.slice(
       parsed.data.offset,
@@ -545,12 +612,16 @@ jobsRouter.get('/discover/:id', async (req, res) => {
     res.status(200).json({
       jobs: page.flatMap((item) => {
         const job = jobsById.get(item.jobId);
+        const scoreResult = storedScoreResult(
+          item.scoreResult,
+          item.score,
+          item.reason,
+        );
         return job
           ? [
               {
-                ...savedJobResponse(job, savedIds.has(job.id)),
-                score: item.score ?? 0,
-                reason: item.reason ?? null,
+                ...savedJobResponse(job, savedIds.has(job.id), scoreResult),
+                reason: item.reason ?? scoreResult.reason,
               },
             ]
           : [];
@@ -620,13 +691,16 @@ jobsRouter.get('/', async (req, res) => {
     take: parsed.data.limit,
     skip: parsed.data.offset,
   });
+  const scoreMap = await latestStoredScores(me.id);
   const saved = await prisma.savedJob.findMany({
     where: { userId: me.id, jobId: { in: jobs.map((job) => job.id) } },
     select: { jobId: true },
   });
   const savedIds = new Set(saved.map((item) => item.jobId));
   res.status(200).json({
-    jobs: jobs.map((job) => savedJobResponse(job, savedIds.has(job.id))),
+    jobs: jobs.map((job) =>
+      savedJobResponse(job, savedIds.has(job.id), scoreForJob(scoreMap, job)),
+    ),
     ...(freshSince ? { seenAt: profile.jobsSeenAt ?? null } : {}),
   });
 });
@@ -674,14 +748,19 @@ jobsRouter.get('/selections/:id', async (req, res) => {
     select: { jobId: true },
   });
   const savedIds = new Set(saved.map((item) => item.jobId));
+  const scoreMap = await latestStoredScores(me.id);
   res.status(200).json({
     selectionId: selection.id,
     jobIds: selection.items.map((item) => item.jobId),
-    jobs: selection.items.map((item) => ({
-      ...savedJobResponse(item.job, savedIds.has(item.jobId)),
-      rankPosition: item.rankPosition,
-      score: item.score,
-    })),
+    jobs: selection.items.map((item) => {
+      const scoreResult =
+        scoreForJob(scoreMap, item.job) ??
+        storedScoreResult(undefined, item.score);
+      return {
+        ...savedJobResponse(item.job, savedIds.has(item.jobId), scoreResult),
+        rankPosition: item.rankPosition,
+      };
+    }),
     createdAt: selection.createdAt,
   });
 });
@@ -820,7 +899,11 @@ jobsRouter.post('/:id/select', async (req, res) => {
     selectionId: selection.id,
     jobIds: uniqueIds,
     jobs: uniqueIds.map((jobId) =>
-      savedJobResponse(jobsById.get(jobId)!, false),
+      savedJobResponse(
+        jobsById.get(jobId)!,
+        false,
+        storedScoreResult(undefined, parsed.data.scores?.[jobId]),
+      ),
     ),
   });
 });

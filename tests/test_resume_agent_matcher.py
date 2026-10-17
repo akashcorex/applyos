@@ -136,6 +136,15 @@ async def test_match_uses_semantic_endpoint_and_weighted_score() -> None:
         "skill": round(2 / 3, 4),
         "recency": 0.5,
     }
+    assert vercel.score_result is not None
+    assert vercel.score_result.score == vercel.match_score
+    assert {c.name for c in vercel.score_result.components} == {
+        "text",
+        "title",
+        "skills",
+        "recency",
+    }
+    assert "recency" in vercel.score_result.not_evaluated
     assert set(vercel.matched_skills) == {"TypeScript", "React"}
     assert vercel.missing_skills == []
     assert "TypeScript" in vercel.reason or "Full-stack" in vercel.reason
@@ -171,6 +180,8 @@ async def test_match_falls_back_to_keyword_search() -> None:
     assert response.total_matches == 1
     assert response.jobs[0].matched_skills == ["Python"]
     assert response.jobs[0].match_score > 0
+    assert response.jobs[0].score_result is not None
+    assert response.jobs[0].score_result.score == response.jobs[0].match_score
 
 
 @pytest.mark.asyncio

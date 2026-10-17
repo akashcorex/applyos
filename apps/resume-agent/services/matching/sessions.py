@@ -33,6 +33,10 @@ class MatchSessionService:
                 "title": job.title,
                 "company_name": job.company_name,
                 "score": job.match_score,
+                "reason": job.reason,
+                "score_result": (
+                    job.score_result.model_dump() if job.score_result else None
+                ),
             }
             for job in response.jobs[:10]
         ]

@@ -8,6 +8,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, HttpUrl
 
+from services.score_contract import ScoreResult
+
 AtsType = Literal[
     "greenhouse",
     "lever",
@@ -145,6 +147,7 @@ class DiscoveredJobRecord(BaseModel):
     description_raw: str | None = None
     dedup_key: str
     filter_score: float = 0.0
+    filter_score_result: ScoreResult | None = None
     cv_data: CVData | None = None
 
 

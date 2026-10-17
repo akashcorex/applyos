@@ -43,6 +43,21 @@ def _dump_jobs(jobs: list[DiscoveredJobRecord], limit: int = 20) -> str:
                 "application_url": job.application_url,
                 "dedup_key": job.dedup_key,
                 "score": round(job.filter_score, 3),
+                "band": (
+                    job.filter_score_result.band
+                    if job.filter_score_result
+                    else None
+                ),
+                "confidence": (
+                    job.filter_score_result.confidence
+                    if job.filter_score_result
+                    else None
+                ),
+                "not_evaluated": (
+                    job.filter_score_result.not_evaluated
+                    if job.filter_score_result
+                    else []
+                ),
             }
         )
     return json.dumps({"count": len(jobs), "jobs": payload})

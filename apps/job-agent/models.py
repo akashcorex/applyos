@@ -3,6 +3,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator
 
+from services.score_contract import ScoreResult
+
 ATS_SLUG_PATTERN = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9._-]{0,63}$")
 
 
@@ -339,6 +341,7 @@ class SemanticMatchResult(SearchResult):
     match_reason: str = ""
     matching_skills: list[str] = Field(default_factory=list)
     missing_skills: list[str] = Field(default_factory=list)
+    score_result: ScoreResult | None = None
 
 
 class SemanticSearchResponse(BaseModel):

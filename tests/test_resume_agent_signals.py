@@ -128,3 +128,10 @@ async def test_behavior_reranker_reorders_jobs() -> None:
     assert ranked[0].company_name == "BoostCo"
     assert ranked[0].behavior_boost is not None and ranked[0].behavior_boost > 0
     assert ranked[1].behavior_boost is not None and ranked[1].behavior_boost < 0
+
+    assert ranked[0].score_result is not None
+    behavior = next(
+        c for c in ranked[0].score_result.components if c.name == "behavior"
+    )
+    assert behavior.contribution == ranked[0].behavior_boost
+    assert ranked[0].score_result.score == ranked[0].match_score

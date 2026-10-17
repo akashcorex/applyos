@@ -124,3 +124,31 @@ def test_filter_caps_max_total_applies() -> None:
     ]
     result = filter_jobs(jobs, _request(max_total_applies=2, auto_apply=True))
     assert len(result) == 2
+
+
+def test_filter_emits_score_result() -> None:
+    result = filter_jobs([_job("Senior Software Engineer")], _request())
+    assert len(result) == 1
+    score_result = result[0].filter_score_result
+    assert score_result is not None
+    assert score_result.score == result[0].filter_score
+    assert {component.name for component in score_result.components} == {
+        "title",
+        "work_mode",
+        "application_url",
+    }
+    assert score_result.band == "strong"
+    assert score_result.confidence == "medium"
+    assert score_result.not_evaluated == []
+
+
+def test_filter_marks_missing_work_mode_not_evaluated() -> None:
+    result = filter_jobs(
+        [_job("Senior Software Engineer", location="Remote", location_type=None)],
+        _request(),
+    )
+    assert len(result) == 1
+    score_result = result[0].filter_score_result
+    assert score_result is not None
+    assert "work_mode" in score_result.not_evaluated
+    assert score_result.confidence == "medium"

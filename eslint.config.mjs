@@ -26,6 +26,8 @@ export default [
       '**/.tmp-railway-cli/**',
       '**/coverage/**',
       '**/snapshot.json',
+      // Vendored agent skills (third-party content, not project source)
+      '**/.agents/skills/**',
     ],
   },
   {

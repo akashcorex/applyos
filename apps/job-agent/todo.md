@@ -5,23 +5,23 @@ Context: session discovery already returns `score` per job (resume-agent
 by `rank`). The `?fresh=true` feed (`GET /v1/jobs`) returns **no score**, so
 new jobs render unscored and unsorted. Seniority gating exists
 (`services/seniority.py` here, mirrored in resume-agent
-`services/matching/seniority.py`) but experience/title only *filter* — they
+`services/matching/seniority.py`) but experience/title only _filter_ — they
 don't differentiate ranking per user yet.
 
 ## Track A — show score for every job, sort by score
 
-- [ ] A1. Define one shared scoring contract: `{ score 0-100, components:
-      { skills, title, seniority }, reason }`.
-      - Today `_score_job` (resume-agent `matcher.py`) is skills-only and the
-        formula lives far from the data. Decide owner: job-agent
-        `services/semantic_match.py` vs resume-agent. Single owner, other side
-        passes through.
-- [ ] A2. Score the fresh feed per requesting user.
-      - `GET /v1/jobs?fresh=true` must accept the caller's profile (role,
-        skills, `experience_years`, seniority) and return `score` + `reason`
-        per job, computed with the same contract as A1.
-      - Watch cost: fresh feed is up to 100 jobs; batch the math, no per-job
-        LLM calls. Deterministic formula only (embeddings allowed, cached).
+- [ ] A1. Define one shared scoring contract:
+      `{ score 0-100, components: { skills, title, seniority }, reason }`.
+      Today `_score_job` (resume-agent `matcher.py`) is skills-only and the
+      formula lives far from the data. Decide owner: job-agent
+      `services/semantic_match.py` vs resume-agent. Single owner, other side
+      passes through.
+- [ ] A2. Score the fresh feed per requesting user. `GET /v1/jobs?fresh=true`
+      must accept the caller's profile (role, skills, `experience_years`,
+      seniority) and return `score` + `reason` per job, computed with the
+      same contract as A1. Watch cost: fresh feed is up to 100 jobs; batch
+      the math, no per-job LLM calls. Deterministic formula only
+      (embeddings allowed, cached).
 - [ ] A3. API: include `score`/`reason` in `savedJobResponse`
       (`apps/api/src/routes/jobs.ts`) so session, fresh, and saved views share
       one shape. Extend `test_phase2_http.test.ts`.

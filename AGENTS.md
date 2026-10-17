@@ -9,7 +9,7 @@ Turborepo + Bun monorepo. JS/TS via Bun, Python agents via `uv`. Prisma is the o
 
 ## Commands (run from repo root)
 
-- Install: `bun install`. CI uses `bun install --frozen-lockfile` with `bun-version: latest` (lockfile is newer than the pinned `packageManager`).
+- Install: `bun install`. CI uses `bun install --frozen-lockfile` with `bun-version: latest` (pin kept in sync: `bun@1.4.3`).
 - Dev: `bun run dev:web`, `bun run dev:api` (note: API task is `serve`, not `dev`), `bun run dev:<agent>` (e.g. `dev:job-agent`), or `bun run dev:agents` for all agents. Single package: `bunx turbo run <task> --filter=<pkg>`.
 - DB first: `bun run db:generate` before `typecheck`, `bun test`, or any build (Prisma client is gitignored). `bun run db:migrate` before starting services. `build:web`/`build:api` default `DATABASE_URL` to `postgresql://postgres:postgres@127.0.0.1:5432/outreach`.
 - Verify: `bun run lint`, `bun run format:check` (fix: `bun run format`), `bun run typecheck`, `bun test` (JS), `uvx ruff@0.16.5 check apps tests scripts` (Python baseline `E4,E7,E9,F` in `ruff.toml` — keep pinned version).

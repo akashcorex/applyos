@@ -49,6 +49,7 @@ const savedJob = {
 const matchSession = {
   findFirst: mock(async () => null as unknown),
   findUnique: mock(async () => null as unknown),
+  findMany: mock(async () => [] as unknown[]),
   create: mock(async () => ({})),
   update: mock(async () => ({})),
 };
@@ -156,8 +157,10 @@ beforeEach(() => {
   savedJob.deleteMany.mockReset();
   matchSession.findFirst.mockReset();
   matchSession.findUnique.mockReset();
+  matchSession.findMany.mockReset();
   matchSession.create.mockReset();
   matchSession.update.mockReset();
+  matchSession.findMany.mockResolvedValue([]);
   matchInteraction.create.mockReset();
   matchInteraction.createMany.mockReset();
   jobSelection.findFirst.mockReset();
@@ -426,17 +429,121 @@ describe('Phase 2 HTTP auth + lifecycle', () => {
       },
     ]);
     savedJob.findMany.mockResolvedValue([]);
+    matchSession.findMany.mockResolvedValue([
+      {
+        topResults: [
+          {
+            jobId: 'job-1',
+            dedupKey: 'acme::engineer::remote',
+            score: 77,
+            reason: 'Strong fit',
+            scoreResult: {
+              score: 77,
+              band: 'good',
+              components: [
+                {
+                  name: 'skills',
+                  weight: 0.3,
+                  score: 80,
+                  contribution: 24,
+                  evidence_tier: 'stated',
+                  reason: 'TypeScript is quoted in the JD.',
+                },
+              ],
+              confidence: 'medium',
+              evidence_tier: 'stated',
+              reason: 'Strong fit',
+              not_evaluated: ['recency'],
+            },
+          },
+        ],
+      },
+    ]);
     const res = await fetch(`${base}/v1/jobs?fresh=true&limit=10`);
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.jobs).toHaveLength(1);
     expect(body.seenAt).toBe(seenAt.toISOString());
+    expect(body.jobs[0].score).toBe(77);
+    expect(body.jobs[0].scoreResult.band).toBe('good');
+    expect(body.jobs[0].scoreResult.components).toHaveLength(1);
+    expect(body.jobs[0].scoreResult.not_evaluated).toEqual(['recency']);
     const where = job.findMany.mock.calls[0]?.[0]?.where;
     expect(where.isActive).toBe(true);
     expect(where.firstSeenAt.gte).toBeInstanceOf(Date);
     expect(job.findMany.mock.calls[0]?.[0]?.orderBy).toEqual({
       firstSeenAt: 'desc',
     });
+  });
+
+  it('GET /v1/jobs/discover/:id returns the stored ScoreResult', async () => {
+    sessionUser = USER_A;
+    profile.findFirst.mockResolvedValue({
+      id: 'profile-a',
+      isConfirmed: true,
+    });
+    const recentAt = new Date('2026-10-01T00:00:00.000Z');
+    matchSession.findFirst.mockResolvedValue({
+      topResults: [
+        {
+          jobId: 'job-1',
+          dedupKey: 'acme::engineer::remote',
+          score: 64,
+          reason: 'Good fit',
+          scoreResult: {
+            score: 64,
+            band: 'good',
+            components: [
+              {
+                name: 'skills',
+                weight: 0.3,
+                score: 70,
+                contribution: 21,
+                evidence_tier: 'stated',
+                reason: 'TypeScript is quoted in the JD.',
+              },
+            ],
+            confidence: 'medium',
+            evidence_tier: 'stated',
+            reason: 'Good fit',
+            not_evaluated: ['recency'],
+          },
+        },
+      ],
+      discoveryStatus: 'complete',
+      discoveryError: null,
+    });
+    job.findMany.mockResolvedValue([
+      {
+        id: 'job-1',
+        dedupKey: 'acme::engineer::remote',
+        source: 'greenhouse',
+        externalId: null,
+        companyName: 'Acme',
+        title: 'Engineer',
+        titleNormalized: 'engineer',
+        location: 'Remote',
+        locationNormalized: 'remote',
+        locationType: 'remote',
+        seniority: null,
+        descriptionRaw: 'desc',
+        applicationUrl: null,
+        postedAt: null,
+        firstSeenAt: recentAt,
+        lastSeenAt: recentAt,
+        isActive: true,
+      },
+    ]);
+    savedJob.findMany.mockResolvedValue([]);
+    const res = await fetch(
+      `${base}/v1/jobs/discover/session-1?limit=10&offset=0`,
+    );
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.jobs[0].score).toBe(64);
+    expect(body.jobs[0].scoreResult.band).toBe('good');
+    expect(body.jobs[0].scoreResult.components[0].name).toBe('skills');
+    expect(body.jobs[0].scoreResult.not_evaluated).toEqual(['recency']);
   });
 
   it('POST /v1/jobs/seen stamps the profile watermark', async () => {
@@ -628,6 +735,11 @@ describe('Phase 2 HTTP auth + lifecycle', () => {
       expect(job.upsert.mock.calls[1]?.[0]?.update.lastSeenAt).toBeInstanceOf(
         Date,
       );
+      const storedTopResults =
+        matchSession.update.mock.calls[0]?.[0]?.data.topResults;
+      expect(storedTopResults).toHaveLength(1);
+      expect(storedTopResults[0].scoreResult.score).toBe(84);
+      expect(storedTopResults[0].scoreResult.band).toBe('strong');
     } finally {
       globalThis.fetch = originalFetch;
     }

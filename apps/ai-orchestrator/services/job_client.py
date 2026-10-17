@@ -5,9 +5,11 @@ from __future__ import annotations
 import logging
 
 import httpx
+from pydantic import ValidationError
 
 from config import settings
 from models import CompanyTarget, DiscoveredJobRecord
+from services.score_contract import ScoreResult
 
 logger = logging.getLogger(__name__)
 
@@ -187,6 +189,13 @@ def _job_from_search_item(item: dict) -> DiscoveredJobRecord:
     source = item.get("source") or item.get("ats_type") or "generic"
     if source not in _KNOWN_SOURCES:
         source = "generic"
+    score_result: ScoreResult | None = None
+    raw_score = item.get("score_result")
+    if isinstance(raw_score, dict):
+        try:
+            score_result = ScoreResult.model_validate(raw_score)
+        except ValidationError:
+            score_result = None
     return DiscoveredJobRecord(
         external_id=str(item.get("external_id") or ""),
         source=source,  # type: ignore[arg-type]
@@ -199,5 +208,10 @@ def _job_from_search_item(item: dict) -> DiscoveredJobRecord:
         application_url=item.get("application_url"),
         description_raw=item.get("description") or item.get("description_raw"),
         dedup_key=str(item.get("dedup_key") or ""),
-        filter_score=float(item.get("semantic_score") or item.get("filter_score") or 0.0),
+        filter_score=(
+            score_result.score
+            if score_result
+            else float(item.get("semantic_score") or item.get("filter_score") or 0.0)
+        ),
+        filter_score_result=score_result,
     )
