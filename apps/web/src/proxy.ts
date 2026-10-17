@@ -19,6 +19,11 @@ function redirectTo(req: NextRequest, path: string): NextResponse {
 export default async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
+  // Legacy Auto-Apply routes; applying now happens inline in Discovery.
+  if (pathname === '/dashboard/auto-apply' || pathname === '/dashboard/apply') {
+    return redirectTo(req, '/dashboard/discovery');
+  }
+
   const isAuthPage = pathname === '/login' || pathname === '/signup';
   const isOnboarding = pathname === '/onboarding';
   const isDashboard =

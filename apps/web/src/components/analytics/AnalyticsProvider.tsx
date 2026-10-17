@@ -22,7 +22,6 @@ export function useAnalytics() {
 
 function getFeatureFromPath(pathname: string): FeatureId {
   if (pathname === '/dashboard') return 'overview';
-  if (pathname.startsWith('/dashboard/auto-apply')) return 'resume_builder';
   if (pathname.startsWith('/dashboard/discovery')) return 'job_discovery';
   if (pathname.startsWith('/dashboard/workflows')) return 'workflows';
   if (pathname.startsWith('/dashboard/linkedin')) return 'linkedin_outreach';
