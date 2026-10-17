@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import { usePathname } from 'next/navigation';
 
@@ -10,12 +10,13 @@ import { AppSidebar } from '@/components/dashboard/AppSidebar';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import type { DashboardCrumb } from '@/components/dashboard/DashboardHeader';
 import { DashboardSkeleton } from '@/components/dashboard/DashboardSkeleton';
+import { HelpPanel } from '@/components/dashboard/HelpPanel';
 import { fetchMe } from '@/lib/admin-api';
 import { authClient } from '@/lib/auth-client';
 import { isAdminRole } from '@/lib/rbac';
 
 const segmentLabels: Record<string, string> = {
-  'auto-apply': 'Resume & Auto-Apply',
+  apply: 'Customize & apply',
   discovery: 'Discover Jobs',
   applications: 'Applications',
   linkedin: 'Outreach',
@@ -30,6 +31,16 @@ const segmentLabels: Record<string, string> = {
   resumes: 'Resumes',
   system: 'System',
 };
+
+const FULL_BLEED_PATHS = new Set([
+  '/dashboard',
+  '/dashboard/admin',
+  '/dashboard/profile',
+  '/dashboard/discovery',
+  '/dashboard/applications',
+  '/dashboard/linkedin',
+  '/dashboard/workflows',
+]);
 
 function labelForSegment(segment: string): string {
   const mapped = segmentLabels[segment];
@@ -74,6 +85,29 @@ export default function DashboardAppLayout({
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [adminChecked, setAdminChecked] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
+  const openHelp = useCallback(() => {
+    setSidebarOpen(false);
+    setHelpOpen(true);
+  }, []);
+  const closeHelp = useCallback(() => setHelpOpen(false), []);
+
+  useEffect(() => {
+    function onKey(event: KeyboardEvent) {
+      if (event.key !== '?' || event.metaKey || event.ctrlKey) return;
+      const target = event.target as HTMLElement | null;
+      if (
+        target?.isContentEditable ||
+        ['INPUT', 'TEXTAREA', 'SELECT'].includes(target?.tagName ?? '')
+      ) {
+        return;
+      }
+      event.preventDefault();
+      setHelpOpen(true);
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   useEffect(() => {
     try {
@@ -178,6 +212,7 @@ export default function DashboardAppLayout({
           userEmail={session.user.email}
           variant={isAdmin ? 'admin' : 'workspace'}
           onSignOut={handleSignOut}
+          onOpenHelp={openHelp}
           isCollapsed={isCollapsed}
           onToggleCollapse={toggleCollapse}
         />
@@ -196,6 +231,7 @@ export default function DashboardAppLayout({
               userEmail={session.user.email}
               variant={isAdmin ? 'admin' : 'workspace'}
               onSignOut={handleSignOut}
+              onOpenHelp={openHelp}
               onNavigate={() => setSidebarOpen(false)}
               onToggleCollapse={() => setSidebarOpen(false)}
             />
@@ -210,14 +246,13 @@ export default function DashboardAppLayout({
           trail={trail}
           homeHref={isAdmin ? '/dashboard/admin' : '/dashboard'}
           onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
+          onOpenHelp={openHelp}
         />
 
         {/* Scrollable Page Workspace */}
         <main
           className={`flex-1 overflow-y-auto bg-background transition-colors duration-150 ${
-            pathname === '/dashboard' ||
-            pathname === '/dashboard/admin' ||
-            pathname === '/dashboard/profile' ||
+            FULL_BLEED_PATHS.has(pathname) ||
             pathname.startsWith('/dashboard/settings')
               ? 'p-0 space-y-0'
               : 'p-4 sm:p-6 lg:p-8 space-y-6'
@@ -226,6 +261,8 @@ export default function DashboardAppLayout({
           {children}
         </main>
       </div>
+
+      <HelpPanel open={helpOpen} onClose={closeHelp} />
     </div>
   );
 }

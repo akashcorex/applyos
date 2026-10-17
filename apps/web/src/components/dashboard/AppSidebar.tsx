@@ -18,7 +18,6 @@ import {
   RiGroupLine,
   RiLogoutBoxRLine,
   RiQuestionLine,
-  Rocket,
   RiSendPlaneLine,
   RiSettings3Line,
   RiShieldKeyholeLine,
@@ -35,6 +34,7 @@ interface AppSidebarProps {
   userEmail?: string | null;
   variant?: 'workspace' | 'admin';
   onSignOut: () => void;
+  onOpenHelp?: () => void;
   onNavigate?: () => void;
   isCollapsed?: boolean;
   onToggleCollapse?: () => void;
@@ -45,14 +45,14 @@ type NavItem = {
   label: string;
   icon: ComponentType<{ className?: string }>;
   badge?: number;
+  onSelect?: () => void;
 };
 
 function navActive(pathname: string, href: string): boolean {
   if (
     href === '/dashboard' ||
     href === '/dashboard/admin' ||
-    href === '/dashboard/profile' ||
-    href === '/dashboard/auto-apply'
+    href === '/dashboard/profile'
   ) {
     return pathname === href;
   }
@@ -71,41 +71,57 @@ function NavLink({
   onNavigate?: () => void;
 }) {
   const Icon = item.icon;
-  const isActive = navActive(pathname, item.href);
+  const isActive = !item.onSelect && navActive(pathname, item.href);
+  const className = `group flex items-center rounded-[6px] text-sm font-normal transition-colors select-none ${
+    isCollapsed
+      ? `size-9 justify-center p-0 ${
+          isActive
+            ? 'bg-neutral-800 text-white font-medium shadow-xs'
+            : 'text-zinc-200 hover:bg-neutral-900 hover:text-white'
+        }`
+      : `w-full h-9 px-2.5 gap-2.5 ${
+          isActive
+            ? 'bg-neutral-900 text-white font-medium border border-border/80'
+            : 'text-zinc-200 hover:bg-neutral-900/60 hover:text-white border border-transparent'
+        }`
+  }`;
+  const content = (
+    <>
+      <Icon className="size-4 shrink-0 text-current" />
+      {!isCollapsed && (
+        <span className="min-w-0 flex-1 truncate text-left">{item.label}</span>
+      )}
+      {!isCollapsed && item.badge ? (
+        <span className="px-1.5 py-0.5 rounded-[3px] bg-neutral-800 text-[10px] font-mono text-zinc-300">
+          {item.badge}
+        </span>
+      ) : null}
+    </>
+  );
 
   return (
     <li className={isCollapsed ? 'flex justify-center' : undefined}>
-      <Link
-        href={item.href}
-        onClick={onNavigate}
-        title={isCollapsed ? item.label : undefined}
-        aria-current={isActive ? 'page' : undefined}
-        className={`group flex items-center rounded-[6px] text-sm font-normal transition-colors select-none ${
-          isCollapsed
-            ? `size-9 justify-center p-0 ${
-                isActive
-                  ? 'bg-neutral-800 text-white font-medium shadow-xs'
-                  : 'text-zinc-200 hover:bg-neutral-900 hover:text-white'
-              }`
-            : `w-full h-9 px-2.5 gap-2.5 ${
-                isActive
-                  ? 'bg-neutral-900 text-white font-medium border border-border/80'
-                  : 'text-zinc-200 hover:bg-neutral-900/60 hover:text-white border border-transparent'
-              }`
-        }`}
-      >
-        <Icon className="size-4 shrink-0 text-current" />
-        {!isCollapsed && (
-          <span className="min-w-0 flex-1 truncate text-left">
-            {item.label}
-          </span>
-        )}
-        {!isCollapsed && item.badge ? (
-          <span className="px-1.5 py-0.5 rounded-[3px] bg-neutral-800 text-[10px] font-mono text-zinc-300">
-            {item.badge}
-          </span>
-        ) : null}
-      </Link>
+      {item.onSelect ? (
+        <button
+          type="button"
+          onClick={item.onSelect}
+          title={isCollapsed ? item.label : undefined}
+          aria-haspopup="dialog"
+          className={className}
+        >
+          {content}
+        </button>
+      ) : (
+        <Link
+          href={item.href}
+          onClick={onNavigate}
+          title={isCollapsed ? item.label : undefined}
+          aria-current={isActive ? 'page' : undefined}
+          className={className}
+        >
+          {content}
+        </Link>
+      )}
     </li>
   );
 }
@@ -130,6 +146,7 @@ export function AppSidebar({
   userEmail = 'user@applyos.in',
   variant = 'workspace',
   onSignOut,
+  onOpenHelp,
   onNavigate,
   isCollapsed = false,
   onToggleCollapse,
@@ -194,11 +211,6 @@ export function AppSidebar({
     : [
         { href: '/dashboard', label: 'Overview', icon: RiDashboardLine },
         {
-          href: '/dashboard/auto-apply',
-          label: 'Auto-Apply',
-          icon: Rocket,
-        },
-        {
           href: '/dashboard/discovery',
           label: 'Discover Jobs',
           icon: RiCompass3Line,
@@ -226,7 +238,14 @@ export function AppSidebar({
         },
       ];
 
-  const accountItems = isAdminNav
+  const helpItem: NavItem = {
+    href: '#help',
+    label: 'Get Help',
+    icon: RiQuestionLine,
+    onSelect: onOpenHelp,
+  };
+
+  const accountItems: NavItem[] = isAdminNav
     ? []
     : [
         {
@@ -234,11 +253,7 @@ export function AppSidebar({
           label: 'Settings',
           icon: RiSettings3Line,
         },
-        {
-          href: 'mailto:support@applyos.in',
-          label: 'Get Help',
-          icon: RiQuestionLine,
-        },
+        helpItem,
         {
           href: '/dashboard/settings/security',
           label: 'Security',
@@ -379,11 +394,7 @@ export function AppSidebar({
               onNavigate={onNavigate}
             />
             <NavLink
-              item={{
-                href: 'mailto:support@applyos.in',
-                label: 'Get Help',
-                icon: RiQuestionLine,
-              }}
+              item={helpItem}
               pathname={pathname}
               isCollapsed={isCollapsed}
               onNavigate={onNavigate}
@@ -403,16 +414,31 @@ export function AppSidebar({
               {accountItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = pathname === item.href;
-                return (
+                const itemClass = `flex w-full items-center gap-2.5 px-3 py-2 text-left text-xs font-medium transition-colors ${
+                  isActive
+                    ? 'bg-accent text-accent-foreground'
+                    : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+                }`;
+                const select = item.onSelect;
+                return select ? (
+                  <button
+                    key={item.href}
+                    type="button"
+                    onClick={() => {
+                      setAccountOpen(false);
+                      select();
+                    }}
+                    className={itemClass}
+                  >
+                    <Icon className="size-4 shrink-0 text-current" />
+                    <span>{item.label}</span>
+                  </button>
+                ) : (
                   <Link
                     key={item.href}
                     href={item.href}
                     onClick={closeAccount}
-                    className={`flex items-center gap-2.5 px-3 py-2 text-xs font-medium transition-colors ${
-                      isActive
-                        ? 'bg-accent text-accent-foreground'
-                        : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
-                    }`}
+                    className={itemClass}
                   >
                     <Icon className="size-4 shrink-0 text-current" />
                     <span>{item.label}</span>

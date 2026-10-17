@@ -34,12 +34,14 @@ interface DashboardHeaderProps {
   trail?: DashboardCrumb[];
   homeHref?: string;
   onToggleSidebar?: () => void;
+  onOpenHelp?: () => void;
 }
 
 export function DashboardHeader({
   trail = [{ label: 'Overview' }],
   homeHref = '/dashboard',
   onToggleSidebar,
+  onOpenHelp,
 }: DashboardHeaderProps) {
   return (
     <header className="sticky top-0 z-20 h-14 w-full border-b border-border bg-background px-4 sm:px-6 flex items-center justify-between gap-4 text-foreground transition-colors duration-150">
@@ -115,15 +117,12 @@ export function DashboardHeader({
         <Button
           variant="outline"
           size="icon"
-          asChild
+          aria-label="Help and support"
+          title="Help and support (?)"
+          onClick={onOpenHelp}
           className="h-8 w-8 rounded-[6px] [&_svg]:size-4"
         >
-          <a
-            href="mailto:support@applyos.in"
-            aria-label="Help and documentation"
-          >
-            <HelpCircle className="size-4" />
-          </a>
+          <HelpCircle className="size-4" />
         </Button>
 
         <Button

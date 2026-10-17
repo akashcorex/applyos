@@ -7,9 +7,7 @@ export default function DashboardOverviewPage() {
   return (
     <div className="w-full text-foreground">
       <ProfileProgressBanner />
-
-      {/* Top Overview & Chart */}
-      <DashboardOverview showRecent={false} />
+      <DashboardOverview />
     </div>
   );
 }
