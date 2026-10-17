@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import re
+from typing import Any
 from urllib.parse import urljoin, urlparse
 from uuid import uuid4
 
@@ -14,7 +15,10 @@ from config import settings
 from models import SearchResult
 from services.dedup import build_dedup_key, normalize_location, normalize_title
 from services.normalizer import detect_location_type, detect_seniority
-from services.parsers.base import fetch_text_with_retries_strict, validate_outbound_url
+from services.parsers.base import (
+    fetch_text_with_retries_strict,
+    validate_outbound_url_strict,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -52,8 +56,17 @@ def _looks_thin(html: str) -> bool:
 
 
 async def _fetch_html_http(url: str) -> str:
-    validate_outbound_url(url)
     return await fetch_text_with_retries_strict(url)
+
+
+async def _guard_route(route: Any) -> None:
+    """Block the browser from following a redirect or sub-resource into internal addresses."""
+    try:
+        await validate_outbound_url_strict(route.request.url)
+    except ValueError:
+        await route.abort()
+        return
+    await route.continue_()
 
 
 async def _fetch_html_playwright(url: str) -> str:
@@ -64,10 +77,17 @@ async def _fetch_html_playwright(url: str) -> str:
         return ""
 
     try:
+        await validate_outbound_url_strict(url)
+    except ValueError as exc:
+        logger.warning("Playwright scrape blocked for %s: %s", url, exc)
+        return ""
+
+    try:
         async with async_playwright() as playwright:
             browser = await playwright.chromium.launch(headless=True)
             try:
                 page = await browser.new_page()
+                await page.route("**/*", _guard_route)
                 await page.goto(url, wait_until="domcontentloaded", timeout=45_000)
                 await page.wait_for_timeout(1500)
                 return await page.content()

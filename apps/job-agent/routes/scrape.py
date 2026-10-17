@@ -3,6 +3,7 @@ from pydantic import BaseModel, Field
 
 from models import SearchResult
 from services.http_errors import raise_bad_gateway
+from services.job_detail import fetch_job_description
 from services.page_scrape import scrape_career_page
 
 router = APIRouter()
@@ -35,4 +36,26 @@ async def scrape_page(payload: PageScrapeRequest) -> PageScrapeResponse:
         career_page_url=payload.career_page_url,
         jobs_found=len(jobs),
         jobs=jobs,
+    )
+
+
+class DescriptionRequest(BaseModel):
+    job_url: str = Field(min_length=8, max_length=500)
+
+
+class DescriptionResponse(BaseModel):
+    job_url: str
+    description: str | None = None
+    confident: bool = False
+
+
+@router.post("/description", response_model=DescriptionResponse)
+async def scrape_description(payload: DescriptionRequest) -> DescriptionResponse:
+    try:
+        description, confident = await fetch_job_description(payload.job_url)
+    except Exception as error:
+        raise_bad_gateway(error, public_message="Failed to read job description")
+
+    return DescriptionResponse(
+        job_url=payload.job_url, description=description, confident=confident
     )
