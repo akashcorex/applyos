@@ -13,6 +13,7 @@ import type { ScoreResult } from '@applyso/validation';
 import { prisma } from '@applyso/database';
 
 import { authUserOf, requireAuth } from '../lib/authz';
+import { fetchJobDescription } from '../lib/job-description';
 import { reconcileJobs } from '../lib/job-reconcile';
 import { storedScoreResult } from '../lib/score-result';
 import { requireServiceToken } from '../lib/service-token';
@@ -763,6 +764,48 @@ jobsRouter.get('/selections/:id', async (req, res) => {
     }),
     createdAt: selection.createdAt,
   });
+});
+
+jobsRouter.get('/:id/description', async (req, res) => {
+  const me = authUserOf(req);
+  const profile = await confirmedProfile(me.id);
+  if (!profile) {
+    res.status(403).json({ error: 'A confirmed profile is required' });
+    return;
+  }
+  const job = await prisma.job.findUnique({ where: { id: req.params.id } });
+  if (!job) {
+    res.status(404).json({ error: 'Job not found' });
+    return;
+  }
+  if (job.descriptionRaw?.trim()) {
+    res.status(200).json({ description: job.descriptionRaw, cached: true });
+    return;
+  }
+  if (!job.applicationUrl) {
+    res.status(200).json({ description: null, cached: false });
+    return;
+  }
+  try {
+    const { description, confident } = await fetchJobDescription(
+      job.id,
+      job.applicationUrl,
+    );
+    if (!description) {
+      res.status(200).json({ description: null, cached: false });
+      return;
+    }
+    if (confident) {
+      await prisma.job.update({
+        where: { id: job.id },
+        data: { descriptionRaw: description },
+      });
+    }
+    res.status(200).json({ description, cached: false });
+  } catch (error) {
+    console.error('[jobs] description fetch failed:', error);
+    res.status(502).json({ error: 'Could not read the job description' });
+  }
 });
 
 jobsRouter.post('/:id/interactions', async (req, res) => {

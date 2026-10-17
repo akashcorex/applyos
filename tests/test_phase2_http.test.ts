@@ -36,6 +36,7 @@ const job = {
   findUnique: mock(async () => null as unknown),
   findMany: mock(async () => [] as unknown[]),
   upsert: mock(async () => ({})),
+  update: mock(async () => ({})),
   updateMany: mock(async () => ({ count: 0 })),
 };
 const company = {
@@ -150,6 +151,7 @@ beforeEach(() => {
   job.findUnique.mockReset();
   job.findMany.mockReset();
   job.upsert.mockReset();
+  job.update.mockReset();
   job.updateMany.mockReset();
   company.upsert.mockReset();
   savedJob.findMany.mockReset();
@@ -184,6 +186,38 @@ const USER_A: SessionUser = {
   role: 'USER',
   status: 'ACTIVE',
 };
+
+/** Stub the job-agent description call while letting test requests through. */
+async function withJobAgent(
+  reply: { ok: boolean; description: string | null; confident?: boolean },
+  run: (calls: string[]) => Promise<void>,
+): Promise<void> {
+  const calls: string[] = [];
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url =
+      typeof input === 'string'
+        ? input
+        : input instanceof URL
+          ? input.href
+          : input.url;
+    if (url.includes('/scrape/description')) {
+      calls.push(url);
+      if (!reply.ok) return new Response('boom', { status: 500 });
+      return Response.json({
+        job_url: url,
+        description: reply.description,
+        confident: reply.confident ?? true,
+      });
+    }
+    return realFetch(input as RequestInfo, init);
+  }) as typeof fetch;
+  try {
+    await run(calls);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+}
 
 describe('Phase 2 HTTP auth + lifecycle', () => {
   it('GET /v1/resumes is 401 without a session', async () => {
@@ -544,6 +578,134 @@ describe('Phase 2 HTTP auth + lifecycle', () => {
     expect(body.jobs[0].scoreResult.band).toBe('good');
     expect(body.jobs[0].scoreResult.components[0].name).toBe('skills');
     expect(body.jobs[0].scoreResult.not_evaluated).toEqual(['recency']);
+  });
+
+  it('GET /v1/jobs/:id/description serves the stored description', async () => {
+    sessionUser = USER_A;
+    profile.findFirst.mockResolvedValue({
+      id: 'profile-a',
+      isConfirmed: true,
+    });
+    job.findUnique.mockResolvedValue({
+      id: 'job-1',
+      descriptionRaw: 'Stored description text',
+      applicationUrl: 'https://example.com/jobs/1',
+    });
+
+    await withJobAgent(
+      { ok: true, description: 'Live text' },
+      async (calls) => {
+        const res = await fetch(`${base}/v1/jobs/job-1/description`);
+        expect(res.status).toBe(200);
+        const body = await res.json();
+        expect(body.description).toBe('Stored description text');
+        expect(body.cached).toBe(true);
+        expect(calls).toHaveLength(0);
+      },
+    );
+  });
+
+  it('GET /v1/jobs/:id/description reads and stores the live posting', async () => {
+    sessionUser = USER_A;
+    profile.findFirst.mockResolvedValue({
+      id: 'profile-a',
+      isConfirmed: true,
+    });
+    job.findUnique.mockResolvedValue({
+      id: 'job-1',
+      descriptionRaw: null,
+      applicationUrl: 'https://example.com/jobs/1',
+    });
+
+    await withJobAgent(
+      { ok: true, description: 'Live text' },
+      async (calls) => {
+        const res = await fetch(`${base}/v1/jobs/job-1/description`);
+        expect(res.status).toBe(200);
+        const body = await res.json();
+        expect(body.description).toBe('Live text');
+        expect(body.cached).toBe(false);
+        expect(calls).toHaveLength(1);
+        expect(job.update).toHaveBeenCalledTimes(1);
+        const args = job.update.mock.calls[0][0] as {
+          data: { descriptionRaw: string };
+        };
+        expect(args.data.descriptionRaw).toBe('Live text');
+      },
+    );
+  });
+
+  it('GET /v1/jobs/:id/description returns an unconfident guess without caching it', async () => {
+    sessionUser = USER_A;
+    profile.findFirst.mockResolvedValue({
+      id: 'profile-a',
+      isConfirmed: true,
+    });
+    job.findUnique.mockResolvedValue({
+      id: 'job-1',
+      descriptionRaw: null,
+      applicationUrl: 'https://example.com/jobs/1',
+    });
+
+    await withJobAgent(
+      {
+        ok: true,
+        description: 'Please sign in to view this posting',
+        confident: false,
+      },
+      async (calls) => {
+        const res = await fetch(`${base}/v1/jobs/job-1/description`);
+        expect(res.status).toBe(200);
+        const body = await res.json();
+        expect(body.description).toBe('Please sign in to view this posting');
+        expect(calls).toHaveLength(1);
+        expect(job.update).not.toHaveBeenCalled();
+      },
+    );
+  });
+
+  it('GET /v1/jobs/:id/description is 502 when the page cannot be read', async () => {
+    sessionUser = USER_A;
+    profile.findFirst.mockResolvedValue({
+      id: 'profile-a',
+      isConfirmed: true,
+    });
+    job.findUnique.mockResolvedValue({
+      id: 'job-1',
+      descriptionRaw: null,
+      applicationUrl: 'https://example.com/jobs/1',
+    });
+
+    await withJobAgent({ ok: false, description: null }, async (calls) => {
+      const res = await fetch(`${base}/v1/jobs/job-1/description`);
+      expect(res.status).toBe(502);
+      expect(calls).toHaveLength(1);
+      expect(job.update).not.toHaveBeenCalled();
+    });
+  });
+
+  it('GET /v1/jobs/:id/description skips jobs without an apply link', async () => {
+    sessionUser = USER_A;
+    profile.findFirst.mockResolvedValue({
+      id: 'profile-a',
+      isConfirmed: true,
+    });
+    job.findUnique.mockResolvedValue({
+      id: 'job-1',
+      descriptionRaw: null,
+      applicationUrl: null,
+    });
+
+    await withJobAgent(
+      { ok: true, description: 'Live text' },
+      async (calls) => {
+        const res = await fetch(`${base}/v1/jobs/job-1/description`);
+        expect(res.status).toBe(200);
+        const body = await res.json();
+        expect(body.description).toBeNull();
+        expect(calls).toHaveLength(0);
+      },
+    );
   });
 
   it('POST /v1/jobs/seen stamps the profile watermark', async () => {
