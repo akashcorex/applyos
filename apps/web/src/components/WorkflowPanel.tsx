@@ -2,21 +2,36 @@
 
 import { useEffect, useRef, useState } from 'react';
 
+import Link from 'next/link';
+
 import { analytics } from '@applyso/analytics';
-import { Badge } from '@applyso/ui/badge';
 import { Button } from '@applyso/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@applyso/ui/card';
 import {
+  AlertTriangle,
+  ArrowRight,
+  CheckCircle2,
   ChevronDown,
   ChevronRight,
   Clock,
+  Layers,
+  Loader2,
   Pause,
   Play,
   RefreshCw,
   Square,
+  Workflow,
 } from '@applyso/ui/icons';
 
 import { ApplicationModal } from '@/components/applications/ApplicationModal';
+import { ApplicationStatusBadge } from '@/components/applications/ApplicationStatusBadge';
+import {
+  EmptyState,
+  PageHeader,
+  SectionHeader,
+  StatStrip,
+  StatusPill,
+  type Tone,
+} from '@/components/dashboard/PageChrome';
 
 type WorkflowStatus =
   | 'pending'
@@ -96,69 +111,37 @@ type LifecycleAction = 'pause' | 'resume' | 'stop';
 
 const STATUS_CONFIG: Record<
   WorkflowStatus,
-  { label: string; className: string; title?: string }
+  { label: string; tone: Tone; title?: string; pulse?: boolean }
 > = {
-  pending: {
-    label: 'Pending',
-    className:
-      'bg-slate-100 dark:bg-slate-800/40 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700',
-  },
-  discovering_funding: {
-    label: 'Funding',
-    className:
-      'bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20',
-  },
-  discovering: {
-    label: 'Discovering',
-    className:
-      'bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20',
-  },
-  deciding: {
-    label: 'Deciding',
-    className:
-      'bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 border-indigo-500/20',
-  },
-  filtering: {
-    label: 'Filtering',
-    className:
-      'bg-purple-500/10 text-purple-700 dark:text-purple-400 border-purple-500/20',
-  },
-  applying: {
-    label: 'Applying',
-    className:
-      'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20',
-  },
-  completed: {
-    label: 'Completed',
-    className:
-      'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20',
-  },
+  pending: { label: 'Pending', tone: 'neutral' },
+  discovering_funding: { label: 'Funding', tone: 'info', pulse: true },
+  discovering: { label: 'Discovering', tone: 'info', pulse: true },
+  deciding: { label: 'Deciding', tone: 'info', pulse: true },
+  filtering: { label: 'Filtering', tone: 'info', pulse: true },
+  applying: { label: 'Applying', tone: 'info', pulse: true },
+  completed: { label: 'Completed', tone: 'success' },
   partial: {
     label: 'Partial',
-    className:
-      'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20',
+    tone: 'warning',
     title: 'Some apply tasks finished, but not all succeeded',
   },
-  failed: {
-    label: 'Failed',
-    className: 'bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20',
-  },
-  paused: {
-    label: 'Paused',
-    className:
-      'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20',
-  },
-  stopped: {
-    label: 'Stopped',
-    className:
-      'bg-slate-100 dark:bg-slate-800/40 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700',
-  },
-  cancelled: {
-    label: 'Cancelled',
-    className:
-      'bg-slate-100 dark:bg-slate-800/40 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700',
-  },
+  failed: { label: 'Failed', tone: 'danger' },
+  paused: { label: 'Paused', tone: 'warning' },
+  stopped: { label: 'Stopped', tone: 'neutral' },
+  cancelled: { label: 'Cancelled', tone: 'neutral' },
 };
+
+const FIELD_LABEL =
+  'text-[11px] font-mono font-medium uppercase tracking-wider text-muted-foreground';
+
+function runLabel(dateStr: string): string {
+  return new Date(dateStr).toLocaleString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+}
 
 function timeAgo(dateStr: string): string {
   const now = Date.now();
@@ -539,31 +522,101 @@ export function WorkflowPanel({
     await loadWorkflowDetail(id);
   }
 
-  const count = workflows.length > 0 ? `${workflows.length} recent` : 'None';
+  const activeRuns = workflows.filter(
+    (wf) => !isTerminalStatus(effectiveWorkflowStatus(wf)),
+  ).length;
+  const jobsTotal = workflows.reduce((sum, wf) => sum + wf.job_count, 0);
+  const submittedTotal = workflows.reduce(
+    (sum, wf) => sum + wf.apply_successful,
+    0,
+  );
+  const attemptedTotal = workflows.reduce(
+    (sum, wf) => sum + wf.apply_completed,
+    0,
+  );
+  const failedTotal = Math.max(0, attemptedTotal - submittedTotal);
+  const successRate =
+    attemptedTotal > 0
+      ? Math.round((submittedTotal / attemptedTotal) * 100)
+      : null;
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle className="text-lg">Workflows</CardTitle>
-        <div className="flex items-center gap-2">
-          <Badge variant="outline">{count}</Badge>
+    <div className="w-full bg-background text-foreground">
+      <PageHeader
+        title="Job Tracker"
+        description="Every agent run, step by step. Pause or stop a run, inspect what happened, and record the outcome of each application."
+        actions={
           <Button
-            size="icon"
-            variant="ghost"
+            size="sm"
+            variant="outline"
             onClick={() => {
               setLoading(true);
               void fetchWorkflows();
             }}
           >
-            <RefreshCw className="h-4 w-4" />
+            <RefreshCw className={loading ? 'animate-spin' : ''} />
+            Refresh
           </Button>
-        </div>
-      </CardHeader>
-      <CardContent>
-        {loading ? (
-          <p className="text-sm text-muted-foreground">Loading workflows...</p>
+        }
+      />
+
+      <StatStrip
+        loading={loading && workflows.length === 0}
+        stats={[
+          {
+            label: 'Runs',
+            value: String(workflows.length),
+            icon: Layers,
+            subtext: `${jobsTotal} jobs queued`,
+            color: 'blue',
+          },
+          {
+            label: 'Active',
+            value: String(activeRuns),
+            icon: Loader2,
+            subtext: activeRuns > 0 ? 'running now' : 'nothing running',
+            color: 'orange',
+          },
+          {
+            label: 'Submitted',
+            value: String(submittedTotal),
+            icon: CheckCircle2,
+            delta: successRate === null ? undefined : `${successRate}%`,
+            deltaTone: successRate ? 'positive' : 'neutral',
+            subtext: successRate === null ? 'no attempts yet' : 'success rate',
+            color: 'green',
+          },
+          {
+            label: 'Failed',
+            value: String(failedTotal),
+            icon: AlertTriangle,
+            subtext: 'captcha, login or errors',
+            color: 'red',
+          },
+        ]}
+      />
+
+      <section aria-label="Runs" className="border-b border-border">
+        <SectionHeader
+          icon={Workflow}
+          title="Runs"
+          meta={workflows.length > 0 ? `${workflows.length} recent` : undefined}
+        />
+        {loading && workflows.length === 0 ? (
+          <div className="divide-y divide-border/60" aria-label="Loading runs">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div
+                key={i}
+                className="flex animate-pulse items-center gap-3 px-6 py-3.5"
+              >
+                <div className="h-3 w-3 rounded bg-muted" />
+                <div className="h-3 w-40 rounded bg-muted" />
+                <div className="ml-auto h-3 w-20 rounded bg-muted" />
+              </div>
+            ))}
+          </div>
         ) : workflows.length > 0 ? (
-          <div className="space-y-1 max-h-96 overflow-y-auto">
+          <div className="divide-y divide-border/60">
             {workflows.map((wf) => {
               const detailStatus = effectiveWorkflowStatus(
                 wf,
@@ -575,39 +628,49 @@ export function WorkflowPanel({
                   <button
                     type="button"
                     onClick={() => handleToggle(wf.id)}
-                    className="flex w-full items-center justify-between rounded-[6px] px-2.5 py-1.5 text-sm hover:bg-[#1f2025] transition-colors"
+                    aria-expanded={expandedId === wf.id}
+                    className={`flex w-full items-center justify-between gap-3 px-6 py-3 text-left text-xs transition-colors hover:bg-muted/25 ${
+                      expandedId === wf.id ? 'bg-muted/20' : ''
+                    }`}
                   >
-                    <div className="flex items-center gap-2 min-w-0">
+                    <div className="flex min-w-0 items-center gap-2.5">
                       {expandedId === wf.id ? (
                         <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                       ) : (
                         <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                       )}
-                      <span className="truncate font-mono text-xs">
+                      <span className="truncate font-medium text-foreground">
+                        Run · {runLabel(wf.created_at)}
+                      </span>
+                      <span className="hidden font-mono text-[11px] text-muted-foreground sm:inline">
                         {shortId(wf.id)}
                       </span>
-                      <Badge
-                        variant="outline"
-                        className={`text-xs px-1.5 py-0 ${cfg.className}`}
+                      <StatusPill
+                        tone={cfg.tone}
                         title={cfg.title}
+                        pulse={cfg.pulse}
                       >
                         {cfg.label}
-                      </Badge>
+                      </StatusPill>
                     </div>
-                    <div className="flex items-center gap-3 text-xs text-muted-foreground shrink-0">
-                      {wf.job_count > 0 && <span>{wf.job_count} jobs</span>}
+                    <div className="flex shrink-0 items-center gap-4 font-mono text-[11px] text-muted-foreground">
+                      {wf.job_count > 0 && (
+                        <span className="hidden sm:inline">
+                          {wf.job_count} jobs
+                        </span>
+                      )}
                       {wf.apply_total > 0 && (
                         <span
                           className={
                             wf.apply_successful < wf.apply_total
-                              ? 'text-red-600'
-                              : 'text-green-600'
+                              ? 'text-red-500 dark:text-red-400'
+                              : 'text-emerald-500 dark:text-emerald-400'
                           }
                         >
-                          {wf.apply_successful}/{wf.apply_total} ok
+                          {wf.apply_successful}/{wf.apply_total} applied
                         </span>
                       )}
-                      <span className="flex items-center gap-0.5 whitespace-nowrap">
+                      <span className="flex items-center gap-1 whitespace-nowrap">
                         <Clock className="h-3 w-3" />
                         {timeAgo(wf.created_at)}
                       </span>
@@ -615,36 +678,40 @@ export function WorkflowPanel({
                   </button>
 
                   {expandedId === wf.id && (
-                    <div className="ml-4 border-l-2 pl-4 py-2 space-y-3 text-sm">
+                    <div className="border-t border-border/60 bg-muted/10">
                       {detailLoading && (
-                        <p className="text-xs text-muted-foreground">
-                          Loading details...
+                        <p className="flex items-center gap-2 px-6 py-4 text-xs text-muted-foreground">
+                          <Loader2 className="size-3.5 animate-spin" />
+                          Loading run details…
                         </p>
                       )}
 
                       {detail && (
-                        <>
-                          <div className="space-y-1">
-                            <p className="text-xs text-muted-foreground">ID</p>
-                            <p className="font-mono text-xs break-all">
-                              {detail.id}
-                            </p>
-                          </div>
-
-                          <div className="grid grid-cols-2 gap-2 text-xs">
-                            <div>
-                              <p className="text-muted-foreground">Created</p>
-                              <p>{timeAgo(detail.created_at)}</p>
+                        <div className="divide-y divide-border/60">
+                          <div className="grid grid-cols-1 gap-px bg-border/60 sm:grid-cols-3">
+                            <div className="bg-background px-6 py-3">
+                              <p className={FIELD_LABEL}>Run ID</p>
+                              <p className="mt-1 break-all font-mono text-xs text-foreground">
+                                {detail.id}
+                              </p>
                             </div>
-                            <div>
-                              <p className="text-muted-foreground">Updated</p>
-                              <p>{timeAgo(detail.updated_at)}</p>
+                            <div className="bg-background px-6 py-3">
+                              <p className={FIELD_LABEL}>Started</p>
+                              <p className="mt-1 text-xs text-foreground">
+                                {timeAgo(detail.created_at)}
+                              </p>
+                            </div>
+                            <div className="bg-background px-6 py-3">
+                              <p className={FIELD_LABEL}>Last update</p>
+                              <p className="mt-1 text-xs text-foreground">
+                                {timeAgo(detail.updated_at)}
+                              </p>
                             </div>
                           </div>
 
                           {!isTerminalStatus(detail.status) && (
-                            <div className="space-y-1">
-                              <p className="text-xs font-medium">Controls</p>
+                            <div className="space-y-2 px-6 py-4">
+                              <p className={FIELD_LABEL}>Controls</p>
                               <div className="flex flex-wrap gap-2">
                                 {detail.status === 'paused' ? (
                                   <Button
@@ -696,96 +763,27 @@ export function WorkflowPanel({
                                 before submission.
                               </p>
                               {lifecycleError && (
-                                <p className="text-xs text-red-600">
+                                <p className="text-xs text-red-500 dark:text-red-400">
                                   {lifecycleError}
                                 </p>
                               )}
                             </div>
                           )}
 
-                          <div className="space-y-1">
-                            <p className="text-xs font-medium text-slate-900 dark:text-[#f1f3f9]">
-                              Live Events
-                            </p>
-                            {events.length > 0 ? (
-                              <div className="space-y-1 max-h-32 overflow-y-auto">
-                                {events.map((event) => {
-                                  const timestamp = eventTimestamp(event);
-                                  const detailText = eventDetail(event);
-                                  return (
-                                    <div
-                                      key={eventKey(event)}
-                                      className="rounded-[8px] border border-slate-200 dark:border-[#22242a] bg-slate-50 dark:bg-[#0e0f12] px-2.5 py-1.5 text-xs"
-                                    >
-                                      <div className="flex items-center justify-between gap-2">
-                                        <p className="font-medium truncate text-slate-900 dark:text-[#f1f3f9]">
-                                          {eventLabel(event)}
-                                        </p>
-                                        {timestamp && (
-                                          <span className="shrink-0 text-slate-500 dark:text-[#8a8f9d]">
-                                            {timeAgo(timestamp)}
-                                          </span>
-                                        )}
-                                      </div>
-                                      {detailText && (
-                                        <p className="text-slate-500 dark:text-[#8a8f9d] truncate">
-                                          {detailText}
-                                        </p>
-                                      )}
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            ) : (
-                              <p className="text-xs text-slate-500 dark:text-[#8a8f9d]">
-                                Waiting for workflow events...
-                              </p>
-                            )}
-                          </div>
-
-                          {detail.discovered_jobs.length > 0 && (
-                            <div className="space-y-1">
-                              <p className="text-xs font-medium text-slate-900 dark:text-[#f1f3f9]">
-                                Discovered Jobs ({detail.discovered_jobs.length}
-                                )
-                              </p>
-                              <div className="space-y-1 max-h-32 overflow-y-auto">
-                                {detail.discovered_jobs.map((job) => (
-                                  <div
-                                    key={job.external_id}
-                                    className="rounded-[8px] border border-slate-200 dark:border-[#22242a] bg-slate-50 dark:bg-[#0e0f12] px-2.5 py-1.5 text-xs"
-                                  >
-                                    <p className="font-medium truncate text-slate-900 dark:text-[#f1f3f9]">
-                                      {job.title}
-                                    </p>
-                                    <p className="text-slate-500 dark:text-[#8a8f9d] truncate">
-                                      {job.company_name}
-                                      {job.location && ` · ${job.location}`}
-                                      {job.seniority && ` · ${job.seniority}`}
-                                    </p>
-                                    <p className="text-slate-500 dark:text-[#8a8f9d]">
-                                      Score: {job.filter_score.toFixed(1)}
-                                    </p>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-
                           {detail.apply_tasks.length > 0 && (
-                            <div className="space-y-1">
-                              <p className="text-xs font-medium text-slate-900 dark:text-[#f1f3f9]">
-                                Applications ({detail.apply_tasks.length})
+                            <div className="space-y-2 px-6 py-4">
+                              <p className={FIELD_LABEL}>
+                                Applications · {detail.apply_tasks.length}
                               </p>
-                              <div className="space-y-2 max-h-48 overflow-y-auto">
+                              <div className="max-h-[420px] divide-y divide-border/60 overflow-y-auto rounded-[6px] border border-border bg-background">
                                 {detail.apply_tasks.map((task) => (
                                   <div
                                     key={task.job_id}
-                                    className="rounded-[8px] border border-slate-200 dark:border-[#22242a] bg-slate-50 dark:bg-[#0e0f12] px-3 py-2.5 text-xs"
+                                    className="px-3.5 py-3 text-xs"
                                   >
                                     <div className="flex items-start justify-between gap-2">
                                       <div className="min-w-0">
-                                        <p className="font-medium leading-snug">
+                                        <p className="font-medium leading-snug text-foreground">
                                           {applyTaskLabel(task)}
                                         </p>
                                         {task.application_url ? (
@@ -799,41 +797,44 @@ export function WorkflowPanel({
                                           </a>
                                         ) : null}
                                       </div>
-                                      <ApplyStatusBadge status={task.status} />
-                                      {task.application_id ? (
-                                        <Button
-                                          size="sm"
-                                          variant="outline"
-                                          className="mt-1"
-                                          onClick={() => {
-                                            setOpenApplicationId(
-                                              task.application_id!,
-                                            );
-                                            setOpenApplicationMeta({
-                                              jobTitle: task.job_title,
-                                              companyName: task.company_name,
-                                            });
-                                          }}
-                                        >
-                                          Open
-                                        </Button>
-                                      ) : null}
+                                      <div className="flex shrink-0 items-center gap-2">
+                                        <ApplicationStatusBadge
+                                          status={task.status}
+                                        />
+                                        {task.application_id ? (
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() => {
+                                              setOpenApplicationId(
+                                                task.application_id!,
+                                              );
+                                              setOpenApplicationMeta({
+                                                jobTitle: task.job_title,
+                                                companyName: task.company_name,
+                                              });
+                                            }}
+                                          >
+                                            Open
+                                          </Button>
+                                        ) : null}
+                                      </div>
                                     </div>
                                     {task.linkedin_connect_status && (
-                                      <div className="mt-1">
+                                      <div className="mt-1.5">
                                         <LinkedInConnectBadge
                                           status={task.linkedin_connect_status}
                                         />
                                       </div>
                                     )}
                                     {task.error_detail && (
-                                      <p className="text-red-600">
+                                      <p className="mt-1 text-red-500 dark:text-red-400">
                                         {task.error_detail}
                                       </p>
                                     )}
                                     {(task.status === 'captcha_blocked' ||
                                       task.status === 'login_required') && (
-                                      <p className="mt-1 text-amber-700">
+                                      <p className="mt-1 text-amber-600 dark:text-amber-400">
                                         Manual action needed
                                         {task.page_url ? (
                                           <>
@@ -903,16 +904,95 @@ export function WorkflowPanel({
                             </div>
                           )}
 
-                          {detail.errors.length > 0 && (
-                            <div className="space-y-1">
-                              <p className="text-xs font-medium text-red-600">
-                                Errors ({detail.errors.length})
+                          <div className="grid grid-cols-1 gap-px bg-border/60 lg:grid-cols-2">
+                            <div className="space-y-2 bg-background px-6 py-4">
+                              <p className={FIELD_LABEL}>Live events</p>
+                              {events.length > 0 ? (
+                                <ol className="max-h-56 divide-y divide-border/60 overflow-y-auto rounded-[6px] border border-border">
+                                  {events.map((event) => {
+                                    const timestamp = eventTimestamp(event);
+                                    const detailText = eventDetail(event);
+                                    return (
+                                      <li
+                                        key={eventKey(event)}
+                                        className="px-3 py-2 text-xs"
+                                      >
+                                        <div className="flex items-center justify-between gap-2">
+                                          <p className="truncate font-medium capitalize text-foreground">
+                                            {eventLabel(event)}
+                                          </p>
+                                          {timestamp && (
+                                            <span className="shrink-0 font-mono text-[11px] text-muted-foreground">
+                                              {timeAgo(timestamp)}
+                                            </span>
+                                          )}
+                                        </div>
+                                        {detailText && (
+                                          <p className="truncate text-muted-foreground">
+                                            {detailText}
+                                          </p>
+                                        )}
+                                      </li>
+                                    );
+                                  })}
+                                </ol>
+                              ) : (
+                                <p className="flex items-center gap-2 font-mono text-[11px] text-muted-foreground">
+                                  <span className="size-1.5 animate-pulse rounded-full bg-muted-foreground" />
+                                  Waiting for workflow events…
+                                </p>
+                              )}
+                            </div>
+
+                            <div className="space-y-2 bg-background px-6 py-4">
+                              <p className={FIELD_LABEL}>
+                                Discovered jobs ·{' '}
+                                {detail.discovered_jobs.length}
                               </p>
-                              <div className="space-y-1 max-h-32 overflow-y-auto">
+                              {detail.discovered_jobs.length > 0 ? (
+                                <ul className="max-h-56 divide-y divide-border/60 overflow-y-auto rounded-[6px] border border-border">
+                                  {detail.discovered_jobs.map((job) => (
+                                    <li
+                                      key={job.external_id}
+                                      className="flex items-center justify-between gap-3 px-3 py-2 text-xs"
+                                    >
+                                      <div className="min-w-0">
+                                        <p className="truncate font-medium text-foreground">
+                                          {job.title}
+                                        </p>
+                                        <p className="truncate text-muted-foreground">
+                                          {job.company_name}
+                                          {job.location && ` · ${job.location}`}
+                                          {job.seniority &&
+                                            ` · ${job.seniority}`}
+                                        </p>
+                                      </div>
+                                      <span className="shrink-0 font-mono text-[11px] text-muted-foreground">
+                                        {job.filter_score.toFixed(1)}
+                                      </span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              ) : (
+                                <p className="font-mono text-[11px] text-muted-foreground">
+                                  No jobs discovered in this run.
+                                </p>
+                              )}
+                            </div>
+                          </div>
+
+                          {detail.errors.length > 0 && (
+                            <div className="space-y-2 px-6 py-4">
+                              <p
+                                className={`${FIELD_LABEL} !text-red-500 dark:!text-red-400`}
+                              >
+                                Errors · {detail.errors.length}
+                              </p>
+                              <div className="max-h-32 divide-y divide-red-500/10 overflow-y-auto rounded-[6px] border border-red-500/20 bg-red-500/5">
                                 {detail.errors.map((err, i) => (
                                   <p
                                     key={i}
-                                    className="rounded border border-red-200 bg-red-50 px-2 py-1 text-xs text-red-700"
+                                    className="px-3 py-1.5 font-mono text-[11px] text-red-600 dark:text-red-400"
                                   >
                                     {err}
                                   </p>
@@ -920,7 +1000,7 @@ export function WorkflowPanel({
                               </div>
                             </div>
                           )}
-                        </>
+                        </div>
                       )}
                     </div>
                   )}
@@ -929,12 +1009,22 @@ export function WorkflowPanel({
             })}
           </div>
         ) : (
-          <p className="text-sm text-muted-foreground">
-            No workflows yet. Upload a resume, select matches, and queue
-            applications to see a live timeline here.
-          </p>
+          <EmptyState
+            icon={Workflow}
+            title="No runs yet"
+            description="When you apply to jobs, each batch becomes a run here with a live, step-by-step timeline."
+            action={
+              <Button asChild size="sm">
+                <Link href="/dashboard/discovery">
+                  Discover jobs
+                  <ArrowRight />
+                </Link>
+              </Button>
+            }
+          />
         )}
-      </CardContent>
+      </section>
+
       {openApplicationId ? (
         <ApplicationModal
           applicationId={openApplicationId}
@@ -943,7 +1033,7 @@ export function WorkflowPanel({
           onClose={() => setOpenApplicationId(null)}
         />
       ) : null}
-    </Card>
+    </div>
   );
 }
 
@@ -1004,10 +1094,12 @@ function OutcomeSelect({
   }
 
   return (
-    <label className="mt-1 flex items-center gap-2 text-muted-foreground">
-      Outcome
+    <label className="mt-2 flex items-center gap-2 text-muted-foreground">
+      <span className="font-mono text-[11px] uppercase tracking-wider">
+        Outcome
+      </span>
       <select
-        className="h-7 rounded border bg-background px-1 text-xs text-foreground"
+        className="h-7 rounded-[6px] border border-border bg-background px-1.5 text-xs text-foreground focus:border-neutral-500 focus:outline-none"
         value={value ?? ''}
         onChange={(event) => {
           void handleChange(event.target.value);
@@ -1023,107 +1115,18 @@ function OutcomeSelect({
   );
 }
 
-function ApplyStatusBadge({ status }: { status: string }) {
-  const config: Record<string, { label: string; className: string }> = {
-    queued: {
-      label: 'Queued',
-      className:
-        'bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20',
-    },
-    running: {
-      label: 'Running',
-      className:
-        'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20',
-    },
-    pending: {
-      label: 'Pending',
-      className:
-        'bg-slate-100 dark:bg-slate-800/40 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700',
-    },
-    submitted: {
-      label: 'Submitted',
-      className:
-        'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20',
-    },
-    already_applied: {
-      label: 'Already Applied',
-      className:
-        'bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20',
-    },
-    failed: {
-      label: 'Failed',
-      className:
-        'bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20',
-    },
-    captcha_blocked: {
-      label: 'Captcha',
-      className:
-        'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20',
-    },
-    login_required: {
-      label: 'Login',
-      className:
-        'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20',
-    },
-    timed_out: {
-      label: 'Timed Out',
-      className:
-        'bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20',
-    },
-    skipped: {
-      label: 'Skipped',
-      className:
-        'bg-slate-100 dark:bg-slate-800/40 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700',
-    },
-  };
-  const c = config[status] ?? {
-    label: status,
-    className:
-      'bg-slate-100 dark:bg-slate-800/40 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700',
-  };
-  return (
-    <Badge variant="outline" className={`text-xs px-1.5 py-0 ${c.className}`}>
-      {c.label}
-    </Badge>
-  );
-}
+const LINKEDIN_CONNECT: Record<string, { label: string; tone: Tone }> = {
+  pending: { label: 'LinkedIn connects queued', tone: 'info' },
+  sent: { label: 'LinkedIn connects sent', tone: 'success' },
+  login_required: { label: 'LinkedIn session required', tone: 'warning' },
+  failed: { label: 'LinkedIn connects failed', tone: 'danger' },
+  skipped: { label: 'LinkedIn connects skipped', tone: 'neutral' },
+};
 
 function LinkedInConnectBadge({ status }: { status: string }) {
-  const config: Record<string, { label: string; className: string }> = {
-    pending: {
-      label: 'LinkedIn connects queued',
-      className:
-        'bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20',
-    },
-    sent: {
-      label: 'LinkedIn connects sent',
-      className:
-        'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20',
-    },
-    login_required: {
-      label: 'LinkedIn session required',
-      className:
-        'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20',
-    },
-    failed: {
-      label: 'LinkedIn connects failed',
-      className:
-        'bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20',
-    },
-    skipped: {
-      label: 'LinkedIn connects skipped',
-      className:
-        'bg-slate-100 dark:bg-slate-800/40 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700',
-    },
-  };
-  const c = config[status] ?? {
+  const c = LINKEDIN_CONNECT[status] ?? {
     label: `LinkedIn: ${status}`,
-    className:
-      'bg-slate-100 dark:bg-slate-800/40 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700',
+    tone: 'neutral' as const,
   };
-  return (
-    <Badge variant="outline" className={`text-xs px-1.5 py-0 ${c.className}`}>
-      {c.label}
-    </Badge>
-  );
+  return <StatusPill tone={c.tone}>{c.label}</StatusPill>;
 }

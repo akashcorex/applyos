@@ -3,10 +3,22 @@
 import { useEffect, useState } from 'react';
 
 import { analytics } from '@applyso/analytics';
-import { Badge } from '@applyso/ui/badge';
 import { Button } from '@applyso/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@applyso/ui/card';
+import {
+  Bot,
+  CheckCircle2,
+  Clock,
+  Send,
+  ShieldCheck,
+  Sliders,
+} from '@applyso/ui/icons';
 
+import {
+  PageHeader,
+  SectionHeader,
+  StatStrip,
+  StatusPill,
+} from '@/components/dashboard/PageChrome';
 import { LinkedinIcon } from '@/components/icons/LinkedinIcon';
 import { appCallbackURL, authClient } from '@/lib/auth-client';
 
@@ -19,6 +31,15 @@ interface AutomationSessionStatus {
 interface UserPreferences {
   postApplyLinkedinConnectEnabled: boolean;
 }
+
+const FIELD_LABEL =
+  'block text-[11px] font-mono font-semibold uppercase tracking-wider text-muted-foreground';
+
+const STEPS = [
+  'The agent submits your application.',
+  'It finds people at that company on LinkedIn.',
+  'It sends them a connection request from your session.',
+];
 
 function formatExpiry(seconds: number | null): string | null {
   if (seconds == null || seconds <= 0) {
@@ -39,6 +60,7 @@ export function LinkedInConnectCard() {
     null,
   );
   const [automationError, setAutomationError] = useState(false);
+  const [automationLoaded, setAutomationLoaded] = useState(false);
   const [preferences, setPreferences] = useState<UserPreferences>({
     postApplyLinkedinConnectEnabled: false,
   });
@@ -67,6 +89,8 @@ export function LinkedInConnectCard() {
       } catch {
         setAutomationError(true);
         setAutomation(null);
+      } finally {
+        setAutomationLoaded(true);
       }
     }
 
@@ -122,111 +146,189 @@ export function LinkedInConnectCard() {
     setLinking(true);
     await authClient.signIn.social({
       provider: 'linkedin',
-      callbackURL: appCallbackURL('/dashboard'),
+      callbackURL: appCallbackURL('/dashboard/linkedin'),
     });
     setLinking(false);
   }
 
   const automationReady = automation?.linkedin_authenticated === true;
   const expiry = formatExpiry(automation?.expires_in_seconds ?? null);
+  const connectsOn = preferences.postApplyLinkedinConnectEnabled;
+  const sessionLabel = automationError
+    ? 'Offline'
+    : automationReady
+      ? 'Active'
+      : 'Login needed';
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle className="text-lg">LinkedIn</CardTitle>
-        <div className="flex gap-2">
-          <Badge
-            variant="outline"
-            className="bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800/40"
-          >
-            OAuth
-          </Badge>
-          <Badge
-            variant="outline"
-            className={
-              automationReady
-                ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/40'
-                : automationError
-                  ? 'bg-slate-100 dark:bg-slate-800/40 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700'
-                  : 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800/40'
-            }
-          >
-            Automation
-          </Badge>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div>
-          <p className="text-sm text-slate-500 dark:text-[#8a8f9d] mb-2">
-            Sign in with LinkedIn for the web app. Post-apply connection
-            requests need a separate browser automation session.
-          </p>
-          <Button
-            onClick={handleConnect}
-            disabled={linking}
-            className="w-full"
-            variant="outline"
-          >
-            <LinkedinIcon className="h-4 w-4" />
-            {linking ? 'Connecting...' : 'Connect LinkedIn (OAuth)'}
-          </Button>
-        </div>
-
-        <div className="rounded-[8px] border border-slate-200 dark:border-[#22242a] bg-slate-50 dark:bg-[#0e0f12] px-3.5 py-2.5 text-sm">
-          <p className="font-medium text-slate-900 dark:text-[#f1f3f9] mb-1">
-            Automation session
-          </p>
-          {automationError ? (
-            <p className="text-slate-500 dark:text-[#8a8f9d]">
-              Apply agent offline — start apply-agent to check session status.
-            </p>
-          ) : automationReady ? (
-            <p className="text-emerald-600 dark:text-emerald-400 font-medium">
-              Active{expiry ? ` · expires in ${expiry}` : ''}. Post-apply
-              connects can run.
-            </p>
+    <div className="w-full bg-background text-foreground">
+      <PageHeader
+        title="Outreach"
+        description="After the agent applies, it can reach out to people at that company on LinkedIn. Connect your account and choose what runs automatically."
+        actions={
+          automationError ? (
+            <StatusPill tone="neutral">Agent offline</StatusPill>
+          ) : automationReady && connectsOn ? (
+            <StatusPill tone="success" pulse>
+              Outreach active
+            </StatusPill>
           ) : (
-            <>
-              <p className="text-amber-600 dark:text-amber-400 mb-2 font-medium">
-                Browser login required for auto-connects after job applications.
-              </p>
-              <p className="text-xs text-slate-500 dark:text-[#8a8f9d] font-mono break-all">
-                python apps/apply-agent/scripts/bootstrap_linkedin_session.py
-                --user-id {session?.user?.id ?? '<USER_ID>'}
-              </p>
-            </>
-          )}
-        </div>
+            <StatusPill tone="warning">Setup needed</StatusPill>
+          )
+        }
+      />
 
-        <div className="rounded-[8px] border border-slate-200 dark:border-[#22242a] bg-slate-50 dark:bg-[#0e0f12] px-3.5 py-2.5 text-sm space-y-3">
-          <p className="font-medium text-slate-900 dark:text-[#f1f3f9]">
-            Outreach (opt-in)
-          </p>
-          <label className="flex items-start gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              className="mt-1 h-3.5 w-3.5 rounded-[4px] border-slate-300 dark:border-[#282a32] bg-white dark:bg-[#16171b] text-slate-900 dark:text-[#f1f3f9] focus:ring-slate-900 dark:focus:ring-[#f1f3f9]"
-              checked={preferences.postApplyLinkedinConnectEnabled}
-              disabled={savingPreference !== null}
-              onChange={(event) =>
-                void updatePreference(
-                  'postApplyLinkedinConnectEnabled',
-                  event.target.checked,
-                )
-              }
-            />
-            <span>
-              <span className="font-medium text-slate-900 dark:text-[#f1f3f9]">
-                Post-apply LinkedIn connects
-              </span>
-              <span className="block text-xs text-slate-500 dark:text-[#8a8f9d]">
-                After a successful apply, send blank connection requests to
-                people at that company. Off until you enable it.
-              </span>
-            </span>
-          </label>
+      <StatStrip
+        loading={!automationLoaded && Boolean(session?.user?.id)}
+        stats={[
+          {
+            label: 'Automation Session',
+            value: sessionLabel,
+            icon: Bot,
+            subtext: automationError
+              ? 'apply agent is not reachable'
+              : automationReady
+                ? 'browser is signed in to LinkedIn'
+                : 'sign in once from the apply agent',
+            color: automationReady ? 'green' : 'orange',
+          },
+          {
+            label: 'Session Expires',
+            value: expiry ?? '—',
+            icon: Clock,
+            subtext: expiry ? 'renew before it lapses' : 'no active session',
+            color: 'blue',
+          },
+          {
+            label: 'Post-apply Connects',
+            value: connectsOn ? 'On' : 'Off',
+            icon: Send,
+            subtext: connectsOn ? 'runs after each submit' : 'opt in below',
+            color: connectsOn ? 'green' : 'red',
+          },
+        ]}
+      />
+
+      <section aria-label="LinkedIn account" className="border-b border-border">
+        <SectionHeader
+          icon={ShieldCheck}
+          title="LinkedIn Account"
+          meta="Sign-in and browser session"
+        />
+        <div className="grid grid-cols-1 gap-px bg-border sm:grid-cols-2">
+          <div className="space-y-3 bg-background px-6 py-5">
+            <p className={FIELD_LABEL}>Sign in with LinkedIn</p>
+            <p className="text-xs text-muted-foreground">
+              Links LinkedIn to your ApplyOS account so you can sign in with it.
+              This does not let the agent send requests.
+            </p>
+            <Button
+              onClick={handleConnect}
+              disabled={linking}
+              variant="outline"
+            >
+              <LinkedinIcon className="h-4 w-4" />
+              {linking ? 'Connecting…' : 'Connect LinkedIn'}
+            </Button>
+          </div>
+
+          <div className="space-y-3 bg-background px-6 py-5">
+            <div className="flex items-center justify-between gap-2">
+              <p className={FIELD_LABEL}>Automation session</p>
+              {automationError ? (
+                <StatusPill tone="neutral">Offline</StatusPill>
+              ) : automationReady ? (
+                <StatusPill tone="success">Active</StatusPill>
+              ) : (
+                <StatusPill tone="warning">Login needed</StatusPill>
+              )}
+            </div>
+            {automationError ? (
+              <p className="text-xs text-muted-foreground">
+                The apply agent is offline, so we can’t check the session. Start
+                the apply agent and this updates within 30 seconds.
+              </p>
+            ) : automationReady ? (
+              <p className="text-xs text-muted-foreground">
+                The agent’s browser is signed in to LinkedIn
+                {expiry ? ` for another ${expiry}` : ''}. Post-apply connects
+                can run.
+              </p>
+            ) : (
+              <>
+                <p className="text-xs text-muted-foreground">
+                  The agent needs its own signed-in browser to send requests.
+                  Run this once from the repo, then log in to LinkedIn in the
+                  window that opens:
+                </p>
+                <pre className="overflow-x-auto rounded-[6px] border border-border bg-muted/30 px-3 py-2 font-mono text-[11px] text-foreground">
+                  python apps/apply-agent/scripts/bootstrap_linkedin_session.py
+                  --user-id {session?.user?.id ?? '<USER_ID>'}
+                </pre>
+              </>
+            )}
+          </div>
         </div>
-      </CardContent>
-    </Card>
+      </section>
+
+      <section aria-label="Outreach rules" className="border-b border-border">
+        <SectionHeader
+          icon={Sliders}
+          title="Outreach Rules"
+          meta="Off until you opt in"
+        />
+        <div className="grid grid-cols-1 gap-px bg-border sm:grid-cols-2">
+          <div className="bg-background px-6 py-5">
+            <label className="flex cursor-pointer select-none items-start gap-3">
+              <input
+                type="checkbox"
+                className="mt-0.5 h-4 w-4 cursor-pointer rounded-[3px] border-border bg-background text-foreground focus:ring-0"
+                checked={connectsOn}
+                disabled={savingPreference !== null}
+                onChange={(event) =>
+                  void updatePreference(
+                    'postApplyLinkedinConnectEnabled',
+                    event.target.checked,
+                  )
+                }
+              />
+              <span>
+                <span className="text-xs font-semibold text-foreground">
+                  Post-apply LinkedIn connects
+                </span>
+                <span className="mt-0.5 block text-xs text-muted-foreground">
+                  After a successful application, send connection requests to
+                  people at that company. Requests go out without a note.
+                </span>
+                {connectsOn && !automationReady ? (
+                  <span className="mt-1.5 block text-[11px] font-medium text-amber-600 dark:text-amber-400">
+                    Enabled, but nothing will send until the automation session
+                    is active.
+                  </span>
+                ) : null}
+              </span>
+            </label>
+          </div>
+
+          <div className="space-y-3 bg-background px-6 py-5">
+            <p className={FIELD_LABEL}>How it works</p>
+            <ol className="space-y-2">
+              {STEPS.map((step, index) => (
+                <li key={step} className="flex items-start gap-2.5 text-xs">
+                  <span className="flex size-5 shrink-0 items-center justify-center rounded-[4px] border border-border font-mono text-[10px] text-muted-foreground">
+                    {index + 1}
+                  </span>
+                  <span className="pt-0.5 text-muted-foreground">{step}</span>
+                </li>
+              ))}
+            </ol>
+            <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+              <CheckCircle2 className="size-3.5 text-emerald-500" />
+              Each request’s result shows on the run in Job Tracker.
+            </p>
+          </div>
+        </div>
+      </section>
+    </div>
   );
 }
