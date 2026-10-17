@@ -1,124 +1,263 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useCallback, useMemo, useState } from 'react';
+
+import Link from 'next/link';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 
 import { Button } from '@applyso/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@applyso/ui/card';
+import {
+  AlertTriangle,
+  ArrowRight,
+  CheckCircle2,
+  RiCompass3Line,
+  FileText,
+  Layers,
+  Loader2,
+} from '@applyso/ui/icons';
 
 import { ApplicationModal } from '@/components/applications/ApplicationModal';
-import { ApplicationStatusBadge } from '@/components/applications/ApplicationStatusBadge';
+import { ApplicationsTable } from '@/components/applications/ApplicationsTable';
+import {
+  EmptyState,
+  NoticeBar,
+  PageHeader,
+  SearchField,
+  SectionHeader,
+  SegmentedControl,
+  StatStrip,
+} from '@/components/dashboard/PageChrome';
+import {
+  applicationCategory,
+  countByCategory,
+  dailyActivity,
+  type ApplicationCategory,
+  type ApplicationRow,
+} from '@/lib/application-stats';
+import { useApplications } from '@/lib/use-applications';
 
-interface ApplicationRow {
-  id: string;
-  status: string;
-  jobTitle?: string | null;
-  companyName?: string | null;
-  interventionReason?: string | null;
-  humanInterventionRequired?: boolean | null;
+type Filter = ApplicationCategory | 'all';
+
+const FILTERS: Filter[] = [
+  'all',
+  'running',
+  'attention',
+  'submitted',
+  'closed',
+];
+
+const FILTER_LABELS: Record<Filter, string> = {
+  all: 'All',
+  running: 'In progress',
+  attention: 'Needs you',
+  submitted: 'Applied',
+  closed: 'Closed',
+};
+
+const EMPTY_COPY: Record<Filter, string> = {
+  all: 'Pick roles in Discover Jobs and the agent will apply for you. Every run lands here.',
+  running: 'Nothing is being applied to right now.',
+  attention: 'Nothing is blocked. The agent will flag captchas or logins here.',
+  submitted: 'No submitted applications yet.',
+  closed: 'No failed, skipped, or cancelled applications.',
+};
+
+function isFilter(value: string | null): value is Filter {
+  return value !== null && (FILTERS as string[]).includes(value);
 }
 
-type Category = 'all' | 'running' | 'attention' | 'completed';
+function ApplicationsPanelContent() {
+  const { rows, loading, error } = useApplications(5000);
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+  const requestedFilter = searchParams.get('filter');
+  const filter: Filter = isFilter(requestedFilter) ? requestedFilter : 'all';
+  const [search, setSearch] = useState('');
+  const [open, setOpen] = useState<ApplicationRow | null>(null);
 
-export function ApplicationsPanel() {
-  const [category, setCategory] = useState<Category>('all');
-  const [applications, setApplications] = useState<ApplicationRow[]>([]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [selectedMeta, setSelectedMeta] = useState<{
-    jobTitle?: string;
-    companyName?: string;
-  }>({});
+  const setFilter = useCallback(
+    (next: Filter) => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (next === 'all') params.delete('filter');
+      else params.set('filter', next);
+      const query = params.toString();
+      router.replace(query ? `${pathname}?${query}` : pathname, {
+        scroll: false,
+      });
+    },
+    [pathname, router, searchParams],
+  );
 
-  useEffect(() => {
-    const load = async () => {
-      const res = await fetch(
-        `/api/applications?category=${encodeURIComponent(category)}`,
-        { cache: 'no-store' },
-      );
-      if (!res.ok) return;
-      const data = (await res.json()) as { applications?: ApplicationRow[] };
-      setApplications(data.applications ?? []);
-    };
-    void load();
-    const interval = setInterval(() => void load(), 5000);
-    return () => clearInterval(interval);
-  }, [category]);
+  const counts = useMemo(() => countByCategory(rows), [rows]);
+  const daily = useMemo(() => dailyActivity(rows, 10), [rows]);
+  const filtered = useMemo(
+    () =>
+      filter === 'all'
+        ? rows
+        : rows.filter((row) => applicationCategory(row.status) === filter),
+    [rows, filter],
+  );
 
   return (
-    <>
-      <Card>
-        <CardHeader>
-          <CardTitle>My Applications</CardTitle>
-          <div className="flex flex-wrap gap-2 pt-2">
-            {(['all', 'running', 'attention', 'completed'] as const).map(
-              (item) => (
-                <Button
-                  key={item}
-                  size="sm"
-                  variant={category === item ? 'default' : 'outline'}
-                  onClick={() => setCategory(item)}
-                >
-                  {item === 'all'
-                    ? 'All'
-                    : item.charAt(0).toUpperCase() + item.slice(1)}
-                </Button>
-              ),
-            )}
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {applications.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              No applications yet.
-            </p>
-          ) : (
-            applications.map((application) => (
-              <div
-                key={application.id}
-                className="flex items-center justify-between gap-3 rounded-lg border px-3 py-3 dark:border-[#22242a]"
-              >
-                <div>
-                  <p className="font-medium">
-                    {application.companyName || 'Company'}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    {application.jobTitle || 'Role'}
-                  </p>
-                  {application.interventionReason ? (
-                    <p className="mt-1 text-xs text-amber-700">
-                      {application.interventionReason}
-                    </p>
-                  ) : null}
-                </div>
-                <div className="flex items-center gap-2">
-                  <ApplicationStatusBadge status={application.status} />
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      setSelectedId(application.id);
-                      setSelectedMeta({
-                        jobTitle: application.jobTitle ?? undefined,
-                        companyName: application.companyName ?? undefined,
-                      });
-                    }}
-                  >
-                    Open
-                  </Button>
-                </div>
-              </div>
-            ))
-          )}
-        </CardContent>
-      </Card>
+    <div className="w-full bg-background text-foreground">
+      <PageHeader
+        title="Applications"
+        description="Every job the agent applies to. Watch it work live and step in when it needs you."
+        actions={
+          <Button asChild size="sm">
+            <Link href="/dashboard/discovery">
+              Discover jobs
+              <ArrowRight />
+            </Link>
+          </Button>
+        }
+      />
 
-      {selectedId ? (
+      {counts.attention > 0 ? (
+        <NoticeBar
+          tone="warning"
+          icon={AlertTriangle}
+          action={
+            filter === 'attention' ? null : (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setFilter('attention')}
+              >
+                Show them
+              </Button>
+            )
+          }
+        >
+          {counts.attention === 1
+            ? '1 application is waiting on you.'
+            : `${counts.attention} applications are waiting on you.`}{' '}
+          Open it, solve the captcha or log in, and the agent picks up where it
+          stopped.
+        </NoticeBar>
+      ) : null}
+
+      {error ? (
+        <NoticeBar tone="danger" icon={AlertTriangle}>
+          {error}
+        </NoticeBar>
+      ) : null}
+
+      <StatStrip
+        loading={loading && rows.length === 0}
+        stats={[
+          {
+            label: 'Tracked',
+            value: String(counts.all),
+            icon: Layers,
+            subtext: 'most recent 100',
+            sparkline: daily.started,
+            color: 'blue',
+          },
+          {
+            label: 'In Progress',
+            value: String(counts.running),
+            icon: Loader2,
+            subtext: 'agent is applying',
+            color: 'orange',
+          },
+          {
+            label: 'Needs You',
+            value: String(counts.attention),
+            icon: AlertTriangle,
+            deltaTone: counts.attention > 0 ? 'negative' : 'neutral',
+            delta: counts.attention > 0 ? 'Action needed' : undefined,
+            subtext: counts.attention > 0 ? undefined : 'nothing blocked',
+            sparkline: daily.attention,
+            color: 'red',
+          },
+          {
+            label: 'Applied',
+            value: String(counts.submitted),
+            icon: CheckCircle2,
+            subtext: `${counts.closed} closed`,
+            sparkline: daily.submitted,
+            color: 'green',
+          },
+        ]}
+      />
+
+      <section
+        aria-label="Applications list"
+        className="border-b border-border"
+      >
+        <SectionHeader
+          icon={FileText}
+          title={`${FILTER_LABELS[filter]} applications`}
+          meta={`${filtered.length}`}
+          actions={
+            <>
+              <SegmentedControl
+                label="Filter applications"
+                value={filter}
+                onChange={setFilter}
+                options={FILTERS.map((value) => ({
+                  value,
+                  label: FILTER_LABELS[value],
+                  count: counts[value],
+                }))}
+              />
+              <SearchField
+                value={search}
+                onChange={setSearch}
+                label="Search applications"
+                placeholder="Search role, company…"
+                className="w-full sm:w-56"
+              />
+            </>
+          }
+        />
+        <ApplicationsTable
+          rows={filtered}
+          loading={loading}
+          search={search}
+          onOpen={setOpen}
+          empty={
+            <EmptyState
+              icon={filter === 'all' ? RiCompass3Line : CheckCircle2}
+              title={
+                filter === 'all'
+                  ? 'No applications yet'
+                  : `No ${FILTER_LABELS[filter].toLowerCase()} applications`
+              }
+              description={EMPTY_COPY[filter]}
+              action={
+                filter === 'all' ? (
+                  <Button asChild size="sm">
+                    <Link href="/dashboard/discovery">
+                      Discover jobs
+                      <ArrowRight />
+                    </Link>
+                  </Button>
+                ) : null
+              }
+            />
+          }
+        />
+      </section>
+
+      {open ? (
         <ApplicationModal
-          applicationId={selectedId}
-          jobTitle={selectedMeta.jobTitle}
-          companyName={selectedMeta.companyName}
-          onClose={() => setSelectedId(null)}
+          applicationId={open.id}
+          jobTitle={open.jobTitle ?? undefined}
+          companyName={open.companyName ?? undefined}
+          onClose={() => setOpen(null)}
         />
       ) : null}
-    </>
+    </div>
+  );
+}
+
+export function ApplicationsPanel() {
+  return (
+    <Suspense fallback={<StatStrip loading stats={[]} />}>
+      <ApplicationsPanelContent />
+    </Suspense>
   );
 }
