@@ -1,20 +1,15 @@
 'use client';
 
+import { PageHeader } from '@/components/dashboard/PageChrome';
 import { PersistedDiscoveryPanel } from '@/components/PersistedDiscoveryPanel';
 
 export default function DiscoveryPage() {
   return (
-    <div className="max-w-[1280px] mx-auto space-y-5 text-[#f1f3f9]">
-      <div>
-        <h1 className="text-xl font-semibold text-[#f1f3f9] tracking-tight">
-          Jobs & Discovery
-        </h1>
-        <p className="text-xs text-[#8a8f9d] mt-0.5 font-normal">
-          Search live roles across tech companies and scrape jobs directly from
-          ATS career pages.
-        </p>
-      </div>
-
+    <div className="w-full bg-background text-foreground">
+      <PageHeader
+        title="Discover Jobs"
+        description="Live roles from company career pages, ranked against your profile. Apply in one click, or select several to tailor your resume first."
+      />
       <PersistedDiscoveryPanel />
     </div>
   );

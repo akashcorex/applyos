@@ -4,18 +4,43 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { useRouter } from 'next/navigation';
 
+import { analytics } from '@applyso/analytics';
 import { Button } from '@applyso/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@applyso/ui/card';
 import {
+  AlertTriangle,
   ArrowRight,
   Bookmark,
   BookmarkCheck,
-  Check,
+  CheckCircle2,
+  RiCompass3Line,
+  Eye,
+  FileUp,
   Loader2,
+  RefreshCw,
   Search,
+  Send,
+  Sparkles,
   X,
 } from '@applyso/ui/icons';
-import { Input } from '@applyso/ui/input';
+
+import {
+  EmptyState,
+  NoticeBar,
+  SearchField,
+  SectionHeader,
+  SegmentedControl,
+  StatStrip,
+  StatusPill,
+} from '@/components/dashboard/PageChrome';
+import { JobDetailModal } from '@/components/JobDetailModal';
+import { authClient } from '@/lib/auth-client';
+import {
+  BAND_STYLES,
+  bandFromScore,
+  cleanDescription,
+  formatMatchScore,
+  jobAccent,
+} from '@/lib/job-visuals';
 
 const RENDER_BATCH = 20;
 const FETCH_BATCH = 20;
@@ -51,10 +76,16 @@ interface Job {
   companyName: string;
   title: string;
   location: string;
+  locationType?: string | null;
   seniority: string | null;
+  source?: string | null;
+  externalId?: string | null;
+  descriptionRaw?: string | null;
   applicationUrl: string | null;
+  postedAt?: string | null;
   firstSeenAt: string;
   lastSeenAt: string;
+  ageDays?: number;
   isNew?: boolean;
   isActive?: boolean;
   flags?: string[];
@@ -83,6 +114,25 @@ function jobScoreTitle(job: Job): string | undefined {
   return parts.join(' · ');
 }
 
+function scoreBand(job: Job): ScoreResult['band'] {
+  if (job.scoreResult?.band) return job.scoreResult.band;
+  return bandFromScore(jobScore(job));
+}
+
+function applyErrorMessage(
+  status: number,
+  data: { error?: string; reason?: string } | null,
+): string {
+  if (data?.reason === 'quota_exceeded') {
+    return 'You have used all your applications for now. Get more on Plans & Billing.';
+  }
+  if (status === 404) return 'This posting looks closed or unreachable.';
+  if (status === 422) return 'Add a resume before applying.';
+  if (status === 502)
+    return 'Apply service is unreachable. Try again in a moment.';
+  return data?.error ?? 'Could not start this application. Try again.';
+}
+
 interface DiscoveryResponse {
   sessionId: string;
   jobs: Job[];
@@ -93,216 +143,202 @@ interface DiscoveryResponse {
   error?: string | null;
 }
 
-interface JobCardProps {
-  job: Job;
-  rankPosition: number;
-  accentIndex: number;
-  isSelected: boolean;
-  isSaving: boolean;
-  onToggleSelected: (id: string) => void;
-  onToggleSaved: (job: Job) => void;
-  onSkip: (job: Job, rankPosition: number) => void;
-  onOpen: (job: Job, rankPosition: number) => void;
-}
-
-const ACCENTS = [
-  { surface: 'bg-[#f5f3ff]', avatar: 'bg-[#e6e1fb] text-[#4c4496]' },
-  { surface: 'bg-[#fef6e7]', avatar: 'bg-[#f9e8c4] text-[#8a6a2b]' },
-  { surface: 'bg-[#f2f9e8]', avatar: 'bg-[#ddefc9] text-[#4a6b35]' },
-  { surface: 'bg-[#eef4ff]', avatar: 'bg-[#d9e6fd] text-[#34548a]' },
-  { surface: 'bg-[#fef2f2]', avatar: 'bg-[#f9dbdb] text-[#8a3d3d]' },
-  { surface: 'bg-[#fef9e8]', avatar: 'bg-[#f7ecc2] text-[#7d6526]' },
-];
-
 function companyInitial(name: string): string {
   const trimmed = name.trim();
   return trimmed ? trimmed.charAt(0).toUpperCase() : '?';
 }
 
+interface JobCardProps {
+  job: Job;
+  rankPosition: number;
+  isSaving: boolean;
+  isApplying: boolean;
+  isApplied: boolean;
+  applyError?: string;
+  onApply: (job: Job) => void;
+  onTrack: (job: Job) => void;
+  onToggleSaved: (job: Job) => void;
+  onSkip: (job: Job, rankPosition: number) => void;
+  onPreview: (job: Job, rankPosition: number) => void;
+}
+
 const JobCard = memo(function JobCard({
   job,
   rankPosition,
-  accentIndex,
-  isSelected,
   isSaving,
-  onToggleSelected,
+  isApplying,
+  isApplied,
+  applyError,
+  onApply,
+  onTrack,
   onToggleSaved,
   onSkip,
-  onOpen,
+  onPreview,
 }: JobCardProps) {
-  const accent = ACCENTS[accentIndex % ACCENTS.length];
+  const score = jobScore(job);
+  const hasScore = typeof job.score === 'number' && score >= 0;
   const meta = [job.location, job.seniority].filter(Boolean).join(' · ');
-  const filledDots =
-    typeof job.score === 'number'
-      ? Math.min(4, Math.max(1, Math.round(job.score / 25)))
-      : 1;
+  const closed = job.isActive === false;
+  const canApply = Boolean(job.applicationUrl) && !closed;
+  const accent = jobAccent(rankPosition);
+  const snippet = cleanDescription(job.descriptionRaw)?.slice(0, 240) ?? null;
 
   return (
     <article
-      className={`group flex flex-col overflow-hidden rounded-[14px] border bg-white text-slate-900 shadow-[0_1px_2px_rgba(16,24,40,0.06)] transition-shadow hover:shadow-[0_8px_24px_rgba(16,24,40,0.10)] ${
-        isSelected
-          ? 'border-slate-900 ring-2 ring-slate-900'
-          : 'border-slate-200 dark:border-[#26282e]'
-      }`}
+      className="group flex h-full flex-col bg-background shadow-[1px_0_0_0_hsl(var(--border)),0_1px_0_0_hsl(var(--border))] transition-colors duration-150 hover:bg-muted/20"
       style={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 300px' }}
     >
-      {/* Pastel body */}
-      <div
-        className={`${accent.surface} flex min-h-[208px] flex-1 flex-col p-4`}
-      >
+      <div className="flex flex-1 flex-col p-5 text-foreground">
         <div className="flex items-start justify-between gap-2">
-          <p className="truncate text-[11px] font-semibold tracking-wide text-slate-700">
-            {meta || 'Location not provided'}
-          </p>
+          <div className="flex min-w-0 items-center gap-2">
+            <span
+              aria-hidden="true"
+              className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-[6px] text-[11px] font-semibold ${accent.avatar}`}
+            >
+              {companyInitial(job.companyName)}
+            </span>
+            <p className="flex min-w-0 items-center gap-1.5 text-xs font-semibold">
+              <span className="truncate">{job.companyName}</span>
+              {job.isNew === true ? (
+                <StatusPill tone="info">New</StatusPill>
+              ) : null}
+              {closed ? <StatusPill tone="neutral">Closed</StatusPill> : null}
+            </p>
+          </div>
           <div className="flex shrink-0 items-center gap-1">
             <button
               type="button"
-              aria-label={job.isSaved ? 'Unsave job' : 'Save job'}
+              aria-label={job.isSaved ? 'Remove from saved jobs' : 'Save job'}
+              title={job.isSaved ? 'Saved' : 'Save for later'}
               disabled={isSaving}
               onClick={(event) => {
                 event.stopPropagation();
                 onToggleSaved(job);
               }}
-              className="rounded-md p-1 text-slate-700 transition hover:bg-black/5 disabled:opacity-50"
+              className="pressable rounded-md p-1 text-foreground/55 transition-colors duration-150 hover:bg-foreground/10 hover:text-foreground disabled:opacity-50"
             >
               {job.isSaved ? (
-                <BookmarkCheck className="h-[18px] w-[18px] text-slate-900" />
+                <BookmarkCheck className="h-[16px] w-[16px] text-foreground" />
               ) : (
-                <Bookmark className="h-[18px] w-[18px]" strokeWidth={1.5} />
+                <Bookmark className="h-[16px] w-[16px]" strokeWidth={1.5} />
               )}
             </button>
             <button
               type="button"
-              aria-label="Skip job"
-              title="Not interested"
+              aria-label="Not interested"
+              title="Not interested — hide this job"
               onClick={(event) => {
                 event.stopPropagation();
                 onSkip(job, rankPosition);
               }}
-              className="rounded-md p-1 text-slate-400 transition hover:bg-black/5 hover:text-slate-700 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
+              className="pressable rounded-md p-1 text-foreground/40 transition-colors duration-150 hover:bg-foreground/10 hover:text-foreground sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
             >
               <X className="h-4 w-4" />
             </button>
           </div>
         </div>
 
-        <div className="mt-3 flex flex-1 items-start justify-between gap-3">
+        <div className="mt-3">
           <button
             type="button"
-            onClick={() => onOpen(job, rankPosition)}
-            title={`${job.title} @ ${job.companyName} — open details`}
-            className="line-clamp-3 flex-1 cursor-pointer bg-transparent p-0 text-left text-[22px] font-medium leading-[1.15] tracking-tight"
+            onClick={() => onPreview(job, rankPosition)}
+            title={`View details for ${job.title} at ${job.companyName}`}
+            className="line-clamp-2 w-full cursor-pointer p-0 text-left text-[15px] font-semibold leading-snug tracking-tight hover:underline"
           >
             {job.title}
           </button>
-          <button
-            type="button"
-            aria-label={isSelected ? 'Deselect job' : 'Select job'}
-            title={
-              job.applicationUrl
-                ? isSelected
-                  ? 'Selected for tailoring'
-                  : 'Select for tailoring'
-                : 'No application link — cannot queue'
-            }
-            disabled={!job.applicationUrl}
-            onClick={(event) => {
-              event.stopPropagation();
-              onToggleSelected(job.id);
-            }}
-            className={`mt-2 flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition disabled:opacity-30 ${
-              isSelected
-                ? 'bg-slate-900 text-white'
-                : 'text-slate-800 hover:bg-black/5'
-            }`}
-          >
-            {isSelected ? (
-              <Check className="h-4 w-4" />
-            ) : (
-              <ArrowRight className="h-[18px] w-[18px]" strokeWidth={1.5} />
-            )}
-          </button>
         </div>
 
-        {job.reason ? (
-          <p
-            className="mt-2 line-clamp-2 text-xs leading-snug text-slate-600"
-            title={job.reason}
-          >
-            {job.reason}
+        <p className="mt-1 truncate text-xs text-muted-foreground">
+          {meta || 'Location not provided'}
+        </p>
+
+        {snippet ? (
+          <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-foreground/60">
+            {snippet}
           </p>
         ) : null}
+
+        {hasScore ? (
+          <div className="mt-3 flex items-start gap-2">
+            <span
+              className={`shrink-0 rounded-[3px] px-1.5 py-0.5 font-mono text-[10px] font-medium ${BAND_STYLES[scoreBand(job)]}`}
+              title={jobScoreTitle(job)}
+            >
+              {formatMatchScore(score)}
+            </span>
+            {job.reason ? (
+              <p
+                className="line-clamp-2 text-xs leading-snug text-muted-foreground"
+                title={job.reason}
+              >
+                {job.reason}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+
         {!job.applicationUrl ? (
-          <p className="mt-1 text-[11px] font-medium text-amber-600">
-            No application link — cannot queue this role.
+          <p className="mt-2 text-[11px] font-medium text-amber-600 dark:text-amber-400">
+            No application link — this one cannot be applied to.
           </p>
         ) : null}
         {job.flags?.includes('evergreen') ? (
-          <p className="mt-1 text-[11px] text-amber-600">
+          <p className="mt-1 text-[11px] text-muted-foreground">
             Listed for a while — may already be filled.
           </p>
         ) : null}
-
-        <div
-          className="mt-auto flex items-center justify-center gap-1.5 pt-3"
-          aria-hidden="true"
-        >
-          {Array.from({ length: 4 }).map((_, index) => (
-            <span
-              key={index}
-              className={`h-1 w-1 rounded-full ${index < filledDots ? 'bg-slate-900' : 'bg-slate-900/25'}`}
-            />
-          ))}
-        </div>
       </div>
 
-      {/* White footer */}
-      <div className="flex items-center gap-2.5 border-t border-slate-100 bg-white px-3.5 py-3">
-        <span
-          aria-hidden="true"
-          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-semibold ${accent.avatar}`}
-        >
-          {companyInitial(job.companyName)}
-        </span>
-        <span className="min-w-0 flex-1 leading-tight">
-          <span className="block truncate text-xs font-semibold">
-            {job.companyName}{' '}
-            {job.isNew === true ? (
-              <span className="rounded-full bg-sky-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-sky-600">
-                NEW
+      <div className="border-t border-border/60 px-5 py-3">
+        <div className="flex items-center gap-2">
+          {isApplied ? (
+            <>
+              <span className="flex min-w-0 flex-1 items-center gap-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                Application queued
               </span>
-            ) : null}{' '}
-            {job.isActive === false ? (
-              <span className="rounded-full bg-slate-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500">
-                CLOSED
-              </span>
-            ) : null}
-          </span>
-          <span className="block truncate text-[11px] text-slate-500">
-            {job.title}
-          </span>
-        </span>
-        {typeof job.score === 'number' && jobScore(job) >= 0 ? (
-          <span
-            className="shrink-0 text-[11px] font-semibold text-slate-500"
-            title={jobScoreTitle(job)}
-          >
-            {job.score.toFixed(0)}
-          </span>
+              <Button size="sm" variant="outline" onClick={() => onTrack(job)}>
+                Track
+                <ArrowRight className="h-3.5 w-3.5" />
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button
+                size="sm"
+                className="flex-1"
+                disabled={!canApply || isApplying}
+                title={
+                  closed
+                    ? 'This posting looks closed'
+                    : !job.applicationUrl
+                      ? 'No application link'
+                      : 'Apply with your saved resume'
+                }
+                onClick={() => onApply(job)}
+              >
+                {isApplying ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : null}
+                {isApplying ? 'Applying…' : 'Apply'}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => onPreview(job, rankPosition)}
+              >
+                <Eye className="h-3.5 w-3.5" />
+                Preview
+              </Button>
+            </>
+          )}
+        </div>
+        {applyError ? (
+          <p className="mt-2 text-[11px] leading-snug text-red-500">
+            {applyError}
+          </p>
         ) : null}
-        <button
-          type="button"
-          onClick={(event) => {
-            event.stopPropagation();
-            onOpen(job, rankPosition);
-            if (job.applicationUrl) {
-              window.open(job.applicationUrl, '_blank', 'noopener,noreferrer');
-            }
-          }}
-          className="shrink-0 rounded-full bg-[#111214] px-4 py-1.5 text-xs font-medium text-white transition hover:bg-black"
-        >
-          View
-        </button>
       </div>
     </article>
   );
@@ -310,6 +346,7 @@ const JobCard = memo(function JobCard({
 
 export function PersistedDiscoveryPanel() {
   const router = useRouter();
+  const { data: session } = authClient.useSession();
   const [profileId, setProfileId] = useState<string | null>(null);
   const [profileReady, setProfileReady] = useState(false);
   const [query, setQuery] = useState('');
@@ -319,19 +356,29 @@ export function PersistedDiscoveryPanel() {
   const [totalJobs, setTotalJobs] = useState(0);
   const [loadedCount, setLoadedCount] = useState(0);
   const [visibleCount, setVisibleCount] = useState(RENDER_BATCH);
-  const [selected, setSelected] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [savingId, setSavingId] = useState<string | null>(null);
-  const [staging, setStaging] = useState(false);
+  const [openJob, setOpenJob] = useState<{
+    job: Job;
+    accentIndex: number;
+  } | null>(null);
+  const [descriptionStatus, setDescriptionStatus] = useState<
+    Record<string, 'loading' | 'empty' | 'failed'>
+  >({});
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [freshJobs, setFreshJobs] = useState<Job[]>([]);
   const [freshSeenAt, setFreshSeenAt] = useState<string | null>(null);
   const [freshLoading, setFreshLoading] = useState(false);
   const [sortMode, setSortMode] = useState<FeedSortMode>('score');
+  const [applyingIds, setApplyingIds] = useState<Set<string>>(new Set());
+  const [appliedJobIds, setAppliedJobIds] = useState<Set<string>>(new Set());
+  const [applyErrors, setApplyErrors] = useState<Record<string, string>>({});
+  const [needsResume, setNeedsResume] = useState(false);
   const impressionedIds = useRef<Set<string>>(new Set());
   const lastSession = useRef<string | null>(null);
+  const resumeId = useRef<string | null>(null);
 
   useEffect(() => {
     void fetch('/api/profiles', { cache: 'no-store' })
@@ -345,11 +392,6 @@ export function PersistedDiscoveryPanel() {
       })
       .catch(() => undefined);
   }, []);
-
-  const selectedJobs = useMemo(
-    () => [...jobs, ...freshJobs].filter((job) => selected.includes(job.id)),
-    [jobs, freshJobs, selected],
-  );
 
   const isUnseen = useCallback(
     (job: Job): boolean | undefined => {
@@ -456,9 +498,15 @@ export function PersistedDiscoveryPanel() {
 
   async function discover() {
     if (!profileId) return;
+    const startedAt = Date.now();
+    analytics.track(
+      'job_search_started',
+      { query: query || undefined, source: 'company_scrape' },
+      { feature: 'job_discovery' },
+    );
     setLoading(true);
     setError(null);
-    setMessage(null);
+    setMessage('Searching company career pages…');
     try {
       const response = await fetch('/api/jobs/discover', {
         method: 'POST',
@@ -474,33 +522,46 @@ export function PersistedDiscoveryPanel() {
         error?: string;
       };
       if (!response.ok) {
-        setError(data.error ?? 'Could not discover jobs');
+        setError(data.error ?? 'Could not search jobs');
+        analytics.track(
+          'job_search_failed',
+          { error_code: String(response.status) },
+          { feature: 'job_discovery' },
+        );
         return;
       }
-      // 202 + pending: wait for the background discovery to finish.
+      // 202 + pending: wait for the background search to finish.
       if (data.status === 'pending') {
-        setMessage('Discovering jobs…');
-        const done = await pollSession(data.sessionId);
+        setMessage('Searching company career pages…');
+        const done = await pollSession(data.sessionId, startedAt);
         if (!done) return;
       } else {
+        const found = data.totalJobs ?? data.jobs?.length ?? 0;
         setSessionId(data.sessionId);
         setJobs(data.jobs ?? []);
-        setTotalJobs(data.totalJobs ?? data.jobs?.length ?? 0);
+        setTotalJobs(found);
         setLoadedCount(data.jobs?.length ?? 0);
         setVisibleCount(RENDER_BATCH);
-        setSelected([]);
-        setMessage(
-          `${data.totalJobs ?? data.jobs?.length ?? 0} persisted matches found in ${data.latencyMs}ms`,
+        setMessage(found === 1 ? '1 job found' : `${found} jobs found`);
+        analytics.track(
+          'job_search_completed',
+          { result_count: found, duration_ms: Date.now() - startedAt },
+          { feature: 'job_discovery' },
         );
       }
     } catch {
-      setError('Job discovery service is unavailable');
+      setError('Job search is unavailable right now. Try again in a moment.');
+      analytics.track(
+        'job_search_failed',
+        { error_code: 'AGENT_UNAVAILABLE' },
+        { feature: 'job_discovery' },
+      );
     } finally {
       setLoading(false);
     }
   }
 
-  async function pollSession(id: string): Promise<boolean> {
+  async function pollSession(id: string, startedAt: number): Promise<boolean> {
     for (let attempt = 0; attempt < 40; attempt += 1) {
       await new Promise((resolve) => setTimeout(resolve, 3000));
       try {
@@ -514,18 +575,26 @@ export function PersistedDiscoveryPanel() {
           error?: string;
         };
         if (data.status === 'failed') {
-          setError(data.error ?? 'Discovery failed');
+          setError(data.error ?? 'Job search failed');
+          analytics.track(
+            'job_search_failed',
+            { error_code: 'DISCOVERY_FAILED' },
+            { feature: 'job_discovery' },
+          );
           return false;
         }
         if (data.status === 'complete') {
+          const found = data.totalJobs ?? data.jobs?.length ?? 0;
           setSessionId(id);
           setJobs(data.jobs ?? []);
-          setTotalJobs(data.totalJobs ?? data.jobs?.length ?? 0);
+          setTotalJobs(found);
           setLoadedCount(data.jobs?.length ?? 0);
           setVisibleCount(RENDER_BATCH);
-          setSelected([]);
-          setMessage(
-            `${data.totalJobs ?? data.jobs?.length ?? 0} persisted matches found`,
+          setMessage(found === 1 ? '1 job found' : `${found} jobs found`);
+          analytics.track(
+            'job_search_completed',
+            { result_count: found, duration_ms: Date.now() - startedAt },
+            { feature: 'job_discovery' },
           );
           return true;
         }
@@ -533,7 +602,7 @@ export function PersistedDiscoveryPanel() {
         // transient network error — keep polling
       }
     }
-    setError('Discovery is taking longer than expected — try again later');
+    setError('This search is taking longer than expected. Try again later.');
     return false;
   }
 
@@ -619,41 +688,182 @@ export function PersistedDiscoveryPanel() {
       }
       setJobs((current) => current.filter((item) => item.id !== job.id));
       setFreshJobs((current) => current.filter((item) => item.id !== job.id));
-      setSelected((current) => current.filter((id) => id !== job.id));
     },
     [sessionId],
   );
 
-  const handleJobOpen = useCallback(
-    (job: Job, rankPosition: number) => {
-      if (!sessionId) return;
-      void fetch(`/api/jobs/${job.id}/interactions`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sessionId,
-          eventType: 'click',
-          rankPosition,
-          matchScore: job.score,
-        }),
-      }).catch(() => undefined);
-    },
-    [sessionId],
-  );
-
-  const toggleSelected = useCallback(
-    (id: string) => {
-      const job =
-        jobs.find((item) => item.id === id) ??
-        freshJobs.find((item) => item.id === id);
-      setSelected((current) => {
-        if (current.includes(id)) return current.filter((item) => item !== id);
-        if (job && !job.applicationUrl) return current;
-        if (current.length >= 10) return current;
-        return [...current, id];
+  /** Read the live posting when the stored copy has no description text. */
+  const hydrateDescription = useCallback(async (job: Job) => {
+    if (job.descriptionRaw?.trim()) return;
+    setDescriptionStatus((current) => ({ ...current, [job.id]: 'loading' }));
+    try {
+      const response = await fetch(
+        `/api/jobs/${encodeURIComponent(job.id)}/description`,
+        { cache: 'no-store' },
+      );
+      const data = (await response.json().catch(() => null)) as {
+        description?: string | null;
+      } | null;
+      const text = data?.description?.trim();
+      if (!response.ok || !text) {
+        setDescriptionStatus((current) => ({
+          ...current,
+          [job.id]: response.ok ? 'empty' : 'failed',
+        }));
+        return;
+      }
+      const patch = (item: Job): Job =>
+        item.id === job.id ? { ...item, descriptionRaw: text } : item;
+      setJobs((current) => current.map(patch));
+      setFreshJobs((current) => current.map(patch));
+      setDescriptionStatus((current) => {
+        if (!(job.id in current)) return current;
+        return Object.fromEntries(
+          Object.entries(current).filter(([key]) => key !== job.id),
+        ) as Record<string, 'loading' | 'empty' | 'failed'>;
       });
+    } catch {
+      setDescriptionStatus((current) => ({ ...current, [job.id]: 'failed' }));
+    }
+  }, []);
+
+  const handleJobPreview = useCallback(
+    (job: Job, rankPosition: number) => {
+      analytics.track(
+        'job_result_clicked',
+        {
+          company_name: job.companyName,
+          job_title: job.title,
+          position_index: rankPosition,
+        },
+        { feature: 'job_discovery' },
+      );
+      if (sessionId) {
+        void fetch(`/api/jobs/${job.id}/interactions`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sessionId,
+            eventType: 'click',
+            rankPosition,
+            matchScore: job.score,
+          }),
+        }).catch(() => undefined);
+      }
+      setOpenJob({ job, accentIndex: rankPosition });
+      void hydrateDescription(job);
     },
-    [jobs, freshJobs],
+    [sessionId, hydrateDescription],
+  );
+
+  const applyToJob = useCallback(
+    async (job: Job) => {
+      const userId = session?.user?.id;
+      if (!job.applicationUrl) return;
+      if (!userId) {
+        setApplyErrors((current) => ({
+          ...current,
+          [job.id]: 'Sign in to apply.',
+        }));
+        return;
+      }
+      setApplyingIds((current) => new Set(current).add(job.id));
+      setApplyErrors((current) => {
+        if (!(job.id in current)) return current;
+        const next: Record<string, string> = {};
+        for (const [key, value] of Object.entries(current)) {
+          if (key !== job.id) next[key] = value;
+        }
+        return next;
+      });
+      try {
+        let resume = resumeId.current;
+        if (!resume) {
+          const resumeResponse = await fetch('/api/resume/current', {
+            cache: 'no-store',
+          });
+          const resumeData = (await resumeResponse
+            .json()
+            .catch(() => null)) as { resume_id?: string } | null;
+          if (!resumeResponse.ok || !resumeData?.resume_id) {
+            setNeedsResume(true);
+            setApplyErrors((current) => ({
+              ...current,
+              [job.id]: 'Add a resume before applying.',
+            }));
+            return;
+          }
+          resume = resumeData.resume_id;
+          resumeId.current = resume;
+        }
+
+        const response = await fetch('/api/resume/auto-apply', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            user_id: userId,
+            resume_id: resume,
+            jobs: [
+              {
+                job_id: job.id,
+                title: job.title,
+                company_name: job.companyName,
+                application_url: job.applicationUrl,
+                dedup_key: job.dedupKey,
+                external_id: job.externalId ?? undefined,
+                ats_type: job.source ?? undefined,
+                location: job.location,
+                description: job.descriptionRaw ?? undefined,
+                match_score: Math.max(0, jobScore(job)),
+              },
+            ],
+            max_applies: 1,
+            min_score: 0,
+          }),
+        });
+        const data = (await response.json().catch(() => null)) as {
+          error?: string;
+          reason?: string;
+        } | null;
+
+        if (response.ok) {
+          setAppliedJobIds((current) => new Set(current).add(job.id));
+          analytics.track(
+            'workflow_started',
+            { task_count: 1 },
+            { feature: 'job_discovery' },
+          );
+          return;
+        }
+
+        if (response.status === 409) {
+          setAppliedJobIds((current) => new Set(current).add(job.id));
+          setApplyErrors((current) => ({
+            ...current,
+            [job.id]: 'Already applied — open the Job Tracker to see it.',
+          }));
+          return;
+        }
+
+        if (response.status === 422) setNeedsResume(true);
+        setApplyErrors((current) => ({
+          ...current,
+          [job.id]: applyErrorMessage(response.status, data),
+        }));
+      } catch {
+        setApplyErrors((current) => ({
+          ...current,
+          [job.id]: 'Could not reach the apply service. Try again.',
+        }));
+      } finally {
+        setApplyingIds((current) => {
+          const next = new Set(current);
+          next.delete(job.id);
+          return next;
+        });
+      }
+    },
+    [session?.user?.id],
   );
 
   const displayFreshJobs = useMemo(
@@ -669,66 +879,97 @@ export function PersistedDiscoveryPanel() {
     [visibleJobs, isUnseen],
   );
 
-  async function stageSelection() {
-    if (selectedJobs.length === 0) return;
-    setStaging(true);
-    setError(null);
-    try {
-      const response = await fetch(
-        `/api/jobs/${encodeURIComponent(selectedJobs[0].id)}/select`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            jobIds: selected,
-            scores: Object.fromEntries(
-              selectedJobs.map((job) => [job.id, Math.max(0, jobScore(job))]),
-            ),
-          }),
-        },
-      );
-      const data = (await response.json()) as {
-        error?: string;
-        selectionId?: string;
-      };
-      if (!response.ok) {
-        setError(data.error ?? 'Could not stage selected jobs');
-        return;
-      }
-      if (!data.selectionId) {
-        setError('Selection was created without an ID');
-        return;
-      }
-      router.push(
-        `/dashboard/auto-apply?selectionId=${encodeURIComponent(data.selectionId)}`,
-      );
-    } catch {
-      setError('Could not stage selected jobs');
-    } finally {
-      setStaging(false);
-    }
-  }
+  const openJobDetail = useMemo(() => {
+    if (!openJob) return null;
+    const fresh =
+      [...jobs, ...freshJobs].find((item) => item.id === openJob.job.id) ??
+      openJob.job;
+    return { job: fresh, accentIndex: openJob.accentIndex };
+  }, [openJob, jobs, freshJobs]);
+
+  const closePreview = useCallback(() => setOpenJob(null), []);
+
+  const renderCard = (job: Job, index: number) => (
+    <JobCard
+      key={job.id}
+      job={job}
+      rankPosition={index}
+      isSaving={savingId === job.id}
+      isApplying={applyingIds.has(job.id)}
+      isApplied={appliedJobIds.has(job.id)}
+      applyError={applyErrors[job.id]}
+      onApply={(item) => void applyToJob(item)}
+      onTrack={() => router.push('/dashboard/workflows')}
+      onToggleSaved={(item) => void toggleSaved(item)}
+      onSkip={skipJob}
+      onPreview={handleJobPreview}
+    />
+  );
+
+  const strongMatches = jobs.filter((job) => jobScore(job) >= 85).length;
+  const gridClass =
+    'grid grid-cols-1 overflow-hidden sm:grid-cols-2 xl:grid-cols-3';
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Persisted job discovery</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
+    <div className="w-full bg-background text-foreground">
+      {!profileReady ? (
+        <NoticeBar
+          tone="warning"
+          icon={AlertTriangle}
+          action={
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => router.push('/dashboard/profile')}
+            >
+              Open profile
+            </Button>
+          }
+        >
+          Confirm your profile before searching. Jobs are ranked against your
+          roles, skills, and seniority.
+        </NoticeBar>
+      ) : null}
+
+      {needsResume ? (
+        <NoticeBar
+          tone="warning"
+          icon={FileUp}
+          action={
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => router.push('/dashboard/profile')}
+            >
+              Add resume
+            </Button>
+          }
+        >
+          You need a resume before applying. Add it once, then apply from here.
+        </NoticeBar>
+      ) : null}
+
+      {error ? (
+        <NoticeBar tone="danger" icon={AlertTriangle}>
+          <span role="alert">{error}</span>
+        </NoticeBar>
+      ) : null}
+
+      <div className="flex flex-col gap-2 border-b border-border px-6 py-3.5 sm:flex-row sm:items-center">
+        <SearchField
+          value={query}
+          onChange={setQuery}
+          onEnter={() => void discover()}
+          label="Search jobs"
+          placeholder="Role, skill, or company"
+          className="w-full sm:flex-1"
+        />
         <div className="flex gap-2">
-          <Input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Role or search query"
-            onKeyDown={(event) => {
-              if (event.key === 'Enter') void discover();
-            }}
-          />
           <select
             value={pack}
             onChange={(event) => setPack(event.target.value)}
             aria-label="Company pack"
-            className="h-9 shrink-0 rounded-md border border-input bg-background px-2 text-xs"
+            className="h-8 flex-1 shrink-0 rounded-[6px] border border-border bg-background px-2 text-xs text-foreground focus:border-neutral-500 focus:outline-none sm:flex-none"
           >
             <option value="">All companies</option>
             <option value="fintech">Fintech</option>
@@ -745,170 +986,192 @@ export function PersistedDiscoveryPanel() {
             ) : (
               <Search className="h-4 w-4" />
             )}
-            Discover
+            {loading ? 'Searching…' : 'Search'}
           </Button>
         </div>
-        {!profileReady ? (
-          <p className="text-xs text-amber-600">
-            Confirm your profile before discovering jobs.
-          </p>
-        ) : null}
-        {error ? (
-          <p className="rounded-md bg-red-500/10 px-3 py-2 text-xs text-red-500">
-            {error}
-          </p>
-        ) : null}
-        {message ? <p className="text-xs text-emerald-600">{message}</p> : null}
-        {displayFreshJobs.length > 0 || freshLoading ? (
-          <div className="space-y-2 rounded-md border border-slate-200 p-3 dark:border-[#26282e]">
-            <div className="flex items-center justify-between">
-              <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">
-                New jobs for you
-                {freshUnseenCount > 0
-                  ? ` · ${freshUnseenCount} unseen`
-                  : ' · all caught up'}
-              </p>
+      </div>
+
+      <StatStrip
+        stats={[
+          {
+            label: 'Jobs Found',
+            value: totalJobs.toLocaleString(),
+            icon: Search,
+            subtext: sessionId ? `${jobs.length} loaded` : 'run a search',
+            color: 'blue',
+          },
+          {
+            label: 'New For You',
+            value: String(freshUnseenCount),
+            icon: Sparkles,
+            subtext: `${displayFreshJobs.length} fresh since last visit`,
+            color: 'purple',
+          },
+          {
+            label: 'Strong Matches',
+            value: String(strongMatches),
+            icon: CheckCircle2,
+            subtext: '85%+ fit in this search',
+            color: 'green',
+          },
+          {
+            label: 'Queued To Apply',
+            value: String(appliedJobIds.size),
+            icon: Send,
+            subtext: 'this session',
+            color: 'orange',
+            href: appliedJobIds.size > 0 ? '/dashboard/workflows' : undefined,
+          },
+        ]}
+      />
+
+      {displayFreshJobs.length > 0 ? (
+        <section
+          aria-label="New jobs for you"
+          className="border-b border-border"
+        >
+          <SectionHeader
+            icon={Sparkles}
+            title="New for you"
+            meta={
+              freshUnseenCount > 0 ? `${freshUnseenCount} new` : 'all caught up'
+            }
+            actions={
               <Button
                 type="button"
-                variant="ghost"
+                variant="outline"
                 size="sm"
                 onClick={() => void loadFresh()}
                 disabled={freshLoading}
               >
-                {freshLoading ? 'Checking…' : 'Check new jobs'}
+                <RefreshCw className={freshLoading ? 'animate-spin' : ''} />
+                {freshLoading ? 'Checking…' : 'Refresh'}
               </Button>
-            </div>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {displayFreshJobs.map((job, index) => (
-                <JobCard
-                  key={job.id}
-                  job={job}
-                  rankPosition={index}
-                  accentIndex={index}
-                  isSelected={selected.includes(job.id)}
-                  isSaving={savingId === job.id}
-                  onToggleSelected={toggleSelected}
-                  onToggleSaved={(item) => void toggleSaved(item)}
-                  onSkip={skipJob}
-                  onOpen={handleJobOpen}
-                />
-              ))}
-            </div>
+            }
+          />
+          <div className={gridClass}>
+            {displayFreshJobs.map((job, index) => renderCard(job, index))}
           </div>
-        ) : null}
-        {jobs.length > 0 ? (
-          <div className="flex items-center justify-between">
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              {sortMode === 'score'
-                ? 'Sorted by match score'
-                : 'Sorted by recency'}
-            </p>
-            <div
-              role="group"
-              aria-label="Sort discovered jobs"
-              className="inline-flex overflow-hidden rounded-[6px] border border-slate-300 text-xs dark:border-[#282a32]"
-            >
-              {(
-                [
-                  ['score', 'Score'],
-                  ['recent', 'Recency'],
-                ] as const
-              ).map(([mode, label]) => (
-                <button
-                  key={mode}
-                  type="button"
-                  onClick={() => setSortMode(mode)}
-                  aria-pressed={sortMode === mode}
-                  className={`px-2 py-1 ${
-                    sortMode === mode
-                      ? 'bg-slate-900 text-white dark:bg-[#f1f3f9] dark:text-[#16171b]'
-                      : 'text-slate-600 dark:text-slate-300'
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          </div>
-        ) : null}
+        </section>
+      ) : null}
+
+      <section aria-label="Search results" className="border-b border-border">
+        <SectionHeader
+          icon={RiCompass3Line}
+          title="Search results"
+          meta={
+            message ? (
+              <span role="status" className="inline-flex items-center gap-1.5">
+                {loading ? <Loader2 className="size-3 animate-spin" /> : null}
+                {message}
+              </span>
+            ) : undefined
+          }
+          actions={
+            jobs.length > 0 ? (
+              <SegmentedControl
+                label="Sort jobs"
+                value={sortMode}
+                onChange={setSortMode}
+                options={[
+                  { value: 'score', label: 'Best match' },
+                  { value: 'recent', label: 'Newest' },
+                ]}
+              />
+            ) : null
+          }
+        />
+
         {loading && jobs.length === 0 ? (
-          <div
-            className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3"
-            aria-label="Loading jobs"
-          >
+          <div className={gridClass} aria-label="Searching jobs">
             {Array.from({ length: 6 }).map((_, index) => (
               <div
                 key={index}
-                className="flex animate-pulse flex-col overflow-hidden rounded-[14px] border border-slate-200 dark:border-[#26282e]"
+                className="flex animate-pulse flex-col p-5 shadow-[1px_0_0_0_hsl(var(--border)),0_1px_0_0_hsl(var(--border))]"
               >
-                <div className="min-h-[208px] bg-slate-100 p-4 dark:bg-[#1b1c20]">
-                  <div className="h-3 w-20 rounded bg-slate-200 dark:bg-white/10" />
-                  <div className="mt-6 h-6 w-3/4 rounded bg-slate-200 dark:bg-white/10" />
-                  <div className="mt-2 h-6 w-1/2 rounded bg-slate-200 dark:bg-white/10" />
+                <div className="flex items-center gap-2">
+                  <div className="h-7 w-7 rounded-[7px] bg-muted" />
+                  <div className="h-3 w-24 rounded bg-muted" />
                 </div>
-                <div className="flex items-center gap-2.5 bg-white px-3.5 py-3 dark:bg-[#131418]">
-                  <div className="h-8 w-8 rounded-full bg-slate-200 dark:bg-white/10" />
-                  <div className="h-3 flex-1 rounded bg-slate-200 dark:bg-white/10" />
-                  <div className="h-7 w-16 rounded-full bg-slate-200 dark:bg-white/10" />
+                <div className="mt-4 h-4 w-3/4 rounded bg-muted" />
+                <div className="mt-2 h-3 w-1/2 rounded bg-muted" />
+                <div className="mt-4 h-5 w-20 rounded-full bg-muted" />
+                <div className="mt-6 flex gap-2 border-t border-border/60 pt-3">
+                  <div className="h-7 flex-1 rounded-[6px] bg-muted" />
+                  <div className="h-7 w-20 rounded-[6px] bg-muted" />
                 </div>
               </div>
             ))}
           </div>
+        ) : jobs.length > 0 ? (
+          <div className={gridClass}>
+            {displayVisibleJobs.map((job, index) => renderCard(job, index))}
+          </div>
+        ) : sessionId ? (
+          <EmptyState
+            icon={Search}
+            title="No jobs found for this search"
+            description="Try another role or skill, or switch the company pack."
+          />
         ) : (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {displayVisibleJobs.map((job, index) => (
-              <JobCard
-                key={job.id}
-                job={job}
-                rankPosition={index}
-                accentIndex={index}
-                isSelected={selected.includes(job.id)}
-                isSaving={savingId === job.id}
-                onToggleSelected={toggleSelected}
-                onToggleSaved={(item) => void toggleSaved(item)}
-                onSkip={skipJob}
-                onOpen={handleJobOpen}
-              />
-            ))}
-          </div>
+          <EmptyState
+            icon={RiCompass3Line}
+            title="Search live roles"
+            description="We pull openings straight from company career pages and rank them against your profile. Your preferred role is pre-filled above."
+            action={
+              <Button
+                size="sm"
+                onClick={() => void discover()}
+                disabled={loading || !profileReady}
+              >
+                <Search />
+                Search now
+              </Button>
+            }
+          />
         )}
+
         {jobs.length > 0 ? (
-          <p className="text-[11px] text-slate-400">
-            Showing {visibleJobs.length} of {jobs.length} loaded · {totalJobs}{' '}
-            total
-          </p>
-        ) : null}
-        {canShowMore ? (
-          <Button
-            type="button"
-            variant="outline"
-            className="w-full"
-            onClick={handleShowMore}
-            disabled={loadingMore}
-          >
-            {loadingMore
-              ? 'Loading more…'
-              : hasMoreToRender
-                ? `Show more (${visibleJobs.length}/${jobs.length} loaded)`
-                : `See more jobs (${loadedCount}/${totalJobs})`}
-          </Button>
-        ) : null}
-        {selectedJobs.length > 0 ? (
-          <div className="flex items-center justify-between rounded-md bg-slate-100 px-3 py-2 dark:bg-[#1b1c20]">
-            <span className="text-xs font-medium">
-              {selectedJobs.length}/10 selected
-            </span>
-            <Button
-              type="button"
-              size="sm"
-              onClick={() => void stageSelection()}
-              disabled={staging}
-            >
-              {staging ? 'Staging…' : 'Prepare for tailoring'}
-            </Button>
+          <div className="flex flex-col gap-2 border-t border-border px-6 py-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="font-mono text-[11px] text-muted-foreground">
+              Showing {visibleJobs.length} of {jobs.length} loaded · {totalJobs}{' '}
+              found
+            </p>
+            {canShowMore ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleShowMore}
+                disabled={loadingMore}
+              >
+                {loadingMore
+                  ? 'Loading more…'
+                  : hasMoreToRender
+                    ? 'Show more'
+                    : `Load more jobs (${loadedCount}/${totalJobs})`}
+              </Button>
+            ) : null}
           </div>
         ) : null}
-      </CardContent>
-    </Card>
+      </section>
+
+      {openJobDetail ? (
+        <JobDetailModal
+          job={openJobDetail.job}
+          accentIndex={openJobDetail.accentIndex}
+          isSaving={savingId === openJobDetail.job.id}
+          isApplying={applyingIds.has(openJobDetail.job.id)}
+          isApplied={appliedJobIds.has(openJobDetail.job.id)}
+          applyError={applyErrors[openJobDetail.job.id]}
+          descriptionStatus={descriptionStatus[openJobDetail.job.id]}
+          onApply={() => void applyToJob(openJobDetail.job)}
+          onToggleSaved={() => void toggleSaved(openJobDetail.job)}
+          onReloadDescription={() => void hydrateDescription(openJobDetail.job)}
+          onTrack={() => router.push('/dashboard/workflows')}
+          onClose={closePreview}
+        />
+      ) : null}
+    </div>
   );
 }
