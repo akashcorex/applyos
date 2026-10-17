@@ -112,7 +112,14 @@ applicationsRouter.get('/internal/user/:userId', async (req, res) => {
   const rows = await prisma.application.findMany({
     where: { userId },
     include: {
-      workflowJob: { select: { title: true, companyName: true } },
+      workflowJob: {
+        select: {
+          title: true,
+          companyName: true,
+          location: true,
+          matchScore: true,
+        },
+      },
     },
     orderBy: { updatedAt: 'desc' },
     take: 100,
@@ -128,6 +135,8 @@ applicationsRouter.get('/internal/user/:userId', async (req, res) => {
       workflowJob: undefined,
       jobTitle: row.workflowJob?.title ?? null,
       companyName: row.workflowJob?.companyName ?? null,
+      location: row.workflowJob?.location ?? null,
+      matchScore: row.workflowJob?.matchScore ?? null,
     })),
   });
 });
