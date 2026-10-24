@@ -339,6 +339,29 @@ async def try_click_turnstile_checkbox(page: Page) -> bool:
     ignores synthetic clicks, so the widget is located via its frame element
     and clicked through the page mouse (trusted input events).
     """
+    # Prefer the visible widget element: page.frames can miss it while it loads.
+    for element in await page.query_selector_all("iframe"):
+        try:
+            src = (await element.get_attribute("src") or "").lower()
+            if "challenges.cloudflare.com" not in src:
+                continue
+            if not await element.is_visible():
+                continue
+            box = await element.bounding_box()
+            if not box or box.get("width", 0) < 20 or box.get("height", 0) < 20:
+                continue
+            x = box["x"] + min(30.0, box["width"] / 2)
+            y = box["y"] + box["height"] / 2
+            await page.mouse.move(x - 60, y + 40)
+            await asyncio.sleep(0.2)
+            await page.mouse.move(x, y, steps=15)
+            await asyncio.sleep(0.25)
+            await page.mouse.click(x, y, delay=90)
+            logger.info("Turnstile: clicked widget iframe at (%.0f, %.0f)", x, y)
+            return True
+        except Exception:
+            continue
+
     frames = cf_challenge_frames(page)
     if not frames:
         logger.info("Turnstile: no Cloudflare challenge frame to click")
