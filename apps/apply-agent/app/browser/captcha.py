@@ -56,6 +56,30 @@ async def detect_captcha(page: Page) -> bool:
     return False
 
 
+async def detect_visible_captcha(page: Page) -> bool:
+    """Return True only for a CAPTCHA a human must interact with.
+
+    Invisible widgets (reCAPTCHA v3/Enterprise with ``size=invisible``) ship
+    inside normal forms and resolve on submit. Treating their hidden iframe as
+    a blocker fails every Greenhouse application before it is ever filled.
+    """
+    for selector in _CAPTCHA_SELECTORS:
+        element = await page.query_selector(selector)
+        if element is None:
+            continue
+        try:
+            src = (await element.get_attribute("src") or "").lower()
+            if "size=invisible" in src or "size=hidden" in src:
+                continue
+            if not await element.is_visible():
+                continue
+        except Exception:
+            continue
+        logger.warning("Visible CAPTCHA detected: %s", selector)
+        return True
+    return False
+
+
 async def extract_hcaptcha_sitekey(page: Page) -> str | None:
     """Find the hCaptcha sitekey on the current page."""
     sitekey = await page.evaluate(
