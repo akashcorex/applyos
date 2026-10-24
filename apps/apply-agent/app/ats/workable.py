@@ -189,7 +189,7 @@ class WorkableHandler(ATSHandler):
             except Exception:
                 logger.warning("Workable: Apply now did not reveal form; trying /apply")
 
-        apply_path = f"{path}/apply"
+        apply_path = f"{path.rstrip('/')}/apply"
         apply_url = urlunparse(
             (parsed.scheme, parsed.netloc, apply_path, "", parsed.query, "")
         )
@@ -1304,11 +1304,19 @@ class WorkableHandler(ATSHandler):
                 return True
         return False
 
+    async def _resume_input(self, page: Page):
+        """The resume file input, never the avatar/photo one."""
+        element = await page.query_selector("input[data-ui='resume']")
+        if element is not None:
+            return element
+        for candidate in await page.query_selector_all("input[type='file']"):
+            accept = (await candidate.get_attribute("accept") or "").lower()
+            if "pdf" in accept:
+                return candidate
+        return None
+
     async def _upload_resume(self, page: Page, cv_data: CVData) -> tuple[bool, str | None]:
-        resume_input = await page.query_selector(
-            "input[data-ui='resume'], "
-            "[data-ui='application-form'] input[type='file']"
-        )
+        resume_input = await self._resume_input(page)
         if resume_input is None:
             return False, "Workable resume input not found"
 
@@ -1332,9 +1340,7 @@ class WorkableHandler(ATSHandler):
         """True when Workable shows a resume attached (input or filename chip)."""
         return await page.evaluate(
             """() => {
-              const input = document.querySelector(
-                "input[data-ui='resume'], [data-ui='application-form'] input[type='file']"
-              );
+              const input = document.querySelector("input[data-ui='resume']");
               if (input?.files?.length) return true;
               const wrap = document.querySelector('[data-ui="resume"]');
               const text = (wrap?.innerText || '').toLowerCase();
@@ -1809,7 +1815,7 @@ class WorkableHandler(ATSHandler):
         return False
 
     async def _wait_for_turnstile(
-        self, page: Page, timeout_ms: int = 10_000
+        self, page: Page, timeout_ms: int = 20_000
     ) -> bool:
         """Poll for the Cloudflare Turnstile widget Workable adds on submit."""
         deadline = asyncio.get_event_loop().time() + (timeout_ms / 1000)
@@ -2123,6 +2129,19 @@ class WorkableHandler(ATSHandler):
             success, detail = await self._wait_for_submit_result(
                 page, api_ok=api_ok
             )
+
+            if not success and await detect_turnstile(page):
+                # Turnstile often renders after our first poll; one more attempt.
+                logger.info("Workable: late Turnstile widget — clearing and retrying")
+                captcha_error = await ensure_captcha_cleared(
+                    page, silent_timeout_ms=20_000
+                )
+                if not captcha_error and await page.query_selector(_SUBMIT_SELECTOR):
+                    await self._dismiss_overlays(page)
+                    api_ok = await _click_submit_and_wait() or api_ok
+                    success, detail = await self._wait_for_submit_result(
+                        page, api_ok=api_ok
+                    )
 
             if not success:
                 logger.warning("Workable validation errors: %s", detail)

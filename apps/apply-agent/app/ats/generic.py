@@ -13,6 +13,7 @@ from app.ats.base import (
     normalize_selector,
     resolve_mapped_value,
 )
+from app.browser.captcha import ensure_captcha_cleared
 from app.browser.dom import first_visible
 from app.browser.human_delay import human_click, human_type, random_pause
 from app.browser.resume_upload import require_resume_upload
@@ -221,12 +222,18 @@ class GenericHandler(ATSHandler):
                     token in lowered
                     for token in ("captcha", "verify you are human", "cloudflare")
                 ):
-                    return FillResult(
-                        success=False,
-                        ats_type=self.ats_name,
-                        fields_filled=filled,
-                        error="CAPTCHA blocked generic apply",
+                    captcha_error = await ensure_captcha_cleared(
+                        page, silent_timeout_ms=8_000
                     )
+                    if captcha_error:
+                        return FillResult(
+                            success=False,
+                            ats_type=self.ats_name,
+                            fields_filled=filled,
+                            error=f"CAPTCHA blocked generic apply: {captcha_error}",
+                        )
+                    await random_pause(1.0, 2.0)
+                    continue
                 if any(
                     token in lowered
                     for token in ("sign in", "log in", "login required")
