@@ -13,6 +13,7 @@ from app.ats.base import (
     normalize_selector,
     resolve_mapped_value,
 )
+from app.browser.dom import first_visible
 from app.browser.human_delay import human_click, human_type, random_pause
 from app.browser.resume_upload import require_resume_upload
 from app.llm.page_actor import (
@@ -156,7 +157,7 @@ class GenericHandler(ATSHandler):
             if value is None:
                 continue
 
-            field_el = await page.query_selector(selector)
+            field_el = await first_visible(page, selector)
             if field_el is None:
                 continue
 

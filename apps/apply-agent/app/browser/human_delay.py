@@ -12,6 +12,8 @@ import random
 
 from playwright.async_api import Page
 
+from app.browser.dom import first_visible
+
 
 async def human_type(page: Page, selector: str, text: str) -> None:
     """Type *text* into the element matched by *selector* with random delays.
@@ -20,20 +22,27 @@ async def human_type(page: Page, selector: str, text: str) -> None:
     speed.  A small pause precedes and follows the typing burst.
     """
     await asyncio.sleep(random.uniform(0.3, 0.8))
-    element = await page.wait_for_selector(selector, timeout=10_000)
+    element = await first_visible(page, selector)
     if element:
         await element.click()
         await page.keyboard.press("Meta+A")
         await page.keyboard.press("Backspace")
         for char in text:
             await page.keyboard.type(char, delay=random.randint(50, 150))
+        # Typing can race with resume autofill; trust the field, not the keystrokes.
+        try:
+            actual = (await element.input_value()).strip()
+            if actual != text.strip():
+                await element.fill(text)
+        except Exception:
+            pass
     await asyncio.sleep(random.uniform(0.2, 0.5))
 
 
 async def human_click(page: Page, selector: str) -> None:
     """Click an element with a short random delay before and after."""
     await asyncio.sleep(random.uniform(0.2, 0.6))
-    element = await page.wait_for_selector(selector, timeout=10_000)
+    element = await first_visible(page, selector)
     if element:
         await element.click()
     await asyncio.sleep(random.uniform(0.3, 0.7))

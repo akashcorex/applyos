@@ -88,6 +88,7 @@ async def launch_browser(
     global _last_launch_used_chrome_channel
     launch_kwargs: dict = {
         "headless": use_headless,
+        "ignore_default_args": ["--enable-automation"],
         "args": [
             "--disable-blink-features=AutomationControlled",
             "--no-sandbox",
@@ -178,7 +179,7 @@ async def new_stealth_page(context: BrowserContext) -> Page:
     # Extra hardening beyond playwright-stealth defaults.
     await page.add_init_script(
         """
-        Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+        Object.defineProperty(navigator, 'webdriver', { get: () => false });
         Object.defineProperty(navigator, 'languages', {
           get: () => ['en-US', 'en'],
         });

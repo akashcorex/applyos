@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import logging
 import re
+from difflib import SequenceMatcher
 from pathlib import Path
 from urllib.parse import urlparse, urlunparse
 
@@ -22,6 +23,7 @@ from app.browser.captcha import (
     is_hcaptcha_challenge_visible,
     wait_for_hcaptcha_silent_pass,
 )
+from app.browser.dom import first_visible
 from app.browser.human_delay import human_click, human_type, random_pause
 from app.browser.resume_upload import prepare_resume_file, upload_resume_to_file_inputs
 from app.models.job_payload import CVData
@@ -95,6 +97,44 @@ class LeverHandler(ATSHandler):
         logger.info("Lever: navigating to apply URL %s", apply_url)
         await page.goto(apply_url, wait_until="domcontentloaded", timeout=45_000)
         await page.wait_for_selector(_FORM_SELECTOR, timeout=20_000)
+
+    async def _get_option_text(self, page: Page, element) -> str:
+        """Text of a single radio/checkbox option, not its question."""
+        try:
+            text = await element.evaluate(
+                """el => {
+                    const label = el.closest('label');
+                    if (label) {
+                        const span = label.querySelector(
+                            '.application-answer-alternative, span'
+                        );
+                        const t = (span?.innerText || label.innerText || '').trim();
+                        if (t) return t;
+                    }
+                    return (el.value || el.getAttribute('value') || '').trim();
+                }"""
+            )
+        except Exception:
+            return ""
+        return " ".join(str(text).split())
+
+    async def _get_question_label(self, page: Page, element) -> str:
+        """Label of the whole question, not the individual option."""
+        try:
+            text = await element.evaluate(
+                """el => {
+                    const q = el.closest(
+                        '.application-question, .custom-question, li, fieldset'
+                    );
+                    const l = q?.querySelector(
+                        '.application-label, legend, h4, h3, .question-text'
+                    );
+                    return (l?.innerText || '').trim();
+                }"""
+            )
+        except Exception:
+            return ""
+        return " ".join(str(text).split())
 
     async def _get_label_text(self, page: Page, element) -> str:
         field_id = await element.get_attribute("id") or ""
@@ -251,21 +291,70 @@ class LeverHandler(ATSHandler):
             ".application-form input[type='checkbox'], "
             "#application-form input[type='checkbox']"
         )
+        checkbox_groups: dict[str, list] = {}
         for cb in checkboxes:
-            cb_id = await cb.get_attribute("id") or ""
             cb_name = await cb.get_attribute("name") or ""
-            if not cb_id and not cb_name:
-                continue
-            selector = f"#{cb_id}" if cb_id else f"input[name='{cb_name}']"
+            key = cb_name or (await cb.get_attribute("id") or "")
+            if key:
+                checkbox_groups.setdefault(key, []).append(cb)
+
+        for key, group in checkbox_groups.items():
+            selector = (
+                f"input[name='{key}']"
+                if key and not key.startswith("#")
+                else f"#{key}"
+            )
             if selector in seen:
                 continue
-            label = await self._get_label_text(page, cb) or cb_name or cb_id
+            options = []
+            if len(group) > 1:
+                for cb in group:
+                    text = await self._get_option_text(page, cb)
+                    if text:
+                        options.append(text)
+            label = await self._get_label_text(page, group[0]) or key
+            required = await group[0].get_attribute("required") is not None
             fields.append(
                 FormField(
                     selector=selector,
                     label=label,
                     field_type="checkbox",
-                    required=False,
+                    required=required,
+                    options=options,
+                )
+            )
+            seen.add(selector)
+
+        radios = await page.query_selector_all(
+            ".application-form input[type='radio'], "
+            "#application-form input[type='radio']"
+        )
+        radio_groups: dict[str, list] = {}
+        for radio in radios:
+            radio_name = await radio.get_attribute("name") or ""
+            if radio_name:
+                radio_groups.setdefault(radio_name, []).append(radio)
+
+        for radio_name, group in radio_groups.items():
+            selector = f"input[name='{radio_name}']"
+            if selector in seen:
+                continue
+            options = []
+            for radio in group:
+                text = await self._get_option_text(page, radio)
+                if text:
+                    options.append(text)
+            question = await self._get_question_label(page, group[0])
+            required = "*" in question or (
+                await group[0].get_attribute("required") is not None
+            )
+            fields.append(
+                FormField(
+                    selector=selector,
+                    label=question or radio_name,
+                    field_type="radio",
+                    required=required,
+                    options=options,
                 )
             )
             seen.add(selector)
@@ -458,22 +547,96 @@ class LeverHandler(ATSHandler):
                 return True
         return False
 
+    async def _check_element(self, page: Page, element) -> bool:
+        """Check a radio/checkbox, falling back to its label or a JS click."""
+        try:
+            if await element.is_visible():
+                await element.check()
+                return True
+        except Exception:
+            pass
+
+        try:
+            label_handle = await element.evaluate_handle(
+                "el => el.closest('label')"
+            )
+            label_el = label_handle.as_element()
+            if label_el is not None and await label_el.is_visible():
+                await label_el.click()
+                return True
+        except Exception:
+            pass
+
+        try:
+            await element.evaluate("el => el.click()")
+            return True
+        except Exception:
+            return False
+
     async def _fill_checkbox(self, page: Page, selector: str, value: str) -> bool:
         truthy = {"1", "true", "yes", "y", "on", "checked"}
-        should_check = str(value).strip().lower() in truthy
-        if not should_check:
-            # Allow matching by option label text (pronouns).
-            field = await page.query_selector(selector)
-            if field is None:
-                return False
-            label = await self._get_label_text(page, field)
-            if value.strip().lower() not in label.lower():
-                return False
-            should_check = True
-        if should_check:
-            await page.check(selector)
-            return True
+        target = str(value).strip().lower()
+        elements = await page.query_selector_all(selector)
+        if not elements:
+            return False
+
+        # A lone checkbox is a boolean; a same-name group is a multi-select.
+        if len(elements) == 1 and target in truthy:
+            return await self._check_element(page, elements[0])
+
+        for element in elements:
+            text = (await self._get_option_text(page, element)).strip().lower()
+            raw = (await element.get_attribute("value") or "").strip().lower()
+            if target and (
+                target == text
+                or target == raw
+                or (text and target in text)
+                or (raw and target in raw)
+            ):
+                return await self._check_element(page, element)
+
+        if len(elements) == 1:
+            # Allow matching by the question label (pronouns, consent).
+            label = await self._get_label_text(page, elements[0])
+            if target and target in label.strip().lower():
+                return await self._check_element(page, elements[0])
+
+        logger.warning("Lever: no checkbox option matched %r for %s", value, selector)
         return False
+
+    async def _fill_radio(self, page: Page, selector: str, value: str) -> bool:
+        elements = await page.query_selector_all(selector)
+        target = value.strip().lower()
+        if not target or not elements:
+            return False
+
+        best = None
+        best_score = 0.0
+        for element in elements:
+            text = (await self._get_option_text(page, element)).strip().lower()
+            raw = (await element.get_attribute("value") or "").strip().lower()
+            if target and (
+                target == text
+                or target == raw
+                or (text and target in text)
+                or (raw and target in raw)
+            ):
+                best = element
+                break
+            score = max(
+                SequenceMatcher(None, target, text).ratio(),
+                SequenceMatcher(None, target, raw).ratio() if raw else 0.0,
+            )
+            if score > best_score:
+                best, best_score = element, score
+
+        if best is None or best_score < 0.6:
+            logger.warning(
+                "Lever: no radio option matched %r for %s", value, selector
+            )
+            return False
+
+        return await self._check_element(page, best)
 
     async def _dump_debug(
         self,
@@ -590,7 +753,7 @@ class LeverHandler(ATSHandler):
                     value = resolve_mapped_value(cv_data, cv_key)
                     if value is None:
                         continue
-                    field_el = await page.query_selector(selector)
+                    field_el = await first_visible(page, selector)
                     if field_el is None:
                         continue
 
@@ -618,6 +781,17 @@ class LeverHandler(ATSHandler):
                     if input_type == "checkbox":
                         if await self._fill_checkbox(page, selector, str(value)):
                             filled += 1
+                        continue
+
+                    if input_type == "radio":
+                        if await self._fill_radio(page, selector, str(value)):
+                            filled += 1
+                        else:
+                            logger.warning(
+                                "Lever: failed to fill radio %s with %r",
+                                selector,
+                                value,
+                            )
                         continue
 
                     if self._is_location_field(field_id, field_name, label):
@@ -682,10 +856,12 @@ class LeverHandler(ATSHandler):
 
                 await random_pause(1.0, 2.0)
 
-                # Stealth-first: wait for any prior silent-pass token; CapSolver only if needed.
-                captcha_error = await ensure_captcha_cleared(
-                    page, silent_timeout_ms=8_000
-                )
+                # Invisible hCaptcha only executes on submit; gate on a real challenge.
+                captcha_error = None
+                if await is_hcaptcha_challenge_visible(page):
+                    captcha_error = await ensure_captcha_cleared(
+                        page, silent_timeout_ms=8_000
+                    )
                 if captcha_error:
                     await self._dump_debug(
                         page,
@@ -733,9 +909,10 @@ class LeverHandler(ATSHandler):
                     await random_pause(2.0, 3.0)
 
                 if not await self._is_submission_successful(page, initial_url):
-                    # CapSolver fallback only if still challenged / no token.
-                    if not await get_hcaptcha_token(page) or await is_hcaptcha_challenge_visible(
-                        page
+                    # No token after submit means the widget ran and failed.
+                    if (
+                        not await get_hcaptcha_token(page)
+                        or await is_hcaptcha_challenge_visible(page)
                     ):
                         post_captcha = await ensure_captcha_cleared(
                             page, silent_timeout_ms=5_000

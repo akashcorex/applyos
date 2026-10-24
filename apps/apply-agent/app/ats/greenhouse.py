@@ -24,6 +24,7 @@ from app.ats.base import (
     normalize_selector,
     resolve_mapped_value,
 )
+from app.browser.dom import first_visible
 from app.browser.human_delay import human_click, human_type, random_pause
 from app.browser.resume_upload import prepare_resume_file
 from app.models.job_payload import CVData
@@ -583,7 +584,7 @@ class GreenhouseHandler(ATSHandler):
                         )
                         continue
 
-                    field_el = await page.query_selector(selector)
+                    field_el = await first_visible(page, selector)
                     if field_el is None:
                         fill_debug.append(
                             {
