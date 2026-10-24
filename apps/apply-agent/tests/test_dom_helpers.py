@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from app.browser.dom import first_visible
+from app.browser.dom import first_visible, safe_click
 
 
 class FakeCandidate:
@@ -63,3 +63,42 @@ async def test_returns_none_when_selector_misses() -> None:
     page = FakePage([], fallback=None)
 
     assert await first_visible(page, "#missing") is None  # type: ignore[arg-type]
+
+
+class FakeClickable:
+    def __init__(self, fail_click: bool = False, fail_js: bool = False) -> None:
+        self.fail_click = fail_click
+        self.fail_js = fail_js
+        self.js_clicked = False
+
+    async def click(self, timeout: int | None = None, force: bool = False) -> None:
+        if self.fail_click:
+            raise TimeoutError("input dispatch stalled")
+
+    async def evaluate(self, script: str) -> None:
+        if self.fail_js:
+            raise RuntimeError("no js")
+        self.js_clicked = True
+
+
+@pytest.mark.asyncio
+async def test_safe_click_uses_native_click_when_it_works() -> None:
+    element = FakeClickable()
+
+    assert await safe_click(element) is True  # type: ignore[arg-type]
+    assert element.js_clicked is False
+
+
+@pytest.mark.asyncio
+async def test_safe_click_falls_back_to_js_when_dispatch_stalls() -> None:
+    element = FakeClickable(fail_click=True)
+
+    assert await safe_click(element) is True  # type: ignore[arg-type]
+    assert element.js_clicked is True
+
+
+@pytest.mark.asyncio
+async def test_safe_click_reports_failure_when_both_paths_fail() -> None:
+    element = FakeClickable(fail_click=True, fail_js=True)
+
+    assert await safe_click(element) is False  # type: ignore[arg-type]

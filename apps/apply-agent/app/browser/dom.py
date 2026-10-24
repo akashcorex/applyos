@@ -27,3 +27,21 @@ async def first_visible(page: Page, selector: str) -> ElementHandle | None:
             continue
 
     return await page.query_selector(selector)
+
+
+async def safe_click(element, *, timeout: int = 5_000, force: bool = False) -> bool:
+    """Click an element, falling back to a JS click when input dispatch stalls.
+
+    Some engines never acknowledge a CDP click on heavy React widgets; the
+    DOM-level click still fires the handler, so it is a usable fallback.
+    """
+    try:
+        await element.click(timeout=timeout, force=force)
+        return True
+    except Exception:
+        pass
+    try:
+        await element.evaluate("el => el.click()")
+        return True
+    except Exception:
+        return False

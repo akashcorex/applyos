@@ -23,7 +23,7 @@ from app.browser.captcha import (
     is_hcaptcha_challenge_visible,
     wait_for_hcaptcha_silent_pass,
 )
-from app.browser.dom import first_visible
+from app.browser.dom import first_visible, safe_click
 from app.browser.human_delay import human_click, human_type, random_pause
 from app.browser.resume_upload import prepare_resume_file, upload_resume_to_file_inputs
 from app.models.job_payload import CVData
@@ -427,9 +427,9 @@ class LeverHandler(ATSHandler):
 
         # Focus triggers invisible hCaptcha — wait for silent-pass before typing.
         try:
-            await field.click(timeout=5_000)
+            await safe_click(field, timeout=5_000)
         except Exception:
-            await field.click(force=True)
+            await safe_click(field, force=True)
 
         await wait_for_hcaptcha_silent_pass(page, timeout_ms=12_000)
 
@@ -449,7 +449,7 @@ class LeverHandler(ATSHandler):
                 }"""
             )
 
-        await field.click(force=True)
+        await safe_click(field, force=True)
         await random_pause(0.3, 0.6)
         await page.keyboard.press("Meta+A")
         await page.keyboard.press("Backspace")
@@ -482,7 +482,7 @@ class LeverHandler(ATSHandler):
         for sug_sel in suggestion_selectors:
             suggestion = await page.query_selector(sug_sel)
             if suggestion and await suggestion.is_visible():
-                await suggestion.click(force=True)
+                await safe_click(suggestion, force=True)
                 await random_pause(0.3, 0.6)
                 if await self._location_already_selected(page):
                     return True

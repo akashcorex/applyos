@@ -12,7 +12,7 @@ import random
 
 from playwright.async_api import Page
 
-from app.browser.dom import first_visible
+from app.browser.dom import first_visible, safe_click
 
 
 async def human_type(page: Page, selector: str, text: str) -> None:
@@ -24,7 +24,7 @@ async def human_type(page: Page, selector: str, text: str) -> None:
     await asyncio.sleep(random.uniform(0.3, 0.8))
     element = await first_visible(page, selector)
     if element:
-        await element.click()
+        await safe_click(element)
         await page.keyboard.press("Meta+A")
         await page.keyboard.press("Backspace")
         for char in text:
@@ -44,7 +44,7 @@ async def human_click(page: Page, selector: str) -> None:
     await asyncio.sleep(random.uniform(0.2, 0.6))
     element = await first_visible(page, selector)
     if element:
-        await element.click()
+        await safe_click(element)
     await asyncio.sleep(random.uniform(0.3, 0.7))
 
 
