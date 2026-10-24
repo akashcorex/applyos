@@ -233,7 +233,7 @@ async def _run_discover_and_connect(payload: DiscoverConnectPayload) -> list[dic
     api_rows: list[dict[str, Any]] = []
     events: list[ConnectResultEvent] = []
 
-    async with launch_browser(headless=True) as browser:
+    async with launch_browser(headless=True, user_id=user_id) as browser:
         context = await create_context(browser, storage_state=storage_state)
         page = await new_stealth_page(context)
 

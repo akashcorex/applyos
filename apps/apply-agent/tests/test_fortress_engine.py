@@ -128,3 +128,80 @@ async def test_new_stealth_page_skips_js_injection_on_fortress(
     page = await engine.new_stealth_page(context)  # type: ignore[arg-type]
 
     assert page.init_scripts == []
+
+
+class FakeSeat:
+    def __init__(self) -> None:
+        self.port = 19350
+        self.cdp_url = "http://127.0.0.1:19350"
+        self.stopped = False
+
+    async def stop(self) -> None:
+        self.stopped = True
+
+
+class FakePlaywright:
+    def __init__(self) -> None:
+        self.connected_to: str | None = None
+        self.browser = FakeBrowser()
+        self.chromium = self
+
+    async def connect_over_cdp(self, url: str) -> FakeBrowser:
+        self.connected_to = url
+        return self.browser
+
+    async def __aenter__(self) -> "FakePlaywright":
+        return self
+
+    async def __aexit__(self, *exc: object) -> bool:
+        return False
+
+
+@pytest.mark.asyncio
+async def test_launch_browser_fortress_connects_over_cdp_and_stops(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(settings, "apply_browser_engine", "fortress")
+    seat = FakeSeat()
+    pw = FakePlaywright()
+    seen: dict = {}
+
+    async def fake_start(user_id: str | None = None, headless: bool | None = None) -> FakeSeat:
+        seen["user_id"] = user_id
+        seen["headless"] = headless
+        return seat
+
+    monkeypatch.setattr(fortress, "start", fake_start)
+    monkeypatch.setattr(engine, "async_playwright", lambda: pw)
+
+    async with engine.launch_browser(headless=True, user_id="user-1") as browser:
+        assert browser is pw.browser
+
+    assert pw.connected_to == seat.cdp_url
+    assert seen == {"user_id": "user-1", "headless": True}
+    assert seat.stopped is True
+
+
+@pytest.mark.asyncio
+async def test_launch_browser_fortress_stops_seat_when_connect_fails(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(settings, "apply_browser_engine", "fortress")
+    seat = FakeSeat()
+    pw = FakePlaywright()
+
+    async def boom(url: str) -> FakeBrowser:
+        raise RuntimeError("cdp unreachable")
+
+    async def fake_start(user_id: str | None = None, headless: bool | None = None) -> FakeSeat:
+        return seat
+
+    monkeypatch.setattr(fortress, "start", fake_start)
+    monkeypatch.setattr(engine, "async_playwright", lambda: pw)
+    monkeypatch.setattr(pw, "connect_over_cdp", boom)
+
+    with pytest.raises(RuntimeError, match="cdp unreachable"):
+        async with engine.launch_browser(headless=True):
+            pass
+
+    assert seat.stopped is True
