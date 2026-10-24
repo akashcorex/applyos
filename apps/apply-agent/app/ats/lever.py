@@ -111,6 +111,13 @@ class LeverHandler(ATSHandler):
                         const t = (span?.innerText || label.innerText || '').trim();
                         if (t) return t;
                     }
+                    const row = el.closest('li');
+                    if (row) {
+                        const t = (row.innerText || '').trim();
+                        if (t) return t;
+                    }
+                    const aria = el.getAttribute('aria-label');
+                    if (aria) return aria.trim();
                     return (el.value || el.getAttribute('value') || '').trim();
                 }"""
             )
@@ -551,7 +558,7 @@ class LeverHandler(ATSHandler):
         """Check a radio/checkbox, falling back to its label or a JS click."""
         try:
             if await element.is_visible():
-                await element.check()
+                await element.check(timeout=3_000)
                 return True
         except Exception:
             pass
@@ -562,7 +569,7 @@ class LeverHandler(ATSHandler):
             )
             label_el = label_handle.as_element()
             if label_el is not None and await label_el.is_visible():
-                await label_el.click()
+                await label_el.click(timeout=3_000)
                 return True
         except Exception:
             pass
@@ -621,7 +628,7 @@ class LeverHandler(ATSHandler):
                 or (text and target in text)
                 or (raw and target in raw)
             ):
-                best = element
+                best, best_score = element, 1.0
                 break
             score = max(
                 SequenceMatcher(None, target, text).ratio(),
@@ -856,12 +863,8 @@ class LeverHandler(ATSHandler):
 
                 await random_pause(1.0, 2.0)
 
-                # Invisible hCaptcha only executes on submit; gate on a real challenge.
+                # Invisible hCaptcha only resolves on submit; never gate before it runs.
                 captcha_error = None
-                if await is_hcaptcha_challenge_visible(page):
-                    captcha_error = await ensure_captcha_cleared(
-                        page, silent_timeout_ms=8_000
-                    )
                 if captcha_error:
                     await self._dump_debug(
                         page,
@@ -899,7 +902,7 @@ class LeverHandler(ATSHandler):
                     }"""
                 )
                 await random_pause(0.2, 0.5)
-                await page.click(_SUBMIT_SELECTOR, force=True)
+                await safe_click(page.locator(_SUBMIT_SELECTOR).first, force=True)
 
                 # Lever submit may trigger hcaptcha.execute → wait for silent-pass + navigation.
                 await wait_for_hcaptcha_silent_pass(page, timeout_ms=15_000)
@@ -915,7 +918,7 @@ class LeverHandler(ATSHandler):
                         or await is_hcaptcha_challenge_visible(page)
                     ):
                         post_captcha = await ensure_captcha_cleared(
-                            page, silent_timeout_ms=5_000
+                            page, silent_timeout_ms=15_000
                         )
                         if post_captcha:
                             await self._dump_debug(
@@ -931,7 +934,7 @@ class LeverHandler(ATSHandler):
                                 error=post_captcha,
                             )
                     if await page.query_selector(_SUBMIT_SELECTOR):
-                        await page.click(_SUBMIT_SELECTOR, force=True)
+                        await safe_click(page.locator(_SUBMIT_SELECTOR).first, force=True)
                         await wait_for_hcaptcha_silent_pass(page, timeout_ms=15_000)
                         try:
                             await page.wait_for_load_state(
