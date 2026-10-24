@@ -31,10 +31,14 @@ class FakeBrowser:
 
     def __init__(self) -> None:
         self.context_kwargs: dict = {}
+        self.closed = False
 
     async def new_context(self, **kwargs: object) -> FakeContext:
         self.context_kwargs = kwargs
         return FakeContext()
+
+    async def close(self) -> None:
+        self.closed = True
 
 
 def test_seed_for_is_stable_per_user() -> None:
@@ -86,13 +90,14 @@ def test_resolve_binary_reports_setup_hint(monkeypatch: pytest.MonkeyPatch) -> N
 
     with pytest.raises(RuntimeError, match="setup_fortress"):
         fortress.resolve_binary()
+    assert fortress.is_available() is False
 
 
 @pytest.mark.asyncio
 async def test_create_context_defers_persona_to_fortress(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(settings, "apply_browser_engine", "fortress")
+    monkeypatch.setattr(engine, "_last_launch_used_fortress", True)
     browser = FakeBrowser()
 
     await engine.create_context(browser, storage_state={"cookies": []})
@@ -122,7 +127,7 @@ async def test_create_context_keeps_overrides_on_playwright(
 async def test_new_stealth_page_skips_js_injection_on_fortress(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(settings, "apply_browser_engine", "fortress")
+    monkeypatch.setattr(engine, "_last_launch_used_fortress", True)
     context = FakeContext()
 
     page = await engine.new_stealth_page(context)  # type: ignore[arg-type]
@@ -171,6 +176,7 @@ async def test_launch_browser_fortress_connects_over_cdp_and_stops(
         seen["headless"] = headless
         return seat
 
+    monkeypatch.setattr(fortress, "is_available", lambda: True)
     monkeypatch.setattr(fortress, "start", fake_start)
     monkeypatch.setattr(engine, "async_playwright", lambda: pw)
 
@@ -196,6 +202,7 @@ async def test_launch_browser_fortress_stops_seat_when_connect_fails(
     async def fake_start(user_id: str | None = None, headless: bool | None = None) -> FakeSeat:
         return seat
 
+    monkeypatch.setattr(fortress, "is_available", lambda: True)
     monkeypatch.setattr(fortress, "start", fake_start)
     monkeypatch.setattr(engine, "async_playwright", lambda: pw)
     monkeypatch.setattr(pw, "connect_over_cdp", boom)
@@ -205,3 +212,48 @@ async def test_launch_browser_fortress_stops_seat_when_connect_fails(
             pass
 
     assert seat.stopped is True
+
+
+class FakeChromium:
+    def __init__(self) -> None:
+        self.browser = FakeBrowser()
+        self.launch_kwargs: dict = {}
+
+    async def launch(self, **kwargs: object) -> FakeBrowser:
+        self.launch_kwargs = kwargs
+        return self.browser
+
+
+@pytest.mark.asyncio
+async def test_launch_browser_falls_back_when_fortress_is_missing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(settings, "apply_browser_engine", "fortress")
+    monkeypatch.setattr(settings, "apply_use_chrome_channel", False)
+    monkeypatch.setattr(fortress, "is_available", lambda: False)
+
+    async def fail_start(**kwargs: object) -> None:
+        raise AssertionError("Fortress must not start when it is not installed")
+
+    monkeypatch.setattr(fortress, "start", fail_start)
+
+    chromium = FakeChromium()
+
+    class FakePlaywright:
+        def __init__(self) -> None:
+            self.chromium = chromium
+
+        async def __aenter__(self) -> "FakePlaywright":
+            return self
+
+        async def __aexit__(self, *exc: object) -> bool:
+            return False
+
+    monkeypatch.setattr(engine, "async_playwright", FakePlaywright)
+
+    async with engine.launch_browser(headless=True) as browser:
+        assert browser is chromium.browser
+
+    assert chromium.launch_kwargs["headless"] is True
+    assert engine._last_launch_used_fortress is False
+    assert chromium.browser.closed is True

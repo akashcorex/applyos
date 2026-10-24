@@ -18,8 +18,9 @@ _stealth = Stealth()
 
 _DEFAULT_VIEWPORT = {"width": 1440, "height": 900}
 
-# Set by launch_browser — create_context uses this to decide whether to override UA.
+# Set by launch_browser — create_context uses these to decide which overrides apply.
 _last_launch_used_chrome_channel: bool = False
+_last_launch_used_fortress: bool = False
 
 
 def _using_fortress() -> bool:
@@ -80,10 +81,19 @@ async def launch_browser(
         (not settings.apply_headed) if headless is None else headless
     )
 
+    global _last_launch_used_fortress
+    _last_launch_used_fortress = False
     if _using_fortress():
-        async with _launch_fortress(use_headless, user_id) as browser:
-            yield browser
-        return
+        if not fortress.is_available():
+            logger.warning(
+                "APPLY_BROWSER_ENGINE=fortress but no Fortress binary is installed; "
+                "falling back to Playwright"
+            )
+        else:
+            _last_launch_used_fortress = True
+            async with _launch_fortress(use_headless, user_id) as browser:
+                yield browser
+            return
 
     global _last_launch_used_chrome_channel
     launch_kwargs: dict = {
@@ -151,7 +161,7 @@ async def create_context(
         "has_touch": False,
         "java_script_enabled": True,
     }
-    if _using_fortress():
+    if _last_launch_used_fortress:
         logger.info("Fortress persona owns UA/locale/timezone; no overrides applied")
         return await browser.new_context(**context_kwargs)
 
@@ -173,7 +183,7 @@ async def create_context(
 async def new_stealth_page(context: BrowserContext) -> Page:
     """Open a new page inside *context* with stealth scripts injected."""
     page = await context.new_page()
-    if _using_fortress():
+    if _last_launch_used_fortress:
         return page
     await _stealth.apply_stealth_async(page)
     # Extra hardening beyond playwright-stealth defaults.

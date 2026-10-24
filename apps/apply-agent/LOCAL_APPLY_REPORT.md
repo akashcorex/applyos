@@ -102,6 +102,9 @@ python scripts/setup_fortress.py --tag v153.0.8010.36   # once
 export APPLY_BROWSER_ENGINE=playwright
 ```
 
+If `APPLY_BROWSER_ENGINE=fortress` is set but the binary is missing, the engine logs a warning
+and falls back to Playwright instead of failing the application.
+
 Run a single apply through the real worker:
 
 ```bash

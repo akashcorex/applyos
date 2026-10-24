@@ -75,6 +75,15 @@ def resolve_binary() -> Path:
     )
 
 
+def is_available() -> bool:
+    """True when the Fortress binary is installed and executable."""
+    try:
+        resolve_binary()
+    except RuntimeError:
+        return False
+    return True
+
+
 @dataclass
 class FortressSeat:
     """A spawned Fortress process exposing one CDP endpoint."""
