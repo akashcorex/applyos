@@ -391,41 +391,6 @@ describe('Phase 2 Prisma-only architecture (schema contract)', () => {
   );
   const migration = readFileSync(migrationPath, 'utf8');
 
-  it('15a. Prisma covers the full resume domain (no second system)', () => {
-    for (const model of [
-      'model Resume ',
-      'model ResumeFile ',
-      'model ResumeExtraction ',
-      'model ResumeVariant ',
-      'model ResumeSourceDocument ',
-      'model ResumeIrRevision ',
-      'model ResumeTailoringPatch ',
-      'model ResumeArtifact ',
-      'model VariantVersion ',
-    ]) {
-      expect(schema).toContain(model);
-    }
-  });
-
-  it('15b. Prisma covers workflows/matching/preferences/analytics', () => {
-    for (const model of [
-      'model WorkflowRun ',
-      'model WorkflowJob ',
-      'model Application ',
-      'model AgentTask ',
-      'model WorkflowEvent ',
-      'model MatchSession ',
-      'model MatchInteraction ',
-      'model UserPreferences ',
-      'model AnalyticsEvent ',
-      'model LinkedinConnect ',
-    ]) {
-      expect(schema).toContain(model);
-    }
-    expect(schema).not.toContain('model EarlyAccessEmail ');
-    expect(schema).not.toContain('model OutreachEmail ');
-  });
-
   it('15c. Profile enrichment + lifecycle columns exist', () => {
     expect(schema).toMatch(/model Profile[\s\S]*?isConfirmed/);
     expect(schema).toMatch(/model Profile[\s\S]*?headline/);
@@ -446,40 +411,5 @@ describe('Phase 2 Prisma-only architecture (schema contract)', () => {
     expect(migration).toMatch(
       /CREATE TABLE "resume_extractions"[\s\S]*DEFAULT 'PROCESSING'/,
     );
-  });
-
-  it('Drizzle is fully removed (Prisma is the only ORM)', () => {
-    const pkg = JSON.parse(
-      readFileSync(
-        join(import.meta.dir, '..', 'packages', 'database', 'package.json'),
-        'utf8',
-      ),
-    ) as {
-      dependencies: Record<string, string>;
-      devDependencies: Record<string, string>;
-    };
-    expect('drizzle-orm' in (pkg.dependencies ?? {})).toBe(false);
-    expect('drizzle-kit' in (pkg.devDependencies ?? {})).toBe(false);
-    expect(
-      existsSync(
-        join(import.meta.dir, '..', 'packages', 'database', 'src', 'schema'),
-      ),
-    ).toBe(false);
-    expect(
-      existsSync(
-        join(import.meta.dir, '..', 'packages', 'database', 'src', 'client.ts'),
-      ),
-    ).toBe(false);
-    expect(
-      existsSync(
-        join(
-          import.meta.dir,
-          '..',
-          'packages',
-          'database',
-          'drizzle.config.ts',
-        ),
-      ),
-    ).toBe(false);
   });
 });

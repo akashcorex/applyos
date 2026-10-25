@@ -29,6 +29,7 @@ import {
 } from '@applyso/validation';
 
 import { NoticeBar } from '@/components/dashboard/PageChrome';
+import { SURFACE_CARD } from '@/components/dashboard/surfaces';
 import {
   fetchBillingMe,
   planLabel,
@@ -81,7 +82,7 @@ function StatusPill({ status }: { status: string }) {
         : 'border-amber-500/25 bg-amber-500/10 text-amber-400';
   return (
     <span
-      className={`inline-flex shrink-0 items-center gap-1 rounded-[3px] border px-1.5 py-0.5 font-mono text-[10px] ${tone}`}
+      className={`inline-flex shrink-0 items-center gap-1 rounded-[5px] border px-1.5 py-0.5 font-mono text-[10px] ${tone}`}
     >
       {status === 'active' ? (
         <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
@@ -166,20 +167,20 @@ function BillingPlansPage() {
   }
 
   return (
-    <div className="w-full bg-background text-foreground">
+    <div className="flex w-full flex-col gap-6 text-foreground">
       {notice ? (
-        <NoticeBar tone="success" icon={CheckCircle2}>
+        <NoticeBar variant="island" tone="success" icon={CheckCircle2}>
           {notice}
         </NoticeBar>
       ) : null}
       {error ? (
-        <NoticeBar tone="danger" icon={AlertTriangle}>
+        <NoticeBar variant="island" tone="danger" icon={AlertTriangle}>
           {error}
         </NoticeBar>
       ) : null}
 
-      {/* ── 1. Page Header Bar (Full-bleed) ───────────────────── */}
-      <div className="w-full border-b border-border bg-background px-6 sm:px-8 py-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      {/* ── 1. Page Header ───────────────────────────────────── */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-foreground font-sans">
             Pay for applications. Not the tool.
@@ -190,14 +191,14 @@ function BillingPlansPage() {
           </p>
         </div>
 
-        <div className="inline-flex items-center gap-1 self-start sm:self-auto rounded-[6px] border border-border bg-neutral-900/40 p-1">
+        <div className="inline-flex items-center gap-1 self-start sm:self-auto rounded-[8px] border border-border bg-neutral-900/40 p-1">
           {billingIntervals.map((option) => (
             <button
               key={option}
               type="button"
               onClick={() => setInterval(option)}
               aria-pressed={interval === option}
-              className={`h-7 px-3 rounded-[4px] text-xs font-mono capitalize transition-colors select-none ${
+              className={`h-7 px-3 rounded-[6px] text-xs font-mono capitalize transition-colors select-none ${
                 interval === option
                   ? 'bg-foreground text-background'
                   : 'text-muted-foreground hover:text-foreground'
@@ -210,8 +211,8 @@ function BillingPlansPage() {
       </div>
 
       {/* ── 2. Billing KPI Strip ──────────────────────────────── */}
-      <div className="w-full grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-border border-b border-border bg-background">
-        <div className="px-6 sm:px-8 py-4">
+      <div className="grid w-full grid-cols-1 gap-4 sm:grid-cols-3">
+        <div className={`${SURFACE_CARD} px-6 sm:px-8 py-4`}>
           <p className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground">
             Applications this cycle
           </p>
@@ -229,7 +230,7 @@ function BillingPlansPage() {
           </p>
         </div>
 
-        <div className="px-6 sm:px-8 py-4">
+        <div className={`${SURFACE_CARD} px-6 sm:px-8 py-4`}>
           <p className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground">
             Current plan
           </p>
@@ -246,7 +247,7 @@ function BillingPlansPage() {
           </p>
         </div>
 
-        <div className="px-6 sm:px-8 py-4">
+        <div className={`${SURFACE_CARD} px-6 sm:px-8 py-4`}>
           <p className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground">
             Coupon
           </p>
@@ -263,7 +264,10 @@ function BillingPlansPage() {
       </div>
 
       {/* ── 3. Plans ──────────────────────────────────────────── */}
-      <section aria-label="Plans" className="w-full border-b border-border">
+      <section
+        aria-label="Plans"
+        className={`w-full overflow-hidden ${SURFACE_CARD}`}
+      >
         <div className="flex items-center justify-between border-b border-border px-6 sm:px-8 py-3.5">
           <div className="flex items-center gap-2">
             <Zap className="size-4 text-primary" />
@@ -314,12 +318,12 @@ function BillingPlansPage() {
                     {planLabel(plan)}
                   </span>
                   {popular ? (
-                    <span className="rounded-[4px] bg-neutral-200 px-2 py-1 text-[10px] font-mono font-medium uppercase tracking-wider text-zinc-900">
+                    <span className="rounded-[6px] bg-neutral-200 px-2 py-1 text-[10px] font-mono font-medium uppercase tracking-wider text-zinc-900">
                       Most popular
                     </span>
                   ) : null}
                   {current ? (
-                    <span className="rounded-[4px] border border-emerald-500/25 bg-emerald-500/10 px-2 py-1 text-[10px] font-mono uppercase tracking-wider text-emerald-400">
+                    <span className="rounded-[6px] border border-emerald-500/25 bg-emerald-500/10 px-2 py-1 text-[10px] font-mono uppercase tracking-wider text-emerald-400">
                       Current
                     </span>
                   ) : null}
@@ -357,7 +361,7 @@ function BillingPlansPage() {
                   <Button
                     disabled={current || busy !== null}
                     onClick={() => void checkoutPlan(plan)}
-                    className={`w-full h-10 rounded-[6px] text-sm font-mono font-medium ${
+                    className={`w-full h-10 rounded-[8px] text-sm font-mono font-medium ${
                       current
                         ? 'border border-border bg-neutral-900/40 text-zinc-500 cursor-default'
                         : 'bg-foreground text-background hover:bg-zinc-200'
@@ -380,7 +384,7 @@ function BillingPlansPage() {
       {atQuota ? (
         <section
           aria-label="Top-up packs"
-          className="w-full border-b border-border"
+          className={`w-full overflow-hidden ${SURFACE_CARD}`}
         >
           <div className="flex items-center justify-between border-b border-border px-6 sm:px-8 py-3.5">
             <div className="flex items-center gap-2">
@@ -418,7 +422,7 @@ function BillingPlansPage() {
                   variant="outline"
                   disabled={busy !== null}
                   onClick={() => void checkoutAddOn(pack)}
-                  className="h-8 rounded-[6px] text-xs font-mono font-medium"
+                  className="h-8 rounded-[8px] text-xs font-mono font-medium"
                 >
                   {busy === pack ? 'Redirecting…' : 'Buy pack'}
                 </Button>
@@ -432,7 +436,7 @@ function BillingPlansPage() {
       {billing?.hasCustomerPortal ? (
         <section
           aria-label="Manage subscription"
-          className="w-full border-b border-border"
+          className={`w-full overflow-hidden ${SURFACE_CARD}`}
         >
           <div className="flex items-center justify-between border-b border-border px-6 sm:px-8 py-3.5">
             <div className="flex items-center gap-2">
@@ -456,7 +460,7 @@ function BillingPlansPage() {
               variant="outline"
               disabled={busy !== null}
               onClick={() => void openPortal()}
-              className="self-start sm:self-auto h-8 rounded-[6px] text-xs font-mono font-medium"
+              className="self-start sm:self-auto h-8 rounded-[8px] text-xs font-mono font-medium"
             >
               {busy === 'portal' ? 'Opening…' : 'Open billing portal'}
             </Button>
@@ -465,7 +469,9 @@ function BillingPlansPage() {
       ) : null}
 
       {/* ── 6. Footer Note ────────────────────────────────────── */}
-      <p className="w-full border-b border-border bg-background px-6 sm:px-8 py-4 text-center text-[11px] font-mono text-zinc-500">
+      <p
+        className={`w-full ${SURFACE_CARD} px-6 sm:px-8 py-4 text-center text-[11px] font-mono text-zinc-500`}
+      >
         Cancel any time · {FREE_APPLICATION_QUOTA} free submitted applications ·
         you pay only for jobs actually submitted
       </p>

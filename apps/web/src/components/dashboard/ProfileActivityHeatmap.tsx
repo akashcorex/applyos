@@ -2,6 +2,8 @@
 
 import { addDateKey, heatmapLevel } from '@applyso/validation';
 
+import { SURFACE_CARD } from './surfaces';
+
 import type {
   ProfileActivityDay,
   ProfileActivityTotals,
@@ -82,10 +84,10 @@ export function ProfileActivityHeatmap({
   return (
     <section
       aria-label="Activity heatmap"
-      className="w-full border-b border-border bg-background"
+      className={`w-full overflow-hidden ${SURFACE_CARD}`}
     >
       {/* ── Section Header ────────────────────────────────────── */}
-      <div className="flex items-center justify-between border-b border-border px-6 sm:px-8 py-3.5 bg-background">
+      <div className="flex items-center justify-between border-b border-border px-6 sm:px-8 py-3.5 bg-transparent">
         <div className="flex items-center gap-3">
           <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground font-mono">
             Activity Heatmap
@@ -100,7 +102,7 @@ export function ProfileActivityHeatmap({
             {LEVEL_CLASS.map((className, level) => (
               <span
                 key={className}
-                className={`h-2.5 w-2.5 rounded-[1px] ${className} ${
+                className={`h-2.5 w-2.5 rounded-[2px] ${className} ${
                   level === 4 ? 'shadow-[0_0_6px_rgba(57,211,83,0.45)]' : ''
                 }`}
                 aria-label={`Activity level ${level}`}
@@ -112,7 +114,7 @@ export function ProfileActivityHeatmap({
       </div>
 
       {/* ── 4-Column Metric Strip (Divided by 1px vertical borders) */}
-      <div className="w-full grid grid-cols-2 sm:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-border border-b border-border bg-background">
+      <div className="w-full grid grid-cols-2 sm:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-border border-b border-border bg-transparent">
         <div className="px-6 sm:px-8 py-3.5">
           <p className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground">
             Applications
@@ -224,7 +226,7 @@ export function ProfileActivityHeatmap({
                       return (
                         <span
                           key={day.date}
-                          className="min-w-0 w-full aspect-square rounded-[1px] bg-transparent"
+                          className="min-w-0 w-full aspect-square rounded-[2px] bg-transparent"
                           aria-hidden
                         />
                       );
@@ -237,7 +239,7 @@ export function ProfileActivityHeatmap({
                       <span
                         key={day.date}
                         title={label}
-                        className={`min-w-0 w-full aspect-square rounded-[1px] transition-colors ${LEVEL_CLASS[level]} ${glow}`}
+                        className={`min-w-0 w-full aspect-square rounded-[2px] transition-colors ${LEVEL_CLASS[level]} ${glow}`}
                       />
                     );
                   })}

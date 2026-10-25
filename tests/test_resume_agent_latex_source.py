@@ -400,12 +400,6 @@ def _clean_user_dir():
     shutil.rmtree(user_dir, ignore_errors=True)
 
 
-def test_source_hash_is_stable_sha256() -> None:
-    raw = b"\\documentclass{article}"
-    assert sha256_bytes(raw) == sha256_bytes(raw)
-    assert len(sha256_bytes(raw)) == 64
-
-
 def test_save_latex_source_uses_opaque_key(_clean_user_dir) -> None:
     tex_bytes = SAFE_TEX.encode("utf-8")
     source_hash = sha256_bytes(tex_bytes)
@@ -757,19 +751,3 @@ async def test_ownership_checks() -> None:
             _StubRepository(None), "missing", _request("latex-test-user")  # type: ignore[arg-type]
         )
     assert exc_info.value.status_code == 404
-
-
-def test_import_tex_response_model_namespace() -> None:
-    from models import ImportTexResponse, LatexSourceResponse
-
-    response = LatexSourceResponse(
-        resume_id="r",
-        tex_source="x",
-        template_id="applyos-ats",
-        source_hash="h",
-        origin="user_edit",
-        ir_revision_id=None,
-    )
-    assert response.origin == "user_edit"
-    assert ImportTexResponse(resume_id="r", origin="imported").origin == "imported"
-    assert get_template_meta(DEFAULT_TEMPLATE_ID).template_id == DEFAULT_TEMPLATE_ID

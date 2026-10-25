@@ -121,7 +121,7 @@ export default function AdminOverviewPage() {
         </div>
         <Link
           href="/dashboard/admin/users"
-          className="shrink-0 rounded-[6px] border border-border bg-card px-3 py-1 text-xs font-medium text-foreground hover:bg-muted transition-colors"
+          className="shrink-0 rounded-[8px] border border-border bg-card px-3 py-1 text-xs font-medium text-foreground hover:bg-muted transition-colors"
         >
           Manage users
         </Link>
@@ -199,7 +199,7 @@ export default function AdminOverviewPage() {
                   <Link
                     key={user.id}
                     href={`/dashboard/admin/users/${user.id}`}
-                    className="flex items-center justify-between rounded-[6px] px-2.5 py-1.5 text-sm hover:bg-slate-50 dark:hover:bg-[#1f2025] transition-colors"
+                    className="flex items-center justify-between rounded-[8px] px-2.5 py-1.5 text-sm hover:bg-slate-50 dark:hover:bg-[#1f2025] transition-colors"
                   >
                     <div className="min-w-0">
                       <p className="truncate text-xs font-medium text-slate-900 dark:text-[#f1f3f9]">
@@ -235,7 +235,7 @@ export default function AdminOverviewPage() {
                   <Link
                     key={resume.id}
                     href={`/dashboard/admin/resumes/${resume.id}`}
-                    className="flex items-center justify-between rounded-[6px] px-2.5 py-1.5 text-sm hover:bg-slate-50 dark:hover:bg-[#1f2025] transition-colors"
+                    className="flex items-center justify-between rounded-[8px] px-2.5 py-1.5 text-sm hover:bg-slate-50 dark:hover:bg-[#1f2025] transition-colors"
                   >
                     <div className="min-w-0">
                       <p className="truncate text-xs font-medium text-slate-900 dark:text-[#f1f3f9]">

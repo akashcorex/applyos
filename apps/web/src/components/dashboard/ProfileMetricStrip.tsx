@@ -3,6 +3,8 @@
 import { Briefcase, CheckCircle2, Send, Zap } from '@applyso/ui/icons';
 import type { ProfileCompletion } from '@applyso/validation';
 
+import { SURFACE_CARD } from './surfaces';
+
 import type { ProfileActivityTotals } from './profile-types';
 
 interface ProfileMetricStripProps {
@@ -34,7 +36,7 @@ function MicroBarSparkline({
       {bars.map((height, i) => (
         <div
           key={i}
-          className={`w-1 rounded-[1px] transition-colors duration-200 ${barClass}`}
+          className={`w-1 rounded-[2px] transition-colors duration-200 ${barClass}`}
           style={{ height: `${Math.max(12, Math.min(100, height))}%` }}
         />
       ))}
@@ -78,11 +80,12 @@ export function ProfileMetricStrip({
     : 'Candidate';
 
   return (
-    <div className="w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-border border-b border-border bg-background">
+    <div className="w-full grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
       {/* 1. Completeness */}
-      <div
+      <button
+        type="button"
         onClick={onCompleteProfile}
-        className="flex items-start justify-between p-5 bg-background hover:bg-neutral-900/20 transition-colors group cursor-pointer"
+        className={`flex items-start justify-between p-5 ${SURFACE_CARD} overflow-hidden hover:bg-neutral-900/20 transition-colors group cursor-pointer text-left font-sans`}
       >
         <div className="flex flex-col justify-between h-full min-w-0 pr-2">
           <div className="flex items-center gap-2 text-sm font-medium">
@@ -102,10 +105,12 @@ export function ProfileMetricStrip({
           </div>
         </div>
         <MicroBarSparkline bars={completenessBars} color="blue" />
-      </div>
+      </button>
 
       {/* 2. Experience & Seniority */}
-      <div className="flex items-start justify-between p-5 bg-background hover:bg-neutral-900/20 transition-colors group">
+      <div
+        className={`flex items-start justify-between p-5 ${SURFACE_CARD} overflow-hidden hover:bg-neutral-900/20 transition-colors group`}
+      >
         <div className="flex flex-col justify-between h-full min-w-0 pr-2">
           <div className="flex items-center gap-2 text-sm font-medium">
             <Briefcase className="size-4 text-orange-500 shrink-0" />
@@ -130,7 +135,9 @@ export function ProfileMetricStrip({
       </div>
 
       {/* 3. Applications */}
-      <div className="flex items-start justify-between p-5 bg-background hover:bg-neutral-900/20 transition-colors group">
+      <div
+        className={`flex items-start justify-between p-5 ${SURFACE_CARD} overflow-hidden hover:bg-neutral-900/20 transition-colors group`}
+      >
         <div className="flex flex-col justify-between h-full min-w-0 pr-2">
           <div className="flex items-center gap-2 text-sm font-medium">
             <Send className="size-4 text-emerald-500 shrink-0" />
@@ -155,7 +162,9 @@ export function ProfileMetricStrip({
       </div>
 
       {/* 4. Momentum / Streak */}
-      <div className="flex items-start justify-between p-5 bg-background hover:bg-neutral-900/20 transition-colors group">
+      <div
+        className={`flex items-start justify-between p-5 ${SURFACE_CARD} overflow-hidden hover:bg-neutral-900/20 transition-colors group`}
+      >
         <div className="flex flex-col justify-between h-full min-w-0 pr-2">
           <div className="flex items-center gap-2 text-sm font-medium">
             <Zap className="size-4 text-purple-500 shrink-0" />

@@ -40,6 +40,7 @@ export function ActivityChart<R extends string>({
   onRangeChange,
   loading = false,
   emptyLabel = 'No activity in this range yet',
+  unframed = false,
 }: {
   title: string;
   days: string[];
@@ -49,6 +50,7 @@ export function ActivityChart<R extends string>({
   onRangeChange?: (range: R) => void;
   loading?: boolean;
   emptyLabel?: string;
+  unframed?: boolean;
 }) {
   const gradientId = useId().replace(/[^a-zA-Z0-9_-]/g, '');
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
@@ -76,7 +78,11 @@ export function ActivityChart<R extends string>({
   const hovered = hoverIndex !== null && !isEmpty ? hoverIndex : null;
 
   return (
-    <div className="w-full border-b border-border bg-background">
+    <div
+      className={`w-full bg-transparent ${
+        unframed ? '' : 'border-b border-border'
+      }`}
+    >
       <div className="flex items-center justify-between gap-3 px-6 py-3">
         <h3 className="text-xs font-semibold tracking-tight text-foreground sm:text-sm">
           {title}
@@ -225,7 +231,7 @@ export function ActivityChart<R extends string>({
               left: `${Math.min(84, Math.max(16, (xAt(hovered) / 1000) * 100))}%`,
               top: '16px',
             }}
-            className="pointer-events-none absolute z-20 min-w-36 -translate-x-1/2 space-y-1 rounded-[6px] border border-border bg-popover/95 px-3 py-1.5 text-xs shadow-xl backdrop-blur-md"
+            className="pointer-events-none absolute z-20 min-w-36 -translate-x-1/2 space-y-1 rounded-[8px] border border-border bg-popover/95 px-3 py-1.5 text-xs shadow-xl backdrop-blur-md"
           >
             <div className="border-b border-border/60 pb-0.5 text-[10px] font-semibold text-foreground">
               {dayLabel(days[hovered])}
@@ -237,7 +243,7 @@ export function ActivityChart<R extends string>({
               >
                 <div className="flex items-center gap-1.5 text-muted-foreground">
                   <span
-                    className="size-2 rounded-xs"
+                    className="size-2 rounded-full"
                     style={{ backgroundColor: item.color }}
                   />
                   <span>{item.label}</span>
@@ -254,7 +260,7 @@ export function ActivityChart<R extends string>({
           {series.map((item) => (
             <div key={item.key} className="flex items-center gap-1.5">
               <span
-                className="size-2 rounded-[1px]"
+                className="size-2 rounded-[2px]"
                 style={{ backgroundColor: item.color }}
               />
               <span className="text-[11px] font-medium text-foreground/80">

@@ -12,6 +12,8 @@ import {
   UploadCloud,
 } from '@applyso/ui/icons';
 
+import { SURFACE_CARD } from './surfaces';
+
 import type { ProfileLatestResume, ResumeHistoryItem } from './profile-types';
 
 interface ParseResult {
@@ -103,10 +105,10 @@ export function ProfileResumeCard({
     <section
       aria-label="Resume"
       id="profile-resume"
-      className="w-full border-b border-border bg-background scroll-mt-6"
+      className={`w-full overflow-hidden ${SURFACE_CARD} scroll-mt-6`}
     >
       {/* ── Section Header (Flush 1px hairline) ────────────────── */}
-      <div className="flex items-center justify-between border-b border-border px-6 sm:px-8 py-3.5 bg-background">
+      <div className="flex items-center justify-between border-b border-border px-6 sm:px-8 py-3.5 bg-transparent">
         <div className="flex items-center gap-3">
           <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground font-mono">
             Primary Resume
@@ -144,7 +146,7 @@ export function ProfileResumeCard({
         ) : (
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start justify-between">
             <div className="flex items-start gap-3.5 min-w-0">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[4px] border border-border bg-neutral-900/60">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[6px] border border-border bg-neutral-900/60">
                 <FileText className="h-4 w-4 text-blue-400" />
               </div>
               <div className="min-w-0 flex-1">
@@ -213,7 +215,7 @@ export function ProfileResumeCard({
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-7 rounded-[4px] border-border bg-background hover:bg-neutral-900 text-xs font-mono"
+                    className="h-7 rounded-[6px] border-border bg-background hover:bg-neutral-900 text-xs font-mono"
                     asChild
                   >
                     <a href={fileUrl} target="_blank" rel="noopener noreferrer">
@@ -224,7 +226,7 @@ export function ProfileResumeCard({
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-7 rounded-[4px] border-border bg-background hover:bg-neutral-900 text-xs font-mono"
+                    className="h-7 rounded-[6px] border-border bg-background hover:bg-neutral-900 text-xs font-mono"
                     asChild
                   >
                     <a href={`${fileUrl}?download=1`}>
@@ -237,7 +239,7 @@ export function ProfileResumeCard({
               <Button
                 variant="outline"
                 size="sm"
-                className="h-7 rounded-[4px] border-border bg-background hover:bg-neutral-900 text-xs font-mono"
+                className="h-7 rounded-[6px] border-border bg-background hover:bg-neutral-900 text-xs font-mono"
                 type="button"
                 onClick={() => inputRef.current?.click()}
                 disabled={uploading}
@@ -264,7 +266,7 @@ export function ProfileResumeCard({
             const file = event.dataTransfer.files[0];
             if (file) void handleFile(file);
           }}
-          className={`w-full rounded-[4px] border border-dashed py-3 px-4 flex items-center justify-center gap-2.5 text-center transition-colors disabled:opacity-60 ${
+          className={`w-full rounded-[6px] border border-dashed py-3 px-4 flex items-center justify-center gap-2.5 text-center transition-colors disabled:opacity-60 ${
             dragging
               ? 'border-foreground bg-neutral-900/60'
               : 'border-border hover:border-neutral-700 bg-neutral-900/10 hover:bg-neutral-900/30'
@@ -316,7 +318,7 @@ export function ProfileResumeCard({
         ) : null}
 
         {needsReview ? (
-          <div className="rounded-[4px] bg-amber-500/10 border border-amber-500/20 px-4 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="rounded-[6px] bg-amber-500/10 border border-amber-500/20 px-4 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <p className="text-xs text-amber-300">
               Resume parsed. Review candidate details below and confirm to lock
               in for automated submissions.
@@ -347,11 +349,11 @@ export function ProfileResumeCard({
                 : `▸ Show Previous Uploads (${previousCount})`}
             </button>
             {showHistory ? (
-              <div className="mt-2 divide-y divide-border border border-border rounded-[4px] overflow-hidden">
+              <div className="mt-2 divide-y divide-border border border-border rounded-[6px] overflow-hidden">
                 {previousItems.slice(0, 5).map((item) => (
                   <div
                     key={item.id}
-                    className="flex items-center justify-between px-3.5 py-2 text-xs bg-background hover:bg-neutral-900/30 transition-colors"
+                    className="flex items-center justify-between px-3.5 py-2 text-xs bg-transparent hover:bg-neutral-900/30 transition-colors"
                   >
                     <div className="flex min-w-0 items-center gap-2.5">
                       <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />

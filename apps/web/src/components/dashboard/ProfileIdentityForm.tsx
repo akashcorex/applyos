@@ -11,6 +11,7 @@ import {
 } from './profile-identity-helpers';
 import { FIELD_LABEL, TEXTAREA_CLASS } from './profile-types';
 import { ProfileCombobox } from './ProfileCombobox';
+import { SURFACE_CARD } from './surfaces';
 
 import type { ProfileIdentityPatch } from './profile-types';
 
@@ -37,7 +38,7 @@ export function ProfileIdentityForm({
     <section
       aria-label="Edit candidate identity"
       id="profile-identity"
-      className="w-full border-b border-border bg-background scroll-mt-6"
+      className={`w-full overflow-hidden ${SURFACE_CARD} scroll-mt-6`}
     >
       <form
         onSubmit={(e) => {
@@ -47,7 +48,7 @@ export function ProfileIdentityForm({
         }}
       >
         {/* ── Header Bar ────────────────────────────────────────── */}
-        <div className="flex items-center justify-between border-b border-border px-6 sm:px-8 py-3.5 bg-background">
+        <div className="flex items-center justify-between border-b border-border px-6 sm:px-8 py-3.5 bg-transparent">
           <div className="flex items-center gap-3">
             <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground font-mono">
               Edit Candidate Identity

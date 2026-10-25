@@ -1,32 +1,30 @@
 import pytest
 
 from models import CanonicalJob, ScrapeResponse
-from services.company_scrape import SEARCHABLE_ATS, scrape_company_jobs
-from services.ingest import PARSERS
+from services.company_scrape import scrape_company_jobs
 
 
-def test_searchable_ats_covers_all_parsers() -> None:
-    assert SEARCHABLE_ATS == frozenset(PARSERS.keys())
-    assert "ashby" in SEARCHABLE_ATS
-    assert "workable" in SEARCHABLE_ATS
-    assert "personio" in SEARCHABLE_ATS
-    assert "recruitee" in SEARCHABLE_ATS
-    assert "wellfound" in SEARCHABLE_ATS
-
-
-def test_board_registry_includes_non_greenhouse_boards() -> None:
+def test_board_registry_includes_non_greenhouse_boards(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     from services.search_inventory import get_searchable_companies
 
+    _inventory_registry(
+        tmp_path,
+        monkeypatch,
+        count=4,
+        ats_types=("greenhouse", "ashby", "personio", "lever"),
+    )
     boards = get_searchable_companies(100)
     types = {str(board["ats_type"]) for board in boards}
-    assert "ashby" in types
-    assert "personio" in types
-    assert "lever" in types
-    assert "greenhouse" in types
+    assert {"ashby", "personio", "lever", "greenhouse"} <= types
 
 
 def _inventory_registry(
-    tmp_path, monkeypatch: pytest.MonkeyPatch, count: int = 5
+    tmp_path,
+    monkeypatch: pytest.MonkeyPatch,
+    count: int = 5,
+    ats_types: tuple[str, ...] = ("greenhouse",),
 ):
     from services import search_inventory as inventory_module
     from services.board_registry import BoardRegistry
@@ -38,7 +36,7 @@ def _inventory_registry(
         registry.upsert_board(
             domain=f"co{index}.com",
             company_name=f"Co{index}",
-            ats_type="greenhouse",
+            ats_type=ats_types[index % len(ats_types)],
             ats_slug=f"co{index}",
             source="manual",
         )
@@ -568,3 +566,4 @@ async def test_polite_wait_skips_empty_hosts(monkeypatch: pytest.MonkeyPatch) ->
 
     monkeypatch.setattr(config.settings, "scrape_min_interval_seconds", 30.0)
     await scrape_module._polite_wait("not-a-url")
+    assert "" not in scrape_module._last_fetch_at

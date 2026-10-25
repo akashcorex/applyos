@@ -67,7 +67,7 @@ export function PublicProfileModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
       <div
-        className="modal-pop flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-[8px] border border-border bg-background shadow-2xl"
+        className="modal-pop flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-[10px] border border-border bg-background shadow-2xl"
         role="dialog"
         aria-modal="true"
         aria-label="Public profile preview"
@@ -84,7 +84,7 @@ export function PublicProfileModal({
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8 rounded-[6px] hover:bg-neutral-900/50 text-muted-foreground hover:text-foreground"
+            className="h-8 w-8 rounded-[8px] hover:bg-neutral-900/50 text-muted-foreground hover:text-foreground"
             onClick={onClose}
             aria-label="Close"
           >
@@ -125,7 +125,7 @@ export function PublicProfileModal({
           </div>
 
           {profile?.professionalSummary?.trim() ? (
-            <div className="rounded-[6px] border border-border/80 bg-neutral-900/20 p-3.5">
+            <div className="rounded-[8px] border border-border/80 bg-neutral-900/20 p-3.5">
               <p className="text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground mb-1.5">
                 Executive Summary
               </p>
@@ -144,7 +144,7 @@ export function PublicProfileModal({
                 {skills.map((skill, i) => (
                   <span
                     key={`${skill}-${i}`}
-                    className="inline-flex items-center rounded-[4px] border border-border bg-neutral-900/40 px-2 py-0.5 text-xs font-mono text-zinc-300"
+                    className="inline-flex items-center rounded-[6px] border border-border bg-neutral-900/40 px-2 py-0.5 text-xs font-mono text-zinc-300"
                   >
                     {skill}
                   </span>

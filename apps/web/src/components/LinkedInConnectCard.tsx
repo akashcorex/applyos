@@ -22,6 +22,8 @@ import {
 import { LinkedinIcon } from '@/components/icons/LinkedinIcon';
 import { appCallbackURL, authClient } from '@/lib/auth-client';
 
+import { SURFACE_CARD } from './dashboard/surfaces';
+
 interface AutomationSessionStatus {
   has_session: boolean;
   linkedin_authenticated: boolean;
@@ -161,8 +163,9 @@ export function LinkedInConnectCard() {
       : 'Login needed';
 
   return (
-    <div className="w-full bg-background text-foreground">
+    <div className="flex w-full flex-col gap-6 text-foreground">
       <PageHeader
+        variant="plain"
         title="Outreach"
         description="After the agent applies, it can reach out to people at that company on LinkedIn. Connect your account and choose what runs automatically."
         actions={
@@ -179,6 +182,7 @@ export function LinkedInConnectCard() {
       />
 
       <StatStrip
+        variant="island"
         loading={!automationLoaded && Boolean(session?.user?.id)}
         stats={[
           {
@@ -209,14 +213,18 @@ export function LinkedInConnectCard() {
         ]}
       />
 
-      <section aria-label="LinkedIn account" className="border-b border-border">
+      <section
+        aria-label="LinkedIn account"
+        className={`overflow-hidden ${SURFACE_CARD}`}
+      >
         <SectionHeader
+          variant="card"
           icon={ShieldCheck}
           title="LinkedIn Account"
           meta="Sign-in and browser session"
         />
         <div className="grid grid-cols-1 gap-px bg-border sm:grid-cols-2">
-          <div className="space-y-3 bg-background px-6 py-5">
+          <div className="space-y-3 bg-transparent px-6 py-5">
             <p className={FIELD_LABEL}>Sign in with LinkedIn</p>
             <p className="text-xs text-muted-foreground">
               Links LinkedIn to your ApplyOS account so you can sign in with it.
@@ -232,7 +240,7 @@ export function LinkedInConnectCard() {
             </Button>
           </div>
 
-          <div className="space-y-3 bg-background px-6 py-5">
+          <div className="space-y-3 bg-transparent px-6 py-5">
             <div className="flex items-center justify-between gap-2">
               <p className={FIELD_LABEL}>Automation session</p>
               {automationError ? (
@@ -261,7 +269,7 @@ export function LinkedInConnectCard() {
                   Run this once from the repo, then log in to LinkedIn in the
                   window that opens:
                 </p>
-                <pre className="overflow-x-auto rounded-[6px] border border-border bg-muted/30 px-3 py-2 font-mono text-[11px] text-foreground">
+                <pre className="overflow-x-auto rounded-[8px] border border-border bg-muted/30 px-3 py-2 font-mono text-[11px] text-foreground">
                   python apps/apply-agent/scripts/bootstrap_linkedin_session.py
                   --user-id {session?.user?.id ?? '<USER_ID>'}
                 </pre>
@@ -271,18 +279,22 @@ export function LinkedInConnectCard() {
         </div>
       </section>
 
-      <section aria-label="Outreach rules" className="border-b border-border">
+      <section
+        aria-label="Outreach rules"
+        className={`overflow-hidden ${SURFACE_CARD}`}
+      >
         <SectionHeader
+          variant="card"
           icon={Sliders}
           title="Outreach Rules"
           meta="Off until you opt in"
         />
         <div className="grid grid-cols-1 gap-px bg-border sm:grid-cols-2">
-          <div className="bg-background px-6 py-5">
+          <div className="bg-transparent px-6 py-5">
             <label className="flex cursor-pointer select-none items-start gap-3">
               <input
                 type="checkbox"
-                className="mt-0.5 h-4 w-4 cursor-pointer rounded-[3px] border-border bg-background text-foreground focus:ring-0"
+                className="mt-0.5 h-4 w-4 cursor-pointer rounded-[5px] border-border bg-background text-foreground focus:ring-0"
                 checked={connectsOn}
                 disabled={savingPreference !== null}
                 onChange={(event) =>
@@ -310,12 +322,12 @@ export function LinkedInConnectCard() {
             </label>
           </div>
 
-          <div className="space-y-3 bg-background px-6 py-5">
+          <div className="space-y-3 bg-transparent px-6 py-5">
             <p className={FIELD_LABEL}>How it works</p>
             <ol className="space-y-2">
               {STEPS.map((step, index) => (
                 <li key={step} className="flex items-start gap-2.5 text-xs">
-                  <span className="flex size-5 shrink-0 items-center justify-center rounded-[4px] border border-border font-mono text-[10px] text-muted-foreground">
+                  <span className="flex size-5 shrink-0 items-center justify-center rounded-[6px] border border-border font-mono text-[10px] text-muted-foreground">
                     {index + 1}
                   </span>
                   <span className="pt-0.5 text-muted-foreground">{step}</span>

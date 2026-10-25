@@ -10,6 +10,7 @@ import { LinkedinIcon } from '@/components/icons/LinkedinIcon';
 import { getSafeProfileLinks } from './profile-identity-helpers';
 import { ProfileAvatarRing } from './ProfileAvatarRing';
 import { SafeExternalLink } from './SafeExternalLink';
+import { SURFACE_CARD } from './surfaces';
 import { UserAvatar } from './UserAvatar';
 
 interface ProfileHeroProps {
@@ -59,7 +60,7 @@ export function ProfileHero({
   return (
     <section
       aria-label="Profile identity"
-      className="w-full border-b border-border bg-background px-6 py-5 sm:px-8 flex flex-col md:flex-row md:items-center md:justify-between gap-6"
+      className={`w-full overflow-hidden ${SURFACE_CARD} px-6 py-5 sm:px-8 flex flex-col md:flex-row md:items-center md:justify-between gap-6`}
     >
       <div className="flex flex-col sm:flex-row sm:items-center gap-5 min-w-0">
         {/* Avatar with clean hairline ring */}
@@ -133,7 +134,7 @@ export function ProfileHero({
                   key={label}
                   href={value}
                   aria-label={label}
-                  className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-[4px] border border-border bg-neutral-900/40 text-xs font-mono text-zinc-400 hover:text-foreground hover:border-neutral-700 transition-colors"
+                  className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-[6px] border border-border bg-neutral-900/40 text-xs font-mono text-zinc-400 hover:text-foreground hover:border-neutral-700 transition-colors"
                 >
                   <Icon className="h-3 w-3" />
                   <span>{label}</span>
@@ -149,7 +150,7 @@ export function ProfileHero({
         <Button
           size="sm"
           variant="outline"
-          className="h-8 rounded-[6px] border-border bg-background hover:bg-neutral-900 text-xs font-medium"
+          className="h-8 rounded-[8px] border-border bg-background hover:bg-neutral-900 text-xs font-medium"
           onClick={onViewPublic}
         >
           <ExternalLink className="mr-1.5 h-3.5 w-3.5 text-zinc-400" />
@@ -157,7 +158,7 @@ export function ProfileHero({
         </Button>
         <Button
           size="sm"
-          className="h-8 rounded-[6px] bg-foreground text-background hover:bg-zinc-200 text-xs font-medium"
+          className="h-8 rounded-[8px] bg-foreground text-background hover:bg-zinc-200 text-xs font-medium"
           onClick={onEdit}
         >
           Edit Profile

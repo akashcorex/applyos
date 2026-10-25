@@ -141,4 +141,4 @@ export const FIELD_LABEL =
   'block text-[11px] font-semibold text-slate-500 dark:text-[#8a8f9d] uppercase tracking-wider mb-1.5 font-mono';
 
 export const TEXTAREA_CLASS =
-  'flex min-h-24 w-full rounded-[6px] border border-border bg-card px-3 py-2 text-xs font-medium text-slate-900 dark:text-[#f1f3f9] shadow-sm transition-all duration-150 placeholder:text-slate-400 dark:placeholder:text-[#8a8f9d]/60 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-900 dark:focus-visible:ring-[#f1f3f9] focus-visible:border-slate-400 dark:focus-visible:border-[#424654] disabled:cursor-not-allowed disabled:opacity-50';
+  'flex min-h-24 w-full rounded-[8px] border border-border bg-card px-3 py-2 text-xs font-medium text-slate-900 dark:text-[#f1f3f9] shadow-sm transition-all duration-150 placeholder:text-slate-400 dark:placeholder:text-[#8a8f9d]/60 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-900 dark:focus-visible:ring-[#f1f3f9] focus-visible:border-slate-400 dark:focus-visible:border-[#424654] disabled:cursor-not-allowed disabled:opacity-50';

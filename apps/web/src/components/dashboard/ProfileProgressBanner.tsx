@@ -58,7 +58,7 @@ export function ProfileProgressBanner() {
         </p>
         <Link
           href={nextHref('upload-resume')}
-          className="shrink-0 rounded-[6px] bg-sky-400 px-3 py-1 text-xs font-semibold text-slate-950 hover:bg-sky-300 transition-colors"
+          className="shrink-0 rounded-[8px] bg-sky-400 px-3 py-1 text-xs font-semibold text-slate-950 hover:bg-sky-300 transition-colors"
         >
           Upload resume
         </Link>
@@ -76,7 +76,7 @@ export function ProfileProgressBanner() {
         </p>
         <Link
           href={nextHref('review')}
-          className="shrink-0 rounded-[6px] bg-amber-400 px-3 py-1 text-xs font-semibold text-slate-950 hover:bg-amber-300 transition-colors"
+          className="shrink-0 rounded-[8px] bg-amber-400 px-3 py-1 text-xs font-semibold text-slate-950 hover:bg-amber-300 transition-colors"
         >
           Review profile
         </Link>

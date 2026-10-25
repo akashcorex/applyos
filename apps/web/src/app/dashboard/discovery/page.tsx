@@ -5,8 +5,9 @@ import { PersistedDiscoveryPanel } from '@/components/PersistedDiscoveryPanel';
 
 export default function DiscoveryPage() {
   return (
-    <div className="w-full bg-background text-foreground">
+    <div className="flex w-full flex-col gap-6 text-foreground">
       <PageHeader
+        variant="plain"
         title="Discover Jobs"
         description="Live roles from company career pages, ranked against your profile. Apply in one click, or select several to tailor your resume first."
       />

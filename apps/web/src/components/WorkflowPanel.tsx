@@ -33,6 +33,8 @@ import {
   type Tone,
 } from '@/components/dashboard/PageChrome';
 
+import { SURFACE_CARD } from './dashboard/surfaces';
+
 type WorkflowStatus =
   | 'pending'
   | 'discovering_funding'
@@ -541,8 +543,9 @@ export function WorkflowPanel({
       : null;
 
   return (
-    <div className="w-full bg-background text-foreground">
+    <div className="flex w-full flex-col gap-6 text-foreground">
       <PageHeader
+        variant="plain"
         title="Job Tracker"
         description="Every agent run, step by step. Pause or stop a run, inspect what happened, and record the outcome of each application."
         actions={
@@ -561,6 +564,7 @@ export function WorkflowPanel({
       />
 
       <StatStrip
+        variant="island"
         loading={loading && workflows.length === 0}
         stats={[
           {
@@ -596,8 +600,9 @@ export function WorkflowPanel({
         ]}
       />
 
-      <section aria-label="Runs" className="border-b border-border">
+      <section aria-label="Runs" className={`overflow-hidden ${SURFACE_CARD}`}>
         <SectionHeader
+          variant="card"
           icon={Workflow}
           title="Runs"
           meta={workflows.length > 0 ? `${workflows.length} recent` : undefined}
@@ -775,7 +780,7 @@ export function WorkflowPanel({
                               <p className={FIELD_LABEL}>
                                 Applications · {detail.apply_tasks.length}
                               </p>
-                              <div className="max-h-[420px] divide-y divide-border/60 overflow-y-auto rounded-[6px] border border-border bg-background">
+                              <div className="max-h-[420px] divide-y divide-border/60 overflow-y-auto rounded-[8px] border border-border bg-background">
                                 {detail.apply_tasks.map((task) => (
                                   <div
                                     key={task.job_id}
@@ -908,7 +913,7 @@ export function WorkflowPanel({
                             <div className="space-y-2 bg-background px-6 py-4">
                               <p className={FIELD_LABEL}>Live events</p>
                               {events.length > 0 ? (
-                                <ol className="max-h-56 divide-y divide-border/60 overflow-y-auto rounded-[6px] border border-border">
+                                <ol className="max-h-56 divide-y divide-border/60 overflow-y-auto rounded-[8px] border border-border">
                                   {events.map((event) => {
                                     const timestamp = eventTimestamp(event);
                                     const detailText = eventDetail(event);
@@ -950,7 +955,7 @@ export function WorkflowPanel({
                                 {detail.discovered_jobs.length}
                               </p>
                               {detail.discovered_jobs.length > 0 ? (
-                                <ul className="max-h-56 divide-y divide-border/60 overflow-y-auto rounded-[6px] border border-border">
+                                <ul className="max-h-56 divide-y divide-border/60 overflow-y-auto rounded-[8px] border border-border">
                                   {detail.discovered_jobs.map((job) => (
                                     <li
                                       key={job.external_id}
@@ -988,7 +993,7 @@ export function WorkflowPanel({
                               >
                                 Errors · {detail.errors.length}
                               </p>
-                              <div className="max-h-32 divide-y divide-red-500/10 overflow-y-auto rounded-[6px] border border-red-500/20 bg-red-500/5">
+                              <div className="max-h-32 divide-y divide-red-500/10 overflow-y-auto rounded-[8px] border border-red-500/20 bg-red-500/5">
                                 {detail.errors.map((err, i) => (
                                   <p
                                     key={i}
@@ -1099,7 +1104,7 @@ function OutcomeSelect({
         Outcome
       </span>
       <select
-        className="h-7 rounded-[6px] border border-border bg-background px-1.5 text-xs text-foreground focus:border-neutral-500 focus:outline-none"
+        className="h-7 rounded-[8px] border border-border bg-background px-1.5 text-xs text-foreground focus:border-neutral-500 focus:outline-none"
         value={value ?? ''}
         onChange={(event) => {
           void handleChange(event.target.value);

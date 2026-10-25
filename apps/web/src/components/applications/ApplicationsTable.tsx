@@ -131,7 +131,7 @@ export function ApplicationsTable({
             key={i}
             className="flex animate-pulse items-center gap-3 px-6 py-3.5"
           >
-            <div className="size-7 rounded-[6px] bg-muted" />
+            <div className="size-7 rounded-[8px] bg-muted" />
             <div className="h-3 w-48 rounded bg-muted" />
             <div className="ml-auto h-3 w-16 rounded bg-muted" />
           </div>
@@ -210,7 +210,7 @@ export function ApplicationsTable({
                   <div className="flex items-center gap-3">
                     <span
                       aria-hidden="true"
-                      className="flex size-7 shrink-0 items-center justify-center rounded-[6px] border border-border bg-card text-[11px] font-semibold text-foreground"
+                      className="flex size-7 shrink-0 items-center justify-center rounded-[8px] border border-border bg-card text-[11px] font-semibold text-foreground"
                     >
                       {companyInitial(row.companyName)}
                     </span>
@@ -263,7 +263,7 @@ export function ApplicationsTable({
                       event.stopPropagation();
                       onOpen(row);
                     }}
-                    className="inline-flex size-7 items-center justify-center rounded-[6px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                    className="inline-flex size-7 items-center justify-center rounded-[8px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                   >
                     <ChevronRight className="size-4" />
                   </button>

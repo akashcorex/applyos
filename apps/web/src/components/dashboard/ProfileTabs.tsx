@@ -1,5 +1,7 @@
 'use client';
 
+import { SURFACE_CARD } from './surfaces';
+
 export type ProfileTab = 'overview' | 'activity';
 
 const TABS: { key: ProfileTab; label: string }[] = [
@@ -19,7 +21,7 @@ export function ProfileTabs({
     <div
       role="tablist"
       aria-label="Profile sections"
-      className="flex items-center gap-6 border-b border-border bg-background px-6 sm:px-8"
+      className={`flex w-fit items-center gap-1 ${SURFACE_CARD} p-1`}
     >
       {TABS.map(({ key, label }) => {
         const active = tab === key;
@@ -30,16 +32,13 @@ export function ProfileTabs({
             aria-selected={active}
             type="button"
             onClick={() => onChange(key)}
-            className={`relative py-3.5 text-xs font-medium tracking-tight transition-colors ${
+            className={`rounded-[7px] px-3.5 py-2 text-xs font-medium tracking-tight transition-colors ${
               active
-                ? 'text-foreground font-semibold'
+                ? 'bg-neutral-900 text-white shadow-xs dark:bg-neutral-800'
                 : 'text-muted-foreground hover:text-foreground'
             }`}
           >
             {label}
-            {active ? (
-              <span className="absolute inset-x-0 -bottom-px h-[2px] bg-foreground" />
-            ) : null}
           </button>
         );
       })}

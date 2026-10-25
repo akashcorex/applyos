@@ -40,7 +40,7 @@
     --chart-3: 0 0% 32.2%;
     --chart-4: 0 0% 25%;
     --chart-5: 0 0% 14.9%;
-    --radius: 0.625rem; /* 10px */
+    --radius: 0.875rem; /* 14px */
     --sidebar-background: 0 0% 98%;
     --sidebar-foreground: 0 0% 3.9%;
     --sidebar-primary: 0 0% 9.1%;
@@ -172,7 +172,7 @@
       var(--card-surface)
     );
     border: 1px solid var(--app-border);
-    border-radius: 0.625rem;
+    border-radius: 0.875rem;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
     transition:
       border-color 160ms ease,
@@ -194,7 +194,7 @@
   .linear-panel {
     background-color: var(--card-surface-inset);
     border: 1px solid var(--app-border-subtle);
-    border-radius: 8px;
+    border-radius: 12px;
   }
 
   .tactile-btn,

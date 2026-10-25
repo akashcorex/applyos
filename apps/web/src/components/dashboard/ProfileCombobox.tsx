@@ -215,7 +215,7 @@ export function ProfileCombobox({
         <ul
           id={listId}
           role="listbox"
-          className="absolute z-50 mt-1 max-h-56 w-full overflow-auto rounded-[6px] border border-slate-200 bg-white py-1 text-xs shadow-lg dark:border-border dark:bg-card"
+          className="absolute z-50 mt-1 max-h-56 w-full overflow-auto rounded-[8px] border border-slate-200 bg-white py-1 text-xs shadow-lg dark:border-border dark:bg-card"
         >
           {filtered.map((option, index) => (
             <li

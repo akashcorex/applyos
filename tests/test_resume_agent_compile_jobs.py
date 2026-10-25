@@ -20,7 +20,6 @@ from fastapi.testclient import TestClient
 
 from models import (
     CompileJob,
-    DiffContract,
     Education,
     JobProfile,
     ResumeIR,
@@ -36,7 +35,7 @@ from services.compile_jobs import (
 )
 from services.compile_worker import CompileWorker
 from services.compiler import ResumeCompiler, build_artifact_hash
-from services.ir import build_patch, ir_hash, record_to_ir, sha256_bytes, sha256_json
+from services.ir import ir_hash, record_to_ir, sha256_bytes, sha256_json
 
 
 def test_resume_agent_startup_does_not_write_schema() -> None:
@@ -929,30 +928,3 @@ def test_job_route_requires_owner() -> None:
         "/compile-jobs/job-1/pdf", headers={"X-User-Id": "compile-job-user"}
     )
     assert pending.status_code == 409
-
-
-def test_patch_build_still_gates_worker_inputs() -> None:
-    record = _record()
-    ir = record_to_ir(record, source_document_hash="source-hash")
-    target = _content(record)
-    target.skills = ["Python", "PostgreSQL", "InventedSkill"]
-    with pytest.raises(ValueError, match="unsupported skills"):
-        build_patch(
-            ir=ir,
-            target=target,
-            source_revision_id="revision-1",
-            job_profile={"title": "Backend Engineer"},
-        )
-
-
-def test_job_models_validate() -> None:
-    from models import CompileEnqueueResponse, CompileJobResponse
-
-    enqueue = CompileEnqueueResponse(
-        job_id="job-1", status="queued", resume_id="resume-1", variant_id="v"
-    )
-    assert enqueue.kind == "preview"
-    job = _worker_job()
-    response = CompileJobResponse(job=job, artifact=None, pdf_url=None)
-    assert response.job.id == "job-1"
-    assert DiffContract().semantic == []

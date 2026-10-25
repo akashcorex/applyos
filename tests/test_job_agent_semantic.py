@@ -265,6 +265,12 @@ async def test_semantic_rank_jobs_fallback_without_api_key(
     assert len(ranked) == 1
     assert ranked[0].semantic_score == 0.0
     assert isinstance(ranked[0], SemanticMatchResult)
+    result = ranked[0].score_result
+    assert result is not None
+    assert result.score == 0
+    assert result.confidence == "low"
+    assert "semantic" in result.not_evaluated
+    assert "embeddings" in result.reason
 
 
 @pytest.mark.asyncio
@@ -357,26 +363,3 @@ async def test_semantic_rank_keeps_senior_for_five_years(
         experience_years=5,
     )
     assert [job.title for job in ranked] == ["Senior Software Engineer"]
-
-
-@pytest.mark.asyncio
-async def test_unranked_jobs_carry_a_not_evaluated_score_result(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setattr(semantic_module.settings, "openai_api_key", "")
-
-    jobs = [_make_job("Backend Engineer", "Acme", seniority=None)]
-    ranked = await semantic_rank_jobs(
-        jobs,
-        skills=["Python"],
-        preferred_role="Engineer",
-        experience_years=5,
-    )
-
-    assert len(ranked) == 1
-    result = ranked[0].score_result
-    assert result is not None
-    assert result.score == 0
-    assert result.confidence == "low"
-    assert "semantic" in result.not_evaluated
-    assert "embeddings" in result.reason

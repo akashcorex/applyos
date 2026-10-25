@@ -99,7 +99,7 @@ export default function SecuritySettingsPage() {
               </div>
 
               <div className="pt-2 flex items-center gap-3">
-                <Button type="submit" size="sm" className="rounded-[6px]">
+                <Button type="submit" size="sm" className="rounded-[8px]">
                   {saved ? (
                     <>
                       <Check className="h-3.5 w-3.5 text-emerald-400" />
@@ -126,7 +126,7 @@ export default function SecuritySettingsPage() {
               </div>
             </CardHeader>
             <CardContent className="space-y-3 text-xs text-slate-500 dark:text-[#8a8f9d]">
-              <div className="p-2.5 rounded-[6px] bg-slate-50 dark:bg-[#0e0f12] border border-slate-200 dark:border-[#22242a] space-y-1">
+              <div className="p-2.5 rounded-[8px] bg-slate-50 dark:bg-[#0e0f12] border border-slate-200 dark:border-[#22242a] space-y-1">
                 <div className="flex items-center justify-between text-slate-900 dark:text-[#f1f3f9] font-medium">
                   <span>Current Browser</span>
                   <span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400">

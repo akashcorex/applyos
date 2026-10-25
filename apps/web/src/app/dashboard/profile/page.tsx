@@ -19,6 +19,7 @@ import {
   type ProfileTab,
 } from '@/components/dashboard/ProfileTabs';
 import { PublicProfileModal } from '@/components/dashboard/PublicProfileModal';
+import { SURFACE_CARD } from '@/components/dashboard/surfaces';
 import { authClient } from '@/lib/auth-client';
 
 async function fetchProfileBundle(): Promise<{
@@ -280,20 +281,24 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <div className="w-full bg-background animate-pulse">
-        <div className="h-28 w-full border-b border-border bg-neutral-900/30" />
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-border border-b border-border h-24 bg-neutral-900/10" />
-        <div className="h-10 w-full border-b border-border bg-neutral-900/20" />
-        <div className="h-44 w-full border-b border-border bg-neutral-900/20" />
-        <div className="h-64 w-full border-b border-border bg-neutral-900/20" />
+      <div className="flex w-full flex-col gap-6 animate-pulse">
+        <div className={`h-28 w-full ${SURFACE_CARD}`} />
+        <div className="grid w-full grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className={`h-24 ${SURFACE_CARD}`} />
+          ))}
+        </div>
+        <div className={`h-11 w-40 ${SURFACE_CARD}`} />
+        <div className={`h-44 w-full ${SURFACE_CARD}`} />
+        <div className={`h-64 w-full ${SURFACE_CARD}`} />
       </div>
     );
   }
 
   return (
-    <div className="w-full bg-background text-foreground ">
+    <div className="flex w-full flex-col gap-6 text-foreground">
       {loadError ? (
-        <div className="border-b border-red-500/20 bg-red-500/10 px-6 sm:px-8 py-3 text-xs font-mono text-red-400">
+        <div className="rounded-lg border border-red-500/20 bg-red-500/10 px-6 py-3 text-xs font-mono text-red-400">
           {loadError}
         </div>
       ) : null}
@@ -332,7 +337,7 @@ export default function ProfilePage() {
 
       {/* ── 4. Tab Content: Overview (Full-bleed, 1px lines) ───── */}
       {tab === 'overview' ? (
-        <div className="w-full bg-background">
+        <div className="flex w-full flex-col gap-6">
           <ProfileResumeCard
             resume={summary?.resume ?? null}
             history={history}
@@ -403,7 +408,7 @@ export default function ProfilePage() {
 
       {/* ── 5. Tab Content: Activity (Full-bleed, line-divided) ── */}
       {tab === 'activity' ? (
-        <div className="w-full bg-background">
+        <div className="flex w-full flex-col gap-6">
           {summary ? (
             <ProfileActivityHeatmap
               days={summary.activity.days}

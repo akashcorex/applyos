@@ -80,7 +80,7 @@ function NavLink({
 }) {
   const Icon = item.icon;
   const isActive = !item.onSelect && navActive(pathname, item.href);
-  const className = `group flex items-center rounded-[6px] text-sm font-normal transition-colors select-none ${
+  const className = `group flex items-center rounded-[8px] text-sm font-normal transition-colors select-none ${
     isCollapsed
       ? `size-9 justify-center p-0 ${
           isActive
@@ -100,7 +100,7 @@ function NavLink({
         <span className="min-w-0 flex-1 truncate text-left">{item.label}</span>
       )}
       {!isCollapsed && item.badge ? (
-        <span className="px-1.5 py-0.5 rounded-[3px] bg-neutral-800 text-[10px] font-mono text-zinc-300">
+        <span className="px-1.5 py-0.5 rounded-[5px] bg-neutral-800 text-[10px] font-mono text-zinc-300">
           {item.badge}
         </span>
       ) : null}
@@ -297,7 +297,7 @@ export function AppSidebar({
     <aside
       className={`${
         isCollapsed ? 'w-[52px]' : 'w-64'
-      } bg-sidebar text-sidebar-foreground flex flex-col h-full shrink-0 select-none font-sans border-r border-border`}
+      } bg-sidebar text-sidebar-foreground flex flex-col h-full shrink-0 select-none font-sans`}
     >
       <div
         className={`h-14 flex items-center shrink-0 border-b border-border ${
@@ -310,14 +310,14 @@ export function AppSidebar({
             onClick={onToggleCollapse}
             aria-label="Expand sidebar"
             title="Expand sidebar"
-            className="flex size-8 items-center justify-center rounded-[6px] border border-border bg-neutral-900/60 p-1 text-card-foreground shadow-none hover:border-neutral-700 transition-colors cursor-pointer group"
+            className="flex size-8 items-center justify-center rounded-[8px] border border-border bg-neutral-900/60 p-1 text-card-foreground shadow-none hover:border-neutral-700 transition-colors cursor-pointer group"
           >
             <Image
               src="/favicon.ico"
               alt="ApplyOS"
               width={18}
               height={18}
-              className="h-4 w-4 rounded-[3px] object-contain group-hover:hidden"
+              className="h-4 w-4 rounded-[5px] object-contain group-hover:hidden"
             />
             <PanelLeftOpen className="w-3.5 h-3.5 text-zinc-400 hidden group-hover:block" />
           </button>
@@ -341,7 +341,7 @@ export function AppSidebar({
                 onClick={onToggleCollapse}
                 aria-label="Collapse sidebar"
                 title="Collapse sidebar"
-                className="pressable h-8 w-8 rounded-[6px] flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent border border-transparent hover:border-border cursor-pointer shrink-0 group ml-1"
+                className="pressable h-8 w-8 rounded-[8px] flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent border border-transparent hover:border-border cursor-pointer shrink-0 group ml-1"
               >
                 <PanelLeftClose className="fine-hover-nudge w-3.5 h-3.5 transition-transform duration-150 ease-out-strong" />
               </button>
@@ -398,7 +398,7 @@ export function AppSidebar({
                 : `Upgrade to ${upgradeTargetLabel(billing?.plan ?? 'free')}`
             }
             aria-label="Change plan"
-            className="mb-1 flex size-9 items-center justify-center rounded-[6px] border border-border bg-neutral-900/60 text-zinc-300 transition-colors hover:border-neutral-700 hover:text-white"
+            className="mb-1 flex size-9 items-center justify-center rounded-[8px] border border-border bg-neutral-900/60 text-zinc-300 transition-colors hover:border-neutral-700 hover:text-white"
           >
             <Rocket className="size-4 shrink-0" />
           </Link>
@@ -407,7 +407,7 @@ export function AppSidebar({
           <Link
             href="/dashboard/settings/billing"
             onClick={onNavigate}
-            className="mb-1.5 block overflow-hidden rounded-[8px] bg-gradient-to-br from-emerald-500/25 via-teal-500/10 to-neutral-900 px-3 py-3.5 transition-all duration-200 hover:from-emerald-400/35 hover:via-teal-400/20"
+            className="mb-1.5 block overflow-hidden rounded-[10px] bg-gradient-to-br from-emerald-500/25 via-teal-500/10 to-neutral-900 px-3 py-3.5 transition-all duration-200 hover:from-emerald-400/35 hover:via-teal-400/20"
           >
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-mono uppercase tracking-wider text-emerald-200/70">
@@ -418,7 +418,7 @@ export function AppSidebar({
               <span className="truncate text-sm font-semibold text-foreground">
                 {upgradeTargetLabel(billing?.plan ?? 'free')}
               </span>
-              <span className="flex shrink-0 items-center gap-0.5 rounded-[5px] bg-neutral-100 px-1.5 py-0.5 text-[10px] font-semibold text-black">
+              <span className="flex shrink-0 items-center gap-0.5 rounded-[7px] bg-neutral-100 px-1.5 py-0.5 text-[10px] font-semibold text-black">
                 {isOnConqueror ? 'Manage' : 'Upgrade'}
                 <ArrowUpRight className="size-3" />
               </span>
@@ -428,7 +428,7 @@ export function AppSidebar({
         <div ref={accountRef} className="relative">
           {accountOpen ? (
             <div
-              className={`absolute z-30 mb-2 origin-bottom overflow-hidden rounded-[8px] border border-border bg-popover shadow-xl ${
+              className={`absolute z-30 mb-2 origin-bottom overflow-hidden rounded-[10px] border border-border bg-popover shadow-xl ${
                 isCollapsed
                   ? 'bottom-0 left-full ml-2 w-48 origin-bottom-left'
                   : 'bottom-full left-0 right-0'
@@ -494,7 +494,7 @@ export function AppSidebar({
             }
             className={`w-full flex items-center ${
               isCollapsed ? 'justify-center p-1' : 'gap-2.5 px-2.5 py-1.5'
-            } rounded-[6px] bg-transparent border border-transparent hover:bg-neutral-900 transition-colors cursor-pointer`}
+            } rounded-[8px] bg-transparent border border-transparent hover:bg-neutral-900 transition-colors cursor-pointer`}
           >
             <UserAvatar
               name={userName ?? 'User'}

@@ -6,6 +6,8 @@ import Link from 'next/link';
 
 import { ArrowDownRight, ArrowUpRight, Search } from '@applyso/ui/icons';
 
+import { SURFACE_CARD } from './surfaces';
+
 type IconType = ComponentType<{ className?: string }>;
 
 export function SearchField({
@@ -35,7 +37,7 @@ export function SearchField({
         onKeyDown={(event) => {
           if (event.key === 'Enter') onEnter?.();
         }}
-        className="h-8 w-full rounded-[6px] border border-border bg-background pl-8 pr-3 text-xs text-foreground transition-colors placeholder:text-muted-foreground focus:border-neutral-500 focus:outline-none"
+        className="h-8 w-full rounded-[8px] border border-border bg-background pl-8 pr-3 text-xs text-foreground transition-colors placeholder:text-muted-foreground focus:border-neutral-500 focus:outline-none"
       />
     </div>
   );
@@ -45,13 +47,21 @@ export function PageHeader({
   title,
   description,
   actions,
+  variant = 'attached',
 }: {
   title: string;
   description?: ReactNode;
   actions?: ReactNode;
+  variant?: 'attached' | 'plain';
 }) {
   return (
-    <div className="flex w-full flex-col gap-4 border-b border-border bg-background px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
+    <div
+      className={`flex w-full flex-col gap-4 sm:flex-row sm:items-center sm:justify-between ${
+        variant === 'plain'
+          ? ''
+          : 'border-b border-border bg-background px-6 py-5'
+      }`}
+    >
       <div className="min-w-0">
         <h1 className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
           {title}
@@ -74,14 +84,22 @@ export function SectionHeader({
   title,
   meta,
   actions,
+  variant = 'attached',
 }: {
   icon?: IconType;
   title: string;
   meta?: ReactNode;
   actions?: ReactNode;
+  variant?: 'attached' | 'card';
 }) {
   return (
-    <div className="flex flex-col gap-3 border-b border-border bg-background px-6 py-3.5 sm:flex-row sm:items-center sm:justify-between">
+    <div
+      className={`flex flex-col gap-3 px-6 py-3.5 sm:flex-row sm:items-center sm:justify-between ${
+        variant === 'card'
+          ? 'bg-transparent text-foreground'
+          : 'border-b border-border bg-background'
+      }`}
+    >
       <div className="flex min-w-0 items-center gap-2">
         {Icon ? <Icon className="size-4 shrink-0 text-primary" /> : null}
         <h2 className="truncate text-sm font-medium text-primary">{title}</h2>
@@ -129,7 +147,7 @@ function MicroBarSparkline({
           style={{
             height: `${max > 0 ? Math.max(12, (value / max) * 100) : 12}%`,
           }}
-          className={`w-[3.5px] rounded-[1px] ${BAR_COLORS[color]} ${
+          className={`w-[3.5px] rounded-[2px] ${BAR_COLORS[color]} ${
             value > 0 ? '' : 'opacity-30'
           }`}
         />
@@ -150,7 +168,15 @@ export interface Stat {
   href?: string;
 }
 
-function StatCell({ stat, loading }: { stat: Stat; loading: boolean }) {
+function StatCell({
+  stat,
+  loading,
+  detached = false,
+}: {
+  stat: Stat;
+  loading: boolean;
+  detached?: boolean;
+}) {
   const Icon = stat.icon;
   const tone = stat.deltaTone ?? 'neutral';
   const TrendIcon =
@@ -174,7 +200,7 @@ function StatCell({ stat, loading }: { stat: Stat; loading: boolean }) {
           <span className="truncate text-primary">{stat.label}</span>
         </div>
         {loading ? (
-          <div className="mt-3 h-7 w-16 animate-pulse rounded-[4px] bg-muted" />
+          <div className="mt-3 h-7 w-16 animate-pulse rounded-[6px] bg-muted" />
         ) : (
           <div className="mt-2 font-sans text-2xl font-semibold tracking-tight tabular-nums text-foreground sm:text-[28px]">
             {stat.value}
@@ -207,8 +233,9 @@ function StatCell({ stat, loading }: { stat: Stat; loading: boolean }) {
     </>
   );
 
-  const className =
-    'flex items-start justify-between bg-background p-5 sm:px-6 transition-colors hover:bg-muted/30';
+  const className = `flex items-start justify-between p-5 sm:px-6 transition-colors hover:bg-muted/30 ${
+    detached ? 'bg-transparent h-full' : 'bg-background'
+  }`;
   if (stat.href) {
     return (
       <Link href={stat.href} className={className}>
@@ -228,10 +255,30 @@ const STRIP_COLUMNS: Record<number, string> = {
 export function StatStrip({
   stats,
   loading = false,
+  variant = 'attached',
 }: {
   stats: Stat[];
   loading?: boolean;
+  variant?: 'attached' | 'island';
 }) {
+  if (variant === 'island') {
+    return (
+      <div
+        className={`grid w-full grid-cols-1 gap-4 ${
+          STRIP_COLUMNS[stats.length] ?? STRIP_COLUMNS[4]
+        }`}
+      >
+        {stats.map((stat) => (
+          <div
+            key={stat.label}
+            className={`overflow-hidden ${SURFACE_CARD} transition-colors`}
+          >
+            <StatCell stat={stat} loading={loading} detached={true} />
+          </div>
+        ))}
+      </div>
+    );
+  }
   return (
     <div
       className={`grid w-full grid-cols-1 gap-px border-b border-border bg-border ${
@@ -266,7 +313,7 @@ export function SegmentedControl<T extends string>({
     <div
       role="group"
       aria-label={label}
-      className="inline-flex max-w-full items-center overflow-x-auto rounded-[6px] border border-border bg-background p-0.5 text-xs"
+      className="inline-flex max-w-full items-center overflow-x-auto rounded-[8px] border border-border bg-background p-0.5 text-xs"
     >
       {options.map((option) => {
         const active = option.value === value;
@@ -276,7 +323,7 @@ export function SegmentedControl<T extends string>({
             type="button"
             aria-pressed={active}
             onClick={() => onChange(option.value)}
-            className={`flex shrink-0 items-center gap-1.5 rounded-[4px] px-2.5 py-1 text-[11px] font-medium transition-colors ${
+            className={`flex shrink-0 items-center gap-1.5 rounded-[6px] px-2.5 py-1 text-[11px] font-medium transition-colors ${
               active
                 ? 'bg-neutral-900 text-white shadow-xs dark:bg-neutral-800'
                 : 'text-muted-foreground hover:text-foreground'
@@ -325,7 +372,7 @@ export function StatusPill({
   return (
     <span
       title={title}
-      className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-[3px] border px-1.5 py-0.5 font-mono text-[10px] font-medium uppercase tracking-wide ${PILL_TONES[tone]}`}
+      className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-[5px] border px-1.5 py-0.5 font-mono text-[10px] font-medium uppercase tracking-wide ${PILL_TONES[tone]}`}
     >
       {pulse ? (
         <span className="size-1.5 animate-pulse rounded-full bg-current" />
@@ -350,15 +397,21 @@ export function NoticeBar({
   icon: Icon,
   children,
   action,
+  variant = 'attached',
 }: {
   tone?: Tone;
   icon?: IconType;
   children: ReactNode;
   action?: ReactNode;
+  variant?: 'attached' | 'island';
 }) {
   return (
     <div
-      className={`flex flex-col gap-3 border-b px-6 py-2.5 sm:flex-row sm:items-center ${NOTICE_TONES[tone]}`}
+      className={`flex flex-col gap-3 sm:flex-row sm:items-center ${
+        variant === 'island'
+          ? `rounded-lg border px-6 py-2.5 ${NOTICE_TONES[tone]}`
+          : `border-b px-6 py-2.5 ${NOTICE_TONES[tone]}`
+      }`}
     >
       {Icon ? <Icon className="size-4 shrink-0" /> : null}
       <div className="min-w-0 flex-1 text-xs font-medium">{children}</div>
@@ -380,7 +433,7 @@ export function EmptyState({
 }) {
   return (
     <div className="flex flex-col items-center justify-center gap-2 px-6 py-14 text-center">
-      <span className="flex size-9 items-center justify-center rounded-[8px] border border-border bg-card">
+      <span className="flex size-9 items-center justify-center rounded-[10px] border border-border bg-card">
         <Icon className="size-4 text-muted-foreground" />
       </span>
       <p className="mt-1 text-sm font-medium text-foreground">{title}</p>

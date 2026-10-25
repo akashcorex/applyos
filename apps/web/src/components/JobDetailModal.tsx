@@ -127,7 +127,7 @@ export function JobDetailModal({
           <div className="flex min-w-0 items-start gap-3">
             <span
               aria-hidden="true"
-              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] text-sm font-semibold ${accent.avatar}`}
+              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] text-sm font-semibold ${accent.avatar}`}
             >
               {companyInitial(job.companyName)}
             </span>

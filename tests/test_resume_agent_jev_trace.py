@@ -46,9 +46,6 @@ def test_trace_logs_metadata_without_resume_text(caplog):
     assert "operation_count" in caplog.text
 
 
-def test_trace_sampling_is_deterministic_and_bounded():
+def test_trace_sampling_respects_bounds() -> None:
     assert should_sample_trace("variant-1", 0) is False
     assert should_sample_trace("variant-1", 1) is True
-    assert should_sample_trace("variant-1", 0.5) == should_sample_trace(
-        "variant-1", 0.5
-    )

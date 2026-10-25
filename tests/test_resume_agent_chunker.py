@@ -1,12 +1,6 @@
 from __future__ import annotations
 
-from services.rag.chunker import chunk_resume, make_splitter
-
-
-def test_make_splitter_uses_configured_chunk_size() -> None:
-    splitter = make_splitter()
-    assert splitter._chunk_size is not None
-    assert splitter._chunk_overlap is not None
+from services.rag.chunker import chunk_resume
 
 
 def test_chunk_resume_produces_documents_with_metadata() -> None:

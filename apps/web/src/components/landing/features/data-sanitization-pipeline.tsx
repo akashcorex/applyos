@@ -109,7 +109,7 @@ export function DataSanitizationPipeline({
             {[0, 1, 2, 3, 4].map((i) => (
               <motion.span
                 key={i}
-                className="h-2 w-1.5 rounded-[1px] bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.9)]"
+                className="h-2 w-1.5 rounded-[2px] bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.9)]"
                 animate={{
                   opacity: [0.35, 1, 0.35],
                   scaleY: [0.85, 1.15, 0.85],

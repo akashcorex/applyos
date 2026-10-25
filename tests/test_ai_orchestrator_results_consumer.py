@@ -10,7 +10,7 @@ from models import (
     UserProfile,
     WorkflowStatus,
 )
-from services.results_consumer import ResultsConsumer
+from services.results_consumer import RESULTS_STREAM, ResultsConsumer
 from services.workflow_store import WorkflowStore
 
 
@@ -18,6 +18,7 @@ class FakeRedis:
     def __init__(self) -> None:
         self.data: dict[str, str] = {}
         self.streams: dict[str, list[dict]] = {}
+        self.acked: list[tuple[str, object]] = []
 
     async def get(self, key: str) -> str | None:
         return self.data.get(key)
@@ -52,13 +53,26 @@ class FakeRedis:
         self.streams.setdefault(stream, []).append(fields)
         return "1-1"
 
+    async def xack(self, stream: str, group: str, message_id: object) -> int:
+        self.acked.append((stream, message_id))
+        return 1
+
 
 @pytest.mark.asyncio
-async def test_results_consumer_ignores_non_apply_events() -> None:
+async def test_results_consumer_acks_unsupported_events() -> None:
     fake_redis = FakeRedis()
     store = WorkflowStore(fake_redis)
     consumer = ResultsConsumer(fake_redis, store, apply_client=AsyncMock())
-    await consumer.handle_message_for_test(json.dumps({"type": "other", "data": {}}))
+    await consumer._handle_stream_entries(
+        RESULTS_STREAM,
+        [
+            (
+                "1-1",
+                {"payload": json.dumps({"type": "other", "data": {}})},
+            )
+        ],
+    )
+    assert fake_redis.acked == [(RESULTS_STREAM, "1-1")]
 
 
 @pytest.mark.asyncio

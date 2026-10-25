@@ -36,6 +36,8 @@ import {
 } from '@/lib/application-stats';
 import { useApplications } from '@/lib/use-applications';
 
+import { SURFACE_CARD } from '../dashboard/surfaces';
+
 type Filter = ApplicationCategory | 'all';
 
 const FILTERS: Filter[] = [
@@ -100,8 +102,9 @@ function ApplicationsPanelContent() {
   );
 
   return (
-    <div className="w-full bg-background text-foreground">
+    <div className="flex w-full flex-col gap-6 text-foreground">
       <PageHeader
+        variant="plain"
         title="Applications"
         description="Every job the agent applies to. Watch it work live and step in when it needs you."
         actions={
@@ -116,6 +119,7 @@ function ApplicationsPanelContent() {
 
       {counts.attention > 0 ? (
         <NoticeBar
+          variant="island"
           tone="warning"
           icon={AlertTriangle}
           action={
@@ -139,12 +143,13 @@ function ApplicationsPanelContent() {
       ) : null}
 
       {error ? (
-        <NoticeBar tone="danger" icon={AlertTriangle}>
+        <NoticeBar variant="island" tone="danger" icon={AlertTriangle}>
           {error}
         </NoticeBar>
       ) : null}
 
       <StatStrip
+        variant="island"
         loading={loading && rows.length === 0}
         stats={[
           {
@@ -185,9 +190,10 @@ function ApplicationsPanelContent() {
 
       <section
         aria-label="Applications list"
-        className="border-b border-border"
+        className={`overflow-hidden ${SURFACE_CARD}`}
       >
         <SectionHeader
+          variant="card"
           icon={FileText}
           title={`${FILTER_LABELS[filter]} applications`}
           meta={`${filtered.length}`}
@@ -256,7 +262,7 @@ function ApplicationsPanelContent() {
 
 export function ApplicationsPanel() {
   return (
-    <Suspense fallback={<StatStrip loading stats={[]} />}>
+    <Suspense fallback={<StatStrip variant="island" loading stats={[]} />}>
       <ApplicationsPanelContent />
     </Suspense>
   );

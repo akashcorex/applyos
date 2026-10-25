@@ -38,6 +38,8 @@ import {
 import { fetchBillingMe, planLabel, type BillingMe } from '@/lib/billing';
 import { useApplications } from '@/lib/use-applications';
 
+import { SURFACE_CARD } from './surfaces';
+
 type Range = '7D' | '30D' | '90D';
 
 const RANGE_DAYS: Record<Range, number> = { '7D': 7, '30D': 30, '90D': 90 };
@@ -142,9 +144,10 @@ export function DashboardOverview() {
   const quotaOut = cycle ? cycle.remaining <= 0 : false;
 
   return (
-    <div className="w-full bg-background text-foreground">
+    <div className="flex w-full flex-col gap-6 text-foreground">
       {cycle ? (
         <NoticeBar
+          variant="island"
           tone={quotaOut ? 'warning' : 'neutral'}
           icon={Zap}
           action={
@@ -176,59 +179,67 @@ export function DashboardOverview() {
       ) : null}
 
       {error ? (
-        <NoticeBar tone="danger" icon={AlertTriangle}>
+        <NoticeBar variant="island" tone="danger" icon={AlertTriangle}>
           {error}
         </NoticeBar>
       ) : null}
 
-      <StatStrip stats={stats} loading={loading && rows.length === 0} />
-
-      <ActivityChart
-        title="Application Activity"
-        days={chart.days}
+      <StatStrip
+        variant="island"
+        stats={stats}
         loading={loading && rows.length === 0}
-        ranges={[
-          { value: '7D', label: '7D' },
-          { value: '30D', label: '30D' },
-          { value: '90D', label: '90D' },
-        ]}
-        range={range}
-        onRangeChange={setRange}
-        emptyLabel="No applications in this range yet"
-        series={[
-          {
-            key: 'started',
-            label: 'Started',
-            color: '#2563eb',
-            values: chart.started,
-          },
-          {
-            key: 'submitted',
-            label: 'Submitted',
-            color: '#10b981',
-            values: chart.submitted,
-          },
-          {
-            key: 'interviews',
-            label: 'Interviews',
-            color: '#ea580c',
-            values: chart.interviews,
-          },
-          {
-            key: 'failed',
-            label: 'Failed',
-            color: '#ef4444',
-            values: chart.failed,
-            fill: false,
-          },
-        ]}
       />
+
+      <div className={`overflow-hidden ${SURFACE_CARD}`}>
+        <ActivityChart
+          unframed
+          title="Application Activity"
+          days={chart.days}
+          loading={loading && rows.length === 0}
+          ranges={[
+            { value: '7D', label: '7D' },
+            { value: '30D', label: '30D' },
+            { value: '90D', label: '90D' },
+          ]}
+          range={range}
+          onRangeChange={setRange}
+          emptyLabel="No applications in this range yet"
+          series={[
+            {
+              key: 'started',
+              label: 'Started',
+              color: '#2563eb',
+              values: chart.started,
+            },
+            {
+              key: 'submitted',
+              label: 'Submitted',
+              color: '#10b981',
+              values: chart.submitted,
+            },
+            {
+              key: 'interviews',
+              label: 'Interviews',
+              color: '#ea580c',
+              values: chart.interviews,
+            },
+            {
+              key: 'failed',
+              label: 'Failed',
+              color: '#ef4444',
+              values: chart.failed,
+              fill: false,
+            },
+          ]}
+        />
+      </div>
 
       <section
         aria-label="Recent applications"
-        className="border-b border-border"
+        className={`overflow-hidden ${SURFACE_CARD}`}
       >
         <SectionHeader
+          variant="card"
           icon={FileText}
           title="Recent Applications"
           meta={rows.length > 0 ? `${rows.length} tracked` : undefined}

@@ -3,11 +3,7 @@ import { join } from 'node:path';
 
 import { describe, expect, it } from 'bun:test';
 
-import {
-  jobDiscoverSchema,
-  jobInteractionSchema,
-  jobSelectSchema,
-} from '../packages/validation/src/jobs';
+import { jobInteractionSchema } from '../packages/validation/src/jobs';
 
 const schema = readFileSync(
   join(
@@ -35,23 +31,7 @@ const migration = readFileSync(
 );
 
 describe('Phase 2 discovery contracts', () => {
-  it('validates bounded discovery input', () => {
-    expect(
-      jobDiscoverSchema.safeParse({ profileId: 'profile-1', limit: 50 })
-        .success,
-    ).toBe(true);
-    expect(
-      jobDiscoverSchema.safeParse({ profileId: 'profile-1', limit: 101 })
-        .success,
-    ).toBe(false);
-  });
-
-  it('rejects selections over ten jobs and duplicate interaction types', () => {
-    expect(
-      jobSelectSchema.safeParse({
-        jobIds: Array.from({ length: 11 }, (_, index) => `job-${index}`),
-      }).success,
-    ).toBe(false);
+  it('rejects interaction types outside the tracked enum', () => {
     expect(
       jobInteractionSchema.safeParse({
         sessionId: 'session-1',

@@ -226,7 +226,7 @@ function ContactForm({ pathname }: { pathname: string }) {
           onChange={(event) =>
             setTopic(event.target.value as (typeof TOPICS)[number])
           }
-          className="h-8 w-full rounded-[6px] border border-border bg-background px-2 text-xs text-foreground focus:border-neutral-500 focus:outline-none"
+          className="h-8 w-full rounded-[8px] border border-border bg-background px-2 text-xs text-foreground focus:border-neutral-500 focus:outline-none"
         >
           {TOPICS.map((item) => (
             <option key={item} value={item}>
@@ -245,7 +245,7 @@ function ContactForm({ pathname }: { pathname: string }) {
           onChange={(event) => setMessage(event.target.value)}
           rows={4}
           placeholder="Which job or run, what you expected, and what you saw instead."
-          className="w-full resize-y rounded-[6px] border border-border bg-background px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:border-neutral-500 focus:outline-none"
+          className="w-full resize-y rounded-[8px] border border-border bg-background px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:border-neutral-500 focus:outline-none"
         />
       </div>
       <label className="flex cursor-pointer select-none items-start gap-2.5">
@@ -253,7 +253,7 @@ function ContactForm({ pathname }: { pathname: string }) {
           type="checkbox"
           checked={diagnostics}
           onChange={(event) => setDiagnostics(event.target.checked)}
-          className="mt-0.5 h-3.5 w-3.5 cursor-pointer rounded-[3px] border-border bg-background focus:ring-0"
+          className="mt-0.5 h-3.5 w-3.5 cursor-pointer rounded-[5px] border-border bg-background focus:ring-0"
         />
         <span className="text-[11px] text-muted-foreground">
           Include diagnostics (current page, account ID, browser) so we can find
@@ -358,7 +358,7 @@ export function HelpPanel({
             type="button"
             onClick={onClose}
             aria-label="Close help"
-            className="flex size-8 items-center justify-center rounded-[6px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            className="flex size-8 items-center justify-center rounded-[8px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
           >
             <X className="size-4" />
           </button>
@@ -371,9 +371,9 @@ export function HelpPanel({
           >
             <p className={FIELD_LABEL}>Right now</p>
             {status === null ? (
-              <div className="h-9 animate-pulse rounded-[6px] bg-muted" />
+              <div className="h-9 animate-pulse rounded-[8px] bg-muted" />
             ) : (
-              <ul className="divide-y divide-border/60 rounded-[6px] border border-border">
+              <ul className="divide-y divide-border/60 rounded-[8px] border border-border">
                 {status.map((item) => {
                   const Icon = item.icon;
                   return (
@@ -418,7 +418,7 @@ export function HelpPanel({
                 No answers match. Ask us below.
               </p>
             ) : (
-              <div className="divide-y divide-border/60 rounded-[6px] border border-border">
+              <div className="divide-y divide-border/60 rounded-[8px] border border-border">
                 {answers.map((item) => (
                   <details key={item.q} className="group">
                     <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2.5 text-xs font-medium text-foreground transition-colors hover:bg-muted/30 [&::-webkit-details-marker]:hidden">
@@ -461,13 +461,13 @@ export function HelpPanel({
         <div className="flex shrink-0 items-center justify-between border-t border-border px-5 py-2.5 font-mono text-[10px] text-muted-foreground">
           <span>
             Press{' '}
-            <kbd className="rounded-[3px] border border-border bg-secondary px-1">
+            <kbd className="rounded-[5px] border border-border bg-secondary px-1">
               ?
             </kbd>{' '}
             to open help anywhere
           </span>
           <span>
-            <kbd className="rounded-[3px] border border-border bg-secondary px-1">
+            <kbd className="rounded-[5px] border border-border bg-secondary px-1">
               Esc
             </kbd>{' '}
             to close

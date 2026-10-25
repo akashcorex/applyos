@@ -9,7 +9,7 @@ const FeatureIcon = () => {
         className="relative mx-auto h-14 w-14 rounded-md bg-gradient-to-b from-neutral-800 to-neutral-950 p-[4px]"
         style={{ transform: 'rotateX(25deg)', transformOrigin: 'center' }}
       >
-        <div className="relative z-20 flex h-full w-full items-center justify-center overflow-hidden rounded-[5px] bg-black">
+        <div className="relative z-20 flex h-full w-full items-center justify-center overflow-hidden rounded-[7px] bg-black">
           <RiStackLine className="h-6 w-6 text-cyan-500" />
         </div>
 

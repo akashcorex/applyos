@@ -32,15 +32,7 @@ const segmentLabels: Record<string, string> = {
   system: 'System',
 };
 
-const FULL_BLEED_PATHS = new Set([
-  '/dashboard',
-  '/dashboard/admin',
-  '/dashboard/profile',
-  '/dashboard/discovery',
-  '/dashboard/applications',
-  '/dashboard/linkedin',
-  '/dashboard/workflows',
-]);
+const FULL_BLEED_PATHS = new Set(['/dashboard/admin']);
 
 function labelForSegment(segment: string): string {
   const mapped = segmentLabels[segment];
@@ -239,27 +231,28 @@ export default function DashboardAppLayout({
         </div>
       ) : null}
 
-      {/* Main Workspace Area — full-bleed pitch black, hairline divider */}
-      <div className="flex-1 flex flex-col h-full overflow-hidden bg-background text-foreground transition-colors duration-150">
-        {/* Single Unified Linear Header Bar */}
-        <DashboardHeader
-          trail={trail}
-          homeHref={isAdmin ? '/dashboard/admin' : '/dashboard'}
-          onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
-          onOpenHelp={openHelp}
-        />
+      {/* Main Workspace — floating rounded panel, separated from the sidebar by the shell gap */}
+      <div className="flex-1 min-w-0 h-full p-2">
+        <div className="flex h-full flex-col overflow-hidden rounded-lg border border-border bg-background text-foreground transition-colors duration-150">
+          {/* Single Unified Linear Header Bar */}
+          <DashboardHeader
+            trail={trail}
+            homeHref={isAdmin ? '/dashboard/admin' : '/dashboard'}
+            onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
+            onOpenHelp={openHelp}
+          />
 
-        {/* Scrollable Page Workspace */}
-        <main
-          className={`flex-1 overflow-y-auto bg-background transition-colors duration-150 ${
-            FULL_BLEED_PATHS.has(pathname) ||
-            pathname.startsWith('/dashboard/settings')
-              ? 'p-0 space-y-0'
-              : 'p-4 sm:p-6 lg:p-8 space-y-6'
-          }`}
-        >
-          {children}
-        </main>
+          {/* Scrollable Page Workspace — full-bleed inside the panel */}
+          <main
+            className={`flex-1 overflow-y-auto bg-background transition-colors duration-150 ${
+              FULL_BLEED_PATHS.has(pathname)
+                ? 'p-0 space-y-0'
+                : 'p-4 sm:p-6 lg:p-8 space-y-6'
+            }`}
+          >
+            {children}
+          </main>
+        </div>
       </div>
 
       <HelpPanel open={helpOpen} onClose={closeHelp} />

@@ -52,7 +52,7 @@ export function DashboardHeader({
           size="icon"
           aria-label="Toggle navigation sidebar"
           onClick={onToggleSidebar}
-          className="md:hidden h-8 w-8 rounded-[6px] [&_svg]:size-4"
+          className="md:hidden h-8 w-8 rounded-[8px] [&_svg]:size-4"
         >
           <Menu className="size-4" />
         </Button>
@@ -104,9 +104,9 @@ export function DashboardHeader({
             type="search"
             aria-label="Global search"
             placeholder="Search commands, jobs..."
-            className="w-full pl-8 pr-10 h-8 text-sm rounded-[6px] shadow-none border-border bg-transparent"
+            className="w-full pl-8 pr-10 h-8 text-sm rounded-[8px] shadow-none border-border bg-transparent"
           />
-          <kbd className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none inline-flex h-4 select-none items-center gap-1 rounded-[3px] border border-border bg-secondary px-1 font-mono text-[9px] font-semibold text-muted-foreground">
+          <kbd className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none inline-flex h-4 select-none items-center gap-1 rounded-[5px] border border-border bg-secondary px-1 font-mono text-[9px] font-semibold text-muted-foreground">
             ⌘K
           </kbd>
         </div>
@@ -120,7 +120,7 @@ export function DashboardHeader({
           aria-label="Help and support"
           title="Help and support (?)"
           onClick={onOpenHelp}
-          className="h-8 w-8 rounded-[6px] [&_svg]:size-4"
+          className="h-8 w-8 rounded-[8px] [&_svg]:size-4"
         >
           <HelpCircle className="size-4" />
         </Button>
@@ -129,7 +129,7 @@ export function DashboardHeader({
           variant="outline"
           size="icon"
           aria-label="Notifications"
-          className="h-8 w-8 rounded-[6px] [&_svg]:size-4"
+          className="h-8 w-8 rounded-[8px] [&_svg]:size-4"
         >
           <Bell className="size-4" />
         </Button>

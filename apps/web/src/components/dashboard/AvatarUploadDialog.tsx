@@ -276,7 +276,7 @@ export function AvatarUploadDialog({
               <button
                 type="button"
                 onClick={() => inputRef.current?.click()}
-                className="flex w-full items-center justify-center gap-2 rounded-[10px] border border-dashed border-border p-4 text-xs font-medium text-slate-600 dark:text-[#c5c8d2] transition-colors hover:border-slate-300 hover:border-muted-foreground/40 hover:bg-slate-50/60 dark:hover:bg-[#18191c]"
+                className="flex w-full items-center justify-center gap-2 rounded-[12px] border border-dashed border-border p-4 text-xs font-medium text-slate-600 dark:text-[#c5c8d2] transition-colors hover:border-slate-300 hover:border-muted-foreground/40 hover:bg-slate-50/60 dark:hover:bg-[#18191c]"
               >
                 <UploadCloud className="h-4 w-4 text-slate-400" />
                 Choose a photo

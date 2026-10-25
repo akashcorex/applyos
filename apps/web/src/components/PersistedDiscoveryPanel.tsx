@@ -42,6 +42,8 @@ import {
   jobAccent,
 } from '@/lib/job-visuals';
 
+import { SURFACE_CARD } from './dashboard/surfaces';
+
 const RENDER_BATCH = 20;
 const FETCH_BATCH = 20;
 
@@ -185,7 +187,7 @@ const JobCard = memo(function JobCard({
 
   return (
     <article
-      className="group flex h-full flex-col bg-background shadow-[1px_0_0_0_hsl(var(--border)),0_1px_0_0_hsl(var(--border))] transition-colors duration-150 hover:bg-muted/20"
+      className="group flex h-full flex-col bg-transparent shadow-[1px_0_0_0_hsl(var(--border)),0_1px_0_0_hsl(var(--border))] transition-colors duration-150 hover:bg-muted/20"
       style={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 300px' }}
     >
       <div className="flex flex-1 flex-col p-5 text-foreground">
@@ -193,7 +195,7 @@ const JobCard = memo(function JobCard({
           <div className="flex min-w-0 items-center gap-2">
             <span
               aria-hidden="true"
-              className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-[6px] text-[11px] font-semibold ${accent.avatar}`}
+              className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-[8px] text-[11px] font-semibold ${accent.avatar}`}
             >
               {companyInitial(job.companyName)}
             </span>
@@ -262,7 +264,7 @@ const JobCard = memo(function JobCard({
         {hasScore ? (
           <div className="mt-3 flex items-start gap-2">
             <span
-              className={`shrink-0 rounded-[3px] px-1.5 py-0.5 font-mono text-[10px] font-medium ${BAND_STYLES[scoreBand(job)]}`}
+              className={`shrink-0 rounded-[5px] px-1.5 py-0.5 font-mono text-[10px] font-medium ${BAND_STYLES[scoreBand(job)]}`}
               title={jobScoreTitle(job)}
             >
               {formatMatchScore(score)}
@@ -911,9 +913,10 @@ export function PersistedDiscoveryPanel() {
     'grid grid-cols-1 overflow-hidden sm:grid-cols-2 xl:grid-cols-3';
 
   return (
-    <div className="w-full bg-background text-foreground">
+    <div className="flex w-full flex-col gap-6 text-foreground">
       {!profileReady ? (
         <NoticeBar
+          variant="island"
           tone="warning"
           icon={AlertTriangle}
           action={
@@ -933,6 +936,7 @@ export function PersistedDiscoveryPanel() {
 
       {needsResume ? (
         <NoticeBar
+          variant="island"
           tone="warning"
           icon={FileUp}
           action={
@@ -950,12 +954,14 @@ export function PersistedDiscoveryPanel() {
       ) : null}
 
       {error ? (
-        <NoticeBar tone="danger" icon={AlertTriangle}>
+        <NoticeBar variant="island" tone="danger" icon={AlertTriangle}>
           <span role="alert">{error}</span>
         </NoticeBar>
       ) : null}
 
-      <div className="flex flex-col gap-2 border-b border-border px-6 py-3.5 sm:flex-row sm:items-center">
+      <div
+        className={`flex flex-col gap-2 ${SURFACE_CARD} px-6 py-3.5 sm:flex-row sm:items-center`}
+      >
         <SearchField
           value={query}
           onChange={setQuery}
@@ -969,7 +975,7 @@ export function PersistedDiscoveryPanel() {
             value={pack}
             onChange={(event) => setPack(event.target.value)}
             aria-label="Company pack"
-            className="h-8 flex-1 shrink-0 rounded-[6px] border border-border bg-background px-2 text-xs text-foreground focus:border-neutral-500 focus:outline-none sm:flex-none"
+            className="h-8 flex-1 shrink-0 rounded-[8px] border border-border bg-background px-2 text-xs text-foreground focus:border-neutral-500 focus:outline-none sm:flex-none"
           >
             <option value="">All companies</option>
             <option value="fintech">Fintech</option>
@@ -992,6 +998,7 @@ export function PersistedDiscoveryPanel() {
       </div>
 
       <StatStrip
+        variant="island"
         stats={[
           {
             label: 'Jobs Found',
@@ -1028,9 +1035,10 @@ export function PersistedDiscoveryPanel() {
       {displayFreshJobs.length > 0 ? (
         <section
           aria-label="New jobs for you"
-          className="border-b border-border"
+          className={`overflow-hidden ${SURFACE_CARD}`}
         >
           <SectionHeader
+            variant="card"
             icon={Sparkles}
             title="New for you"
             meta={
@@ -1055,8 +1063,12 @@ export function PersistedDiscoveryPanel() {
         </section>
       ) : null}
 
-      <section aria-label="Search results" className="border-b border-border">
+      <section
+        aria-label="Search results"
+        className={`overflow-hidden ${SURFACE_CARD}`}
+      >
         <SectionHeader
+          variant="card"
           icon={RiCompass3Line}
           title="Search results"
           meta={
@@ -1090,15 +1102,15 @@ export function PersistedDiscoveryPanel() {
                 className="flex animate-pulse flex-col p-5 shadow-[1px_0_0_0_hsl(var(--border)),0_1px_0_0_hsl(var(--border))]"
               >
                 <div className="flex items-center gap-2">
-                  <div className="h-7 w-7 rounded-[7px] bg-muted" />
+                  <div className="h-7 w-7 rounded-[9px] bg-muted" />
                   <div className="h-3 w-24 rounded bg-muted" />
                 </div>
                 <div className="mt-4 h-4 w-3/4 rounded bg-muted" />
                 <div className="mt-2 h-3 w-1/2 rounded bg-muted" />
                 <div className="mt-4 h-5 w-20 rounded-full bg-muted" />
                 <div className="mt-6 flex gap-2 border-t border-border/60 pt-3">
-                  <div className="h-7 flex-1 rounded-[6px] bg-muted" />
-                  <div className="h-7 w-20 rounded-[6px] bg-muted" />
+                  <div className="h-7 flex-1 rounded-[8px] bg-muted" />
+                  <div className="h-7 w-20 rounded-[8px] bg-muted" />
                 </div>
               </div>
             ))}

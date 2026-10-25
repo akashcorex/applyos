@@ -109,7 +109,7 @@ export default function AdminUsersPage() {
         <select
           value={role}
           onChange={(e) => setRole(e.target.value as AdminRole | '')}
-          className="h-8 rounded-[6px] border border-slate-200 dark:border-[#26282e] bg-slate-50 dark:bg-[#141518] px-2 text-xs"
+          className="h-8 rounded-[8px] border border-slate-200 dark:border-[#26282e] bg-slate-50 dark:bg-[#141518] px-2 text-xs"
         >
           <option value="">All roles</option>
           <option value="USER">USER</option>
@@ -118,7 +118,7 @@ export default function AdminUsersPage() {
         <select
           value={status}
           onChange={(e) => setStatus(e.target.value as AccountStatus | '')}
-          className="h-8 rounded-[6px] border border-slate-200 dark:border-[#26282e] bg-slate-50 dark:bg-[#141518] px-2 text-xs"
+          className="h-8 rounded-[8px] border border-slate-200 dark:border-[#26282e] bg-slate-50 dark:bg-[#141518] px-2 text-xs"
         >
           <option value="">All statuses</option>
           <option value="ACTIVE">ACTIVE</option>

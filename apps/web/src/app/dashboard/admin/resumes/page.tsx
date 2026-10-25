@@ -70,7 +70,7 @@ export default function AdminResumesPage() {
       <select
         value={status}
         onChange={(e) => setStatus(e.target.value as ResumeStatus | '')}
-        className="h-8 rounded-[6px] border border-slate-200 dark:border-[#26282e] bg-slate-50 dark:bg-[#141518] px-2 text-xs"
+        className="h-8 rounded-[8px] border border-slate-200 dark:border-[#26282e] bg-slate-50 dark:bg-[#141518] px-2 text-xs"
       >
         <option value="">All statuses</option>
         <option value="UPLOADED">UPLOADED</option>

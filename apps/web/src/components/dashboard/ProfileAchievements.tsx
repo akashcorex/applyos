@@ -40,7 +40,7 @@ export function ProfileAchievements({
         return (
           <div
             key={achievement.key}
-            className={`rounded-[12px] border p-4 transition-colors ${
+            className={`rounded-[14px] border p-4 transition-colors ${
               achievement.earned
                 ? 'border-cyan-500/25 bg-cyan-500/[0.04] dark:bg-cyan-500/[0.06]'
                 : 'border-border bg-card opacity-70'
@@ -48,7 +48,7 @@ export function ProfileAchievements({
           >
             <div className="flex items-center justify-between">
               <span
-                className={`flex h-8 w-8 items-center justify-center rounded-[8px] ${
+                className={`flex h-8 w-8 items-center justify-center rounded-[10px] ${
                   achievement.earned
                     ? 'bg-cyan-500/15 text-cyan-600 dark:text-cyan-400'
                     : 'bg-muted text-slate-400 dark:text-[#6b7080]'

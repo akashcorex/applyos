@@ -6,6 +6,8 @@ import { Button } from '@applyso/ui/button';
 import { Bot, Check, ShieldCheck, Sliders, Zap } from '@applyso/ui/icons';
 import { Input } from '@applyso/ui/input';
 
+import { SURFACE_CARD } from '@/components/dashboard/surfaces';
+
 export default function PreferencesSettingsPage() {
   const [dailyLimit, setDailyLimit] = useState('25');
   const [minScore, setMinScore] = useState('80');
@@ -56,9 +58,9 @@ export default function PreferencesSettingsPage() {
   }
 
   return (
-    <div className="w-full bg-background text-foreground ">
-      {/* ── 1. Page Header Bar (Full-bleed) ───────────────────── */}
-      <div className="w-full border-b border-border bg-background px-6 sm:px-8 py-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div className="flex w-full flex-col gap-6 text-foreground">
+      {/* ── 1. Page Header ───────────────────────────────────── */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-foreground font-sans">
             Agent Preferences & Limits
@@ -70,7 +72,7 @@ export default function PreferencesSettingsPage() {
         </div>
 
         <div className="flex items-center gap-2.5">
-          <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-[4px] border border-emerald-500/25 bg-emerald-500/10 text-emerald-400 text-xs font-mono">
+          <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-[6px] border border-emerald-500/25 bg-emerald-500/10 text-emerald-400 text-xs font-mono">
             <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
             ENGINE ACTIVE
           </span>
@@ -79,7 +81,7 @@ export default function PreferencesSettingsPage() {
             onClick={() => void handleSave()}
             size="sm"
             disabled={loading}
-            className="h-8 rounded-[6px] bg-foreground text-background hover:bg-zinc-200 text-xs font-mono font-medium"
+            className="h-8 rounded-[8px] bg-foreground text-background hover:bg-zinc-200 text-xs font-mono font-medium"
           >
             {saved ? (
               <>
@@ -94,8 +96,8 @@ export default function PreferencesSettingsPage() {
       </div>
 
       {/* ── 2. 4-Column KPI Summary Strip ─────────────────────── */}
-      <div className="w-full grid grid-cols-2 sm:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-border border-b border-border bg-background">
-        <div className="px-6 sm:px-8 py-4">
+      <div className="grid w-full grid-cols-2 gap-4 sm:grid-cols-4">
+        <div className={`${SURFACE_CARD} px-6 sm:px-8 py-4`}>
           <p className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground">
             Daily Cap
           </p>
@@ -107,7 +109,7 @@ export default function PreferencesSettingsPage() {
           </p>
         </div>
 
-        <div className="px-6 sm:px-8 py-4">
+        <div className={`${SURFACE_CARD} px-6 sm:px-8 py-4`}>
           <p className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground">
             Match Threshold
           </p>
@@ -119,7 +121,7 @@ export default function PreferencesSettingsPage() {
           </p>
         </div>
 
-        <div className="px-6 sm:px-8 py-4">
+        <div className={`${SURFACE_CARD} px-6 sm:px-8 py-4`}>
           <p className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground">
             Dispatch Mode
           </p>
@@ -131,7 +133,7 @@ export default function PreferencesSettingsPage() {
           </p>
         </div>
 
-        <div className="px-6 sm:px-8 py-4">
+        <div className={`${SURFACE_CARD} px-6 sm:px-8 py-4`}>
           <p className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground">
             Safety Guardrails
           </p>
@@ -144,13 +146,13 @@ export default function PreferencesSettingsPage() {
         </div>
       </div>
 
-      <form onSubmit={handleSave}>
+      <form onSubmit={handleSave} className="flex w-full flex-col gap-6">
         {/* ── 3. Section: Automation Throughput & Thresholds ───── */}
         <section
           aria-label="Automation throughput"
-          className="w-full border-b border-border bg-background"
+          className={`overflow-hidden ${SURFACE_CARD}`}
         >
-          <div className="flex items-center justify-between border-b border-border px-6 sm:px-8 py-3.5 bg-background">
+          <div className="flex items-center justify-between border-b border-border px-6 sm:px-8 py-3.5 bg-transparent">
             <div className="flex items-center gap-2">
               <Sliders className="size-4 text-primary" />
               <h2 className="text-sm font-medium text-primary">
@@ -220,9 +222,9 @@ export default function PreferencesSettingsPage() {
         {/* ── 4. Section: Dispatch Controls & Notifications ───── */}
         <section
           aria-label="Dispatch controls"
-          className="w-full border-b border-border bg-background"
+          className={`overflow-hidden ${SURFACE_CARD}`}
         >
-          <div className="flex items-center justify-between border-b border-border px-6 sm:px-8 py-3.5 bg-background">
+          <div className="flex items-center justify-between border-b border-border px-6 sm:px-8 py-3.5 bg-transparent">
             <div className="flex items-center gap-2">
               <Zap className="size-4 text-primary" />
               <h2 className="text-sm font-medium text-primary">
@@ -242,7 +244,7 @@ export default function PreferencesSettingsPage() {
                   checked={autoSubmitEnabled}
                   disabled={loading}
                   onChange={(e) => setAutoSubmitEnabled(e.target.checked)}
-                  className="mt-0.5 h-4 w-4 rounded-[3px] border-border bg-neutral-900/60 text-foreground focus:ring-0 cursor-pointer"
+                  className="mt-0.5 h-4 w-4 rounded-[5px] border-border bg-neutral-900/60 text-foreground focus:ring-0 cursor-pointer"
                 />
                 <div>
                   <span className="text-xs font-semibold text-foreground">
@@ -263,7 +265,7 @@ export default function PreferencesSettingsPage() {
                   type="checkbox"
                   checked={emailAlerts}
                   onChange={(e) => setEmailAlerts(e.target.checked)}
-                  className="mt-0.5 h-4 w-4 rounded-[3px] border-border bg-neutral-900/60 text-foreground focus:ring-0 cursor-pointer"
+                  className="mt-0.5 h-4 w-4 rounded-[5px] border-border bg-neutral-900/60 text-foreground focus:ring-0 cursor-pointer"
                 />
                 <div>
                   <span className="text-xs font-semibold text-foreground">
@@ -282,9 +284,9 @@ export default function PreferencesSettingsPage() {
         {/* ── 5. Section: Autonomous Engine Safety Guards ─────── */}
         <section
           aria-label="Engine safety guards"
-          className="w-full border-b border-border bg-background"
+          className={`overflow-hidden ${SURFACE_CARD}`}
         >
-          <div className="flex items-center justify-between border-b border-border px-6 sm:px-8 py-3.5 bg-background">
+          <div className="flex items-center justify-between border-b border-border px-6 sm:px-8 py-3.5 bg-transparent">
             <div className="flex items-center gap-2">
               <Bot className="size-4 text-primary" />
               <h2 className="text-sm font-medium text-primary">
@@ -305,7 +307,7 @@ export default function PreferencesSettingsPage() {
                     Duplicate Target Protection
                   </span>
                 </div>
-                <span className="px-1.5 py-0.5 text-[10px] font-mono rounded-[3px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                <span className="px-1.5 py-0.5 text-[10px] font-mono rounded-[5px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                   ENABLED
                 </span>
               </div>
@@ -323,7 +325,7 @@ export default function PreferencesSettingsPage() {
                     Human-Mimicking Rate Jitter
                   </span>
                 </div>
-                <span className="px-1.5 py-0.5 text-[10px] font-mono rounded-[3px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                <span className="px-1.5 py-0.5 text-[10px] font-mono rounded-[5px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                   ENABLED
                 </span>
               </div>
@@ -336,7 +338,9 @@ export default function PreferencesSettingsPage() {
         </section>
 
         {/* ── 6. Bottom Actions Bar ─────────────────────────────── */}
-        <div className="w-full border-b border-border bg-background px-6 sm:px-8 py-3.5 flex items-center justify-between">
+        <div
+          className={`${SURFACE_CARD} px-6 sm:px-8 py-3.5 flex items-center justify-between`}
+        >
           <p className="text-xs font-mono text-zinc-500">
             Changes take effect immediately on next automated runner cycle
           </p>
@@ -344,7 +348,7 @@ export default function PreferencesSettingsPage() {
             type="submit"
             size="sm"
             disabled={loading}
-            className="h-8 rounded-[6px] bg-foreground text-background hover:bg-zinc-200 text-xs font-mono font-medium"
+            className="h-8 rounded-[8px] bg-foreground text-background hover:bg-zinc-200 text-xs font-mono font-medium"
           >
             {saved ? (
               <>

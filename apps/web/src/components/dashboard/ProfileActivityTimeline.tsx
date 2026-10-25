@@ -9,6 +9,8 @@ import {
 } from '@applyso/ui/icons';
 import type { ProfileActivityKind } from '@applyso/validation';
 
+import { SURFACE_CARD } from './surfaces';
+
 import type { ProfileTimelineItem } from './profile-types';
 
 const KIND_ICON: Record<ProfileActivityKind, typeof FileText> = {
@@ -54,10 +56,10 @@ export function ProfileActivityTimeline({
   return (
     <section
       aria-label="Activity timeline"
-      className="w-full border-b border-border bg-background"
+      className={`w-full overflow-hidden ${SURFACE_CARD}`}
     >
       {/* ── Section Header ────────────────────────────────────── */}
-      <div className="flex items-center justify-between border-b border-border px-6 sm:px-8 py-3.5 bg-background">
+      <div className="flex items-center justify-between border-b border-border px-6 sm:px-8 py-3.5 bg-transparent">
         <div className="flex items-center gap-3">
           <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground font-mono">
             Activity Timeline
@@ -96,7 +98,7 @@ export function ProfileActivityTimeline({
                       className="flex items-center justify-between px-6 sm:px-8 py-3 text-xs bg-background hover:bg-neutral-900/30 transition-colors"
                     >
                       <div className="flex items-center gap-3 min-w-0">
-                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-[3px] border border-border bg-neutral-900/60">
+                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-[5px] border border-border bg-neutral-900/60">
                           <Icon className="h-3.5 w-3.5 text-zinc-400" />
                         </span>
                         <span className="truncate font-medium text-zinc-300">

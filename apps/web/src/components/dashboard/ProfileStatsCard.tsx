@@ -22,7 +22,7 @@ export function ProfileStatsCard({
   ];
 
   return (
-    <div className="rounded-[12px] border border-border bg-card p-4 sm:p-5">
+    <div className="rounded-[14px] border border-border bg-card p-4 sm:p-5">
       <p className="text-[11px] font-mono font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-[#8a8f9d]">
         ApplyOS stats
       </p>
