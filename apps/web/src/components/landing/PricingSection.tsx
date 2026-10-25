@@ -31,6 +31,7 @@ import {
   type BillingPlan,
 } from '@applyso/validation';
 
+import { planLabel } from '@/lib/billing';
 import { cn } from '@/lib/utils';
 
 import PricingIcon from './icons/pricingicon';
@@ -54,9 +55,9 @@ interface PlanCard {
 const PLANS: PlanCard[] = [
   {
     plan: 'starter',
-    description: 'For focused searches that still need real submissions.',
-    cta: 'Start free',
-    listLabel: 'Starter includes:',
+    description: 'Your job search starts here.',
+    cta: 'Choose Scout',
+    listLabel: 'Scout includes:',
     features: [
       {
         icon: Zap,
@@ -73,10 +74,10 @@ const PLANS: PlanCard[] = [
   },
   {
     plan: 'pro',
-    description: 'Higher volume for active job searches.',
-    cta: 'Upgrade to Pro',
+    description: 'Lock in and level up your search.',
+    cta: 'Upgrade to Ace',
     featured: true,
-    listLabel: 'Everything in Starter, plus:',
+    listLabel: 'Everything in Scout, plus:',
     features: [
       {
         icon: Zap,
@@ -90,9 +91,9 @@ const PLANS: PlanCard[] = [
   },
   {
     plan: 'power',
-    description: 'Maximum throughput when you are applying at scale.',
-    cta: 'Choose Power',
-    listLabel: 'Everything in Pro, plus:',
+    description: 'Full send on your job hunt.',
+    cta: 'Choose Conqueror',
+    listLabel: 'Everything in Ace, plus:',
     features: [
       {
         icon: Zap,
@@ -206,8 +207,8 @@ function PricingSection() {
                   </span>
                 ) : null}
                 <div className="rounded-xl border border-neutral-800/70 bg-black/40 p-6">
-                  <h3 className="text-lg font-semibold capitalize text-white">
-                    {plan}
+                  <h3 className="text-lg font-semibold text-white">
+                    {planLabel(plan)}
                   </h3>
                   <p className="mt-1 min-h-10 text-sm leading-relaxed text-neutral-400">
                     {description}

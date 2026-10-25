@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
 import {
+  ArrowUpRight,
   ChevronDown,
   PanelLeftClose,
   PanelLeftOpen,
@@ -23,11 +24,18 @@ import {
   RiShieldKeyholeLine,
   RiStackLine,
   RiUser3Line,
+  Rocket,
+  Sparkles,
 } from '@applyso/ui/icons';
 
 import { UserAvatar } from '@/components/dashboard/UserAvatar';
 import { authClient } from '@/lib/auth-client';
-import { fetchBillingMe, planLabel, type BillingMe } from '@/lib/billing';
+import {
+  fetchBillingMe,
+  planLabel,
+  upgradeTargetLabel,
+  type BillingMe,
+} from '@/lib/billing';
 
 interface AppSidebarProps {
   userName?: string | null;
@@ -245,9 +253,22 @@ export function AppSidebar({
     onSelect: onOpenHelp,
   };
 
+  const isOnConqueror =
+    billing?.plan === 'power' && billing.status === 'active';
+
   const accountItems: NavItem[] = isAdminNav
     ? []
     : [
+        {
+          href: '/dashboard/profile',
+          label: 'Profile',
+          icon: RiUser3Line,
+        },
+        {
+          href: '/dashboard/settings/billing',
+          label: isOnConqueror ? 'Manage plan' : 'Upgrade plan',
+          icon: Sparkles,
+        },
         {
           href: '/dashboard/settings/preferences',
           label: 'Settings',
@@ -365,43 +386,45 @@ export function AppSidebar({
         ) : null}
       </nav>
 
-      {/* ── Bottom Section (Profile, Settings, User Account) ──── */}
-      <div
-        className={`${
-          isCollapsed ? 'p-1.5' : 'px-2 py-2'
-        } bg-sidebar border-t border-border`}
-      >
-        {isAdminNav ? null : (
-          <ul className="mb-2 flex flex-col gap-1 border-b border-border pb-2">
-            <NavLink
-              item={{
-                href: '/dashboard/profile',
-                label: 'Profile',
-                icon: RiUser3Line,
-              }}
-              pathname={pathname}
-              isCollapsed={isCollapsed}
-              onNavigate={onNavigate}
-            />
-            <NavLink
-              item={{
-                href: '/dashboard/settings/preferences',
-                label: 'Settings',
-                icon: RiSettings3Line,
-              }}
-              pathname={pathname}
-              isCollapsed={isCollapsed}
-              onNavigate={onNavigate}
-            />
-            <NavLink
-              item={helpItem}
-              pathname={pathname}
-              isCollapsed={isCollapsed}
-              onNavigate={onNavigate}
-            />
-          </ul>
-        )}
-
+      {/* ── Bottom Section (User Account) ─────────────────────── */}
+      <div className={`${isCollapsed ? 'p-1.5' : 'px-2 py-2'} bg-sidebar`}>
+        {!isAdminNav && isCollapsed ? (
+          <Link
+            href="/dashboard/settings/billing"
+            onClick={onNavigate}
+            title={
+              isOnConqueror
+                ? `${planLabel('power')} plan · manage`
+                : `Upgrade to ${upgradeTargetLabel(billing?.plan ?? 'free')}`
+            }
+            aria-label="Change plan"
+            className="mb-1 flex size-9 items-center justify-center rounded-[6px] border border-border bg-neutral-900/60 text-zinc-300 transition-colors hover:border-neutral-700 hover:text-white"
+          >
+            <Rocket className="size-4 shrink-0" />
+          </Link>
+        ) : null}
+        {!isAdminNav && !isCollapsed ? (
+          <Link
+            href="/dashboard/settings/billing"
+            onClick={onNavigate}
+            className="mb-1.5 block overflow-hidden rounded-[8px] bg-gradient-to-br from-emerald-500/25 via-teal-500/10 to-neutral-900 px-3 py-3.5 transition-all duration-200 hover:from-emerald-400/35 hover:via-teal-400/20"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-mono uppercase tracking-wider text-emerald-200/70">
+                {isOnConqueror ? 'Plan' : 'Upgrade'}
+              </span>
+            </div>
+            <div className="mt-2 flex items-center justify-between gap-2">
+              <span className="truncate text-sm font-semibold text-foreground">
+                {upgradeTargetLabel(billing?.plan ?? 'free')}
+              </span>
+              <span className="flex shrink-0 items-center gap-0.5 rounded-[5px] bg-neutral-100 px-1.5 py-0.5 text-[10px] font-semibold text-black">
+                {isOnConqueror ? 'Manage' : 'Upgrade'}
+                <ArrowUpRight className="size-3" />
+              </span>
+            </div>
+          </Link>
+        ) : null}
         <div ref={accountRef} className="relative">
           {accountOpen ? (
             <div

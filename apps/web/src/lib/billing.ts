@@ -33,11 +33,21 @@ export interface BillingMe {
   invoices: BillingInvoice[];
 }
 
+export const PLAN_TIER_NAMES = {
+  free: 'Rookie',
+  starter: 'Scout',
+  pro: 'Ace',
+  power: 'Conqueror',
+} as const;
+
 export function planLabel(plan: BillingMe['plan']): string {
-  if (plan === 'free') return 'Free';
-  if (plan === 'starter') return 'Starter';
-  if (plan === 'pro') return 'Pro';
-  return 'Power';
+  return PLAN_TIER_NAMES[plan];
+}
+
+export function upgradeTargetLabel(plan: BillingMe['plan']): string {
+  if (plan === 'free') return PLAN_TIER_NAMES.starter;
+  if (plan === 'starter') return PLAN_TIER_NAMES.pro;
+  return PLAN_TIER_NAMES.power;
 }
 
 export function statusLabel(status: string): string {
