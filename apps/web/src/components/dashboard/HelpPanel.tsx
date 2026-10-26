@@ -23,7 +23,7 @@ import { SearchField, type Tone } from '@/components/dashboard/PageChrome';
 import { authClient } from '@/lib/auth-client';
 import { fetchBillingMe } from '@/lib/billing';
 import type { MeResponse } from '@/lib/proxy-session';
-import { canApplyFromMe } from '@/lib/require-resume';
+import { canApplyFromMe, hasResumeFromMe } from '@/lib/require-resume';
 
 const SUPPORT_EMAIL = 'support@applyos.in';
 
@@ -130,13 +130,21 @@ function useHelpStatus(open: boolean): StatusItem[] | null {
       ]);
       if (cancelled) return;
       const next: StatusItem[] = [];
-      if (me && !canApplyFromMe(me)) {
+      if (me && !hasResumeFromMe(me)) {
         next.push({
           tone: 'warning',
           icon: FileUp,
           text: 'Upload a resume so the agent can start applying.',
           href: '/dashboard/profile',
           cta: 'Upload resume',
+        });
+      } else if (me && !canApplyFromMe(me)) {
+        next.push({
+          tone: 'warning',
+          icon: CheckCircle2,
+          text: 'Confirm your profile so the agent can start applying.',
+          href: '/dashboard/profile',
+          cta: 'Open profile',
         });
       }
       if (attention > 0) {

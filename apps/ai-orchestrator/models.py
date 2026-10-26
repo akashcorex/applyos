@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from enum import Enum
-from typing import Literal
+from typing import Literal, get_args
 
-from pydantic import BaseModel, Field, HttpUrl
+from pydantic import BaseModel, Field, HttpUrl, field_validator
 
 from services.score_contract import ScoreResult
 
@@ -78,6 +78,15 @@ class DirectApplyJob(BaseModel):
     dedup_key: str | None = None
     cv_data: CVData | None = None
     resume_variant_id: str | None = None
+
+    @field_validator("source", mode="before")
+    @classmethod
+    def coerce_source(cls, value: object) -> object:
+        if value in (None, ""):
+            return None
+        if isinstance(value, str) and value in get_args(AtsType):
+            return value
+        return None
 
 
 class StartWorkflowRequest(BaseModel):

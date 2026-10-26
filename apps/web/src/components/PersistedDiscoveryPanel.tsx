@@ -33,6 +33,7 @@ import {
   StatusPill,
 } from '@/components/dashboard/PageChrome';
 import { JobDetailModal } from '@/components/JobDetailModal';
+import { applyErrorMessage } from '@/lib/apply-error';
 import { authClient } from '@/lib/auth-client';
 import {
   BAND_STYLES,
@@ -119,20 +120,6 @@ function jobScoreTitle(job: Job): string | undefined {
 function scoreBand(job: Job): ScoreResult['band'] {
   if (job.scoreResult?.band) return job.scoreResult.band;
   return bandFromScore(jobScore(job));
-}
-
-function applyErrorMessage(
-  status: number,
-  data: { error?: string; reason?: string } | null,
-): string {
-  if (data?.reason === 'quota_exceeded') {
-    return 'You have used all your applications for now. Get more on Plans & Billing.';
-  }
-  if (status === 404) return 'This posting looks closed or unreachable.';
-  if (status === 422) return 'Add a resume before applying.';
-  if (status === 502)
-    return 'Apply service is unreachable. Try again in a moment.';
-  return data?.error ?? 'Could not start this application. Try again.';
 }
 
 interface DiscoveryResponse {
@@ -824,8 +811,9 @@ export function PersistedDiscoveryPanel() {
           }),
         });
         const data = (await response.json().catch(() => null)) as {
-          error?: string;
+          error?: unknown;
           reason?: string;
+          code?: string;
         } | null;
 
         if (response.ok) {
@@ -847,7 +835,9 @@ export function PersistedDiscoveryPanel() {
           return;
         }
 
-        if (response.status === 422) setNeedsResume(true);
+        if (data?.code === 'RESUME_REQUIRED') {
+          setNeedsResume(true);
+        }
         setApplyErrors((current) => ({
           ...current,
           [job.id]: applyErrorMessage(response.status, data),

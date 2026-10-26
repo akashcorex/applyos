@@ -67,6 +67,7 @@ Thumbs.db
 
 # Apply-agent Playwright failure dumps
 apps/apply-agent/.apply-debug/
+apps/apply-agent/.fortress/
 
 # Resume-agent uploaded files
 apps/resume-agent/uploads/

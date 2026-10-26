@@ -1,5 +1,5 @@
+import { asDisplayError } from '@/lib/apply-error';
 import { isPostingAlive } from '@/lib/job-liveness';
-import { requireHasResume } from '@/lib/require-resume';
 import { assertResumeOwner, requireUserId } from '@/lib/require-user';
 
 const RESUME_AGENT_URL =
@@ -115,8 +115,6 @@ export async function POST(request: Request) {
   try {
     const userOrErr = await requireUserId(request);
     if (userOrErr instanceof Response) return userOrErr;
-    const resumeGate = await requireHasResume(request);
-    if (resumeGate instanceof Response) return resumeGate;
     const sessionUserId = userOrErr;
 
     const body = await request.json();
@@ -231,7 +229,12 @@ export async function POST(request: Request) {
       if (!matchRes.ok) {
         const err = await matchRes.json().catch(() => ({}));
         return Response.json(
-          { error: err.detail || 'Failed to match jobs' },
+          {
+            error: asDisplayError(
+              err.detail ?? err.error,
+              'Failed to match jobs',
+            ),
+          },
           { status: matchRes.status },
         );
       }
@@ -456,8 +459,10 @@ export async function POST(request: Request) {
     if (!durableRes.ok || typeof durableData.workflowId !== 'string') {
       return Response.json(
         {
-          ...durableData,
-          error: durableData.error || 'Failed to create durable workflow',
+          error: asDisplayError(
+            durableData.error ?? durableData.detail,
+            'Failed to create durable workflow',
+          ),
         },
         { status: durableRes.status || 502 },
       );
@@ -478,9 +483,10 @@ export async function POST(request: Request) {
     if (queuedJobs.length === 0) {
       return Response.json(
         {
-          error:
-            durableData.error ||
+          error: asDisplayError(
+            durableData.error,
             'Those jobs were already applied or are still in progress',
+          ),
           skipped: durableData.skipped ?? [],
         },
         { status: 409 },
@@ -518,10 +524,10 @@ export async function POST(request: Request) {
           body: JSON.stringify({
             status: 'failed',
             eventType: 'workflow.error',
-            errorDetail:
-              workflowData.detail ||
-              workflowData.error ||
+            errorDetail: asDisplayError(
+              workflowData.detail ?? workflowData.error,
               'Failed to start orchestrator',
+            ),
           }),
           signal: AbortSignal.timeout(10000),
         },
@@ -530,10 +536,10 @@ export async function POST(request: Request) {
     if (!workflowRes.ok) {
       return Response.json(
         {
-          error:
-            workflowData.detail ||
-            workflowData.error ||
+          error: asDisplayError(
+            workflowData.detail ?? workflowData.error,
             'Failed to start apply workflow',
+          ),
         },
         { status: workflowRes.status },
       );

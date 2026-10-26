@@ -8,7 +8,7 @@ import { CircleCheck, FileUp } from '@applyso/ui/icons';
 import type { ProfileCompletion } from '@applyso/validation';
 
 import type { MeResponse } from '@/lib/proxy-session';
-import { canApplyFromMe } from '@/lib/require-resume';
+import { hasResumeFromMe } from '@/lib/require-resume';
 
 function nextHref(action: ProfileCompletion['nextAction']): string {
   if (action === 'upload-resume' || action === 'review') {
@@ -46,7 +46,7 @@ export function ProfileProgressBanner() {
 
   const completion = me.completion;
   const action = completion?.nextAction;
-  const hasResume = canApplyFromMe(me);
+  const hasResume = hasResumeFromMe(me);
 
   if (action === 'upload-resume' || !hasResume) {
     return (
