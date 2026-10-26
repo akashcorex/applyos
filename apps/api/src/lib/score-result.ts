@@ -15,9 +15,16 @@ export function storedScoreResult(
   value: unknown,
   score?: number | null,
   reason?: string | null,
+  context?: string,
 ): ScoreResult {
   const normalized = normalizeScoreResult(value);
   if (normalized) return normalized;
+  if (value != null) {
+    // A stored result that is present but unparseable is a bug, not a legacy row.
+    console.warn(
+      `[score] stored ScoreResult failed validation${context ? ` (${context})` : ''}`,
+    );
+  }
   if (typeof score === 'number' && Number.isFinite(score)) {
     return legacyScoreResult(score, reason?.trim() || undefined);
   }

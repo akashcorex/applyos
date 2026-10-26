@@ -64,6 +64,13 @@ def evaluate_job(
         )
 
     score_result = score_job(job, profile)
+    if score_result.decision == "skip":
+        return PolicyVerdict(
+            False,
+            f"score decision skip: {score_result.reason or 'a critical dimension fell below the floor'}",
+            score=score_result.score,
+            score_result=score_result,
+        )
     return PolicyVerdict(
         True,
         "eligible",

@@ -12,7 +12,6 @@ from services.semantic_match import (
     JobExplanation,
     JobExplanations,
 )
-from services.score_contract import score_band
 from services.skill_utils import infer_skill_overlap, match_skills_in_text
 
 
@@ -77,10 +76,18 @@ async def test_semantic_rank_jobs_with_embeddings(monkeypatch: pytest.MonkeyPatc
 
     for job in ranked:
         assert job.score_result is not None
-        assert job.score_result.band == score_band(job.semantic_score * 100)
-        assert {c.name for c in job.score_result.components} >= {"text", "title"}
-        contribution = sum(c.contribution for c in job.score_result.components)
-        assert abs(contribution - job.score_result.score) <= 0.2
+        names = {d.name for d in job.score_result.dimensions}
+        assert names >= {"text", "title", "skills", "seniority", "work_mode"}
+        assert job.score_result.decision in {"apply", "maybe", "skip"}
+        assert job.score_result.band in {
+            "strong",
+            "good",
+            "moderate",
+            "weak",
+            "poor",
+        }
+        # The band is a projection of the decision, never of the raw score.
+        assert job.score_result.score == round((job.score_result.rating or 0) * 20)
         assert job.score_result.confidence in {"high", "medium", "low"}
 
 

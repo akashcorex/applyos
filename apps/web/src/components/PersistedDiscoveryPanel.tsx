@@ -33,6 +33,11 @@ import {
   StatusPill,
 } from '@/components/dashboard/PageChrome';
 import { JobDetailModal } from '@/components/JobDetailModal';
+import {
+  DECISION_RANK,
+  decisionFromScore,
+  type MatchDecision,
+} from '@/lib/application-stats';
 import { applyErrorMessage } from '@/lib/apply-error';
 import { authClient } from '@/lib/auth-client';
 import {
@@ -49,20 +54,24 @@ const RENDER_BATCH = 20;
 const FETCH_BATCH = 20;
 
 interface ScoreResult {
+  decision: 'apply' | 'maybe' | 'skip';
   score: number;
+  rating: number | null;
   band: 'strong' | 'good' | 'moderate' | 'weak' | 'poor';
-  components: {
+  dimensions: {
     name: string;
-    weight: number;
-    score: number;
-    contribution: number;
+    rating: number | null;
+    importance: 'critical' | 'high' | 'medium' | 'low';
     evidence_tier: 'stated' | 'structural' | 'inferred';
     reason?: string;
+    downgraded: boolean;
   }[];
+  gates: { name: string; passed: boolean; reason?: string }[];
   confidence: 'high' | 'medium' | 'low';
   evidence_tier: 'stated' | 'structural' | 'inferred';
   reason: string;
   not_evaluated: string[];
+  interview_risk: string[];
 }
 
 interface ProfileResponse {
@@ -107,12 +116,19 @@ function jobScore(job: Job): number {
   return typeof job.score === 'number' ? job.score : -1;
 }
 
+function jobDecision(job: Job): MatchDecision {
+  if (job.scoreResult?.decision) return job.scoreResult.decision;
+  return decisionFromScore(jobScore(job));
+}
+
 function jobScoreTitle(job: Job): string | undefined {
   if (!job.scoreResult) return undefined;
   const parts = [
+    `Decision: ${job.scoreResult.decision.toUpperCase()}`,
     `Band: ${job.scoreResult.band}`,
     `Confidence: ${job.scoreResult.confidence}`,
     job.scoreResult.reason,
+    ...job.scoreResult.interview_risk,
   ].filter(Boolean);
   return parts.join(' · ');
 }
@@ -425,7 +441,12 @@ export function PersistedDiscoveryPanel() {
     if (sortMode === 'recent') {
       list.sort((a, b) => recency(b) - recency(a) || jobScore(b) - jobScore(a));
     } else {
-      list.sort((a, b) => jobScore(b) - jobScore(a) || recency(b) - recency(a));
+      list.sort(
+        (a, b) =>
+          DECISION_RANK[jobDecision(b)] - DECISION_RANK[jobDecision(a)] ||
+          jobScore(b) - jobScore(a) ||
+          recency(b) - recency(a),
+      );
     }
     return list;
   }, [jobs, sortMode]);
@@ -804,6 +825,7 @@ export function PersistedDiscoveryPanel() {
                 location: job.location,
                 description: job.descriptionRaw ?? undefined,
                 match_score: Math.max(0, jobScore(job)),
+                decision: jobDecision(job),
               },
             ],
             max_applies: 1,
@@ -898,7 +920,9 @@ export function PersistedDiscoveryPanel() {
     />
   );
 
-  const strongMatches = jobs.filter((job) => jobScore(job) >= 85).length;
+  const strongMatches = jobs.filter(
+    (job) => jobDecision(job) === 'apply',
+  ).length;
   const gridClass =
     'grid grid-cols-1 overflow-hidden sm:grid-cols-2 xl:grid-cols-3';
 
@@ -1008,7 +1032,7 @@ export function PersistedDiscoveryPanel() {
             label: 'Strong Matches',
             value: String(strongMatches),
             icon: CheckCircle2,
-            subtext: '85%+ fit in this search',
+            subtext: 'Apply decisions in this search',
             color: 'green',
           },
           {

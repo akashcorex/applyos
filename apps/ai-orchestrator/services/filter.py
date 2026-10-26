@@ -5,7 +5,12 @@ from __future__ import annotations
 import re
 
 from models import DiscoveredJobRecord, SeniorityLevel, StartWorkflowRequest, UserProfile
-from services.score_contract import ScoreResult, build_score_result, score_component
+from services.score_contract import (
+    ScoreResult,
+    build_score_result,
+    rating_from_similarity,
+    score_dimension,
+)
 
 SENIORITY_RANK: dict[str, int] = {
     "intern": 0,
@@ -91,53 +96,42 @@ def _seniority_allowed(
 
 def score_job(job: DiscoveredJobRecord, profile: UserProfile) -> ScoreResult:
     title_match = _title_match_score(job.title, profile.preferred_role)
-    components = [
-        score_component(
+    dimensions = [
+        # Title is the only role signal here, so it carries the decision.
+        score_dimension(
             "title",
-            weight=0.7,
-            score=title_match * 100,
+            rating=rating_from_similarity(title_match) if job.title else None,
+            importance="critical",
             evidence_tier="structural" if job.title else "inferred",
             reason="Share of preferred-role tokens present in the title.",
-        )
-    ]
-    not_evaluated: list[str] = []
-    if not job.title:
-        not_evaluated.append("title")
-
-    if job.location_type is not None:
-        remote = job.location_type == "remote"
-        components.append(
-            score_component(
-                "work_mode",
-                weight=0.15,
-                score=100 if remote else 0,
-                evidence_tier="structural",
-                reason="Remote listings get a small ranking bonus.",
-            )
-        )
-    else:
-        not_evaluated.append("work_mode")
-
-    components.append(
-        score_component(
+        ),
+        score_dimension(
+            "work_mode",
+            rating=(
+                (5.0 if job.location_type == "remote" else 3.0)
+                if job.location_type is not None
+                else None
+            ),
+            evidence_tier="structural",
+            reason="Remote listings fit best without a stated preference.",
+        ),
+        score_dimension(
             "application_url",
-            weight=0.15,
-            score=100 if job.application_url else 0,
+            # A missing URL is a policy gate, not a weak fit; leave it unknown
+            # so it cannot colour the fit story.
+            rating=5.0 if job.application_url else None,
+            importance="low",
             evidence_tier="structural",
             reason="Direct application URLs rank above link-less listings.",
-        )
-    )
-
-    score = sum(component.contribution for component in components)
+        ),
+    ]
     return build_score_result(
-        score=score,
-        components=components,
+        dimensions=dimensions,
         reason=(
             f"Title match {title_match:.0%}"
             f"{', remote' if job.location_type == 'remote' else ''}"
             f"{', apply URL' if job.application_url else ''}."
         ),
-        not_evaluated=not_evaluated,
     )
 
 

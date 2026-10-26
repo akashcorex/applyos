@@ -1,3 +1,5 @@
+import { decisionFromScore } from '@/lib/application-stats';
+
 export type ScoreBand = 'strong' | 'good' | 'moderate' | 'weak' | 'poor';
 
 export const NEW_JOB_DAYS = 7;
@@ -65,12 +67,16 @@ export const BAND_STYLES: Record<ScoreBand, string> = {
   poor: 'bg-slate-500/10 text-slate-600 dark:text-slate-400',
 };
 
+/**
+ * Band for a legacy 0-100 score, capped by the decision it implies. Mirrors
+ * `legacyScoreResult` so a stored number cannot out-rank its own decision.
+ */
 export function bandFromScore(score: number): ScoreBand {
-  if (score >= 85) return 'strong';
-  if (score >= 70) return 'good';
-  if (score >= 55) return 'moderate';
-  if (score >= 40) return 'weak';
-  return 'poor';
+  const decision = decisionFromScore(score);
+  const rating = Math.max(1, Math.min(5, score / 20));
+  if (decision === 'apply') return rating >= 4.5 ? 'strong' : 'good';
+  if (decision === 'maybe') return 'moderate';
+  return rating >= 3 ? 'weak' : 'poor';
 }
 
 export function formatMatchScore(score: number): string {

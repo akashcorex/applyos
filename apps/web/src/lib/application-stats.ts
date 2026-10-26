@@ -1,3 +1,5 @@
+import type { ScoreDecision } from '@applyso/validation';
+
 export interface ApplicationRow {
   id: string;
   status: string;
@@ -65,6 +67,31 @@ export function normalizeScore(score?: number | null): number | null {
     return null;
   }
   return Math.round(score <= 1 ? score * 100 : score);
+}
+
+export type MatchDecision = ScoreDecision;
+
+/** Legacy scores carry no dimensions, so derive the decision from the rating. */
+export function decisionFromScore(score?: number | null): MatchDecision {
+  const normalized = normalizeScore(score);
+  if (normalized == null) return 'skip';
+  if (normalized >= 80) return 'apply';
+  if (normalized >= 70) return 'maybe';
+  return 'skip';
+}
+
+export const DECISION_RANK: Record<MatchDecision, number> = {
+  apply: 2,
+  maybe: 1,
+  skip: 0,
+};
+
+/** True when a decision clears the requested bar (apply > maybe > skip). */
+export function meetsMinDecision(
+  decision: MatchDecision,
+  minimum: MatchDecision,
+): boolean {
+  return DECISION_RANK[decision] >= DECISION_RANK[minimum];
 }
 
 export function localDayKey(date: Date): string {

@@ -132,13 +132,14 @@ def test_filter_emits_score_result() -> None:
     score_result = result[0].filter_score_result
     assert score_result is not None
     assert score_result.score == result[0].filter_score
-    assert {component.name for component in score_result.components} == {
+    assert {dimension.name for dimension in score_result.dimensions} == {
         "title",
         "work_mode",
         "application_url",
     }
+    assert score_result.decision == "apply"
     assert score_result.band == "strong"
-    assert score_result.confidence == "medium"
+    assert score_result.confidence == "high"
     assert score_result.not_evaluated == []
 
 

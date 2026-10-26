@@ -45,6 +45,7 @@ Schema for cross-language drift checks:
 
 ```sh
 bun --filter @applyso/validation snapshot-json-schema  # regenerates contracts.snapshot.json
+bun run format                                          # Prettier collapses short arrays
 ```
 
 ## Enum sync

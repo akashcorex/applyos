@@ -626,16 +626,32 @@
       "$schema": "http://json-schema.org/draft-07/schema#",
       "type": "object",
       "properties": {
-        "score": {
-          "type": "number",
-          "minimum": 0,
-          "maximum": 100
+        "decision": {
+          "type": "string",
+          "enum": ["apply", "maybe", "skip"]
         },
         "band": {
           "type": "string",
           "enum": ["strong", "good", "moderate", "weak", "poor"]
         },
-        "components": {
+        "rating": {
+          "anyOf": [
+            {
+              "type": "number",
+              "minimum": 1,
+              "maximum": 5
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "score": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "dimensions": {
           "type": "array",
           "items": {
             "type": "object",
@@ -654,18 +670,21 @@
                   "behavior"
                 ]
               },
-              "weight": {
-                "type": "number",
-                "minimum": 0,
-                "maximum": 1
+              "rating": {
+                "anyOf": [
+                  {
+                    "type": "number",
+                    "minimum": 1,
+                    "maximum": 5
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
               },
-              "score": {
-                "type": "number",
-                "minimum": 0,
-                "maximum": 100
-              },
-              "contribution": {
-                "type": "number"
+              "importance": {
+                "type": "string",
+                "enum": ["critical", "high", "medium", "low"]
               },
               "evidence_tier": {
                 "type": "string",
@@ -674,16 +693,40 @@
               "reason": {
                 "default": "",
                 "type": "string"
+              },
+              "downgraded": {
+                "default": false,
+                "type": "boolean"
               }
             },
             "required": [
               "name",
-              "weight",
-              "score",
-              "contribution",
+              "rating",
+              "importance",
               "evidence_tier",
-              "reason"
+              "reason",
+              "downgraded"
             ],
+            "additionalProperties": false
+          }
+        },
+        "gates": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "passed": {
+                "type": "boolean"
+              },
+              "reason": {
+                "default": "",
+                "type": "string"
+              }
+            },
+            "required": ["name", "passed", "reason"],
             "additionalProperties": false
           }
         },
@@ -705,16 +748,27 @@
           "items": {
             "type": "string"
           }
+        },
+        "interview_risk": {
+          "default": [],
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         }
       },
       "required": [
-        "score",
+        "decision",
         "band",
-        "components",
+        "rating",
+        "score",
+        "dimensions",
+        "gates",
         "confidence",
         "evidence_tier",
         "reason",
-        "not_evaluated"
+        "not_evaluated",
+        "interview_risk"
       ],
       "additionalProperties": false
     },

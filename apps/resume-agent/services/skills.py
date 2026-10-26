@@ -9,10 +9,12 @@ from __future__ import annotations
 import re
 
 from services.score_contract import (
+    ScoreDimension,
+    ScoreEvidenceTier,
     ScoreResult,
     build_score_result,
-    clamp_score,
-    score_component,
+    rating_from_similarity,
+    score_dimension,
 )
 
 # Canonical name → accepted aliases (lowercase).
@@ -241,39 +243,6 @@ def skill_overlap_score(
     return matched / total
 
 
-def combine_match_score(semantic_score: float, skill_score: float) -> float:
-    """70% embedding similarity + 30% skill overlap → score in [0, 100]."""
-    semantic = max(0.0, min(1.0, semantic_score))
-    skills = max(0.0, min(1.0, skill_score))
-    return round((0.7 * semantic + 0.3 * skills) * 100, 1)
-
-
-def combine_job_score(
-    text_score: float,
-    title_score: float,
-    skill_score: float,
-    recency_score: float,
-) -> tuple[float, dict[str, float]]:
-    """45% full-text + 15% title + 30% skill + 10% recency → (score, parts)."""
-    parts = {
-        "text": round(max(0.0, min(1.0, text_score)), 4),
-        "title": round(max(0.0, min(1.0, title_score)), 4),
-        "skill": round(max(0.0, min(1.0, skill_score)), 4),
-        "recency": round(max(0.0, min(1.0, recency_score)), 4),
-    }
-    final = round(
-        (
-            0.45 * parts["text"]
-            + 0.15 * parts["title"]
-            + 0.30 * parts["skill"]
-            + 0.10 * parts["recency"]
-        )
-        * 100,
-        1,
-    )
-    return final, parts
-
-
 def build_match_score_result(
     *,
     semantic_score: float,
@@ -283,44 +252,32 @@ def build_match_score_result(
     description_present: bool = False,
     reason: str = "",
 ) -> ScoreResult:
-    """70/30 semantic+skills score with named, inspectable components."""
-    semantic = clamp_score(semantic_score * 100) / 100
-    skills = clamp_score(skill_score * 100) / 100
-    components = []
-    not_evaluated: list[str] = []
+    """Rate semantic and skill fit independently, then let the contract decide.
 
-    if semantic_evaluated:
-        components.append(
-            score_component(
-                "semantic",
-                weight=0.7,
-                score=semantic * 100,
-                evidence_tier="stated" if description_present else "inferred",
-                reason="Embedding similarity between candidate and job text.",
-            )
-        )
-    else:
-        not_evaluated.append("semantic")
-
-    if skills_evaluated:
-        components.append(
-            score_component(
-                "skills",
-                weight=0.3,
-                score=skills * 100,
-                evidence_tier="stated" if description_present else "inferred",
-                reason="Skill overlap between profile and job requirements.",
-            )
-        )
-    else:
-        not_evaluated.append("skills")
-
-    return build_score_result(
-        score=combine_match_score(semantic, skills),
-        components=components,
-        reason=reason,
-        not_evaluated=not_evaluated,
-    )
+    No weighted sum: a strong embedding cannot lift a failed skill dimension.
+    """
+    tier: ScoreEvidenceTier = "stated" if description_present else "inferred"
+    dimensions: list[ScoreDimension] = [
+        score_dimension(
+            "semantic",
+            rating=(
+                rating_from_similarity(semantic_score)
+                if semantic_evaluated
+                else None
+            ),
+            evidence_tier=tier,
+            reason="Embedding similarity between candidate and job text.",
+        ),
+        score_dimension(
+            "skills",
+            rating=(
+                rating_from_similarity(skill_score) if skills_evaluated else None
+            ),
+            evidence_tier=tier,
+            reason="Skill overlap between profile and job requirements.",
+        ),
+    ]
+    return build_score_result(dimensions=dimensions, reason=reason)
 
 
 def build_job_score_result(
@@ -335,57 +292,49 @@ def build_job_score_result(
     recency_present: bool = True,
     reason: str = "",
 ) -> tuple[ScoreResult, dict[str, float]]:
-    """45/15/30/10 job score with named components and explicit gaps."""
-    final, parts = combine_job_score(
-        text_score, title_score, skill_score, recency_score
-    )
-    components = [
-        score_component(
+    """Rate each job dimension 1-5 and let the contract decide."""
+    parts = {
+        "text": round(max(0.0, min(1.0, text_score)), 4),
+        "title": round(max(0.0, min(1.0, title_score)), 4),
+        "skill": round(max(0.0, min(1.0, skill_score)), 4),
+        "recency": round(max(0.0, min(1.0, recency_score)), 4),
+    }
+    dimensions = [
+        score_dimension(
             "text",
-            weight=0.45,
-            score=parts["text"] * 100,
+            rating=(
+                rating_from_similarity(parts["text"])
+                if description_present
+                else None
+            ),
             evidence_tier="stated" if description_present else "structural",
             reason="Full-text similarity between profile and job.",
         ),
-        score_component(
+        score_dimension(
             "title",
-            weight=0.15,
-            score=parts["title"] * 100,
+            rating=rating_from_similarity(parts["title"]) if title_present else None,
             evidence_tier="structural" if title_present else "inferred",
             reason="Title similarity between profile role and job title.",
         ),
-        score_component(
+        score_dimension(
             "skills",
-            weight=0.30,
-            score=parts["skill"] * 100,
+            rating=(
+                rating_from_similarity(parts["skill"])
+                if skills_evaluated
+                else None
+            ),
             evidence_tier="stated" if description_present else "inferred",
             reason="Overlap between profile skills and job requirements.",
         ),
-        score_component(
+        score_dimension(
             "recency",
-            weight=0.10,
-            score=parts["recency"] * 100,
+            rating=(
+                rating_from_similarity(parts["recency"])
+                if recency_present
+                else None
+            ),
             evidence_tier="structural" if recency_present else "inferred",
             reason="Posting freshness.",
         ),
     ]
-
-    not_evaluated: list[str] = []
-    if not description_present:
-        not_evaluated.append("text")
-    if not title_present:
-        not_evaluated.append("title")
-    if not skills_evaluated:
-        not_evaluated.append("skills")
-    if not recency_present:
-        not_evaluated.append("recency")
-
-    return (
-        build_score_result(
-            score=final,
-            components=components,
-            reason=reason,
-            not_evaluated=not_evaluated,
-        ),
-        parts,
-    )
+    return build_score_result(dimensions=dimensions, reason=reason), parts

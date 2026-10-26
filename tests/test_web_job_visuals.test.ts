@@ -26,11 +26,14 @@ describe('jobAgeDays / isNewJob', () => {
 });
 
 describe('bandFromScore', () => {
-  it('maps every threshold to its band', () => {
-    expect(bandFromScore(92)).toBe('strong');
-    expect(bandFromScore(70)).toBe('good');
-    expect(bandFromScore(55)).toBe('moderate');
-    expect(bandFromScore(41)).toBe('weak');
+  it('caps the band at the decision the score implies', () => {
+    expect(bandFromScore(100)).toBe('strong');
+    expect(bandFromScore(90)).toBe('strong');
+    expect(bandFromScore(84)).toBe('good');
+    expect(bandFromScore(80)).toBe('good');
+    expect(bandFromScore(70)).toBe('moderate');
+    expect(bandFromScore(69)).toBe('weak');
+    expect(bandFromScore(50)).toBe('poor');
     expect(bandFromScore(12)).toBe('poor');
   });
 });

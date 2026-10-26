@@ -11,11 +11,11 @@ don't differentiate ranking per user yet.
 ## Track A — show score for every job, sort by score
 
 - [ ] A1. Define one shared scoring contract:
-      `{ score 0-100, components: { skills, title, seniority }, reason }`.
-      Today `_score_job` (resume-agent `matcher.py`) is skills-only and the
-      formula lives far from the data. Decide owner: job-agent
-      `services/semantic_match.py` vs resume-agent. Single owner, other side
-      passes through.
+      `{ decision apply|maybe|skip, rating 1-5, dimensions[], gates[], reason }`
+      per `packages/validation/src/score.ts`. Today `_score_job` (resume-agent
+      `matcher.py`) is skills-only and the formula lives far from the data.
+      Decide owner: job-agent `services/semantic_match.py` vs resume-agent.
+      Single owner, other side passes through.
 - [ ] A2. Score the fresh feed per requesting user. `GET /v1/jobs?fresh=true`
       must accept the caller's profile (role, skills, `experience_years`,
       seniority) and return `score` + `reason` per job, computed with the
@@ -49,8 +49,9 @@ vs an 8-yoE backend senior, and explains why.
       under-qualified both penalized, over-qualified penalized less).
       Promote today's boolean `seniority_allowed` gate into a graded signal;
       keep the hard gate only for extreme mismatch (e.g. intern ↔ exec).
-- [ ] B3. Weight contract, e.g. `skills 0.5 / title 0.3 / seniority 0.2`,
-      tunable per user later from `click`/`skip` interactions (the
+- [ ] B3. Importance contract, e.g. skills/title critical, seniority high,
+      recency medium — importance drives the decision, not a weight. Tunable
+      per user later from `click`/`skip` interactions (the
       `match_interactions` table already logs these — future learning signal,
       not this pass).
 - [ ] B4. Per-user caching: score depends on (user profile version, job).

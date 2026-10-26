@@ -1,6 +1,15 @@
+import {
+  decisionFromScore,
+  meetsMinDecision,
+  type MatchDecision,
+} from '@/lib/application-stats';
 import { asDisplayError } from '@/lib/apply-error';
 import { isPostingAlive } from '@/lib/job-liveness';
 import { assertResumeOwner, requireUserId } from '@/lib/require-user';
+
+function isMatchDecision(value: unknown): value is MatchDecision {
+  return value === 'apply' || value === 'maybe' || value === 'skip';
+}
 
 const RESUME_AGENT_URL =
   process.env.RESUME_AGENT_URL ?? 'http://127.0.0.1:8005';
@@ -49,6 +58,7 @@ interface ApplyJobInput {
   location?: string | null;
   description?: string | null;
   match_score: number;
+  decision?: MatchDecision | null;
 }
 
 function buildCvDataFromResume(
@@ -125,7 +135,24 @@ export async function POST(request: Request) {
         ? body.selection_id
         : undefined;
     const maxApplies = Math.min(Math.max(Number(body.max_applies ?? 5), 1), 10);
-    const minScore = Number(body.min_score ?? 20);
+    // Apply is the default bar: MAYBE exists to be inspected, not batched.
+    const minDecision: MatchDecision =
+      body.min_decision === 'maybe' ? 'maybe' : 'apply';
+    const explicitMinScore =
+      typeof body.min_score === 'number' ? body.min_score : null;
+    const matchScore = (job: ApplyJobInput): number => {
+      const raw = Number(job.match_score ?? 0);
+      return raw <= 1 ? raw * 100 : raw;
+    };
+    const passesThreshold = (job: ApplyJobInput): boolean => {
+      if (explicitMinScore != null) return matchScore(job) >= explicitMinScore;
+      // The stored decision is authoritative; the score is only a legacy
+      // fallback for rows that never had dimensions.
+      const decision = isMatchDecision(job.decision)
+        ? job.decision
+        : decisionFromScore(matchScore(job));
+      return meetsMinDecision(decision, minDecision);
+    };
     let clientJobs = (body.jobs ?? []) as ApplyJobInput[];
     const variantIds = (body.variant_ids ?? {}) as Record<string, string>;
 
@@ -212,9 +239,7 @@ export async function POST(request: Request) {
       .filter((job) => {
         if (!job.dedup_key || !job.application_url) return false;
         if (typeof job.match_score !== 'number') return false;
-        const score =
-          job.match_score <= 1 ? job.match_score * 100 : job.match_score;
-        return score >= minScore;
+        return passesThreshold(job);
       })
       .slice(0, maxApplies);
 
@@ -244,9 +269,7 @@ export async function POST(request: Request) {
           if (!job.application_url || typeof job.match_score !== 'number') {
             return false;
           }
-          const score =
-            job.match_score <= 1 ? job.match_score * 100 : job.match_score;
-          return score >= minScore;
+          return passesThreshold(job);
         })
         .slice(0, maxApplies);
     }
@@ -256,17 +279,18 @@ export async function POST(request: Request) {
       const missingUrl = clientJobs.filter(
         (job) => !job.application_url,
       ).length;
-      const belowScore = clientJobs.filter((job) => {
-        if (typeof job.match_score !== 'number') return true;
-        const score =
-          job.match_score <= 1 ? job.match_score * 100 : job.match_score;
-        return score < minScore;
-      }).length;
+      const belowScore = clientJobs.filter(
+        (job) => typeof job.match_score !== 'number' || !passesThreshold(job),
+      ).length;
+      const thresholdLabel =
+        explicitMinScore != null
+          ? `${explicitMinScore}% minimum score`
+          : `${minDecision} decision`;
       return Response.json(
         {
           error:
             total > 0
-              ? `No eligible jobs out of ${total} received (${missingUrl} without an application link, ${belowScore} below the ${minScore}% minimum score). Pick a role with an application link or lower the minimum score.`
+              ? `No eligible jobs out of ${total} received (${missingUrl} without an application link, ${belowScore} below the ${thresholdLabel}). Pick a role with an application link or lower the bar.`
               : 'No matching jobs with application URLs found',
         },
         { status: 404 },

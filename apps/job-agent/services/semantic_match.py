@@ -19,10 +19,14 @@ from models import SearchResult, SemanticMatchResult
 from services.embeddings import embed_texts, embeddings_available
 from services.recency import recency_score
 from services.score_contract import (
+    ScoreDimension,
+    ScoreGate,
     build_score_result,
-    clamp_score,
+    decide_for_dimensions,
+    mean_rating,
     not_evaluated_result,
-    score_component,
+    rating_from_similarity,
+    score_dimension,
 )
 from services.seniority import (
     SENIORITY_RANK,
@@ -37,18 +41,38 @@ logger = logging.getLogger(__name__)
 _MAX_DESC_CHARS = 1500
 
 
-def _seniority_score_boost(years_experience: int, job: SearchResult) -> float:
+def _seniority_rating(years_experience: int, job: SearchResult) -> float | None:
+    """Rate level fit 1-5; an unresolved level is unknown, not a guess."""
     resolved = infer_seniority(job.title, job.seniority)
     if resolved is None:
-        return 1.0
-    gap = max_rank_for_years(years_experience) - SENIORITY_RANK.get(
-        resolved, SENIORITY_RANK["mid"]
+        return None
+    delta = SENIORITY_RANK.get(resolved, SENIORITY_RANK["mid"]) - max_rank_for_years(
+        years_experience
     )
-    if gap == 0:
-        return 1.06
-    if gap >= 2:
-        return 0.8
-    return 1.0
+    if delta > 0:
+        return 4.0 if delta == 1 else 2.0
+    if delta >= -1:
+        return 5.0
+    if delta == -2:
+        return 4.0
+    return 3.0
+
+
+def _work_mode_rating(
+    job: SearchResult,
+    profile_work_mode: str | None,
+) -> float | None:
+    """Rate work-mode fit; None when the posting does not say."""
+    normalized = (job.location_type or "").strip().lower()
+    if not normalized:
+        return None
+    preference = (profile_work_mode or "").strip().lower()
+    if preference:
+        return 5.0 if normalized == preference else 2.0
+    return 4.0 if normalized == "remote" else 3.0
+
+
+_DECISION_RANK: dict[str, int] = {"apply": 2, "maybe": 1, "skip": 0}
 
 _EXPLAIN_SYSTEM = """\
 You are a technical recruiter. For each job listing, explain why it does or
@@ -441,17 +465,101 @@ async def semantic_rank_jobs(
         ]
 
     max_age = settings.job_max_age_days
-    scored: list[tuple[SearchResult, float, float, float, float, str]] = []
+    gates = [
+        ScoreGate(
+            name="title_blocked",
+            passed=True,
+            reason="Title is not on the blocklist.",
+        ),
+        ScoreGate(
+            name="seniority",
+            passed=True,
+            reason="Level is reachable from the candidate's experience.",
+        ),
+        ScoreGate(
+            name="title_role",
+            passed=True,
+            reason="Title shares a token with the target role.",
+        ),
+        ScoreGate(
+            name="profile_seniority",
+            passed=True,
+            reason="Posting does not exceed the profile level.",
+        ),
+        ScoreGate(
+            name="location",
+            passed=True,
+            reason="Location and work mode are compatible with preferences.",
+        ),
+    ]
+
+    scored: list[
+        tuple[SearchResult, float, float, float, float, str, list[ScoreDimension]]
+    ] = []
     for job, vec, title_vec in zip(jobs, job_vectors, title_vectors, strict=True):
         text_sim = cosine_similarity(candidate_vec, vec)
         title_sim = cosine_similarity(candidate_vec, title_vec)
-        blend = 0.5 * text_sim + 0.5 * title_sim
-        score = blend * _seniority_score_boost(experience_years, job)
+        # No blend: `semantic_score` is the JD similarity alone, so title and
+        # seniority are not counted twice inside the critical `text` dimension.
+        score = text_sim
+        fresh = recency_score(job.posted_at, max_age)
+        job_text = build_job_text(job)
+        rule_matched, rule_missing = infer_skill_overlap(skills, job_text)
+        total_skills = len(rule_matched) + len(rule_missing)
+        skill_coverage = len(rule_matched) / total_skills if total_skills else None
+        dimensions = [
+            score_dimension(
+                "text",
+                rating=rating_from_similarity(text_sim) if job.description else None,
+                evidence_tier="stated" if job.description else "structural",
+                reason="Cosine similarity between profile and JD text.",
+            ),
+            score_dimension(
+                "title",
+                rating=rating_from_similarity(title_sim),
+                evidence_tier="structural",
+                reason="Cosine similarity between profile and job title.",
+            ),
+            score_dimension(
+                "skills",
+                rating=(
+                    rating_from_similarity(skill_coverage)
+                    if skill_coverage is not None
+                    else None
+                ),
+                evidence_tier="stated" if job.description else "structural",
+                reason="Share of the posting's named skills present in the profile.",
+            ),
+            score_dimension(
+                "seniority",
+                rating=_seniority_rating(experience_years, job),
+                evidence_tier="structural",
+                reason="Level fit between experience and the posting.",
+            ),
+            score_dimension(
+                "work_mode",
+                rating=_work_mode_rating(job, profile_work_mode),
+                evidence_tier="stated" if job.location_type else "structural",
+                reason="Work-mode fit between the posting and the profile.",
+            ),
+            score_dimension(
+                "recency",
+                rating=rating_from_similarity(fresh),
+                evidence_tier="structural",
+                reason="Posting freshness.",
+            ),
+        ]
         scored.append(
-            (job, score, text_sim, title_sim, recency_score(job.posted_at, max_age), build_job_text(job))
+            (job, score, text_sim, title_sim, fresh, job_text, dimensions)
         )
 
-    scored.sort(key=lambda item: item[1], reverse=True)
+    scored.sort(
+        key=lambda item: (
+            _DECISION_RANK[decide_for_dimensions(item[6], gates)],
+            mean_rating(item[6]) or 0.0,
+        ),
+        reverse=True,
+    )
     if rank_all:
         explain_k = 0
         explanations: dict[int, JobExplanation] = {}
@@ -480,7 +588,15 @@ async def semantic_rank_jobs(
         )
 
     ranked: list[SemanticMatchResult] = []
-    for idx, (job, score, text_sim, title_sim, fresh, job_text) in enumerate(scored):
+    for idx, (
+        job,
+        score,
+        text_sim,
+        title_sim,
+        fresh,
+        job_text,
+        dimensions,
+    ) in enumerate(scored):
         rule_matched, rule_missing = infer_skill_overlap(skills, job_text)
         explanation = explanations.get(idx)
 
@@ -493,47 +609,10 @@ async def semantic_rank_jobs(
                 f"{job.company_name}/{job.title}."
             )
 
-        seniority_boost = _seniority_score_boost(experience_years, job)
-        blend = 0.5 * text_sim + 0.5 * title_sim
-        text_component = score_component(
-            "text",
-            weight=0.5,
-            score=text_sim * 100,
-            evidence_tier="stated" if job.description else "structural",
-            reason="Cosine similarity between profile and JD text.",
-        )
-        title_component = score_component(
-            "title",
-            weight=0.5,
-            score=title_sim * 100,
-            evidence_tier="structural",
-            reason="Cosine similarity between profile and job title.",
-        )
-        components = [text_component, title_component]
-        base_points = text_component.contribution + title_component.contribution
-        raw_score = blend * seniority_boost * 100
-        final_points = min(100.0, raw_score)
-        adjustment = round(final_points - base_points, 1)
-        if abs(adjustment) >= 0.05:
-            capped = final_points < raw_score - 0.05
-            components.append(
-                score_component(
-                    "seniority",
-                    score=clamp_score(100 + (seniority_boost - 1.0) * blend * 100),
-                    contribution=adjustment,
-                    evidence_tier="structural",
-                    reason=(
-                        "Seniority adjustment capped at the 100 ceiling."
-                        if capped
-                        else "Seniority alignment adjustment."
-                    ),
-                )
-            )
         score_result = build_score_result(
-            score=final_points,
-            components=components,
+            dimensions=dimensions,
+            gates=gates,
             reason=reason,
-            not_evaluated=[] if job.description else ["text"],
         )
 
         ranked.append(

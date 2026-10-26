@@ -25,6 +25,12 @@ import {
 } from '@/lib/job-visuals';
 import type { ScoreBand } from '@/lib/job-visuals';
 
+const DECISION_LABEL = {
+  apply: 'Apply',
+  maybe: 'Maybe',
+  skip: 'Skip',
+} as const;
+
 export interface JobDetail {
   id: string;
   title: string;
@@ -38,7 +44,14 @@ export interface JobDetail {
   isActive?: boolean;
   flags?: string[];
   score?: number;
-  scoreResult?: { band?: string | null } | null;
+  scoreResult?: {
+    band?: string | null;
+    decision?: 'apply' | 'maybe' | 'skip' | null;
+    rating?: number | null;
+    confidence?: 'high' | 'medium' | 'low' | null;
+    interview_risk?: string[] | null;
+    reason?: string | null;
+  } | null;
   reason?: string;
   isSaved: boolean;
 }
@@ -188,9 +201,29 @@ export function JobDetailModal({
               >
                 {formatMatchScore(score)}
               </span>
-              <p className="text-xs leading-relaxed text-muted-foreground">
-                {job.reason ?? 'Matched to your profile.'}
-              </p>
+              <div className="min-w-0 space-y-1">
+                <p className="text-xs leading-relaxed text-muted-foreground">
+                  {job.reason ?? 'Matched to your profile.'}
+                </p>
+                {job.scoreResult?.decision ? (
+                  <p className="text-[11px] text-muted-foreground">
+                    Decision: {DECISION_LABEL[job.scoreResult.decision]}
+                    {job.scoreResult.rating != null
+                      ? ` · ${job.scoreResult.rating}/5`
+                      : ''}
+                    {job.scoreResult.confidence
+                      ? ` · ${job.scoreResult.confidence} confidence`
+                      : ''}
+                  </p>
+                ) : null}
+                {job.scoreResult?.interview_risk?.length ? (
+                  <ul className="space-y-0.5 text-[11px] text-amber-600 dark:text-amber-400">
+                    {job.scoreResult.interview_risk.map((risk) => (
+                      <li key={risk}>Expect: {risk}</li>
+                    ))}
+                  </ul>
+                ) : null}
+              </div>
             </div>
           ) : null}
 

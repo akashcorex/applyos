@@ -6,12 +6,8 @@ import logging
 
 from models import MatchedJob
 from services.matching.repository import MatchingRepository
-from services.matching.signals import (
-    MAX_BEHAVIOR_SWING,
-    behavior_reason,
-    compute_behavior_delta,
-)
-from services.score_contract import build_score_result, clamp_score, score_component
+from services.matching.signals import behavior_reason, compute_behavior_delta
+from services.score_contract import clamp_score, legacy_score_result
 
 logger = logging.getLogger(__name__)
 
@@ -53,62 +49,53 @@ class BehaviorReranker:
                 adjusted.append(job)
                 continue
 
-            existing = next(
-                (
-                    component
-                    for component in (job.score_result.components if job.score_result else [])
-                    if component.name == "behavior"
-                ),
-                None,
-            )
-            base = (
-                job.base_score
-                if job.base_score is not None
-                else job.match_score
-                - (existing.contribution if existing else 0.0)
-            )
-            final = clamp_score(base + delta)
+            evidence = job.score_result
             reason = job.reason
             hint = behavior_reason(delta)
             if hint:
                 reason = f"{reason} {hint}".strip() if reason else hint
 
-            evidence = job.score_result
-            components = [
-                component
-                for component in (evidence.components if evidence else [])
-                if component.name != "behavior"
-            ]
-            components.append(
-                score_component(
-                    "behavior",
-                    score=clamp_score(
-                        50 + (delta / MAX_BEHAVIOR_SWING) * 50
-                    ),
-                    contribution=delta,
-                    evidence_tier="inferred",
-                    reason=hint or "Behaviour signal adjustment.",
-                )
-            )
-            score_result = build_score_result(
-                score=final,
-                components=components,
-                reason=reason,
-                not_evaluated=[
-                    item
-                    for item in (evidence.not_evaluated if evidence else [])
-                    if item != "behavior"
-                ],
-            )
+            base = job.base_score if job.base_score is not None else job.match_score
 
+            if evidence is None or not evidence.dimensions:
+                # Legacy row with no dimensions: rank by points and keep the
+                # decision derived from the adjusted score.
+                final = clamp_score(base + delta)
+                score_result = legacy_score_result(final, reason)
+                adjusted.append(
+                    job.model_copy(
+                        update={
+                            "match_score": final,
+                            "base_score": (
+                                job.base_score
+                                if job.base_score is not None
+                                else base
+                            ),
+                            "behavior_boost": round(delta, 1),
+                            "reason": reason,
+                            "score_result": score_result,
+                        }
+                    )
+                )
+                boosted += 1
+                continue
+
+            # Behaviour is a ranking signal, not fit: it moves the ranking
+            # number (`match_score`) and leaves the fit decision untouched.
+            # Fit stays in `base_score` and `score_result`, so a boost can
+            # never promote a posting or a skip demote one.
+            final = clamp_score(base + delta)
             adjusted.append(
                 job.model_copy(
                     update={
                         "match_score": final,
-                        "base_score": job.base_score if job.base_score is not None else base,
+                        "base_score": (
+                            job.base_score
+                            if job.base_score is not None
+                            else base
+                        ),
                         "behavior_boost": round(delta, 1),
                         "reason": reason,
-                        "score_result": score_result,
                     }
                 )
             )

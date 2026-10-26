@@ -12,6 +12,11 @@ from services.matching.signals import (
     compute_behavior_delta,
     compute_outcome_delta,
 )
+from services.score_contract import (
+    ScoreResult,
+    build_score_result,
+    score_dimension,
+)
 
 
 def test_blend_user_global_rates_cold_user_leans_global() -> None:
@@ -90,7 +95,12 @@ class _FakeRepo:
         return {k: v for k, v in self._stats.items() if k in dedup_keys}
 
 
-def _job(company: str, score: float, dedup_key: str) -> MatchedJob:
+def _job(
+    company: str,
+    score: float,
+    dedup_key: str,
+    score_result: ScoreResult | None = None,
+) -> MatchedJob:
     return MatchedJob(
         title="Engineer",
         company_name=company,
@@ -98,6 +108,19 @@ def _job(company: str, score: float, dedup_key: str) -> MatchedJob:
         match_score=score,
         base_score=score,
         behavior_boost=0.0,
+        reason="Base fit.",
+        score_result=score_result,
+    )
+
+
+def _fit_result() -> ScoreResult:
+    return build_score_result(
+        dimensions=[
+            score_dimension("text", rating=5, evidence_tier="stated"),
+            score_dimension("skills", rating=5, evidence_tier="stated"),
+            score_dimension("title", rating=4, evidence_tier="structural"),
+            score_dimension("recency", rating=4, evidence_tier="structural"),
+        ],
         reason="Base fit.",
     )
 
@@ -130,8 +153,43 @@ async def test_behavior_reranker_reorders_jobs() -> None:
     assert ranked[1].behavior_boost is not None and ranked[1].behavior_boost < 0
 
     assert ranked[0].score_result is not None
-    behavior = next(
-        c for c in ranked[0].score_result.components if c.name == "behavior"
-    )
-    assert behavior.contribution == ranked[0].behavior_boost
     assert ranked[0].score_result.score == ranked[0].match_score
+    assert ranked[0].score_result.not_evaluated == ["dimensions"]
+
+
+@pytest.mark.asyncio
+async def test_behavior_reranker_moves_ranking_without_moving_fit() -> None:
+    stats = {
+        "boost::1": JobSignalStats(
+            dedup_key="boost::1",
+            user=EventCounts(impressions=10, clicks=5, applies=4, skips=0),
+            global_=EventCounts(),
+        ),
+        "penalize::1": JobSignalStats(
+            dedup_key="penalize::1",
+            user=EventCounts(impressions=10, clicks=0, applies=0, skips=9),
+            global_=EventCounts(),
+        ),
+    }
+    reranker = BehaviorReranker(_FakeRepo(stats))  # type: ignore[arg-type]
+
+    base = _fit_result()
+    jobs = [
+        _job("PenalizeCo", 90.0, "penalize::1", base),
+        _job("BoostCo", 90.0, "boost::1", base),
+    ]
+
+    ranked = await reranker.apply(user_id="user-1", jobs=jobs)
+    boosted = ranked[0]
+    penalized = ranked[1]
+
+    assert boosted.company_name == "BoostCo"
+    # A boost raises the ranking number, never lowers it.
+    assert boosted.match_score > 90.0
+    assert penalized.match_score < 90.0
+    # Fit and the decision are untouched by a ranking signal.
+    for job in ranked:
+        assert job.score_result is not None
+        assert job.score_result.score == 90.0
+        assert job.score_result.decision == "apply"
+        assert job.base_score == 90.0

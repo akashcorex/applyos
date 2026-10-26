@@ -19,6 +19,8 @@ import {
   relativeTime,
   type ApplicationRow,
 } from '@/lib/application-stats';
+import { bandFromScore } from '@/lib/job-visuals';
+import type { ScoreBand } from '@/lib/job-visuals';
 
 type SortField = 'role' | 'status' | 'match' | 'updated';
 
@@ -29,11 +31,16 @@ function companyInitial(name?: string | null): string {
   return trimmed ? trimmed.charAt(0).toUpperCase() : '?';
 }
 
+const SCORE_TEXT: Record<ScoreBand, string> = {
+  strong: 'text-emerald-500 dark:text-emerald-400',
+  good: 'text-sky-500 dark:text-sky-400',
+  moderate: 'text-amber-500 dark:text-amber-400',
+  weak: 'text-orange-500 dark:text-orange-400',
+  poor: 'text-muted-foreground',
+};
+
 function scoreClass(score: number): string {
-  if (score >= 85) return 'text-emerald-500 dark:text-emerald-400';
-  if (score >= 70) return 'text-sky-500 dark:text-sky-400';
-  if (score >= 55) return 'text-amber-500 dark:text-amber-400';
-  return 'text-muted-foreground';
+  return SCORE_TEXT[bandFromScore(score)];
 }
 
 function SortHeader({

@@ -7,8 +7,7 @@ import pytest
 from models import ResumeRecord
 from services.matcher import JobMatcher
 from services.skills import (
-    combine_job_score,
-    combine_match_score,
+    build_job_score_result,
     normalize_skills,
     skill_overlap_score,
 )
@@ -122,14 +121,13 @@ async def test_match_uses_semantic_endpoint_and_weighted_score() -> None:
     assert response.jobs[0].company_name in {"Stripe", "Vercel"}
     marketing = response.jobs[-1]
     assert marketing.company_name == "Notion"
-    assert marketing.match_score < 20
+    assert marketing.score_result is not None
+    assert marketing.score_result.decision != "apply"
     assert marketing.matched_skills == []
     assert "SEO" in marketing.missing_skills
     assert "unrelated" in marketing.reason.lower() or "marketing" in marketing.reason.lower()
 
     vercel = next(j for j in response.jobs if j.company_name == "Vercel")
-    # 45% * 0.85 + 15% * 0.85 + 30% * (2/3) + 10% * 0.5 (neutral recency)
-    assert vercel.match_score == combine_job_score(0.85, 0.85, 2 / 3, 0.5)[0]
     assert vercel.score_breakdown == {
         "text": 0.85,
         "title": 0.85,
@@ -138,12 +136,14 @@ async def test_match_uses_semantic_endpoint_and_weighted_score() -> None:
     }
     assert vercel.score_result is not None
     assert vercel.score_result.score == vercel.match_score
-    assert {c.name for c in vercel.score_result.components} == {
+    assert {d.name for d in vercel.score_result.dimensions} == {
         "text",
         "title",
         "skills",
         "recency",
     }
+    # 0.667 skill coverage rates 3/5, so a critical dimension blocks APPLY.
+    assert vercel.score_result.decision == "maybe"
     assert "recency" in vercel.score_result.not_evaluated
     assert set(vercel.matched_skills) == {"TypeScript", "React"}
     assert vercel.missing_skills == []
@@ -312,23 +312,39 @@ def test_normalize_skills_aliases_and_dedupe() -> None:
     ]
 
 
-def test_combine_match_score_weights() -> None:
-    # 70% embedding + 30% skills
-    assert combine_match_score(1.0, 0.0) == 70.0
-    assert combine_match_score(0.0, 1.0) == 30.0
-    assert combine_match_score(1.0, 1.0) == 100.0
+def test_job_score_is_a_decision_not_a_weighted_sum() -> None:
+    strong, _ = build_job_score_result(
+        text_score=1.0,
+        title_score=1.0,
+        skill_score=1.0,
+        recency_score=1.0,
+    )
+    assert strong.decision == "apply"
+    assert strong.rating == 5.0
+    assert strong.score == 100.0
+
+    # A perfect text match cannot rescue a failed skills dimension.
+    vetoed, _ = build_job_score_result(
+        text_score=1.0,
+        title_score=1.0,
+        skill_score=0.1,
+        recency_score=1.0,
+    )
+    assert vetoed.decision == "skip"
+    assert vetoed.score < strong.score
+
+    empty, _ = build_job_score_result(
+        text_score=0.0,
+        title_score=0.0,
+        skill_score=0.0,
+        recency_score=0.0,
+    )
+    assert empty.decision == "skip"
+    assert empty.score == 20.0
+
+
+def test_skill_overlap_score_is_a_ratio() -> None:
     assert skill_overlap_score(["Python"], ["Django"]) == 0.5
-
-
-def test_combine_job_score_weights_and_breakdown() -> None:
-    # 45% text + 15% title + 30% skill + 10% recency
-    score, parts = combine_job_score(1.0, 1.0, 1.0, 1.0)
-    assert score == 100.0
-    assert parts == {"text": 1.0, "title": 1.0, "skill": 1.0, "recency": 1.0}
-    score, _ = combine_job_score(1.0, 0.0, 0.0, 0.0)
-    assert score == 45.0
-    score, _ = combine_job_score(0.0, 0.0, 0.0, 0.0)
-    assert score == 0.0
 
 
 @pytest.mark.asyncio

@@ -14,7 +14,6 @@ from models import (
     VariantSuggestions,
     WorkHistory,
 )
-from services.skills import combine_match_score
 from services.tailoring.apply_suggestions import apply_suggestions
 from services.tailoring.keyword_rules import build_keyword_rule_suggestions
 from services.tailoring.suggestion_validator import (
@@ -164,8 +163,8 @@ async def test_variant_scorer_uses_weighted_formula(monkeypatch: pytest.MonkeyPa
         reference_missing_skills=["Django"],
     )
 
-    expected = combine_match_score(result.semantic_score, result.skill_score)
-    assert result.match_score == pytest.approx(expected, rel=1e-4)
+    assert result.score_result is not None
+    assert result.match_score == result.score_result.score
     assert result.semantic_score > 0
 
 

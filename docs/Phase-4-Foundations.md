@@ -25,25 +25,50 @@ A score number carries no
 confidence, evidence, or explanation, and `apps/job-agent/todo.md` Track A already calls for one
 contract.
 
+**Revision (Phase 4.2).** The first cut was a weighted sum: a strong semantic match could hide a
+failed critical dimension, and `min_score: 20` filtered almost nothing. The contract now decides,
+it does not add up.
+
 **What to implement.**
 
 - `ScoreResult` schema in `packages/validation`:
-  `{ score (0–100), band (strong|good|moderate|weak|poor), components[], confidence (high|medium|low),
-evidence_tier (stated|structural|inferred), reason, not_evaluated[] }`.
-- Every scorer emits it; behavior boost becomes a named component, not a second formula.
+  `{ decision (apply|maybe|skip), band, rating (1–5), score (0–100 projection), dimensions[],
+gates[], confidence, evidence_tier, reason, not_evaluated[], interview_risk[] }`.
+- `ScoreDimension`: `{ name, rating (1–5 | null = unknown), importance
+(critical|high|medium|low), evidence_tier, reason, downgraded }`.
+- Rules, applied in `buildScoreResult` so no caller can bypass them:
+  failed gate or any `critical` rating `< 3` → **skip**; unknown `critical`/`high` → **maybe**;
+  all `critical >= 4` and mean `>= 3.5` → **apply**; otherwise **maybe**. The mean is taken over
+  rated `critical`/`high`/`medium` dimensions only — a `low` dimension is explanation context and
+  cannot move the apply line. A result with no `critical` dimension is **maybe**, never a vacuous
+  **apply**.
+- Evidence gate: an `inferred` rating cannot drive a `critical` or `high` dimension — it is
+  downgraded to unknown before the decision.
+- `band` is a projection of the decision, so a strong mean can never display as "strong" over a
+  failed critical dimension. `score` is `rating × 20`, kept only for storage, ordering and legacy
+  rows; ratings quantise to five steps, so it is a coarse ordering key (`0` and `100` map to
+  ratings `1` and `5`).
+- `interview_risk` names only weak `critical`/`high` dimensions on an **apply**; ranking-only
+  dimensions (`behavior`, `application_url`) are never interview risk.
+- Every scorer emits it. Behaviour is a ranking offset on `match_score`, **not** a fit dimension:
+  a boost reorders jobs and can never promote or demote a decision.
+- Legacy rows: the band is capped by the decision derived from the stored number, so a `64`
+  displays as `weak` rather than `good`. `bandForScore` (raw 0–100 floors) remains for charts only.
 - Persist in `match_sessions.top_results`; return from `savedJobResponse` and `GET /v1/jobs`;
-  web feed sort toggle (score / recency).
+  web feed sorts by decision, then score, then recency.
 
 **Where.** `apps/job-agent/services/semantic_match.py`, `apps/resume-agent/services/skills.py`,
-`apps/ai-orchestrator/services/filter.py`, `apps/api/src/routes/jobs.ts`, `packages/validation/src`.
+`apps/ai-orchestrator/services/filter.py`, `apps/resume-agent/services/matching/rerank.py`,
+`apps/api/src/routes/jobs.ts`, `packages/validation/src`.
 
-**Reference.** `career-ops-main/batch/batch-prompt.md` (`Machine Summary → score_evidence`,
-`confidence_gaps`), `career-ops-main/modes/oferta.md` (evidence tiers stated/structural/inferred,
-`inferred` capped out of hard stops). `ai-job-search-master/.claude/skills/job-application-assistant/04-job-evaluation.md`
-(0–100 dimensions + bands).
+**Reference.** `career-ops-main/modes/_shared.md` § Scoring System (five dimensions, no arithmetic
+formula, 4.0 apply line), `modes/oferta.md` (importance bands, evidence tiers, `inferred` capped
+out of hard stops and never `critical`/`high`), `batch/batch-prompt.md`
+(`score_evidence`, `confidence_gaps`).
 
 **Acceptance.** One exported schema; drift test (mirror the existing enums drift test); every score
-surface returns `ScoreResult`; a stored score can be explained later without re-running matching.
+surface returns `ScoreResult`; a stored decision can be explained later without re-running
+matching; no scorer computes a weighted sum.
 
 ### 4.2 — Candidate-journey stage model
 
@@ -142,6 +167,9 @@ UI redesign, new LLM evaluation, email sending, provider expansion, any user-vis
       `packages/validation/src/score.test.ts` + `tests/test_resume_agent_score_contract.py` (TS↔Python parity via
       `contracts.snapshot.json`), plus job-agent semantic, resume-agent matcher/rerank, orchestrator filter, and
       `tests/test_phase2_http.test.ts` API surfaces; snapshot regenerated with `bun --filter @applyso/validation snapshot-json-schema`.
+      Review round 2026-10-26: `low` dimensions excluded from the decision mean, no-critical results are `maybe`,
+      legacy bands capped by the implied decision, behaviour moved back to a ranking offset on `match_score`
+      (never a fit dimension), and the auto-apply gate thresholds on the stored decision rather than the score.
 - [ ] Stage ledger written on every stage change; funnel excludes drafts (tested)
 - [ ] Notifications written/read/deduped for the Phase 4 event types
 - [ ] Four ADRs recorded with named enforcement points

@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'bun:test';
 
 import {
+  DECISION_RANK,
   countByCategory,
   dailyActivity,
+  decisionFromScore,
+  meetsMinDecision,
   normalizeScore,
   type ApplicationRow,
 } from '../apps/web/src/lib/application-stats';
@@ -92,5 +95,27 @@ describe('normalizeScore', () => {
     expect(normalizeScore(64.4)).toBe(64);
     expect(normalizeScore(null)).toBe(null);
     expect(normalizeScore(-1)).toBe(null);
+  });
+});
+
+describe('decisionFromScore', () => {
+  it('derives the decision a stored legacy number implies', () => {
+    expect(decisionFromScore(100)).toBe('apply');
+    expect(decisionFromScore(0.8)).toBe('apply');
+    expect(decisionFromScore(79)).toBe('maybe');
+    expect(decisionFromScore(70)).toBe('maybe');
+    expect(decisionFromScore(69)).toBe('skip');
+    expect(decisionFromScore(null)).toBe('skip');
+  });
+});
+
+describe('meetsMinDecision', () => {
+  it('orders decisions instead of comparing scores', () => {
+    expect(DECISION_RANK.apply).toBeGreaterThan(DECISION_RANK.maybe);
+    expect(DECISION_RANK.maybe).toBeGreaterThan(DECISION_RANK.skip);
+    expect(meetsMinDecision('apply', 'apply')).toBe(true);
+    expect(meetsMinDecision('maybe', 'apply')).toBe(false);
+    expect(meetsMinDecision('maybe', 'maybe')).toBe(true);
+    expect(meetsMinDecision('skip', 'maybe')).toBe(false);
   });
 });

@@ -505,6 +505,7 @@ async function persistDiscoveryMatches(
             item.score_result ?? item.scoreResult,
             item.match_score,
             item.reason,
+            item.dedup_key ?? undefined,
           );
           jobs.push({
             id: job.id,

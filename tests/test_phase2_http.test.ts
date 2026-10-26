@@ -469,25 +469,29 @@ describe('Phase 2 HTTP auth + lifecycle', () => {
           {
             jobId: 'job-1',
             dedupKey: 'acme::engineer::remote',
-            score: 77,
+            score: 80,
             reason: 'Strong fit',
             scoreResult: {
-              score: 77,
+              decision: 'apply',
               band: 'good',
-              components: [
+              rating: 4,
+              score: 80,
+              dimensions: [
                 {
                   name: 'skills',
-                  weight: 0.3,
-                  score: 80,
-                  contribution: 24,
+                  rating: 4,
+                  importance: 'critical',
                   evidence_tier: 'stated',
                   reason: 'TypeScript is quoted in the JD.',
+                  downgraded: false,
                 },
               ],
+              gates: [],
               confidence: 'medium',
               evidence_tier: 'stated',
               reason: 'Strong fit',
               not_evaluated: ['recency'],
+              interview_risk: [],
             },
           },
         ],
@@ -498,9 +502,9 @@ describe('Phase 2 HTTP auth + lifecycle', () => {
     const body = await res.json();
     expect(body.jobs).toHaveLength(1);
     expect(body.seenAt).toBe(seenAt.toISOString());
-    expect(body.jobs[0].score).toBe(77);
+    expect(body.jobs[0].score).toBe(80);
     expect(body.jobs[0].scoreResult.band).toBe('good');
-    expect(body.jobs[0].scoreResult.components).toHaveLength(1);
+    expect(body.jobs[0].scoreResult.dimensions).toHaveLength(1);
     expect(body.jobs[0].scoreResult.not_evaluated).toEqual(['recency']);
     const where = job.findMany.mock.calls[0]?.[0]?.where;
     expect(where.isActive).toBe(true);
@@ -522,25 +526,29 @@ describe('Phase 2 HTTP auth + lifecycle', () => {
         {
           jobId: 'job-1',
           dedupKey: 'acme::engineer::remote',
-          score: 64,
+          score: 80,
           reason: 'Good fit',
           scoreResult: {
-            score: 64,
+            decision: 'apply',
             band: 'good',
-            components: [
+            rating: 4,
+            score: 80,
+            dimensions: [
               {
                 name: 'skills',
-                weight: 0.3,
-                score: 70,
-                contribution: 21,
+                rating: 4,
+                importance: 'critical',
                 evidence_tier: 'stated',
                 reason: 'TypeScript is quoted in the JD.',
+                downgraded: false,
               },
             ],
+            gates: [],
             confidence: 'medium',
             evidence_tier: 'stated',
             reason: 'Good fit',
             not_evaluated: ['recency'],
+            interview_risk: [],
           },
         },
       ],
@@ -574,9 +582,10 @@ describe('Phase 2 HTTP auth + lifecycle', () => {
     );
     expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body.jobs[0].score).toBe(64);
+    expect(body.jobs[0].score).toBe(80);
     expect(body.jobs[0].scoreResult.band).toBe('good');
-    expect(body.jobs[0].scoreResult.components[0].name).toBe('skills');
+    expect(body.jobs[0].scoreResult.dimensions[0].name).toBe('skills');
+    expect(body.jobs[0].scoreResult.decision).toBe('apply');
     expect(body.jobs[0].scoreResult.not_evaluated).toEqual(['recency']);
   });
 
@@ -901,7 +910,9 @@ describe('Phase 2 HTTP auth + lifecycle', () => {
         matchSession.update.mock.calls[0]?.[0]?.data.topResults;
       expect(storedTopResults).toHaveLength(1);
       expect(storedTopResults[0].scoreResult.score).toBe(84);
-      expect(storedTopResults[0].scoreResult.band).toBe('strong');
+      // 84 is a legacy number: the band is capped by the decision it implies.
+      expect(storedTopResults[0].scoreResult.decision).toBe('apply');
+      expect(storedTopResults[0].scoreResult.band).toBe('good');
     } finally {
       globalThis.fetch = originalFetch;
     }
