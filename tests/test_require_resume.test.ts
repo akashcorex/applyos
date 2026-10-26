@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'bun:test';
 
-import { canApplyFromMe } from '../apps/web/src/lib/require-resume';
+import {
+  applyBlockerFromMe,
+  canApplyFromMe,
+  hasResumeFromMe,
+  PROFILE_UNCONFIRMED_ERROR,
+  RESUME_REQUIRED_ERROR,
+} from '../apps/web/src/lib/require-resume';
 
 describe('canApplyFromMe', () => {
   it('is false without onboarding state', () => {
@@ -54,5 +60,68 @@ describe('canApplyFromMe', () => {
         },
       }),
     ).toBe(false);
+  });
+});
+
+describe('applyBlockerFromMe', () => {
+  it('does not claim a missing resume when onboarding is absent', () => {
+    expect(applyBlockerFromMe(null)).toBeNull();
+    expect(applyBlockerFromMe({})).toBeNull();
+  });
+
+  it('blocks only when hasResume is false', () => {
+    expect(
+      applyBlockerFromMe({
+        onboarding: {
+          hasResume: false,
+          hasProfile: false,
+          profileConfirmed: false,
+          canApply: false,
+          onboardingComplete: false,
+        },
+      }),
+    ).toEqual({ code: 'RESUME_REQUIRED', error: RESUME_REQUIRED_ERROR });
+  });
+
+  it('does not say the resume is missing after upload', () => {
+    expect(
+      hasResumeFromMe({
+        onboarding: {
+          hasResume: true,
+          hasProfile: true,
+          profileConfirmed: false,
+          canApply: false,
+          onboardingComplete: false,
+        },
+      }),
+    ).toBe(true);
+    expect(
+      applyBlockerFromMe({
+        onboarding: {
+          hasResume: true,
+          hasProfile: true,
+          profileConfirmed: false,
+          canApply: false,
+          onboardingComplete: false,
+        },
+      }),
+    ).toEqual({
+      code: 'PROFILE_UNCONFIRMED',
+      error: PROFILE_UNCONFIRMED_ERROR,
+    });
+  });
+
+  it('allows apply when the resume is present and the profile is confirmed', () => {
+    expect(
+      applyBlockerFromMe({
+        onboarding: {
+          hasResume: true,
+          hasProfile: true,
+          profileConfirmed: true,
+          canApply: true,
+          onboardingComplete: true,
+        },
+      }),
+    ).toBeNull();
   });
 });

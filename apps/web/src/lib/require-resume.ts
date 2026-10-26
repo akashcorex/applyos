@@ -2,6 +2,12 @@ import { serverApiUrl } from '@/lib/server-api-url';
 
 import type { MeResponse } from './proxy-session';
 
+export function hasResumeFromMe(
+  me: Pick<MeResponse, 'onboarding'> | null,
+): boolean {
+  return Boolean(me?.onboarding?.hasResume);
+}
+
 export function canApplyFromMe(
   me: Pick<MeResponse, 'onboarding'> | null,
 ): boolean {
@@ -10,6 +16,27 @@ export function canApplyFromMe(
 }
 
 export const RESUME_REQUIRED_ERROR = 'Upload a resume before applying.';
+export const PROFILE_UNCONFIRMED_ERROR =
+  'Confirm your profile before applying.';
+
+export type ApplyBlocker = {
+  code: 'RESUME_REQUIRED' | 'PROFILE_UNCONFIRMED';
+  error: string;
+};
+
+export function applyBlockerFromMe(
+  me: Pick<MeResponse, 'onboarding'> | null,
+): ApplyBlocker | null {
+  const onboarding = me?.onboarding;
+  if (!onboarding) return null;
+  if (!onboarding.hasResume) {
+    return { code: 'RESUME_REQUIRED', error: RESUME_REQUIRED_ERROR };
+  }
+  if (onboarding.profileConfirmed === false || onboarding.canApply === false) {
+    return { code: 'PROFILE_UNCONFIRMED', error: PROFILE_UNCONFIRMED_ERROR };
+  }
+  return null;
+}
 
 export async function requireHasResume(
   request: Request,
@@ -32,11 +59,9 @@ export async function requireHasResume(
       return Response.json({ error: 'API is unavailable' }, { status: 502 });
     }
     const me = (await res.json()) as MeResponse;
-    if (!canApplyFromMe(me)) {
-      return Response.json(
-        { error: RESUME_REQUIRED_ERROR, code: 'RESUME_REQUIRED' },
-        { status: 422 },
-      );
+    const blocker = applyBlockerFromMe(me);
+    if (blocker) {
+      return Response.json(blocker, { status: 422 });
     }
     return true;
   } catch {

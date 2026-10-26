@@ -5,7 +5,7 @@ from httpx import ASGITransport, AsyncClient
 
 from dependencies import AppState
 from main import app
-from models import CompanyTarget, CVData, StartWorkflowRequest, UserProfile
+from models import CompanyTarget, CVData, DirectApplyJob, StartWorkflowRequest, UserProfile
 
 
 @pytest.fixture
@@ -113,3 +113,57 @@ async def test_start_workflow_returns_202(mock_app_state: AppState) -> None:
     assert "workflow_id" in body
     assert body["status"] == "pending"
     mock_app_state.start_workflow.assert_awaited_once()
+
+
+def test_direct_apply_job_drops_unknown_source() -> None:
+    job = DirectApplyJob.model_validate(
+        {
+            "title": "Design Engineer - Americas",
+            "company_name": "Ashby",
+            "application_url": "https://jobicy.com/jobs/156857-design-engineer-americas",
+            "source": "feed",
+            "dedup_key": "ashby::design engineer - americas::usa",
+        }
+    )
+    assert job.source is None
+
+
+def test_direct_apply_job_keeps_known_source() -> None:
+    job = DirectApplyJob.model_validate(
+        {
+            "title": "Engineer",
+            "company_name": "Acme",
+            "application_url": "https://boards.greenhouse.io/acme/jobs/1",
+            "source": "greenhouse",
+        }
+    )
+    assert job.source == "greenhouse"
+
+
+def test_start_workflow_request_accepts_feed_jobs() -> None:
+    request = StartWorkflowRequest.model_validate(
+        {
+            "user_profile": {
+                "user_id": "u1",
+                "preferred_role": "Engineer",
+                "years_experience": 3,
+            },
+            "cv_data": {
+                "full_name": "Jane",
+                "email": "jane@example.com",
+                "resume_url": "http://127.0.0.1:8005/internal/resumes/r1/source",
+            },
+            "jobs": [
+                {
+                    "title": "Design Engineer - Americas",
+                    "company_name": "Ashby",
+                    "application_url": "https://jobicy.com/jobs/156857-design-engineer-americas",
+                    "source": "feed",
+                    "location": "USA",
+                    "dedup_key": "ashby::design engineer - americas::usa",
+                }
+            ],
+            "auto_apply": True,
+        }
+    )
+    assert request.jobs[0].source is None
