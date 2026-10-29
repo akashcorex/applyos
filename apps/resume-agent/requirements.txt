@@ -257,7 +257,7 @@ ormsgpack==1.12.2
     # via langgraph-checkpoint
 overrides==7.7.0
     # via chromadb
-packaging==26.2
+packaging==26.3
     # via
     #   build
     #   huggingface-hub
