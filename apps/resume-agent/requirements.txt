@@ -100,7 +100,7 @@ fsspec==2026.7.0
     # via huggingface-hub
 googleapis-common-protos==1.75.2
     # via opentelemetry-exporter-otlp-proto-grpc
-greenlet==3.5.3
+greenlet==3.5.5
     # via sqlalchemy
 grpcio==1.83.1
     # via
