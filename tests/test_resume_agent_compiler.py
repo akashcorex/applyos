@@ -155,7 +155,7 @@ async def test_compiler_creates_content_addressed_preview_artifact() -> None:
     )
 
     assert artifact.artifact_hash
-    assert artifact.storage_key.startswith("local://resume-artifacts/")
+    assert artifact.storage_key.startswith("local://artifacts/")
     assert artifact.validation.valid
 
     second = await ResumeCompiler().compile(

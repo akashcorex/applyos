@@ -71,27 +71,37 @@ function FAQ() {
     {
       question: 'What is ApplyOS?',
       answer:
-        'ApplyOS is an AI agent that finds high-growth roles, tailors your resume, applies for you, and reaches out to recruiters so you can keep studying.',
+        'ApplyOS is an AI job-search copilot. It builds a profile from your resume, finds roles that match, tailors your resume for each one, and submits applications for you — with you in control at every step.',
     },
     {
-      question: 'How does auto-apply work?',
+      question: 'What counts as a submitted application?',
       answer:
-        'You upload a resume and set preferences. The agent discovers matching jobs, customizes materials for each role, and submits applications on your behalf.',
+        'Only an application that actually goes out. If an application fails, gets stuck, or is cancelled, it does not use your quota. You can watch each one and take over live whenever you want.',
     },
     {
-      question: 'Will applications sound like me?',
+      question: 'How does applying work?',
       answer:
-        'Yes. Outreach and resume edits are generated from your profile and writing. You can review them or let the agent send automatically.',
+        'You confirm your profile, pick roles from your matches, and ApplyOS fills and submits the forms. Hit a CAPTCHA or an odd form? Take over live, finish it, and ApplyOS resumes after.',
     },
     {
       question: 'Is it free to start?',
       answer:
-        'Yes. You can start for free, connect your accounts, and apply to roles before upgrading.',
+        'Yes. Every new account gets 25 submitted applications per 30-day cycle, free — discovery, tailored resumes and tracking included. Upgrade when you need more volume.',
     },
     {
-      question: 'Do I need to stay at my computer?',
+      question: 'Which sites do you work on?',
       answer:
-        'No. Once a run is going, the agent works in the background. Check status from the dashboard anytime.',
+        'Startup and company career sites — Greenhouse, Lever, Ashby, Workable, Workday, Wellfound and more — plus a generic mode that handles other application forms. We do not bypass CAPTCHAs anywhere.',
+    },
+    {
+      question: 'Will I get interviews?',
+      answer:
+        'We cannot promise interviews or jobs — nobody honestly can. We make it faster to apply broadly, with a resume tailored to every role.',
+    },
+    {
+      question: 'Do you write cover letters or follow-up emails?',
+      answer:
+        'Not yet. Cover letters, follow-up drafts and inbox sync are on our roadmap. We will announce it when they ship — and we never charge for unshipped features.',
     },
     {
       question: 'Is my data private?',

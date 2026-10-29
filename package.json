@@ -31,6 +31,7 @@
     "db:migrate": "turbo run migrate --filter=@applyso/database",
     "db:push": "turbo run push --filter=@applyso/database",
     "db:studio": "turbo run studio --filter=@applyso/database",
+    "billing:preflight": "bun scripts/dodo-preflight.ts",
     "sync:agents": "turbo run sync --filter=ai-orchestrator --filter=job-agent --filter=apply-agent --filter=outreach-agent --filter=resume-agent",
     "sync:job-agent": "turbo run sync --filter=job-agent",
     "sync:resume-agent": "turbo run sync --filter=resume-agent",

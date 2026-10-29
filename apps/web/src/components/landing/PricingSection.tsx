@@ -23,6 +23,7 @@ import {
   Zap,
 } from '@applyso/ui/icons';
 import {
+  ADD_ON_PACK_BONUS,
   FREE_APPLICATION_QUOTA,
   PLAN_APPLICATION_QUOTAS,
   PLAN_INTERVAL_SAVINGS,
@@ -65,8 +66,8 @@ const PLANS: PlanCard[] = [
       },
       { icon: Search, text: 'Autonomous job discovery' },
       { icon: FilePenLine, text: 'AI resume tailored per role' },
-      { icon: Send, text: 'One-click auto-apply' },
-      { icon: Users, text: 'Recruiter outreach agent' },
+      { icon: Send, text: 'Forms filled and submitted for you' },
+      { icon: Users, text: 'LinkedIn recruiter connects' },
       { icon: Layers, text: 'Application tracking dashboard' },
       { icon: ShieldCheck, text: 'Hosted checkout — card stays with Dodo' },
       { icon: Check, text: 'Cancel anytime' },
@@ -110,6 +111,15 @@ function formatInr(amount: number): string {
   return `₹${amount.toLocaleString('en-IN')}`;
 }
 
+function perApplicationPrice(plan: BillingPlan, cycle: BillingCycle): string {
+  const inr =
+    cycle === 'monthly'
+      ? PLAN_PRICES_INR[plan].monthly
+      : monthlyEquivalentInr(plan, 'annual');
+  const perApp = inr / PLAN_APPLICATION_QUOTAS[plan];
+  return `₹${perApp.toLocaleString('en-IN', { maximumFractionDigits: 1 })}`;
+}
+
 function PlanPrice({
   plan,
   cycle,
@@ -125,6 +135,9 @@ function PlanPrice({
         </span>
         <span className="text-sm text-neutral-400"> / month</span>
         <p className="mt-2 text-xs text-neutral-500">Billed monthly</p>
+        <p className="mt-1 text-xs text-neutral-500">
+          ≈ {perApplicationPrice(plan, cycle)} per submitted application
+        </p>
       </>
     );
   }
@@ -137,6 +150,9 @@ function PlanPrice({
       <p className="mt-2 text-xs text-neutral-500">
         {formatInr(PLAN_PRICES_INR[plan].annual)} billed annually · save{' '}
         {PLAN_INTERVAL_SAVINGS[plan].annual}%
+      </p>
+      <p className="mt-1 text-xs text-neutral-500">
+        ≈ {perApplicationPrice(plan, cycle)} per submitted application
       </p>
     </>
   );
@@ -203,7 +219,7 @@ function PricingSection() {
               >
                 {featured ? (
                   <span className="absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-neutral-100 px-3 py-0.5 text-[11px] font-semibold text-black">
-                    Most popular
+                    Recommended
                   </span>
                 ) : null}
                 <div className="rounded-xl border border-neutral-800/70 bg-black/40 p-6">
@@ -246,8 +262,21 @@ function PricingSection() {
           )}
         </motion.div>
 
+        <div className="mx-auto mt-6 max-w-6xl rounded-2xl border border-neutral-800/60 bg-neutral-950/40 p-6 text-center">
+          <p className="text-sm font-medium text-neutral-200">
+            What counts as a submitted application?
+          </p>
+          <p className="mx-auto mt-2 max-w-2xl text-sm leading-relaxed text-neutral-400">
+            Only one that actually goes out. Failed, paused, cancelled or stuck
+            applications never count. Need more volume? Top-up packs (+
+            {ADD_ON_PACK_BONUS.plus_50} or +{ADD_ON_PACK_BONUS.plus_150}{' '}
+            applications) are available in Settings → Billing and apply to your
+            current cycle.
+          </p>
+        </div>
+
         <p className="mt-10 text-center text-xs text-neutral-500">
-          Cancel anytime. You pay only for jobs actually submitted.
+          Cancel anytime. You pay only for applications actually submitted.
         </p>
       </div>
     </section>

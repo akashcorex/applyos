@@ -67,9 +67,9 @@ const HeroSection = () => {
                 viewport={{ once: true }}
                 className="max-w-sm text-balance text-[0.95rem] text-neutral-400 sm:max-w-lg md:text-[1.1rem] lg:max-w-md"
               >
-                Be first to every opportunity that matters. ApplyOS finds
-                high-growth roles, tailors your applications, and reaches out
-                automatically.
+                ApplyOS finds roles that fit your profile, tailors your resume
+                for each one, and submits the applications — you stay in control
+                and can take over anytime.
               </motion.p>
               <motion.div
                 initial={{

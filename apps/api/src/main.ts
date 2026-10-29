@@ -8,6 +8,8 @@ import { auth } from './auth';
 import { startFallowBeacon } from './fallow-beacon';
 import { betterAuthExpressHandler } from './lib/better-auth-express';
 import { reconcileJobs } from './lib/job-reconcile';
+import { evaluateAlerts } from './lib/ops/alerts';
+import { flushApiOpsMetrics, httpErrorTracker } from './lib/ops/error-counter';
 import {
   authCookieConfigError,
   webLoginUrl,
@@ -16,9 +18,11 @@ import {
 import { adminRouter } from './routes/admin';
 import { applicationsRouter } from './routes/applications';
 import { billingRouter, billingWebhookHandler } from './routes/billing';
+import { healthRouter } from './routes/health';
 import { linkedinConnectsRouter } from './routes/linkedin-connects';
 import { jobsInternalRouter, jobsRouter } from './routes/jobs';
 import { meRouter } from './routes/me';
+import { opsInternalRouter } from './routes/ops';
 import { preferencesRouter } from './routes/preferences';
 import { profilesRouter } from './routes/profiles';
 import { resumesInternalRouter, resumesRouter } from './routes/resumes';
@@ -48,6 +52,7 @@ app.post(
 );
 
 app.use(express.json());
+app.use(httpErrorTracker());
 
 app.get('/', (req, res) => {
   const error = typeof req.query.error === 'string' ? req.query.error : null;
@@ -61,6 +66,8 @@ app.get('/', (req, res) => {
 });
 
 app.use('/v1/me', meRouter);
+app.use('/v1', healthRouter);
+app.use('/v1/internal/ops', opsInternalRouter);
 app.use('/v1/profiles', profilesRouter);
 app.use('/v1/resumes', resumesInternalRouter);
 app.use('/v1/resumes', resumesRouter);
@@ -97,6 +104,19 @@ setTimeout(
   },
   10 * 60 * 1000,
 );
+
+// Ops monitor (single-instance): flush 5xx metrics + self-heartbeat, then
+// evaluate alert rules. Upgrade path: drop the evaluateAlerts call here and
+// point a Railway cron service at POST /v1/internal/ops/evaluate instead.
+setTimeout(() => {
+  const run = () => {
+    void flushApiOpsMetrics()
+      .then(() => evaluateAlerts())
+      .catch((error) => console.error('[ops] monitor cycle failed', error));
+  };
+  run();
+  setInterval(run, 60 * 1000);
+}, 15 * 1000);
 
 app.listen(port, host, () => {
   console.log(`[ ready ] http://${host}:${port}`);

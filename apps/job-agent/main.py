@@ -6,6 +6,7 @@ from fastapi import FastAPI
 
 from config import settings
 from logging_filters import install_health_access_filter
+from ops_reporter import start_ops_reporter
 from routes.detect import router as detect_router
 from routes.registry import router as registry_router
 from routes.funding import router as funding_router
@@ -27,7 +28,12 @@ async def lifespan(_app: FastAPI):
         from services.refresh import refresh_loop
 
         refresher = asyncio.create_task(refresh_loop())
+    ops_task = start_ops_reporter(
+        "job-agent", settings.api_url, settings.agent_service_token
+    )
     yield
+    if ops_task is not None:
+        ops_task.cancel()
     if refresher is not None:
         refresher.cancel()
 

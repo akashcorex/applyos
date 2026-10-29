@@ -14,7 +14,8 @@ import { ThemeProvider } from '@/components/theme-provider';
 
 import type { Metadata } from 'next';
 
-const GA_MEASUREMENT_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID ?? '';
+const GA_MEASUREMENT_ID =
+  process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID ?? 'G-0ZMQJDLQGF';
 
 function resolveSiteUrl(): string {
   const fallback = 'https://www.applyos.in';
@@ -52,7 +53,7 @@ const ogImageUrl = new URL('/og.jpg', siteUrl).toString();
 
 const title = 'ApplyOS — Your AI applies while you study';
 const description =
-  'Be first to every opportunity that matters. ApplyOS finds high-growth roles, tailors your applications, and reaches out automatically.';
+  'ApplyOS finds roles that fit your profile, tailors your resume for each one, and submits the applications — you stay in control.';
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -62,7 +63,12 @@ export const metadata: Metadata = {
   },
   description,
   applicationName: 'ApplyOS',
-  keywords: ['ApplyOS', 'AI job applications', 'auto apply', 'job outreach'],
+  keywords: [
+    'ApplyOS',
+    'AI job applications',
+    'resume tailoring',
+    'fresher jobs',
+  ],
   authors: [{ name: 'ApplyOS' }],
   creator: 'ApplyOS',
   openGraph: {

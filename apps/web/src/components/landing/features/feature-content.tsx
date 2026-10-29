@@ -63,8 +63,8 @@ const FeatureContent = () => {
         viewport={{ once: true }}
         className="mb-8 max-w-sm text-balance bg-gradient-to-br from-white/70 via-white/70 to-white/30 bg-clip-text text-center text-[0.8rem] text-transparent sm:max-w-[32rem] sm:text-[0.87rem] lg:text-[1rem]"
       >
-        Discover roles, tailor applications, and follow up automatically so you
-        can keep studying.
+        Discover roles, tailor your resume for each one, and let ApplyOS handle
+        the forms while you keep studying.
       </motion.p>
     </>
   );

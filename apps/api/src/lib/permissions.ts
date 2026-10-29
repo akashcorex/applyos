@@ -10,7 +10,10 @@ export type Capability =
   | 'resumes:write:own'
   | 'users:read'
   | 'users:write'
-  | 'resumes:read:all';
+  | 'resumes:read:all'
+  | 'billing:read'
+  | 'ops:read'
+  | 'ops:write';
 
 const USER_CAPABILITIES: Capability[] = [
   'account:read:own',
@@ -27,6 +30,9 @@ const ROLE_CAPABILITIES: Record<Role, Capability[]> = {
     'users:read',
     'users:write',
     'resumes:read:all',
+    'billing:read',
+    'ops:read',
+    'ops:write',
   ],
 };
 

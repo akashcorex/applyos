@@ -3,6 +3,8 @@ import { Router } from 'express';
 import { prisma } from '@applyso/database';
 
 import { authUserOf, requireAuth } from '../lib/authz';
+import { sendTestAlert } from '../lib/ops/alerts';
+import { computeOpsSnapshot } from '../lib/ops/snapshot';
 import { requirePermission } from '../lib/permissions';
 import { isValidResourceId } from '../lib/phase1-validation';
 
@@ -11,6 +13,44 @@ export const adminRouter = Router();
 // Every admin route requires authentication, then a per-route capability.
 // Server-side authorization only — UI hiding is never the security boundary.
 adminRouter.use(requireAuth);
+
+// GET /v1/admin/billing-events?limit= — recent Dodo webhook receipts, used as
+// evidence for billing verification (G1): payment/refund/subscription events.
+adminRouter.get(
+  '/billing-events',
+  requirePermission('billing:read'),
+  async (req, res) => {
+    const limitRaw = Array.isArray(req.query.limit)
+      ? req.query.limit[0]
+      : req.query.limit;
+    const parsed = Number.parseInt(String(limitRaw ?? '50'), 10);
+    const limit = Number.isFinite(parsed)
+      ? Math.min(Math.max(parsed, 1), 200)
+      : 50;
+    const [events, counts] = await Promise.all([
+      prisma.processedWebhook.findMany({
+        orderBy: { processedAt: 'desc' },
+        take: limit,
+      }),
+      prisma.processedWebhook.groupBy({
+        by: ['eventType'],
+        _count: { _all: true },
+      }),
+    ]);
+    res.json({
+      events: events.map((event) => ({
+        id: event.id,
+        dodoEventId: event.dodoEventId,
+        eventType: event.eventType,
+        processedAt: event.processedAt.toISOString(),
+      })),
+      counts: counts.map((row) => ({
+        eventType: row.eventType,
+        count: row._count._all,
+      })),
+    });
+  },
+);
 
 const PUBLIC_USER_SELECT = {
   id: true,
@@ -299,5 +339,44 @@ adminRouter.patch(
       previous: { role: existing.role, status: existing.status },
     });
     res.status(200).json({ user });
+  },
+);
+
+// GET /v1/admin/ops — G3 monitoring snapshot + alert states for the Ops page.
+adminRouter.get('/ops', requirePermission('ops:read'), async (req, res) => {
+  const [snapshot, alerts] = await Promise.all([
+    computeOpsSnapshot(),
+    prisma.alertState.findMany({ orderBy: { updatedAt: 'desc' }, take: 50 }),
+  ]);
+  res.status(200).json({
+    ...snapshot,
+    alerts: alerts.map((alert) => ({
+      ruleKey: alert.ruleKey,
+      target: alert.target,
+      severity: alert.severity,
+      state: alert.state,
+      lastFiredAt: alert.lastFiredAt?.toISOString() ?? null,
+      resolvedAt: alert.resolvedAt?.toISOString() ?? null,
+    })),
+    alertWebhookConfigured: Boolean(process.env.ALERT_WEBHOOK_URL),
+  });
+});
+
+// POST /v1/admin/ops/test-alert — fire a labeled TEST alert through the real
+// channel; the G3 gate's manual acceptance lever.
+adminRouter.post(
+  '/ops/test-alert',
+  requirePermission('ops:write'),
+  async (req, res) => {
+    const actor = authUserOf(req);
+    const result = await sendTestAlert(actor?.email ?? 'admin');
+    if (!result.delivered) {
+      const misconfigured = result.reason?.includes('not configured');
+      res
+        .status(misconfigured ? 400 : 502)
+        .json({ error: result.reason ?? 'Alert delivery failed' });
+      return;
+    }
+    res.status(200).json({ delivered: true });
   },
 );

@@ -17,6 +17,10 @@ node_modules
 .env
 .env.*
 !.env.example
+.envrc
+*.pem
+*.key
+*.p12
 agentcontext.txt
 applyagent-implementation plan.md
 .nx/

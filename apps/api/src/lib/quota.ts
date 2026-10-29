@@ -138,6 +138,30 @@ export async function addBonusApplications(
   });
 }
 
+export async function subtractBonusApplications(
+  userId: string,
+  amount: number,
+): Promise<number> {
+  if (amount <= 0) return 0;
+  let cycle = await getOrCreateUsageCycle(userId);
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const reversible = Math.min(cycle.bonusApplications, amount);
+    if (reversible <= 0) return 0;
+    // Guarded decrement: the where clause re-checks the balance so concurrent
+    // refunds can never push bonusApplications below zero.
+    const result = await prisma.usageCycle.updateMany({
+      where: { id: cycle.id, bonusApplications: { gte: reversible } },
+      data: {
+        bonusApplications: { decrement: reversible },
+        updatedAt: new Date(),
+      },
+    });
+    if (result.count === 1) return reversible;
+    cycle = await getOrCreateUsageCycle(userId);
+  }
+  return 0;
+}
+
 export async function resetCycleForSubscription(input: {
   userId: string;
   plan: BillingPlan;

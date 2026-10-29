@@ -19,8 +19,8 @@ const BADGES = [
   {
     id: 'scout',
     title: 'Job Scout',
-    desc: 'Scans new roles daily and shortlists high-growth matches.',
-    stat: '120+ roles scanned daily',
+    desc: 'Scans startup and company career sites daily and shortlists matches for your profile.',
+    stat: 'Fresh matches surfaced hourly',
     src: '/badges/job-scout.png',
     width: 765,
     height: 2055,
@@ -32,8 +32,8 @@ const BADGES = [
   {
     id: 'tailor',
     title: 'Resume Tailored',
-    desc: 'Rewrites your resume for every role so you pass screening.',
-    stat: '3x more callbacks',
+    desc: 'Rewrites your resume for every role and compiles a fresh PDF.',
+    stat: 'One tailored PDF per application',
     src: '/badges/resume-tailored.png',
     width: 765,
     height: 2056,
@@ -44,26 +44,26 @@ const BADGES = [
   },
   {
     id: 'outreach',
-    title: 'Outreach Manager',
-    desc: 'Drafts recruiter messages and follows up automatically.',
-    stat: '40+ intros per week',
+    title: 'LinkedIn Connects',
+    desc: 'Finds recruiters at companies you are targeting and sends connection requests.',
+    stat: 'Every request tracked',
     src: '/badges/outreach-manager.png',
     width: 765,
     height: 2055,
-    alt: 'Outreach Manager AI agent badge',
+    alt: 'LinkedIn Connects AI agent badge',
     color: 'text-purple-400',
     barColor: 'bg-purple-400',
     Icon: Send,
   },
   {
     id: 'tracker',
-    title: 'Offer Tracker',
-    desc: 'Tracks every application and preps you for interviews.',
-    stat: '100% of apps tracked',
+    title: 'Application Tracker',
+    desc: 'Tracks every application and its status in one board.',
+    stat: 'Every status, one dashboard',
     src: '/badges/offer-tracker.png',
     width: 765,
     height: 2055,
-    alt: 'Offer Tracker AI agent badge',
+    alt: 'Application Tracker AI agent badge',
     color: 'text-amber-400',
     barColor: 'bg-amber-400',
     Icon: CalendarCheck,
@@ -115,8 +115,8 @@ const WhyBadges = () => {
             Your AI career team
           </h2>
           <p className="mx-auto mt-4 max-w-xl text-balance bg-gradient-to-br from-white/70 via-white/70 to-white/30 bg-clip-text text-[0.95rem] text-transparent md:text-[1.05rem]">
-            Four autonomous agents work your job search in parallel while you
-            stay focused on classes.
+            Your job search covered end to end while you stay focused on
+            classes.
           </p>
         </motion.div>
       </div>

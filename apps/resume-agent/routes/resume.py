@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-from pathlib import Path
 from typing import Any
 
 import httpx
@@ -43,6 +42,7 @@ from services.parser import (
 from services.ir import ir_to_record, record_to_ir, sha256_bytes
 from services.db import ResumeNotFoundError
 from services.storage import (
+    ensure_resume_file_local,
     find_artifact_path,
     resume_file_storage_key,
     save_resume_file,
@@ -277,6 +277,7 @@ async def _persist_parsed_resume(
                 file_name=file_name,
                 file_type=file_type,
                 storage_key=resume_file_storage_key(
+                    user_id=user_id,
                     resume_id=resume_id,
                     file_name=file_name,
                     file_type=file_type,
@@ -479,11 +480,17 @@ async def download_internal_source_resume(
         record = await state.repository.get(resume_id)
     except ResumeNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
-    if not record.file_path or not Path(record.file_path).is_file():
+    file_path = ensure_resume_file_local(
+        user_id=record.user_id,
+        resume_id=resume_id,
+        stored_path=record.file_path,
+        file_type=record.file_type,
+    )
+    if not file_path:
         raise HTTPException(status_code=404, detail="Source resume not found")
     media_type = _media_type_for(record.file_type)
     return FileResponse(
-        record.file_path,
+        file_path,
         media_type=media_type,
         filename=record.file_name or f"resume-{resume_id}",
     )
@@ -493,11 +500,17 @@ async def download_internal_source_resume(
 async def download_source_resume(resume_id: str, request: Request) -> FileResponse:
     state = _state(request)
     record = await require_resume_owner(state.repository, resume_id, request)
-    if not record.file_path or not Path(record.file_path).is_file():
+    file_path = ensure_resume_file_local(
+        user_id=record.user_id,
+        resume_id=resume_id,
+        stored_path=record.file_path,
+        file_type=record.file_type,
+    )
+    if not file_path:
         raise HTTPException(status_code=404, detail="Source resume not found")
     media_type = _media_type_for(record.file_type)
     return FileResponse(
-        record.file_path,
+        file_path,
         media_type=media_type,
         filename=record.file_name or f"resume-{resume_id}",
         content_disposition_type="inline"

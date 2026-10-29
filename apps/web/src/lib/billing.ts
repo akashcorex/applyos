@@ -20,6 +20,7 @@ export interface BillingInvoice {
   currency: string;
   status: string;
   createdAt: string | null;
+  paymentMethod: string | null;
 }
 
 export interface BillingMe {

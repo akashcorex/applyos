@@ -19,6 +19,7 @@ import {
   latestActiveSubscription,
   remainingInCycle,
   resetCycleForSubscription,
+  subtractBonusApplications,
 } from './quota';
 
 function asRecord(value: unknown): Record<string, unknown> {
@@ -200,6 +201,62 @@ async function upsertSubscriptionFromPayload(
   }
 }
 
+async function resolveAddOnPack(
+  userId: string,
+  data: Record<string, unknown>,
+): Promise<BillingAddOnPack | null> {
+  const metadata = metadataOf(data);
+  if (isAddOnPack(metadata.addOnPack)) return metadata.addOnPack;
+  const fromProduct = addOnFromProductId(productIdOf(data));
+  if (fromProduct) return fromProduct;
+
+  const paymentId = asString(data.payment_id);
+  if (!paymentId) return null;
+  try {
+    const client = getDodoClient();
+    const payment = (await client.payments.retrieve(paymentId)) as {
+      metadata?: Record<string, unknown>;
+      product_id?: string;
+    };
+    const paymentMetadata: Record<string, string> = {};
+    for (const [key, value] of Object.entries(payment.metadata ?? {})) {
+      if (typeof value === 'string') paymentMetadata[key] = value;
+    }
+    if (isAddOnPack(paymentMetadata.addOnPack)) {
+      return paymentMetadata.addOnPack;
+    }
+    return addOnFromProductId(payment.product_id ?? null);
+  } catch (error) {
+    console.warn(
+      `[billing] could not fetch refunded payment ${paymentId} for pack resolution:`,
+      error,
+    );
+    return null;
+  }
+}
+
+async function reverseRefundedGrant(
+  userId: string,
+  data: Record<string, unknown>,
+): Promise<void> {
+  const pack = await resolveAddOnPack(userId, data);
+  if (!pack) {
+    console.warn(
+      '[billing] refund.succeeded for a non-add-on payment; no automatic reversal (handle in Dodo dashboard). payment_id=' +
+        (asString(data.payment_id) ?? 'null'),
+    );
+    return;
+  }
+  const bonus = ADD_ON_PACK_BONUS[pack];
+  const reversed = await subtractBonusApplications(userId, bonus);
+  if (reversed < bonus) {
+    console.warn(
+      `[billing] refund clawback clamped: pack ${pack} wanted ${bonus}, reversed ${reversed} (bonus already used). payment_id=` +
+        (asString(data.payment_id) ?? 'null'),
+    );
+  }
+}
+
 export async function handleDodoWebhookEvent(
   type: string,
   data: Record<string, unknown>,
@@ -225,6 +282,9 @@ export async function handleDodoWebhookEvent(
       }
       return;
     case 'subscription.on_hold':
+    case 'subscription.paused':
+    case 'subscription.past_due':
+    case 'dunning.started':
       if (userId) await upsertSubscriptionFromPayload(userId, data, 'on_hold');
       return;
     case 'subscription.cancelled':
@@ -237,6 +297,18 @@ export async function handleDodoWebhookEvent(
       return;
     case 'subscription.failed':
       if (userId) await upsertSubscriptionFromPayload(userId, data, 'failed');
+      return;
+    case 'subscription.plan_changed':
+    case 'subscription.unpaused':
+    case 'dunning.recovered':
+      if (userId) {
+        await upsertSubscriptionFromPayload(userId, data, 'active');
+      } else {
+        console.error(
+          '[billing] subscription event could not resolve a user; plan not provisioned. data.customer_id=' +
+            (customerId ?? 'null'),
+        );
+      }
       return;
     case 'payment.succeeded': {
       if (!userId) {
@@ -260,6 +332,21 @@ export async function handleDodoWebhookEvent(
       }
       return;
     }
+    case 'refund.succeeded': {
+      if (!userId) {
+        console.error(
+          '[billing] refund.succeeded could not resolve a user; grant not reversed. payment_id=' +
+            (asString(data.payment_id) ?? 'null'),
+        );
+        return;
+      }
+      await reverseRefundedGrant(userId, data);
+      return;
+    }
+    case 'refund.failed':
+    case 'refund.pending':
+    case 'refund.review':
+      return;
     default:
       return;
   }
@@ -280,6 +367,7 @@ export async function listRecentInvoices(dodoCustomerId: string) {
         currency?: string;
         status?: string;
         created_at?: string;
+        payment_method?: string | null;
       };
       return {
         id: row.payment_id ?? '',
@@ -287,6 +375,7 @@ export async function listRecentInvoices(dodoCustomerId: string) {
         currency: (row.currency ?? 'INR').toUpperCase(),
         status: row.status ?? 'unknown',
         createdAt: row.created_at ?? null,
+        paymentMethod: row.payment_method ?? null,
       };
     });
   } catch (error) {
@@ -324,6 +413,7 @@ function freeBillingSummary() {
       currency: string;
       status: string;
       createdAt: string | null;
+      paymentMethod: string | null;
     }[],
   };
 }

@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import logging
 from dataclasses import dataclass
+from urllib.parse import urlsplit
 
 import asyncpg
 import httpx
@@ -157,7 +158,10 @@ class AppState:
             self.revision_repository,
         )
 
-        logger.info("resume-agent started (db=%s)", settings.database_url)
+        logger.info(
+            "resume-agent started (db_host=%s)",
+            urlsplit(settings.database_url).hostname or "unset",
+        )
 
     async def shutdown(self) -> None:
         if self.http_client is not None:

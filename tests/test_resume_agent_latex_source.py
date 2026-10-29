@@ -406,7 +406,7 @@ def test_save_latex_source_uses_opaque_key(_clean_user_dir) -> None:
     storage_key, local_path = save_latex_source(
         user_id=_TEST_USER, source_hash=source_hash, tex_bytes=tex_bytes
     )
-    assert storage_key == f"local://resume-latex-sources/{source_hash}.tex"
+    assert storage_key == f"local://latex-sources/{source_hash}.tex"
     assert "uploads" not in storage_key
     assert _TEST_USER not in storage_key
     assert Path(local_path).read_bytes() == tex_bytes

@@ -54,6 +54,7 @@ from services.latex_templates.registry import (
 )
 from services.latex_safety import UnsafeLatexError, validate_latex_source
 from services.storage import (
+    ensure_variant_pdf_local,
     resolve_artifact_path,
     resolve_latex_source_path,
     save_latex_source,
@@ -694,6 +695,11 @@ async def download_variant_pdf(
     )
     file_path = artifact_path or await state.variant_repository.get_file_path(
         resume_id, variant_id
+    )
+    file_path = ensure_variant_pdf_local(
+        user_id=master.user_id,
+        variant_id=variant_id,
+        stored_path=file_path,
     )
     if not file_path or not Path(file_path).is_file():
         raise HTTPException(status_code=404, detail="PDF not found")

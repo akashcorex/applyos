@@ -30,6 +30,8 @@ class Settings(BaseSettings):
     refresh_sweep_jobs: int = 50
     http_timeout_seconds: float = 10.0
     http_max_retries: int = 3
+    api_url: str = "http://localhost:5000"
+    agent_service_token: str = ""
     workable_max_pages: int = 50
     anthropic_api_key: str = ""
     llm_model: str = "claude-sonnet-4-6"

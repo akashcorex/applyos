@@ -111,3 +111,59 @@ export function patchAdminUser(
     { method: 'PATCH', body: JSON.stringify(data) },
   );
 }
+
+export interface OpsServiceHeartbeat {
+  service: string;
+  status: string;
+  version: string | null;
+  updatedAt: string;
+  ageSeconds: number;
+  stale: boolean;
+}
+
+export interface OpsQueueDepth {
+  service: string;
+  metric: string;
+  current: number;
+  tenMinAgo: number | null;
+}
+
+export interface OpsBoardSuccessRate {
+  board: string;
+  attempts24h: number;
+  submitted24h: number;
+  successRate24h: number | null;
+  attempts14d: number;
+  submitted14d: number;
+  successRate14d: number | null;
+}
+
+export interface OpsAlertState {
+  ruleKey: string;
+  target: string;
+  severity: string;
+  state: string;
+  lastFiredAt: string | null;
+  resolvedAt: string | null;
+}
+
+export interface OpsSnapshot {
+  generatedAt: string;
+  services: OpsServiceHeartbeat[];
+  queueDepths: OpsQueueDepth[];
+  boards: OpsBoardSuccessRate[];
+  paymentFailures: { last1h: number; last24h: number };
+  api: { http5xxLastHour: number };
+  alerts: OpsAlertState[];
+  alertWebhookConfigured: boolean;
+}
+
+export function fetchAdminOps() {
+  return adminFetch<OpsSnapshot>('/api/admin/ops');
+}
+
+export function sendAdminTestAlert() {
+  return adminFetch<{ delivered: boolean }>('/api/admin/ops/test-alert', {
+    method: 'POST',
+  });
+}

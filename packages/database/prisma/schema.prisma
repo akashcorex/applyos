@@ -951,3 +951,45 @@ model ProcessedWebhook {
 
   @@map("processed_webhooks")
 }
+
+model ServiceHeartbeat {
+  id        String   @id @default(cuid())
+  service   String   @unique
+  status    String   @default("ok")
+  version   String?
+  meta      Json     @default("{}")
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("service_heartbeats")
+}
+
+model MetricSample {
+  id        String   @id @default(cuid())
+  service   String
+  metric    String
+  value     Float
+  meta      Json     @default("{}")
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([service, metric, createdAt], map: "idx_metric_samples_service_metric_created_at")
+  @@index([createdAt], map: "idx_metric_samples_created_at")
+  @@map("metric_samples")
+}
+
+model AlertState {
+  id          String    @id @default(cuid())
+  ruleKey     String    @map("rule_key")
+  target      String    @default("global")
+  severity    String
+  state       String    @default("open")
+  lastFiredAt DateTime? @map("last_fired_at") @db.Timestamptz(6)
+  resolvedAt  DateTime? @map("resolved_at") @db.Timestamptz(6)
+  meta        Json      @default("{}")
+  createdAt   DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([ruleKey, target], map: "uq_alert_states_rule_target")
+  @@index([state], map: "idx_alert_states_state")
+  @@map("alert_states")
+}
