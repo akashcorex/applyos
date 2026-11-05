@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 # Web: filtered install → standalone Next.js on node slim.
 
-FROM oven/bun:1.4.2 AS deps
+FROM oven/bun:1.4.4 AS deps
 WORKDIR /app
 
 COPY package.json bun.lock turbo.json tsconfig.base.json tsconfig.json ./
