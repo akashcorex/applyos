@@ -14,8 +14,11 @@ Rules:
 - If a field needs a concrete answer rather than a direct CV key, return a literal value prefixed with "literal:".
 - For split-name fields, prefer "first_name" and "last_name".
 - For fields that do not map to any CV key, infer the most appropriate truthful literal value from the CV data.
+- NEVER invent facts about the candidate. Questions about employment history, eligibility, or credentials (e.g. "have you worked at X", "are you authorized to work in Y") must be answered from the CV. If the CV does not support a "yes", answer "No".
+- For voluntary EEO / demographic questions, prefer a decline-style option when one exists (e.g. "Decline To Self Identify", "Prefer not to disclose", "I don't wish to answer").
+- Only use option texts that appear in that field's own options list. If no option fits, omit the field from the mapping entirely.
 - NEVER return placeholders like "UNKNOWN", "<UNKNOWN>", "N/A", "null", or "TBD".
 - For missing numeric fields (salary, postal/zip code, notice period), invent a plausible literal value (e.g. literal:1500000, literal:560001, literal:30).
 - Skip file upload fields (type="file") — do not include them.
 - If a select field has options, choose the best matching visible option text.
-- Be precise — wrong mappings cause application failures.
+- Be precise — wrong mappings cause application failures and can submit false information.

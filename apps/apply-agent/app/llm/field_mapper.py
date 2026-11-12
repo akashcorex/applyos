@@ -58,6 +58,19 @@ def _format_cv(cv_data: CVData) -> str:
     return json.dumps(cv_data.model_dump(), indent=2, default=str)
 
 
+def _matches_options(value: str, options: list[str]) -> bool:
+    """True when a literal answer is one of the field's real options."""
+    raw = value.split(":", 1)[1] if value.startswith("literal:") else value
+    target = raw.strip().lower()
+    if not target:
+        return False
+    for option in options:
+        candidate = option.strip().lower()
+        if target == candidate or target in candidate or candidate in target:
+            return True
+    return False
+
+
 async def map_fields_with_llm(
     fields: list[FormField],
     cv_data: CVData,
@@ -109,7 +122,18 @@ async def map_fields_with_llm(
             }
         )
         logger.info("LLM field mapping: %d fields mapped", len(result.mapping))
-        return result.mapping
+        by_selector = {field.selector: field for field in fields}
+        clean: dict[str, str] = {}
+        for selector, value in result.mapping.items():
+            field = by_selector.get(selector)
+            if field and field.options and value.startswith("literal:"):
+                if not _matches_options(value, field.options):
+                    logger.warning(
+                        "Dropping mapping %s=%r: not among options", selector, value
+                    )
+                    continue
+            clean[selector] = value
+        return clean
 
     except Exception as exc:
         logger.error("LLM field mapping failed: %s", exc)

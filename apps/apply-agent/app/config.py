@@ -58,6 +58,15 @@ class Settings(BaseSettings):
     # --- Failure artifacts ---
     artifact_dir: str = "/tmp/applyos-artifacts"
 
+    # --- Browser engine ---
+    # "playwright" = bundled Chromium/Chrome. "fortress" = Fortress CDP engine.
+    apply_browser_engine: str = "playwright"
+    fortress_chrome_bin: str = ""
+    fortress_country: str = "IN"
+    fortress_cdp_port_base: int = 9300
+    fortress_cdp_timeout_seconds: float = 60.0
+    fortress_profile_dir: str = ""
+
     # --- Browser stealth ---
     # Headed Chrome greatly improves Lever invisible hCaptcha silent-pass.
     apply_headed: bool = False

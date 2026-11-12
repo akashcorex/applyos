@@ -180,7 +180,9 @@ async def _run_apply(payload: JobPayload, task_id: str) -> ApplyResultEvent:
     context = None
     try:
         headless = True if use_hitl else None
-        async with launch_browser(headless=headless) as browser:
+        async with launch_browser(
+            headless=headless, user_id=payload.user_profile.user_id
+        ) as browser:
             storage_state = await load_session(user_id)
             had_linkedin_at_start = has_linkedin_cookies(storage_state)
             had_wellfound_at_start = has_wellfound_cookies(storage_state)

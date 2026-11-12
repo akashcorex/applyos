@@ -24,6 +24,7 @@ from app.ats.base import (
     normalize_selector,
     resolve_mapped_value,
 )
+from app.browser.dom import first_visible, safe_click
 from app.browser.human_delay import human_click, human_type, random_pause
 from app.browser.resume_upload import prepare_resume_file
 from app.models.job_payload import CVData
@@ -139,7 +140,7 @@ class GreenhouseHandler(ATSHandler):
             return None
 
         try:
-            await field_el.click()
+            await safe_click(field_el)
             await random_pause(0.1, 0.2)
             option_locator = page.locator(
                 f"#react-select-{field_id}-listbox [role='option']"
@@ -173,7 +174,7 @@ class GreenhouseHandler(ATSHandler):
         if not field_id:
             return False
 
-        await field_el.click()
+        await safe_click(field_el)
         await random_pause(0.2, 0.5)
 
         option = await self._find_combobox_option(
@@ -197,7 +198,7 @@ class GreenhouseHandler(ATSHandler):
                 pass
             return False
 
-        await option.click()
+        await safe_click(option)
         await random_pause(0.2, 0.5)
         return True
 
@@ -229,7 +230,7 @@ class GreenhouseHandler(ATSHandler):
             attach_button = page.locator("form button").filter(has_text="Attach").first
             if await attach_button.count() > 0:
                 async with page.expect_file_chooser() as chooser_info:
-                    await attach_button.click()
+                    await safe_click(attach_button)
                 chooser = await chooser_info.value
                 await chooser.set_files(str(resume_path))
             else:
@@ -555,6 +556,21 @@ class GreenhouseHandler(ATSHandler):
         logger.info("Greenhouse: extracted %d fields", len(fields))
         return fields
 
+    async def _awaiting_security_code(self, page: Page) -> bool:
+        """True when Greenhouse shows its emailed security-code prompt."""
+        try:
+            return await page.evaluate(
+                """() => {
+                  const body = (document.body?.innerText || '').toLowerCase();
+                  if (/security code|verification code/.test(body)) return true;
+                  return Array.from(
+                    document.querySelectorAll('input[maxlength="1"]')
+                  ).some((el) => el.offsetParent !== null);
+                }"""
+            )
+        except Exception:
+            return False
+
     async def fill_and_submit(
         self,
         page: Page,
@@ -583,7 +599,7 @@ class GreenhouseHandler(ATSHandler):
                         )
                         continue
 
-                    field_el = await page.query_selector(selector)
+                    field_el = await first_visible(page, selector)
                     if field_el is None:
                         fill_debug.append(
                             {
@@ -839,6 +855,19 @@ class GreenhouseHandler(ATSHandler):
                 "Greenhouse: submit did not reach confirmation after filling %d fields",
                 filled,
             )
+            if await self._awaiting_security_code(page):
+                logger.warning(
+                    "Greenhouse: board requires an emailed security code"
+                )
+                return FillResult(
+                    success=False,
+                    ats_type=self.ats_name,
+                    fields_filled=filled,
+                    error=(
+                        "Greenhouse emailed a security code to the candidate; "
+                        "enter it to finish the application"
+                    ),
+                )
             return FillResult(
                 success=False,
                 ats_type=self.ats_name,

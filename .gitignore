@@ -91,3 +91,5 @@ out
 # Prisma client output (regenerate with `bun run db:generate`)
 packages/database/src/generated/
 .vercel
+# Fortress engine bundle (downloaded by scripts/setup_fortress.py)
+.fortress/

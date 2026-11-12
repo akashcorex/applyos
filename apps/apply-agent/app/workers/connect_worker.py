@@ -157,7 +157,7 @@ async def _run_connect(payload: ContactPayload) -> list[ConnectResultEvent]:
             )
         ]
 
-    async with launch_browser(headless=True) as browser:
+    async with launch_browser(headless=True, user_id=user_id) as browser:
         context = await create_context(browser, storage_state=storage_state)
         page = await new_stealth_page(context)
 

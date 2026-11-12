@@ -56,6 +56,30 @@ async def detect_captcha(page: Page) -> bool:
     return False
 
 
+async def detect_visible_captcha(page: Page) -> bool:
+    """Return True only for a CAPTCHA a human must interact with.
+
+    Invisible widgets (reCAPTCHA v3/Enterprise with ``size=invisible``) ship
+    inside normal forms and resolve on submit. Treating their hidden iframe as
+    a blocker fails every Greenhouse application before it is ever filled.
+    """
+    for selector in _CAPTCHA_SELECTORS:
+        element = await page.query_selector(selector)
+        if element is None:
+            continue
+        try:
+            src = (await element.get_attribute("src") or "").lower()
+            if "size=invisible" in src or "size=hidden" in src:
+                continue
+            if not await element.is_visible():
+                continue
+        except Exception:
+            continue
+        logger.warning("Visible CAPTCHA detected: %s", selector)
+        return True
+    return False
+
+
 async def extract_hcaptcha_sitekey(page: Page) -> str | None:
     """Find the hCaptcha sitekey on the current page."""
     sitekey = await page.evaluate(
@@ -315,6 +339,29 @@ async def try_click_turnstile_checkbox(page: Page) -> bool:
     ignores synthetic clicks, so the widget is located via its frame element
     and clicked through the page mouse (trusted input events).
     """
+    # Prefer the visible widget element: page.frames can miss it while it loads.
+    for element in await page.query_selector_all("iframe"):
+        try:
+            src = (await element.get_attribute("src") or "").lower()
+            if "challenges.cloudflare.com" not in src:
+                continue
+            if not await element.is_visible():
+                continue
+            box = await element.bounding_box()
+            if not box or box.get("width", 0) < 20 or box.get("height", 0) < 20:
+                continue
+            x = box["x"] + min(30.0, box["width"] / 2)
+            y = box["y"] + box["height"] / 2
+            await page.mouse.move(x - 60, y + 40)
+            await asyncio.sleep(0.2)
+            await page.mouse.move(x, y, steps=15)
+            await asyncio.sleep(0.25)
+            await page.mouse.click(x, y, delay=90)
+            logger.info("Turnstile: clicked widget iframe at (%.0f, %.0f)", x, y)
+            return True
+        except Exception:
+            continue
+
     frames = cf_challenge_frames(page)
     if not frames:
         logger.info("Turnstile: no Cloudflare challenge frame to click")
@@ -467,6 +514,30 @@ async def is_hcaptcha_challenge_visible(page: Page) -> bool:
     return False
 
 
+async def try_click_hcaptcha_checkbox(page: Page) -> bool:
+    """Click the hCaptcha checkbox like a person would.
+
+    A trusted session usually passes on the first click; only a risky one
+    escalates to the image grid.
+    """
+    selector = (
+        'iframe[title*="checkbox for hCaptcha"], '
+        'iframe[src*="hcaptcha"][src*="frame=checkbox"]'
+    )
+    try:
+        element = await page.query_selector(selector)
+        if element is None or not await element.is_visible():
+            return False
+        box = await element.bounding_box()
+        if not box or box.get("width", 0) < 20:
+            return False
+        await page.mouse.click(box["x"] + 30, box["y"] + box["height"] / 2)
+        logger.info("hCaptcha: clicked checkbox")
+        return True
+    except Exception:
+        return False
+
+
 async def wait_for_hcaptcha_silent_pass(
     page: Page,
     *,
@@ -588,17 +659,39 @@ async def solve_recaptcha(page: Page, site_key: str) -> str | None:
 
 
 async def solve_hcaptcha(page: Page, site_key: str) -> str | None:
-    """Request an hCaptcha solution from CapSolver (may be unsupported)."""
+    """Request an hCaptcha solution from CapSolver.
+
+    Lever uses hCaptcha Enterprise (UUID sitekeys), which needs the enterprise
+    task type; plain HCaptchaTask is rejected as unsupported.
+    """
     page_url = page.url
     logger.info("Requesting hCaptcha solution from CapSolver for %s", page_url)
-    return await _create_and_poll_capsolver(
-        {
-            "type": "HCaptchaTaskProxyLess",
-            "websiteURL": page_url,
-            "websiteKey": site_key,
-            "isInvisible": True,
-        }
+
+    is_uuid = bool(
+        re.fullmatch(
+            r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
+            site_key.strip().lower(),
+        )
     )
+    task_types = (
+        ["HCaptchaEnterpriseTaskProxyLess", "HCaptchaTaskProxyLess"]
+        if is_uuid
+        else ["HCaptchaTaskProxyLess", "HCaptchaEnterpriseTaskProxyLess"]
+    )
+
+    for task_type in task_types:
+        token = await _create_and_poll_capsolver(
+            {
+                "type": task_type,
+                "websiteURL": page_url,
+                "websiteKey": site_key,
+                "isInvisible": True,
+            }
+        )
+        if token:
+            return token
+        logger.warning("CapSolver %s failed: %s", task_type, _last_capsolver_error)
+    return None
 
 
 async def inject_hcaptcha_token(page: Page, token: str) -> None:
@@ -683,7 +776,7 @@ async def ensure_captcha_cleared(
         Error string asking for a manual handoff if still blocked.
     """
     if allow_solver is None:
-        allow_solver = settings.captcha_solver_enabled and not settings.hitl_mode
+        allow_solver = settings.captcha_solver_enabled
     # Already have a usable hCaptcha token (Lever silent-pass or prior inject).
     if await get_hcaptcha_token(page):
         return None
@@ -759,6 +852,12 @@ async def ensure_captcha_cleared(
         logger.info("Waiting for hCaptcha silent-pass (stealth)…")
         if await wait_for_hcaptcha_silent_pass(page, timeout_ms=silent_timeout_ms):
             return None
+
+        # A visible checkbox usually passes on one click; try that before a solver.
+        if await is_hcaptcha_challenge_visible(page):
+            if await try_click_hcaptcha_checkbox(page):
+                if await wait_for_hcaptcha_silent_pass(page, timeout_ms=12_000):
+                    return None
 
         challenge = await is_hcaptcha_challenge_visible(page)
         if not allow_solver:
